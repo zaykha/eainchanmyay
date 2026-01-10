@@ -1,0 +1,30 @@
+{
+  "name": "eaichanmyay",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "next": "16.1.1",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "styled-components": "^6.1.12",
+    "@supabase/supabase-js": "^2.52.0",
+    "@supabase/auth-helpers-nextjs": "^0.10.0",
+    "@aws-sdk/client-s3": "^3.626.0",
+    "@aws-sdk/s3-request-presigner": "^3.626.0",
+    "lucide-react": "^0.474.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.1.1",
+    "typescript": "^5"
+  }
+}

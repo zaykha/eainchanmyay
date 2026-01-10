@@ -1,0 +1,2 @@
+export const EAIN_CONTACT_PHONE =
+  process.env.NEXT_PUBLIC_EAIN_CONTACT_PHONE ?? "09-000-000-000";
