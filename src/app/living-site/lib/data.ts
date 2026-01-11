@@ -298,7 +298,7 @@ export async function getListingDetail(propertyId: string) {
   const { data: property, error } = await supabase
     .from("properties")
     .select(
-      "id,title,description,deal_type,property_type,price,currency,state_region,district,township,city,address_text,bedrooms,bathrooms,area_sqft"
+      "id,title,description,deal_type,property_type,price,currency,state_region,district,township,city,address_text,bedrooms,bathrooms,area_sqft,latitude,longitude"
     )
     .eq("id", propertyId)
     .eq("status", "published")

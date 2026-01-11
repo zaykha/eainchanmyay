@@ -11,6 +11,7 @@ import {
   MapPin,
   Phone,
   Ruler,
+  Tag,
 } from "lucide-react";
 import styled, { keyframes } from "styled-components";
 import { SiteHeader } from "@/app/living-site/components/SiteHeader";
@@ -55,7 +56,7 @@ const TagRow = styled.div`
   gap: 8px;
 `;
 
-const Tag = styled.span`
+const TagPill = styled.span`
   padding: 6px 10px;
   border-radius: 999px;
   border: 1px solid var(--color-outline);
@@ -98,13 +99,12 @@ const CarouselShell = styled.div`
   border: 1px solid var(--color-outline);
   background: var(--color-surface-2);
   box-shadow: var(--shadow-soft);
-  max-width: 400px;
-  margin: 0 auto;
+  width: 100%;
 `;
 
 const CarouselViewport = styled.div`
   width: 100%;
-  aspect-ratio: 1 / 1;
+  height: min(60vh, 520px);
   display: grid;
   place-items: center;
   background: var(--color-surface-2);
@@ -122,10 +122,8 @@ const slideIn = keyframes`
 `;
 
 const CarouselImage = styled.img`
-  max-width: 100%;
-  max-height: 100%;
-  width: auto;
-  height: auto;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
   animation: ${slideIn} 0.2s ease-out;
 `;
@@ -259,6 +257,17 @@ const PriceLine = styled.div`
   color: var(--color-text);
 `;
 
+const PriceBadge = styled.div`
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--color-outline);
+  background: var(--color-surface-2);
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--color-text);
+  box-shadow: var(--shadow-soft);
+`;
+
 const FeatureRow = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -293,6 +302,17 @@ const MetaText = styled.p`
   color: var(--color-muted);
 `;
 
+const MapLink = styled.a`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  font-weight: 600;
+  color: var(--color-text);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--color-text) 40%, transparent);
+`;
+
 const ContactCard = styled.div`
   border: 1px solid var(--color-outline);
   border-radius: 16px;
@@ -307,6 +327,20 @@ const ContactCard = styled.div`
 const ContactTitle = styled.div`
   font-weight: 700;
   font-size: 1.1rem;
+`;
+
+const TrustPill = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--color-outline);
+  background: var(--color-surface-2);
+  color: var(--color-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  width: fit-content;
 `;
 
 const ContactRow = styled.div`
@@ -665,6 +699,15 @@ const formatPropertyType = (value?: string) => {
   return formatLabel(value);
 };
 
+const getNumber = (value: unknown) => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  return undefined;
+};
+
 const formatDateLabel = (value?: string) => {
   if (!value) return "";
   const parsed = parseDate(value);
@@ -981,6 +1024,7 @@ export default function ListingDetailPage() {
   const currency = (property.currency as string) || "MMK";
   const dealType = formatDealType(property.deal_type as string);
   const propertyType = formatPropertyType(property.property_type as string);
+  const propertyTypeRaw = String(property.property_type ?? "").toLowerCase();
   const locationParts = [
     property.township,
     property.district,
@@ -990,6 +1034,18 @@ export default function ListingDetailPage() {
     .join(", ");
   const addressText = (property.address_text as string) || "";
   const city = (property.city as string) || "";
+  const latitude =
+    getNumber(property.latitude) ??
+    getNumber(property.lat) ??
+    getNumber(property.map_latitude);
+  const longitude =
+    getNumber(property.longitude) ??
+    getNumber(property.lng) ??
+    getNumber(property.map_longitude);
+  const mapsUrl =
+    latitude !== undefined && longitude !== undefined
+      ? `https://maps.google.com/?q=${latitude},${longitude}`
+      : null;
   const bedrooms = property.bedrooms as number | undefined;
   const bathrooms = property.bathrooms as number | undefined;
   const areaSqft = property.area_sqft as number | undefined;
@@ -998,6 +1054,26 @@ export default function ListingDetailPage() {
       ? new Intl.NumberFormat("en-US").format(areaSqft)
       : undefined;
   const primaryContact = EAIN_CONTACT_PHONE;
+  const showBeds =
+    ["house", "house_land", "apartment"].includes(propertyTypeRaw) &&
+    bedrooms !== undefined;
+  const showBaths =
+    ["house", "house_land", "apartment"].includes(propertyTypeRaw) &&
+    bathrooms !== undefined;
+  const featureItems: Array<{ key: string; label: string; icon: React.ElementType }> = [];
+  if (showBeds) {
+    featureItems.push({ key: "beds", label: `${bedrooms} bedrooms`, icon: BedDouble });
+  }
+  if (showBaths) {
+    featureItems.push({ key: "baths", label: `${bathrooms} bathrooms`, icon: Bath });
+  }
+  if (formattedArea) {
+    featureItems.push({ key: "area", label: `${formattedArea} sqft`, icon: Ruler });
+  }
+  if (!showBeds && !showBaths && dealType) {
+    featureItems.push({ key: "deal", label: dealType, icon: Tag });
+  }
+  featureItems.push({ key: "type", label: propertyType || "Property", icon: Home });
 
   const handleViewingSubmit = async () => {
     if (!propertyId) return;
@@ -1065,11 +1141,11 @@ export default function ListingDetailPage() {
               {locationParts || city || "Location TBD"}
             </Location>
             <TagRow>
-              {dealType && <Tag>{dealType}</Tag>}
-              {propertyType && <Tag>{propertyType}</Tag>}
+              {dealType && <TagPill>{dealType}</TagPill>}
+              {propertyType && <TagPill>{propertyType}</TagPill>}
             </TagRow>
           </TitleBlock>
-          <PriceLine>{formatCurrency(price, currency)}</PriceLine>
+          <PriceBadge>{formatCurrency(price, currency)}</PriceBadge>
         </HeaderRow>
         <Gallery>
           {galleryUrls.length ? (
@@ -1179,28 +1255,12 @@ export default function ListingDetailPage() {
         <ContentLayout>
           <div>
             <FeatureRow>
-              {bedrooms !== undefined && (
-                <FeatureItem>
-                  <BedDouble size={16} />
-                  {bedrooms} bedrooms
+              {featureItems.map((item) => (
+                <FeatureItem key={item.key}>
+                  <item.icon size={16} />
+                  {item.label}
                 </FeatureItem>
-              )}
-              {bathrooms !== undefined && (
-                <FeatureItem>
-                  <Bath size={16} />
-                  {bathrooms} bathrooms
-                </FeatureItem>
-              )}
-              {areaSqft !== undefined && (
-                <FeatureItem>
-                  <Ruler size={16} />
-                  {formattedArea} sqft
-                </FeatureItem>
-              )}
-              <FeatureItem>
-                <Home size={16} />
-                {propertyType || "Property"}
-              </FeatureItem>
+              ))}
             </FeatureRow>
             <SectionBlock>
               <SectionTitle>Description</SectionTitle>
@@ -1211,10 +1271,17 @@ export default function ListingDetailPage() {
               <MetaText>{locationParts || city || "Location details coming soon."}</MetaText>
               {addressText && <MetaText>{addressText}</MetaText>}
               {city && !locationParts.includes(city) && <MetaText>{city}</MetaText>}
+              {mapsUrl && (
+                <MapLink href={mapsUrl} target="_blank" rel="noreferrer">
+                  <MapPin size={16} />
+                  Open in Google Maps
+                </MapLink>
+              )}
             </SectionBlock>
           </div>
           <ContactCard>
             <ContactTitle>Contact agent</ContactTitle>
+            <TrustPill>Verified agent • Response within 24h</TrustPill>
             <ContactRow>
               <strong>Eain Chan Myae Advisory</strong>
               <span>Call our team for verified owner connections.</span>
