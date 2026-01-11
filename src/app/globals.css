@@ -3,7 +3,7 @@
 :root {
   --color-primary: #EB2340;
   --color-primary-dark: #C81933;
-  --gradient: linear-gradient(135deg, #EB2340, #F04A60, #C81933);
+  --gradient: #EB2340;
   --color-paper: #F5F6FA;
   --color-surface: #FFFFFF;
   --color-text: #1A2230;

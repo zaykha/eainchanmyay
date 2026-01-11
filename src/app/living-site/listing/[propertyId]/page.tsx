@@ -1,17 +1,32 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import { Bath, BedDouble, Home, MapPin, Phone, Ruler } from "lucide-react";
-import styled from "styled-components";
+import {
+  Bath,
+  BedDouble,
+  ChevronLeft,
+  ChevronRight,
+  Home,
+  MapPin,
+  Phone,
+  Ruler,
+} from "lucide-react";
+import styled, { keyframes } from "styled-components";
 import { SiteHeader } from "@/app/living-site/components/SiteHeader";
 import { BottomNav } from "@/app/living-site/components/BottomNav";
 import { SectionTitle } from "@/app/living-site/components/PageSection";
 import { useListingDetail } from "@/app/living-site/hooks/useListingDetail";
-import { createViewingRequest } from "@/app/living-site/lib/data";
+import {
+  createViewingRequest,
+  isPropertySaved,
+  toggleSavedProperty,
+} from "@/app/living-site/lib/data";
 import { resolvePhotoUrl } from "@/app/living-site/lib/images";
 import { formatCurrency } from "@/app/living-site/lib/format";
 import { EAIN_CONTACT_PHONE } from "@/app/living-site/lib/constants";
+import { useAppState } from "@/app/living-site/lib/app-state";
+import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
 
 const PageShell = styled.div`
   max-width: 1140px;
@@ -60,30 +75,6 @@ const Location = styled.span`
 
 const Gallery = styled.div`
   display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 12px;
-
-  @media (max-width: 900px) {
-    grid-template-columns: 1fr;
-  }
-`;
-
-const GalleryMain = styled.div`
-  min-height: 240px;
-`;
-
-const GalleryImage = styled.img`
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 16px;
-  border: 1px solid var(--color-outline);
-  box-shadow: var(--shadow-soft);
-`;
-
-const GalleryGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 `;
 
@@ -98,6 +89,158 @@ const ImagePlaceholder = styled.div`
   display: grid;
   place-items: center;
   box-shadow: var(--shadow-soft);
+`;
+
+const CarouselShell = styled.div`
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--color-outline);
+  background: var(--color-surface-2);
+  box-shadow: var(--shadow-soft);
+  max-width: 400px;
+  margin: 0 auto;
+`;
+
+const CarouselViewport = styled.div`
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  display: grid;
+  place-items: center;
+  background: var(--color-surface-2);
+`;
+
+const slideIn = keyframes`
+  from {
+    opacity: 0.75;
+    transform: translateX(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+`;
+
+const CarouselImage = styled.img`
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  animation: ${slideIn} 0.2s ease-out;
+`;
+
+const CarouselButton = styled.button`
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: 1px solid var(--color-outline);
+  background: color-mix(in srgb, var(--color-surface-2) 92%, transparent);
+  color: var(--color-text);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: var(--shadow-soft);
+  z-index: 2;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
+
+const PrevButton = styled(CarouselButton)`
+  left: 12px;
+`;
+
+const NextButton = styled(CarouselButton)`
+  right: 12px;
+`;
+
+const DotRow = styled.div`
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+`;
+
+const Dot = styled.button<{ $active?: boolean }>`
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  border: none;
+  background: ${(props) =>
+    props.$active
+      ? "var(--color-primary)"
+      : "color-mix(in srgb, var(--color-muted) 60%, transparent)"};
+  cursor: pointer;
+`;
+
+const LightboxNavButton = styled(CarouselButton)`
+  position: static;
+  transform: none;
+  width: 44px;
+  height: 44px;
+`;
+
+const LightboxOverlay = styled.div`
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 10, 18, 0.85);
+  display: grid;
+  place-items: center;
+  z-index: 90;
+  padding: 16px;
+`;
+
+const LightboxCard = styled.div`
+  width: min(960px, 96vw);
+  background: var(--color-surface-2);
+  border-radius: 18px;
+  border: 1px solid var(--color-outline);
+  box-shadow: var(--shadow-soft);
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+`;
+
+const LightboxViewport = styled.div`
+  width: 100%;
+  max-height: 72vh;
+  min-height: 320px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  place-items: center;
+  background: var(--color-surface-2);
+  border-radius: 14px;
+  overflow: hidden;
+`;
+
+const LightboxImage = styled.img`
+  max-width: 100%;
+  max-height: 70vh;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  animation: ${slideIn} 0.2s ease-out;
+`;
+
+const LightboxHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+`;
+
+const CloseButton = styled.button`
+  border: 1px solid var(--color-outline);
+  border-radius: 10px;
+  padding: 6px 10px;
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  cursor: pointer;
+  font-weight: 600;
 `;
 
 const ContentLayout = styled.div`
@@ -185,10 +328,20 @@ const ContactButton = styled.a`
   padding: 10px 14px;
   border-radius: var(--radius-md);
   background: var(--gradient);
-  color: #fff;
+  color: var(--color-text);
   font-weight: 600;
   border: 1px solid rgba(0, 0, 0, 0.12);
   box-shadow: var(--frame-shadow);
+  cursor: pointer;
+`;
+
+const SaveButton = styled.button`
+  border: 1px solid var(--color-outline);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  background: transparent;
+  color: var(--color-text);
+  font-weight: 600;
   cursor: pointer;
 `;
 
@@ -217,7 +370,7 @@ const ModalOverlay = styled.div`
 
 const ModalCard = styled.div`
   width: min(520px, 100%);
-  background: var(--color-surface);
+  background: var(--color-surface-2);
   border: 1px solid var(--color-outline);
   border-radius: 16px;
   padding: 18px;
@@ -243,8 +396,8 @@ const FloatingLabel = styled.span`
   left: 12px;
   top: 50%;
   font-size: 0.75rem;
-  color: var(--color-muted);
-  background: var(--color-surface);
+  color: color-mix(in srgb, var(--color-text) 72%, transparent);
+  background: var(--color-surface-2);
   padding: 0 4px;
   transition: transform 0.15s ease, color 0.15s ease;
   transform: translateY(-50%);
@@ -255,7 +408,7 @@ const FloatingInput = styled.input`
   border-radius: 12px;
   border: 1px solid var(--color-outline);
   padding: 0 12px;
-  background: var(--color-surface);
+  background: var(--color-surface-2);
   color: var(--color-text);
   height: 50px;
   font-size: 0.95rem;
@@ -272,7 +425,7 @@ const FloatingTextarea = styled.textarea`
   border-radius: 12px;
   border: 1px solid var(--color-outline);
   padding: 16px 12px;
-  background: var(--color-surface);
+  background: var(--color-surface-2);
   color: var(--color-text);
   min-height: 100px;
   resize: none;
@@ -295,7 +448,7 @@ const SelectTrigger = styled.button`
   border-radius: 12px;
   border: 1px solid var(--color-outline);
   padding: 0 12px;
-  background: var(--color-surface);
+  background: var(--color-surface-2);
   color: var(--color-text);
   height: 50px;
   text-align: left;
@@ -321,7 +474,7 @@ const SelectMenu = styled.div`
   top: calc(100% + 6px);
   left: 0;
   right: 0;
-  background: var(--color-surface);
+  background: var(--color-surface-2);
   border: 1px solid var(--color-outline);
   border-radius: 12px;
   box-shadow: var(--shadow-soft);
@@ -350,7 +503,7 @@ const DateTrigger = styled.button`
   border-radius: 12px;
   border: 1px solid var(--color-outline);
   padding: 0 12px;
-  background: var(--color-surface);
+  background: var(--color-surface-2);
   color: var(--color-text);
   height: 50px;
   text-align: left;
@@ -377,7 +530,7 @@ const CalendarOverlay = styled.div`
 
 const CalendarCard = styled.div`
   width: min(420px, 100%);
-  background: var(--color-surface);
+  background: var(--color-surface-2);
   border: 1px solid var(--color-outline);
   border-radius: 16px;
   box-shadow: var(--shadow-soft);
@@ -437,7 +590,7 @@ const SubmitButton = styled.button`
   border-radius: var(--radius-md);
   padding: 10px 14px;
   background: var(--gradient);
-  color: #fff;
+  color: var(--color-text);
   font-weight: 600;
   cursor: pointer;
   box-shadow: var(--frame-shadow);
@@ -460,7 +613,7 @@ const GhostButton = styled.button`
 
 const ErrorText = styled.p`
   margin: 0;
-  color: #dc2626;
+  color: var(--color-danger);
   font-size: 0.9rem;
   font-weight: 600;
 `;
@@ -472,6 +625,24 @@ const SuccessCard = styled.div`
   padding: 12px;
   display: grid;
   gap: 6px;
+`;
+
+const BenefitCard = styled.div`
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 28%, transparent);
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+  padding: 12px;
+  display: grid;
+  gap: 6px;
+`;
+
+const BenefitList = styled.ul`
+  margin: 0;
+  padding-left: 18px;
+  color: var(--color-muted);
+  display: grid;
+  gap: 4px;
+  font-size: 0.9rem;
 `;
 
 const formatLabel = (value?: string) =>
@@ -736,6 +907,7 @@ function DateTimePicker({ label, name, value, onChange }: DateTimePickerProps) {
 
 export default function ListingDetailPage() {
   const params = useParams();
+  const { user } = useAppState();
   const propertyId = params?.propertyId as string | undefined;
   const { detail, loading } = useListingDetail(propertyId);
   const [viewingOpen, setViewingOpen] = useState(false);
@@ -747,12 +919,23 @@ export default function ListingDetailPage() {
   const [viewingSubmitting, setViewingSubmitting] = useState(false);
   const [viewingError, setViewingError] = useState<string | null>(null);
   const [viewingSuccess, setViewingSuccess] = useState(false);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [saveSubmitting, setSaveSubmitting] = useState(false);
   const timeWindowOptions = [
     { value: "9-12", label: "Morning (9–12)" },
     { value: "12-3", label: "Afternoon (12–3)" },
     { value: "3-6", label: "Evening (3–6)" },
     { value: "6-9", label: "Night (6–9)" },
   ];
+
+  useEffect(() => {
+    if (!user?.id || !propertyId) return;
+    isPropertySaved(user.id, propertyId).then((result) => {
+      setSaved(result);
+    });
+  }, [propertyId, user?.id]);
 
   const galleryUrls = useMemo(() => {
     const images = detail?.images ?? [];
@@ -769,11 +952,15 @@ export default function ListingDetailPage() {
       .filter((url): url is string => Boolean(url));
   }, [detail?.images]);
 
+  useEffect(() => {
+    setActiveImageIndex(0);
+  }, [galleryUrls.length]);
+
   if (loading) {
     return (
       <div>
         <SiteHeader />
-        <PageShell>Loading property...</PageShell>
+        <LoadingOverlay message="Loading property..." />
       </div>
     );
   }
@@ -822,6 +1009,7 @@ export default function ListingDetailPage() {
     setViewingSubmitting(true);
     const result = await createViewingRequest({
       propertyId,
+      userId: user?.id,
       name: viewingName.trim(),
       phone: viewingPhone.trim(),
       preferredDate: viewingDate,
@@ -834,6 +1022,35 @@ export default function ListingDetailPage() {
       return;
     }
     setViewingSuccess(true);
+  };
+
+  const handleSave = async () => {
+    if (!propertyId) return;
+    if (!user) {
+      if (typeof window !== "undefined") {
+        const resumePayload = {
+          propertyId,
+          resumePath: `/listing/${propertyId}`,
+        };
+        window.localStorage.setItem(
+          "kaiten_living_auth_resume",
+          JSON.stringify(resumePayload)
+        );
+      }
+      window.location.href = "/auth";
+      return;
+    }
+
+    setSaveSubmitting(true);
+    const result = await toggleSavedProperty({
+      userId: user.id,
+      propertyId,
+      shouldSave: !saved,
+    });
+    setSaveSubmitting(false);
+    if (result.ok) {
+      setSaved((prev) => !prev);
+    }
   };
 
   return (
@@ -855,25 +1072,109 @@ export default function ListingDetailPage() {
           <PriceLine>{formatCurrency(price, currency)}</PriceLine>
         </HeaderRow>
         <Gallery>
-          <GalleryMain>
-            {galleryUrls[0] ? (
-              <GalleryImage src={galleryUrls[0]} alt={title} />
-            ) : (
-              <ImagePlaceholder>No photo available</ImagePlaceholder>
-            )}
-          </GalleryMain>
-          <GalleryGrid>
-            {galleryUrls.slice(1, 5).map((url) => (
-              <GalleryImage key={url} src={url} alt={`${title} photo`} />
-            ))}
-          </GalleryGrid>
+          {galleryUrls.length ? (
+            <>
+              <CarouselShell>
+                <CarouselViewport onClick={() => setLightboxOpen(true)}>
+                  <CarouselImage
+                    src={galleryUrls[activeImageIndex]}
+                    alt={`${title} photo ${activeImageIndex + 1}`}
+                  />
+                </CarouselViewport>
+                <PrevButton
+                  type="button"
+                  aria-label="Previous photo"
+                  onClick={() =>
+                    setActiveImageIndex((prev) => Math.max(0, prev - 1))
+                  }
+                  disabled={activeImageIndex === 0}
+                >
+                  <ChevronLeft size={18} />
+                </PrevButton>
+                <NextButton
+                  type="button"
+                  aria-label="Next photo"
+                  onClick={() =>
+                    setActiveImageIndex((prev) =>
+                      Math.min(galleryUrls.length - 1, prev + 1)
+                    )
+                  }
+                  disabled={activeImageIndex === galleryUrls.length - 1}
+                >
+                  <ChevronRight size={18} />
+                </NextButton>
+              </CarouselShell>
+              {galleryUrls.length > 1 && (
+                <DotRow>
+                  {galleryUrls.map((_, index) => (
+                    <Dot
+                      key={`dot-${index}`}
+                      type="button"
+                      $active={index === activeImageIndex}
+                      aria-label={`Go to photo ${index + 1}`}
+                      onClick={() => setActiveImageIndex(index)}
+                    />
+                  ))}
+                </DotRow>
+              )}
+            </>
+          ) : (
+            <ImagePlaceholder>No photo available</ImagePlaceholder>
+          )}
         </Gallery>
-        {galleryUrls.length > 5 && (
-          <GalleryGrid>
-            {galleryUrls.slice(5).map((url) => (
-              <GalleryImage key={url} src={url} alt={`${title} photo`} />
-            ))}
-          </GalleryGrid>
+        {lightboxOpen && (
+          <LightboxOverlay onClick={() => setLightboxOpen(false)}>
+            <LightboxCard onClick={(event) => event.stopPropagation()}>
+              <LightboxHeader>
+                <strong>{title}</strong>
+                <CloseButton type="button" onClick={() => setLightboxOpen(false)}>
+                  Close
+                </CloseButton>
+              </LightboxHeader>
+              <LightboxViewport>
+                <LightboxNavButton
+                  type="button"
+                  aria-label="Previous photo"
+                  onClick={() =>
+                    setActiveImageIndex((prev) => Math.max(0, prev - 1))
+                  }
+                  disabled={activeImageIndex === 0}
+                >
+                  <ChevronLeft size={18} />
+                </LightboxNavButton>
+                <LightboxImage
+                  key={galleryUrls[activeImageIndex]}
+                  src={galleryUrls[activeImageIndex]}
+                  alt={`${title} photo ${activeImageIndex + 1}`}
+                />
+                <LightboxNavButton
+                  type="button"
+                  aria-label="Next photo"
+                  onClick={() =>
+                    setActiveImageIndex((prev) =>
+                      Math.min(galleryUrls.length - 1, prev + 1)
+                    )
+                  }
+                  disabled={activeImageIndex === galleryUrls.length - 1}
+                >
+                  <ChevronRight size={18} />
+                </LightboxNavButton>
+              </LightboxViewport>
+              {galleryUrls.length > 1 && (
+                <DotRow>
+                  {galleryUrls.map((_, index) => (
+                    <Dot
+                      key={`lightbox-dot-${index}`}
+                      type="button"
+                      $active={index === activeImageIndex}
+                      aria-label={`Go to photo ${index + 1}`}
+                      onClick={() => setActiveImageIndex(index)}
+                    />
+                  ))}
+                </DotRow>
+              )}
+            </LightboxCard>
+          </LightboxOverlay>
         )}
         <ContentLayout>
           <div>
@@ -925,6 +1226,9 @@ export default function ListingDetailPage() {
               <Phone size={16} style={{ marginRight: 6 }} />
               Contact agent
             </ContactButton>
+            <SaveButton type="button" onClick={handleSave} disabled={saveSubmitting}>
+              {saved ? "Saved" : "Save property"}
+            </SaveButton>
             <SecondaryButton
               as="button"
               type="button"
@@ -976,6 +1280,32 @@ export default function ListingDetailPage() {
               value={viewingNotes}
               onChange={setViewingNotes}
             />
+            {!user && !viewingSuccess && (
+              <BenefitCard>
+                <strong>Sign in to track your requests</strong>
+                <BenefitList>
+                  <li>Save properties and compare later.</li>
+                  <li>See viewing request status in one place.</li>
+                  <li>Get price-change alerts and similar listings.</li>
+                </BenefitList>
+                <ModalActions>
+                  <GhostButton
+                    type="button"
+                    onClick={() => {
+                      if (typeof window !== "undefined") {
+                        window.localStorage.setItem(
+                          "kaiten_living_auth_resume",
+                          JSON.stringify({ resumePath: `/listing/${propertyId}` })
+                        );
+                      }
+                      window.location.href = "/auth";
+                    }}
+                  >
+                    Sign in
+                  </GhostButton>
+                </ModalActions>
+              </BenefitCard>
+            )}
             {viewingError && <ErrorText>{viewingError}</ErrorText>}
             {viewingSuccess && (
               <SuccessCard>

@@ -4,6 +4,7 @@ import { useState } from "react";
 import styled from "styled-components";
 import { useAppState } from "@/app/living-site/lib/app-state";
 import { supabase, isSupabaseConfigured } from "@/app/living-site/lib/supabaseClient";
+import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
 
 const Wrapper = styled.div`
   display: grid;
@@ -21,7 +22,7 @@ const BrandMark = styled.div`
   height: 56px;
   border-radius: 14px;
   border: 1px solid var(--color-outline);
-  background: #fff;
+  background: var(--color-surface-2);
   display: grid;
   place-items: center;
   box-shadow: var(--shadow-soft);
@@ -48,7 +49,7 @@ const Tabs = styled.div`
   grid-template-columns: repeat(2, 1fr);
   border: 1px solid var(--color-outline);
   border-radius: 12px;
-  background: var(--color-surface);
+  background: var(--color-surface-2);
   overflow: hidden;
   width: 100%;
 `;
@@ -56,7 +57,7 @@ const Tabs = styled.div`
 const TabButton = styled.button<{ $active: boolean }>`
   border: none;
   background: ${(props) => (props.$active ? "var(--color-primary)" : "transparent")};
-  color: ${(props) => (props.$active ? "#fff" : "var(--color-text)")};
+  color: var(--color-text);
   padding: 10px 14px;
   cursor: pointer;
   font-weight: 600;
@@ -85,7 +86,7 @@ const FloatingLabel = styled.span`
   top: 8px;
   font-size: 0.75rem;
   color: var(--color-muted);
-  background: var(--color-surface);
+  background: var(--color-surface-2);
   padding: 0 4px;
   transition: transform 0.15s ease, color 0.15s ease;
   transform-origin: left center;
@@ -95,7 +96,8 @@ const Input = styled.input`
   border-radius: 10px;
   border: 1px solid var(--color-outline);
   padding: 14px 10px 6px;
-  background: var(--color-surface);
+  background: var(--color-surface-2);
+  color: var(--color-text);
   height: 40px;
 `;
 
@@ -104,7 +106,7 @@ const PrimaryButton = styled.button`
   border-radius: var(--radius-md);
   padding: 10px 14px;
   background: var(--gradient);
-  color: #fff;
+  color: var(--color-text);
   font-weight: 600;
   cursor: pointer;
   box-shadow: var(--frame-shadow);
@@ -114,7 +116,8 @@ const SecondaryButton = styled.button`
   border: 1px solid var(--color-outline);
   border-radius: var(--radius-md);
   padding: 10px 14px;
-  background: var(--color-surface);
+  background: var(--color-surface-2);
+  color: var(--color-text);
   cursor: pointer;
   font-weight: 600;
 `;
@@ -145,26 +148,12 @@ const StrengthDot = styled.span<{ $active: boolean }>`
   border-radius: 999px;
   border: 1px solid var(--color-outline);
   background: ${(props) => (props.$active ? "var(--color-primary)" : "transparent")};
-  box-shadow: ${(props) => (props.$active ? "0 0 0 2px rgba(36, 53, 111, 0.15)" : "none")};
+  box-shadow: ${(props) =>
+    props.$active
+      ? "0 0 0 2px color-mix(in srgb, var(--color-primary) 25%, transparent)"
+      : "none"};
 `;
 
-const LoaderOverlay = styled.div`
-  position: fixed;
-  inset: 0;
-  background: rgba(12, 18, 36, 0.35);
-  display: grid;
-  place-items: center;
-  z-index: 70;
-`;
-
-const LoaderCard = styled.div`
-  background: var(--color-surface);
-  border: 1px solid var(--color-outline);
-  border-radius: 16px;
-  padding: 16px 20px;
-  box-shadow: var(--shadow-soft);
-  text-align: center;
-`;
 
 type Mode = "login" | "register";
 
@@ -325,9 +314,7 @@ export function AuthScreen({ onSuccess }: AuthScreenProps) {
       )}
       {message && <Message>{message}</Message>}
       {loadingMessage && (
-        <LoaderOverlay>
-          <LoaderCard>{loadingMessage}</LoaderCard>
-        </LoaderOverlay>
+        <LoadingOverlay message={loadingMessage} />
       )}
     </Wrapper>
   );

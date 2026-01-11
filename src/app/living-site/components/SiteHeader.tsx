@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import styled from "styled-components";
-import { PhoneCall, User } from "lucide-react";
+import { MoonStar, Settings, SunMedium, UserCircle2 } from "lucide-react";
 import { useAppState } from "@/app/living-site/lib/app-state";
+import { useThemeMode } from "@/app/living-site/components/Providers";
 
 const Header = styled.header`
   position: sticky;
@@ -102,6 +103,7 @@ const IconButton = styled(Link)`
 
 export function SiteHeader() {
   const { user } = useAppState();
+  const { mode, toggle } = useThemeMode();
 
   return (
     <Header>
@@ -116,11 +118,14 @@ export function SiteHeader() {
           </BrandText>
         </Brand>
         <Actions>
-          <IconButton href="/#contact" aria-label="Contact">
-            <PhoneCall strokeWidth={1.6} />
+          <IconButton href="/account" aria-label="Account">
+            <UserCircle2 strokeWidth={1.6} />
           </IconButton>
-          <IconButton href={user ? "/settings" : "/auth"} aria-label="Account">
-            <User strokeWidth={1.6} />
+          <IconButton as="button" type="button" onClick={toggle} aria-label="Toggle theme">
+            {mode === "dark" ? <SunMedium strokeWidth={1.6} /> : <MoonStar strokeWidth={1.6} />}
+          </IconButton>
+          <IconButton href={user ? "/settings" : "/auth"} aria-label="Settings">
+            <Settings strokeWidth={1.6} />
           </IconButton>
         </Actions>
       </HeaderInner>

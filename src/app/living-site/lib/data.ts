@@ -37,6 +37,7 @@ export type ListingFilters = {
 
 export type ViewingRequestInput = {
   propertyId: string;
+  userId?: string;
   name: string;
   phone: string;
   preferredDate: string;
@@ -328,6 +329,7 @@ export async function createViewingRequest(input: ViewingRequestInput) {
 
   const payload = {
     property_id: input.propertyId,
+    user_id: input.userId ?? null,
     name: input.name,
     phone: input.phone,
     preferred_date: input.preferredDate,
@@ -342,4 +344,94 @@ export async function createViewingRequest(input: ViewingRequestInput) {
   }
 
   return { ok: true };
+}
+
+export async function getViewingRequestsForUser(userId: string) {
+  if (!isSupabaseConfigured) {
+    return [] as Array<Record<string, unknown>>;
+  }
+
+  const { data, error } = await supabase
+    .from("viewing_requests")
+    .select(
+      "id,property_id,preferred_date,preferred_time_window,created_at,property:properties(id,title,township,district,price,currency)"
+    )
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (error || !data) {
+    console.warn("Failed to load viewing requests", error);
+    return [] as Array<Record<string, unknown>>;
+  }
+
+  return data as Array<Record<string, unknown>>;
+}
+
+export async function getSavedPropertiesForUser(userId: string) {
+  if (!isSupabaseConfigured) {
+    return [] as Array<Record<string, unknown>>;
+  }
+
+  const { data, error } = await supabase
+    .from("saved_properties")
+    .select(
+      "id,property_id,created_at,property:properties(id,title,township,district,price,currency,deal_type,property_type)"
+    )
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (error || !data) {
+    console.warn("Failed to load saved properties", error);
+    return [] as Array<Record<string, unknown>>;
+  }
+
+  return data as Array<Record<string, unknown>>;
+}
+
+export async function toggleSavedProperty(input: {
+  userId: string;
+  propertyId: string;
+  shouldSave: boolean;
+}) {
+  if (!isSupabaseConfigured) {
+    return { ok: false, message: "Supabase is not configured." };
+  }
+
+  if (input.shouldSave) {
+    const { error } = await supabase
+      .from("saved_properties")
+      .upsert(
+        { user_id: input.userId, property_id: input.propertyId },
+        { onConflict: "user_id,property_id" }
+      );
+    return error ? { ok: false, message: error.message } : { ok: true };
+  }
+
+  const { error } = await supabase
+    .from("saved_properties")
+    .delete()
+    .eq("user_id", input.userId)
+    .eq("property_id", input.propertyId);
+
+  return error ? { ok: false, message: error.message } : { ok: true };
+}
+
+export async function isPropertySaved(userId: string, propertyId: string) {
+  if (!isSupabaseConfigured) {
+    return false;
+  }
+
+  const { data, error } = await supabase
+    .from("saved_properties")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("property_id", propertyId)
+    .maybeSingle();
+
+  if (error) {
+    console.warn("Failed to check saved property", error);
+    return false;
+  }
+
+  return Boolean(data);
 }

@@ -22,7 +22,7 @@ const SectionLabel = styled.span`
 `;
 
 const Card = styled.div`
-  background: var(--color-surface);
+  background: var(--color-surface-2);
   border: 1px solid var(--color-outline);
   border-radius: 16px;
   box-shadow: var(--shadow-soft);
@@ -43,7 +43,7 @@ const PrimaryButton = styled.button`
   border-radius: var(--radius-md);
   padding: 8px 14px;
   background: var(--gradient);
-  color: #fff;
+  color: var(--color-text);
   font-weight: 600;
   cursor: pointer;
   box-shadow: var(--frame-shadow);
@@ -53,7 +53,8 @@ const SecondaryButton = styled.button`
   border: 1px solid var(--color-outline);
   border-radius: var(--radius-md);
   padding: 8px 14px;
-  background: var(--color-surface);
+  background: var(--color-surface-2);
+  color: var(--color-text);
   font-weight: 600;
   cursor: pointer;
 `;

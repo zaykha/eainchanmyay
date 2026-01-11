@@ -20,7 +20,7 @@ const AuthCard = styled(Panel)`
   width: min(420px, 100%);
   display: grid;
   gap: 12px;
-  background: color-mix(in srgb, var(--color-surface) 92%, white);
+  background: var(--color-surface-2);
 `;
 
 const BackButton = styled.button`
@@ -30,7 +30,8 @@ const BackButton = styled.button`
   border: 1px solid var(--color-outline);
   border-radius: 999px;
   padding: 8px 12px;
-  background: var(--color-surface);
+  background: var(--color-surface-2);
+  color: var(--color-text);
   cursor: pointer;
   font-weight: 600;
   box-shadow: var(--frame-shadow);
@@ -40,7 +41,8 @@ const SecondaryButton = styled.button`
   border: 1px solid var(--color-outline);
   border-radius: var(--radius-md);
   padding: 12px 18px;
-  background: rgba(255, 255, 255, 0.6);
+  background: var(--color-surface-2);
+  color: var(--color-text);
   cursor: pointer;
   box-shadow: var(--frame-shadow);
   transition: transform 0.15s ease;
@@ -59,6 +61,7 @@ export default function AuthPage() {
   const router = useRouter();
   const [message, setMessage] = useState<string | null>(null);
   const [resumePath, setResumePath] = useState<string | null>(null);
+  const [redirecting, setRedirecting] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -74,6 +77,13 @@ export default function AuthPage() {
     }
   }, []);
 
+  useEffect(() => {
+    if (!user) return;
+    const target = resumePath || "/";
+    setRedirecting(true);
+    router.replace(target);
+  }, [resumePath, router, user]);
+
   return (
     <Centered>
       <BackButton type="button" onClick={() => router.back()}>
@@ -88,7 +98,7 @@ export default function AuthPage() {
         )}
         {user ? (
           <div>
-            <p>Signed in as {user.email}</p>
+            <p>{redirecting ? "Redirecting..." : "Signing you in..."}</p>
             <SecondaryButton
               type="button"
               onClick={async () => {
@@ -105,9 +115,7 @@ export default function AuthPage() {
               if (typeof window !== "undefined") {
                 window.localStorage.removeItem("kaiten_living_auth_resume");
               }
-              if (resumePath) {
-                router.push(resumePath);
-              }
+              router.replace(resumePath || "/");
             }}
           />
         )}

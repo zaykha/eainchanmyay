@@ -3,6 +3,7 @@
 import styled from "styled-components";
 import type { Listing } from "@/app/living-site/lib/data";
 import { ListingCard } from "@/app/living-site/components/ListingCard";
+import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
 
 const Grid = styled.div`
   display: grid;
@@ -27,7 +28,7 @@ type ListingGridProps = {
 
 export function ListingGrid({ listings, loading }: ListingGridProps) {
   if (loading) {
-    return <EmptyState>Loading listings...</EmptyState>;
+    return <LoadingOverlay message="Loading listings..." />;
   }
 
   if (!listings.length) {

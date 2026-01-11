@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import styled from "styled-components";
-import { Compass, PhoneCall, Settings } from "lucide-react";
+import { Compass, UserCircle2, Settings } from "lucide-react";
 
 const Shell = styled.nav`
   position: fixed;
@@ -78,7 +78,7 @@ export function BottomNav() {
 
   const navItems = [
     { label: "Explore", icon: <Compass size={18} />, path: "/" },
-    { label: "Contact", icon: <PhoneCall size={18} />, path: "/#contact" },
+    { label: "Account", icon: <UserCircle2 size={18} />, path: "/account" },
     { label: "Settings", icon: <Settings size={18} />, path: "/settings" },
   ];
 

@@ -6,11 +6,13 @@ export type MarketplaceTheme = {
     accent: string;
     paper: string;
     surface: string;
+    surface2: string;
     text: string;
     muted: string;
     outline: string;
     success: string;
     warning: string;
+    danger: string;
     sold: string;
   };
   gradient: string;
@@ -39,14 +41,16 @@ export const eainChanMyaeLightTheme: MarketplaceTheme = {
     accent: "#F0576B",
     paper: "#F5F6FA",
     surface: "#FFFFFF",
+    surface2: "#EEF1F6",
     text: "#1A2230",
     muted: "#667085",
     outline: "rgba(9, 15, 28, 0.12)",
     success: "#1E9E6F",
     warning: "#B56B00",
+    danger: "#C53C49",
     sold: "#EEF1F6",
   },
-  gradient: "linear-gradient(135deg, #EB2340, #F04A60, #C81933)",
+  gradient: "#EB2340",
   shadow: "0 14px 34px rgba(9, 15, 28, 0.12)",
   frameShadow: "0 0 0 1px rgba(9, 15, 28, 0.18), 6px 6px 0 rgba(9, 15, 28, 0.12)",
   background: {
@@ -75,14 +79,16 @@ export const eainChanMyaeDarkTheme: MarketplaceTheme = {
     accent: "#F3B43F",
     paper: "#0B0D12",
     surface: "#111522",
+    surface2: "#151A2A",
     text: "#EDEFF5",
     muted: "#A9B0C3",
     outline: "rgba(255, 255, 255, 0.08)",
     success: "#38D996",
     warning: "#F3B43F",
+    danger: "#E04B5A",
     sold: "#151A2A",
   },
-  gradient: "linear-gradient(135deg, #EB2340, #B7152D, #61111E)",
+  gradient: "#EB2340",
   shadow: "0 18px 40px rgba(0,0,0,0.4)",
   frameShadow: "0 0 0 1px rgba(255, 255, 255, 0.1), 6px 6px 0 rgba(0, 0, 0, 0.4)",
   background: {

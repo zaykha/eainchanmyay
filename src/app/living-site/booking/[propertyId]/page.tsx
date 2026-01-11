@@ -90,7 +90,7 @@ const Muted = styled.p`
 
 const ErrorText = styled.p`
   margin: 0;
-  color: #dc2626;
+  color: var(--color-danger);
   font-size: 0.9rem;
   font-weight: 600;
 `;
