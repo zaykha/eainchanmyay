@@ -35,7 +35,7 @@ export const GlobalStyle = createGlobalStyle`
   body {
     margin: 0;
     min-height: 100vh;
-    font-family: var(--font-body);
+    font-family: var(--font-primary), system-ui, -apple-system, sans-serif;
     color: var(--color-text);
     background: var(--body-bg, ${(props: ThemeProps) => props.theme.background.base},
       ${(props: ThemeProps) => props.theme.background.sprite},
@@ -70,4 +70,5 @@ export const GlobalStyle = createGlobalStyle`
     font-family: var(--font-heading);
     letter-spacing: -0.01em;
   }
+
 `;

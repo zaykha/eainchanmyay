@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import styled from "styled-components";
-import { MoonStar, Settings, SunMedium, UserCircle2 } from "lucide-react";
+import { MoonStar, Settings, SunMedium, ClipboardList } from "lucide-react";
 import { useAppState } from "@/app/living-site/lib/app-state";
 import { useThemeMode } from "@/app/living-site/components/Providers";
 
@@ -118,8 +118,8 @@ export function SiteHeader() {
           </BrandText>
         </Brand>
         <Actions>
-          <IconButton href="/account" aria-label="Account">
-            <UserCircle2 strokeWidth={1.6} />
+          <IconButton href="/activities" aria-label="Activities">
+            <ClipboardList strokeWidth={1.6} />
           </IconButton>
           <IconButton as="button" type="button" onClick={toggle} aria-label="Toggle theme">
             {mode === "dark" ? <SunMedium strokeWidth={1.6} /> : <MoonStar strokeWidth={1.6} />}

@@ -1,10 +1,12 @@
 "use client";
 
 import styled from "styled-components";
+import { useState } from "react";
 import { SiteHeader } from "@/app/living-site/components/SiteHeader";
 import { BottomNav } from "@/app/living-site/components/BottomNav";
 import { useAppState } from "@/app/living-site/lib/app-state";
 import { useRouter } from "next/navigation";
+import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
 
 const PageShell = styled.div`
   max-width: 1140px;
@@ -43,7 +45,7 @@ const PrimaryButton = styled.button`
   border-radius: var(--radius-md);
   padding: 8px 14px;
   background: var(--gradient);
-  color: var(--color-text);
+  color: #fff;
   font-weight: 600;
   cursor: pointer;
   box-shadow: var(--frame-shadow);
@@ -71,7 +73,8 @@ const Muted = styled.span`
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { user } = useAppState();
+  const { user, logout } = useAppState();
+  const [loggingOut, setLoggingOut] = useState(false);
 
   return (
     <div>
@@ -90,8 +93,15 @@ export default function SettingsPage() {
                 Login
               </PrimaryButton>
             ) : (
-              <SecondaryButton type="button" onClick={() => router.push("/auth")}>
-                Account
+              <SecondaryButton
+                type="button"
+                onClick={async () => {
+                  setLoggingOut(true);
+                  await logout();
+                  router.replace("/");
+                }}
+              >
+                Log out
               </SecondaryButton>
             )}
           </Row>
@@ -141,6 +151,7 @@ export default function SettingsPage() {
         </Card>
       </PageShell>
       <BottomNav />
+      {loggingOut && <LoadingOverlay message="Signing out..." />}
     </div>
   );
 }

@@ -62,8 +62,8 @@ export const eainChanMyaeLightTheme: MarketplaceTheme = {
       "repeating-linear-gradient(45deg, rgba(235,35,64,0.08), rgba(235,35,64,0.08) 6px, transparent 6px, transparent 12px)",
   },
   fonts: {
-    heading: '"Space Grotesk", system-ui, -apple-system, sans-serif',
-    body: '"Manrope", system-ui, -apple-system, sans-serif',
+    heading: "var(--font-primary)",
+    body: "var(--font-primary)",
   },
   radii: {
     md: "12px",
@@ -100,8 +100,8 @@ export const eainChanMyaeDarkTheme: MarketplaceTheme = {
       "repeating-linear-gradient(45deg, rgba(235,35,64,0.08), rgba(235,35,64,0.08) 6px, transparent 6px, transparent 12px)",
   },
   fonts: {
-    heading: '"Space Grotesk", system-ui, -apple-system, sans-serif',
-    body: '"Manrope", system-ui, -apple-system, sans-serif',
+    heading: "var(--font-primary)",
+    body: "var(--font-primary)",
   },
   radii: {
     md: "12px",

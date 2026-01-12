@@ -45,6 +45,30 @@ export type ViewingRequestInput = {
   notes?: string;
 };
 
+export type InquiryInput = {
+  userId: string;
+  dealType: "buy" | "rent";
+  propertyType:
+    | "land"
+    | "house"
+    | "apartment"
+    | "mini_condo"
+    | "condo"
+    | "serviced_apartment"
+    | "shop_office"
+    | "hotel_restaurant"
+    | "warehouse";
+  stateRegion: string;
+  district: string;
+  township: string;
+  budgetRange: string;
+  timeline?: "asap" | "1-3" | "3-6" | "browsing" | null;
+  needParking: boolean;
+  needLift: boolean;
+  needSolar: boolean;
+  needGenerator: boolean;
+};
+
 export type CustomerProfile = {
   id: string;
   email: string | null;
@@ -348,7 +372,7 @@ export async function createViewingRequest(input: ViewingRequestInput) {
 
 export async function getViewingRequestsForUser(userId: string) {
   if (!isSupabaseConfigured) {
-    return [] as Array<Record<string, unknown>>;
+    return { data: [] as Array<Record<string, unknown>>, error: "Supabase is not configured." };
   }
 
   const { data, error } = await supabase
@@ -361,15 +385,18 @@ export async function getViewingRequestsForUser(userId: string) {
 
   if (error || !data) {
     console.warn("Failed to load viewing requests", error);
-    return [] as Array<Record<string, unknown>>;
+    return {
+      data: [] as Array<Record<string, unknown>>,
+      error: error?.message ?? "Failed to load viewing requests.",
+    };
   }
 
-  return data as Array<Record<string, unknown>>;
+  return { data: data as Array<Record<string, unknown>>, error: null };
 }
 
 export async function getSavedPropertiesForUser(userId: string) {
   if (!isSupabaseConfigured) {
-    return [] as Array<Record<string, unknown>>;
+    return { data: [] as Array<Record<string, unknown>>, error: "Supabase is not configured." };
   }
 
   const { data, error } = await supabase
@@ -382,10 +409,85 @@ export async function getSavedPropertiesForUser(userId: string) {
 
   if (error || !data) {
     console.warn("Failed to load saved properties", error);
-    return [] as Array<Record<string, unknown>>;
+    return {
+      data: [] as Array<Record<string, unknown>>,
+      error: error?.message ?? "Failed to load saved properties.",
+    };
   }
 
-  return data as Array<Record<string, unknown>>;
+  return { data: data as Array<Record<string, unknown>>, error: null };
+}
+
+export async function getInquiriesForUser(userId: string) {
+  if (!isSupabaseConfigured) {
+    return { data: [] as Array<Record<string, unknown>>, error: "Supabase is not configured." };
+  }
+
+  const { data, error } = await supabase
+    .from("inquiries")
+    .select(
+      "id,deal_type,property_type,state_region,district,township,budget_range,timeline,need_parking,need_lift,need_solar,need_generator,created_at"
+    )
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (error || !data) {
+    console.warn("Failed to load inquiries", error);
+    return {
+      data: [] as Array<Record<string, unknown>>,
+      error: error?.message ?? "Failed to load inquiries.",
+    };
+  }
+
+  return { data: data as Array<Record<string, unknown>>, error: null };
+}
+
+export async function getSalesRequestsForUser(userId: string) {
+  if (!isSupabaseConfigured) {
+    return { data: [] as Array<Record<string, unknown>>, error: "Supabase is not configured." };
+  }
+
+  const { data, error } = await supabase
+    .from("sales_requests")
+    .select(
+      "id,title,deal_type,property_type,price,currency,state_region,district,township,created_at"
+    )
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (error || !data) {
+    console.warn("Failed to load sales requests", error);
+    return {
+      data: [] as Array<Record<string, unknown>>,
+      error: error?.message ?? "Failed to load sales requests.",
+    };
+  }
+
+  return { data: data as Array<Record<string, unknown>>, error: null };
+}
+
+export async function createInquiry(input: InquiryInput) {
+  if (!isSupabaseConfigured) {
+    return { ok: false, message: "Supabase is not configured." };
+  }
+
+  const payload = {
+    user_id: input.userId,
+    deal_type: input.dealType,
+    property_type: input.propertyType,
+    state_region: input.stateRegion,
+    district: input.district,
+    township: input.township,
+    budget_range: input.budgetRange,
+    timeline: input.timeline ?? null,
+    need_parking: input.needParking,
+    need_lift: input.needLift,
+    need_solar: input.needSolar,
+    need_generator: input.needGenerator,
+  };
+
+  const { error } = await supabase.from("inquiries").insert(payload);
+  return error ? { ok: false, message: error.message } : { ok: true };
 }
 
 export async function toggleSavedProperty(input: {

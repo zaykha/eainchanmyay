@@ -1,7 +1,13 @@
 import type { Metadata } from "next";
+import { Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { StyledComponentsRegistry } from "@/app/living-site/lib/styled-components-registry";
 import { Providers } from "@/app/living-site/components/Providers";
+
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-primary",
+  subsets: ["latin"],
+});
 
 export const metadata: Metadata = {
   title: "Eain Chan Myae",
@@ -24,7 +30,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>
+      <body className={spaceGrotesk.variable}>
         <StyledComponentsRegistry>
           <Providers>{children}</Providers>
         </StyledComponentsRegistry>

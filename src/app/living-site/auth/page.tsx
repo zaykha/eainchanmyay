@@ -12,29 +12,57 @@ const Centered = styled.main`
   min-height: 100vh;
   display: grid;
   place-items: center;
-  padding: 16px;
+  padding: 32px 16px;
   position: relative;
 `;
 
 const AuthCard = styled(Panel)`
-  width: min(420px, 100%);
+  width: min(460px, 100%);
   display: grid;
-  gap: 12px;
+  gap: 18px;
   background: var(--color-surface-2);
+  padding: 26px;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: -40%;
+    background: radial-gradient(
+      circle,
+      color-mix(in srgb, var(--color-primary) 18%, transparent),
+      transparent 60%
+    );
+    opacity: 0.5;
+    pointer-events: none;
+  }
 `;
 
 const BackButton = styled.button`
-  position: absolute;
-  top: 16px;
-  left: 16px;
   border: 1px solid var(--color-outline);
-  border-radius: 999px;
+  border-radius: 12px;
   padding: 8px 12px;
-  background: var(--color-surface-2);
+  background: var(--color-surface);
   color: var(--color-text);
   cursor: pointer;
   font-weight: 600;
   box-shadow: var(--frame-shadow);
+`;
+
+const CardHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  position: relative;
+  z-index: 1;
+`;
+
+const CardBody = styled.div`
+  display: grid;
+  gap: 16px;
+  position: relative;
+  z-index: 1;
 `;
 
 const SecondaryButton = styled.button`
@@ -84,42 +112,55 @@ export default function AuthPage() {
     router.replace(target);
   }, [resumePath, router, user]);
 
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const previousPadding = document.body.style.paddingBottom;
+    document.body.style.paddingBottom = "0px";
+    return () => {
+      document.body.style.paddingBottom = previousPadding;
+    };
+  }, []);
+
   return (
     <Centered>
-      <BackButton type="button" onClick={() => router.back()}>
-        Back
-      </BackButton>
       <AuthCard>
-        {!isSupabaseConfigured && (
-          <Message>
-            Configure NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to
-            enable auth.
-          </Message>
-        )}
-        {user ? (
-          <div>
-            <p>{redirecting ? "Redirecting..." : "Signing you in..."}</p>
-            <SecondaryButton
-              type="button"
-              onClick={async () => {
-                await logout();
-                setMessage("Signed out.");
+        <CardHeader>
+          <BackButton type="button" onClick={() => router.back()}>
+            Back
+          </BackButton>
+        </CardHeader>
+        <CardBody>
+          {!isSupabaseConfigured && (
+            <Message>
+              Configure NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to
+              enable auth.
+            </Message>
+          )}
+          {user ? (
+            <div>
+              <p>{redirecting ? "Redirecting..." : "Signing you in..."}</p>
+              <SecondaryButton
+                type="button"
+                onClick={async () => {
+                  await logout();
+                  setMessage("Signed out.");
+                }}
+              >
+                Sign out
+              </SecondaryButton>
+            </div>
+          ) : (
+            <AuthScreen
+              onSuccess={() => {
+                if (typeof window !== "undefined") {
+                  window.localStorage.removeItem("kaiten_living_auth_resume");
+                }
+                router.replace(resumePath || "/");
               }}
-            >
-              Sign out
-            </SecondaryButton>
-          </div>
-        ) : (
-          <AuthScreen
-            onSuccess={() => {
-              if (typeof window !== "undefined") {
-                window.localStorage.removeItem("kaiten_living_auth_resume");
-              }
-              router.replace(resumePath || "/");
-            }}
-          />
-        )}
-        {message && <Message>{message}</Message>}
+            />
+          )}
+          {message && <Message>{message}</Message>}
+        </CardBody>
       </AuthCard>
     </Centered>
   );

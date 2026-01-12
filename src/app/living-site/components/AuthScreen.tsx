@@ -8,7 +8,7 @@ import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
 
 const Wrapper = styled.div`
   display: grid;
-  gap: 12px;
+  gap: 16px;
 `;
 
 const BrandBlock = styled.div<{ $align: "center" | "start" }>`
@@ -41,37 +41,42 @@ const Subtitle = styled.p`
 
 const IntroButtons = styled.div`
   display: grid;
-  gap: 10px;
+  gap: 12px;
 `;
 
 const Tabs = styled.div`
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   border: 1px solid var(--color-outline);
-  border-radius: 12px;
-  background: var(--color-surface-2);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--color-surface-2) 80%, transparent);
   overflow: hidden;
   width: 100%;
 `;
 
 const TabButton = styled.button<{ $active: boolean }>`
   border: none;
-  background: ${(props) => (props.$active ? "var(--color-primary)" : "transparent")};
-  color: var(--color-text);
-  padding: 10px 14px;
+  background: ${(props) =>
+    props.$active
+      ? "linear-gradient(135deg, var(--color-primary), var(--color-primary-dark))"
+      : "transparent"};
+  color: ${(props) => (props.$active ? "#fff" : "var(--color-text)")};
+  padding: 12px 14px;
   cursor: pointer;
   font-weight: 600;
+  box-shadow: ${(props) =>
+    props.$active ? "0 10px 20px rgba(235, 35, 64, 0.25)" : "none"};
 `;
 
 const Form = styled.form`
   display: grid;
-  gap: 10px;
+  gap: 12px;
 `;
 
 const Field = styled.label<{ $filled: boolean }>`
   position: relative;
   display: grid;
-  gap: 4px;
+  gap: 6px;
 
   &[data-filled="true"] .floating-label,
   &:focus-within .floating-label {
@@ -83,9 +88,9 @@ const Field = styled.label<{ $filled: boolean }>`
 const FloatingLabel = styled.span`
   position: absolute;
   left: 12px;
-  top: 8px;
+  top: 10px;
   font-size: 0.75rem;
-  color: var(--color-muted);
+  color: color-mix(in srgb, var(--color-muted) 80%, transparent);
   background: var(--color-surface-2);
   padding: 0 4px;
   transition: transform 0.15s ease, color 0.15s ease;
@@ -95,18 +100,18 @@ const FloatingLabel = styled.span`
 const Input = styled.input`
   border-radius: 10px;
   border: 1px solid var(--color-outline);
-  padding: 14px 10px 6px;
+  padding: 16px 12px 10px;
   background: var(--color-surface-2);
   color: var(--color-text);
-  height: 40px;
+  height: 46px;
 `;
 
 const PrimaryButton = styled.button`
   border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: var(--radius-md);
-  padding: 10px 14px;
+  padding: 12px 14px;
   background: var(--gradient);
-  color: var(--color-text);
+  color: #fff;
   font-weight: 600;
   cursor: pointer;
   box-shadow: var(--frame-shadow);
@@ -115,7 +120,7 @@ const PrimaryButton = styled.button`
 const SecondaryButton = styled.button`
   border: 1px solid var(--color-outline);
   border-radius: var(--radius-md);
-  padding: 10px 14px;
+  padding: 12px 14px;
   background: var(--color-surface-2);
   color: var(--color-text);
   cursor: pointer;

@@ -1,6 +1,7 @@
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+@import "leaflet/dist/leaflet.css";
 
 :root {
+  --font-primary: "Space Grotesk";
   --color-primary: #EB2340;
   --color-primary-dark: #C81933;
   --gradient: #EB2340;
@@ -17,7 +18,7 @@
   --radius-lg: 18px;
   color: var(--color-text);
   background: var(--color-paper);
-  font-family: 'Manrope', 'Space Grotesk', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-primary), system-ui, -apple-system, sans-serif;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
 }

@@ -225,7 +225,7 @@ const ApplyButton = styled.button`
   border-radius: var(--radius-md);
   padding: 10px 16px;
   background: var(--gradient);
-  color: var(--color-text);
+  color: #fff;
   font-weight: 600;
   cursor: pointer;
   box-shadow: var(--frame-shadow);

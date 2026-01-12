@@ -20,6 +20,7 @@ import { SectionTitle } from "@/app/living-site/components/PageSection";
 import { useListingDetail } from "@/app/living-site/hooks/useListingDetail";
 import {
   createViewingRequest,
+  getCustomerProfile,
   isPropertySaved,
   toggleSavedProperty,
 } from "@/app/living-site/lib/data";
@@ -28,6 +29,9 @@ import { formatCurrency } from "@/app/living-site/lib/format";
 import { EAIN_CONTACT_PHONE } from "@/app/living-site/lib/constants";
 import { useAppState } from "@/app/living-site/lib/app-state";
 import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
+import { CustomInput } from "@/app/living-site/components/form-controls/CustomInput";
+import { CustomSelect } from "@/app/living-site/components/form-controls/CustomSelect";
+import { CustomTextarea } from "@/app/living-site/components/form-controls/CustomTextarea";
 
 const PageShell = styled.div`
   max-width: 1140px;
@@ -362,7 +366,7 @@ const ContactButton = styled.a`
   padding: 10px 14px;
   border-radius: var(--radius-md);
   background: var(--gradient);
-  color: var(--color-text);
+  color: #fff;
   font-weight: 600;
   border: 1px solid rgba(0, 0, 0, 0.12);
   box-shadow: var(--frame-shadow);
@@ -438,98 +442,10 @@ const FloatingLabel = styled.span`
   transform-origin: left center;
 `;
 
-const FloatingInput = styled.input`
-  border-radius: 12px;
-  border: 1px solid var(--color-outline);
-  padding: 0 12px;
-  background: var(--color-surface-2);
-  color: var(--color-text);
-  height: 50px;
-  font-size: 0.95rem;
-  line-height: 1.2;
-  outline: none;
-
-  &:focus {
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 25%, transparent);
-  }
-`;
-
-const FloatingTextarea = styled.textarea`
-  border-radius: 12px;
-  border: 1px solid var(--color-outline);
-  padding: 16px 12px;
-  background: var(--color-surface-2);
-  color: var(--color-text);
-  min-height: 100px;
-  resize: none;
-  font-size: 0.95rem;
-  line-height: 1.4;
-  outline: none;
-
-  &:focus {
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 25%, transparent);
-  }
-`;
-
-const SelectShell = styled.div`
-  position: relative;
-`;
-
-const SelectTrigger = styled.button`
-  width: 100%;
-  border-radius: 12px;
-  border: 1px solid var(--color-outline);
-  padding: 0 12px;
-  background: var(--color-surface-2);
-  color: var(--color-text);
-  height: 50px;
-  text-align: left;
-  cursor: pointer;
-  outline: none;
-  display: flex;
-  align-items: center;
-
-  &:focus {
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 25%, transparent);
-  }
-`;
-
 const SelectValue = styled.span<{ $muted?: boolean }>`
   color: ${(props) => (props.$muted ? "var(--color-muted)" : "var(--color-text)")};
   font-size: 0.95rem;
   line-height: 1.2;
-`;
-
-const SelectMenu = styled.div`
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  right: 0;
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-outline);
-  border-radius: 12px;
-  box-shadow: var(--shadow-soft);
-  z-index: 10;
-  padding: 6px;
-  display: grid;
-  gap: 4px;
-`;
-
-const SelectOption = styled.button<{ $active?: boolean }>`
-  border: none;
-  background: ${(props) =>
-    props.$active
-      ? "color-mix(in srgb, var(--color-primary) 12%, transparent)"
-      : "transparent"};
-  color: ${(props) => (props.$active ? "var(--color-primary)" : "var(--color-text)")};
-  padding: 10px 12px;
-  border-radius: 10px;
-  text-align: left;
-  cursor: pointer;
-  font-weight: 600;
 `;
 
 const DateTrigger = styled.button`
@@ -624,7 +540,7 @@ const SubmitButton = styled.button`
   border-radius: var(--radius-md);
   padding: 10px 14px;
   background: var(--gradient);
-  color: var(--color-text);
+  color: #fff;
   font-weight: 600;
   cursor: pointer;
   box-shadow: var(--frame-shadow);
@@ -750,105 +666,6 @@ const toDateString = (value: Date) => {
   return `${year}-${month}-${day}`;
 };
 
-type FloatingInputProps = {
-  label: string;
-  name: string;
-  value: string;
-  type?: string;
-  onChange: (value: string) => void;
-};
-
-function Input({ label, name, value, type = "text", onChange }: FloatingInputProps) {
-  return (
-    <FloatingField $filled={Boolean(value)} data-filled={Boolean(value)}>
-      <FloatingLabel className="floating-label">{label}</FloatingLabel>
-      <FloatingInput
-        type={type}
-        name={name}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-      />
-    </FloatingField>
-  );
-}
-
-type FloatingTextareaProps = {
-  label: string;
-  name: string;
-  value: string;
-  onChange: (value: string) => void;
-};
-
-function Textarea({ label, name, value, onChange }: FloatingTextareaProps) {
-  return (
-    <FloatingField $filled={Boolean(value)} data-filled={Boolean(value)}>
-      <FloatingLabel className="floating-label">{label}</FloatingLabel>
-      <FloatingTextarea
-        name={name}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-      />
-    </FloatingField>
-  );
-}
-
-type SelectOptionItem = {
-  value: string;
-  label: string;
-};
-
-type SelectProps = {
-  label: string;
-  name: string;
-  value: string;
-  options: SelectOptionItem[];
-  onChange: (value: string) => void;
-};
-
-function Select({ label, name, value, options, onChange }: SelectProps) {
-  const [open, setOpen] = useState(false);
-  const activeOption = options.find((option) => option.value === value);
-
-  return (
-    <FloatingField
-      $filled={Boolean(value)}
-      data-filled={Boolean(value)}
-      onBlur={() => {
-        setTimeout(() => setOpen(false), 100);
-      }}
-    >
-      <FloatingLabel className="floating-label">{label}</FloatingLabel>
-      <SelectShell>
-        <SelectTrigger
-          type="button"
-          name={name}
-          onClick={() => setOpen((prev) => !prev)}
-        >
-          <SelectValue $muted={!activeOption}>
-            {activeOption?.label ?? "Select an option"}
-          </SelectValue>
-        </SelectTrigger>
-        {open && (
-          <SelectMenu>
-            {options.map((option) => (
-              <SelectOption
-                key={option.value}
-                type="button"
-                $active={option.value === value}
-                onClick={() => {
-                  onChange(option.value);
-                  setOpen(false);
-                }}
-              >
-                {option.label}
-              </SelectOption>
-            ))}
-          </SelectMenu>
-        )}
-      </SelectShell>
-    </FloatingField>
-  );
-}
 
 type DateTimePickerProps = {
   label: string;
@@ -962,6 +779,7 @@ export default function ListingDetailPage() {
   const [viewingSubmitting, setViewingSubmitting] = useState(false);
   const [viewingError, setViewingError] = useState<string | null>(null);
   const [viewingSuccess, setViewingSuccess] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -979,6 +797,33 @@ export default function ListingDetailPage() {
       setSaved(result);
     });
   }, [propertyId, user?.id]);
+
+  useEffect(() => {
+    if (!viewingOpen || !user?.id) return;
+    if (viewingName.trim() && viewingPhone.trim()) return;
+
+    let active = true;
+    setProfileLoading(true);
+    getCustomerProfile(user.id)
+      .then(({ profile }) => {
+        if (!active || !profile) return;
+        if (!viewingName.trim() && profile.name) {
+          setViewingName(profile.name);
+        }
+        if (!viewingPhone.trim() && profile.contact_number) {
+          setViewingPhone(profile.contact_number);
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setProfileLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [user?.id, viewingOpen, viewingName, viewingPhone]);
 
   const galleryUrls = useMemo(() => {
     const images = detail?.images ?? [];
@@ -1077,8 +922,14 @@ export default function ListingDetailPage() {
 
   const handleViewingSubmit = async () => {
     if (!propertyId) return;
-    if (!viewingName.trim() || !viewingPhone.trim() || !viewingDate || !viewingWindow) {
-      setViewingError("Please complete all required fields.");
+    const resolvedName = viewingName.trim() || user?.email || "Customer";
+    const resolvedPhone = viewingPhone.trim();
+    if (!resolvedPhone || !viewingDate || !viewingWindow) {
+      setViewingError(
+        user
+          ? "We need a phone number on file to confirm your request."
+          : "Please complete all required fields."
+      );
       return;
     }
     setViewingError(null);
@@ -1086,8 +937,8 @@ export default function ListingDetailPage() {
     const result = await createViewingRequest({
       propertyId,
       userId: user?.id,
-      name: viewingName.trim(),
-      phone: viewingPhone.trim(),
+      name: resolvedName,
+      phone: resolvedPhone,
       preferredDate: viewingDate,
       preferredTimeWindow: viewingWindow,
       notes: viewingNotes.trim() || undefined,
@@ -1314,39 +1165,55 @@ export default function ListingDetailPage() {
         <ModalOverlay onClick={() => setViewingOpen(false)}>
           <ModalCard onClick={(event) => event.stopPropagation()}>
             <SectionTitle>Request viewing</SectionTitle>
-            <p>Best for users who want to propose a time.</p>
-            <strong>{title}</strong>
-            <Input
-              label="Full name"
-              name="name"
-              value={viewingName}
-              onChange={setViewingName}
-            />
-            <Input
-              label="Phone number"
-              name="phone"
-              value={viewingPhone}
-              onChange={setViewingPhone}
-            />
-            <DateTimePicker
-              label="Preferred date"
-              name="preferred_date"
-              value={viewingDate}
-              onChange={setViewingDate}
-            />
-            <Select
-              label="Time window"
-              name="preferred_time_window"
-              value={viewingWindow}
-              options={timeWindowOptions}
-              onChange={setViewingWindow}
-            />
-            <Textarea
-              label="Notes (optional)"
-              name="notes"
-              value={viewingNotes}
-              onChange={setViewingNotes}
-            />
+            {viewingSuccess ? null : (
+              <>
+                <strong>{title}</strong>
+                {user ? null : (
+                  <>
+                    <CustomInput
+                      id="viewing-name"
+                      label="Full name"
+                      name="name"
+                      value={viewingName}
+                      onChange={(event) => setViewingName(event.target.value)}
+                    />
+                    <CustomInput
+                      id="viewing-phone"
+                      label="Phone number"
+                      name="phone"
+                      value={viewingPhone}
+                      onChange={(event) => setViewingPhone(event.target.value)}
+                    />
+                  </>
+                )}
+                <DateTimePicker
+                  label="Preferred date"
+                  name="preferred_date"
+                  value={viewingDate}
+                  onChange={setViewingDate}
+                />
+                <CustomSelect
+                  id="viewing-window"
+                  label="Time window"
+                  name="preferred_time_window"
+                  value={viewingWindow}
+                  onChange={(value) => setViewingWindow(value)}
+                >
+                  {timeWindowOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </CustomSelect>
+                <CustomTextarea
+                  id="viewing-notes"
+                  label="Notes (optional)"
+                  name="notes"
+                  value={viewingNotes}
+                  onChange={(event) => setViewingNotes(event.target.value)}
+                />
+              </>
+            )}
             {!user && !viewingSuccess && (
               <BenefitCard>
                 <strong>Sign in to track your requests</strong>

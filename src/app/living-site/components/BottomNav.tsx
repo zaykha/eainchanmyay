@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import styled from "styled-components";
-import { Compass, UserCircle2, Settings } from "lucide-react";
+import { Compass, ClipboardList, Settings } from "lucide-react";
 
 const Shell = styled.nav`
   position: fixed;
@@ -78,14 +78,15 @@ export function BottomNav() {
 
   const navItems = [
     { label: "Explore", icon: <Compass size={18} />, path: "/" },
-    { label: "Account", icon: <UserCircle2 size={18} />, path: "/account" },
+    { label: "Activities", icon: <ClipboardList size={18} />, path: "/activities" },
     { label: "Settings", icon: <Settings size={18} />, path: "/settings" },
   ];
 
   return (
     <Shell>
       {navItems.map((item) => {
-        const isActive = pathname === item.path;
+        const isActivitiesAlias = item.path === "/activities" && pathname === "/account";
+        const isActive = pathname === item.path || isActivitiesAlias;
         return (
           <NavButton key={item.path} href={item.path} data-active={isActive}>
             <span className="nav-icon">
