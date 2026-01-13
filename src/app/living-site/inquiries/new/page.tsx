@@ -10,6 +10,7 @@ import { CustomSelect } from "@/app/living-site/components/form-controls/CustomS
 import { getDistricts, getStates, getTownships } from "@/app/living-site/lib/myanmar-geo";
 import { useAppState } from "@/app/living-site/lib/app-state";
 import { createInquiry } from "@/app/living-site/lib/data";
+import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
 
 const PageShell = styled.div`
   max-width: 960px;
@@ -82,6 +83,40 @@ const Tile = styled.button<{ $active?: boolean }>`
 const Muted = styled.p`
   margin: 0;
   color: var(--color-muted);
+`;
+
+const SuccessOverlay = styled.div`
+  position: fixed;
+  inset: 0;
+  background: color-mix(in srgb, var(--color-paper) 55%, transparent);
+  display: grid;
+  place-items: center;
+  z-index: 80;
+  padding: 16px;
+`;
+
+const SuccessModal = styled(Panel)`
+  max-width: 520px;
+  width: min(520px, 92vw);
+  display: grid;
+  gap: 14px;
+`;
+
+const ActionRow = styled.div`
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+`;
+
+const GhostButton = styled.button`
+  border: 1px solid var(--color-outline);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  background: transparent;
+  color: var(--color-text);
+  font-weight: 600;
+  cursor: pointer;
 `;
 
 export default function NewInquiryPage() {
@@ -160,14 +195,24 @@ export default function NewInquiryPage() {
     { value: "warehouse", label: "Warehouse" },
   ];
 
-  const budgetOptions = [
-    { value: "0-100", label: "Up to 100 Lakh" },
-    { value: "100-300", label: "100–300 Lakh" },
-    { value: "300-600", label: "300–600 Lakh" },
-    { value: "600-1000", label: "600–1,000 Lakh" },
-    { value: "1000-2000", label: "1,000–2,000 Lakh" },
-    { value: "2000+", label: "2,000+ Lakh" },
+  const buyBudgetOptions = [
+    { value: "0-1000", label: "Up to 1,000 Lakh" },
+    { value: "1000-5000", label: "1,000–5,000 Lakh" },
+    { value: "5000-50000", label: "5,000–50,000 Lakh" },
+    { value: "50000-100000", label: "50,000–100,000 Lakh" },
+    { value: "100000+", label: "100,000+ Lakh" },
   ];
+
+  const rentBudgetOptions = [
+    { value: "0-5", label: "Up to 5 Lakh" },
+    { value: "5-10", label: "5–10 Lakh" },
+    { value: "10-20", label: "10–20 Lakh" },
+    { value: "20-50", label: "20–50 Lakh" },
+    { value: "50-100", label: "50–100 Lakh" },
+    { value: "100+", label: "100+ Lakh" },
+  ];
+
+  const budgetOptions = dealType === "rent" ? rentBudgetOptions : buyBudgetOptions;
 
   return (
     <div>
@@ -328,6 +373,22 @@ export default function NewInquiryPage() {
         )}
       </PageShell>
       <BottomNav />
+      {submitting && <LoadingOverlay message="Submitting inquiry..." />}
+      {success && (
+        <SuccessOverlay>
+          <SuccessModal>
+            <strong>Thanks. Our team will contact you shortly.</strong>
+            <ActionRow>
+              <GhostButton type="button" onClick={() => router.push("/")}>
+                Browse listings
+              </GhostButton>
+              <PrimaryButton type="button" onClick={() => router.push("/activities")}>
+                Go to activities
+              </PrimaryButton>
+            </ActionRow>
+          </SuccessModal>
+        </SuccessOverlay>
+      )}
     </div>
   );
 }

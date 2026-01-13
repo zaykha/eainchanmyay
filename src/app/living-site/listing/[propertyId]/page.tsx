@@ -21,7 +21,9 @@ import { useListingDetail } from "@/app/living-site/hooks/useListingDetail";
 import {
   createViewingRequest,
   getCustomerProfile,
+  getViewingRequestForUserProperty,
   isPropertySaved,
+  updateViewingRequest,
   toggleSavedProperty,
 } from "@/app/living-site/lib/data";
 import { resolvePhotoUrl } from "@/app/living-site/lib/images";
@@ -373,26 +375,33 @@ const ContactButton = styled.a`
   cursor: pointer;
 `;
 
-const SaveButton = styled.button`
+const SaveButton = styled.button<{ $active?: boolean }>`
   border: 1px solid var(--color-outline);
   border-radius: var(--radius-md);
   padding: 10px 14px;
-  background: transparent;
-  color: var(--color-text);
+  background: ${(props) =>
+    props.$active
+      ? "color-mix(in srgb, var(--color-success) 18%, transparent)"
+      : "transparent"};
+  color: ${(props) => (props.$active ? "var(--color-success)" : "var(--color-text)")};
   font-weight: 600;
   cursor: pointer;
 `;
 
-const SecondaryButton = styled.a`
+const SecondaryButton = styled.a<{ $active?: boolean }>`
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 10px 14px;
   border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--color-text);
+  background: ${(props) =>
+    props.$active
+      ? "color-mix(in srgb, var(--color-primary) 18%, transparent)"
+      : "transparent"};
+  color: ${(props) => (props.$active ? "var(--color-primary)" : "var(--color-text)")};
   font-weight: 600;
-  border: 1px solid var(--color-outline);
+  border: 1px solid
+    ${(props) => (props.$active ? "var(--color-primary)" : "var(--color-outline)")};
   cursor: pointer;
 `;
 
@@ -779,6 +788,10 @@ export default function ListingDetailPage() {
   const [viewingSubmitting, setViewingSubmitting] = useState(false);
   const [viewingError, setViewingError] = useState<string | null>(null);
   const [viewingSuccess, setViewingSuccess] = useState(false);
+  const [viewingInfoOpen, setViewingInfoOpen] = useState(false);
+  const [existingViewingRequest, setExistingViewingRequest] = useState<Record<string, unknown> | null>(
+    null
+  );
   const [profileLoading, setProfileLoading] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -797,6 +810,21 @@ export default function ListingDetailPage() {
       setSaved(result);
     });
   }, [propertyId, user?.id]);
+
+  useEffect(() => {
+    if (!user?.id || !propertyId) return;
+    getViewingRequestForUserProperty(user.id, propertyId).then(({ request }) => {
+      setExistingViewingRequest(request);
+      if (request) {
+        const date = String(request.preferred_date ?? "");
+        const timeWindow = String(request.preferred_time_window ?? "");
+        const notes = String(request.notes ?? "");
+        if (!viewingDate) setViewingDate(date);
+        if (!viewingWindow) setViewingWindow(timeWindow);
+        if (!viewingNotes) setViewingNotes(notes);
+      }
+    });
+  }, [propertyId, user?.id, viewingDate, viewingNotes, viewingWindow]);
 
   useEffect(() => {
     if (!viewingOpen || !user?.id) return;
@@ -934,21 +962,33 @@ export default function ListingDetailPage() {
     }
     setViewingError(null);
     setViewingSubmitting(true);
-    const result = await createViewingRequest({
-      propertyId,
-      userId: user?.id,
-      name: resolvedName,
-      phone: resolvedPhone,
-      preferredDate: viewingDate,
-      preferredTimeWindow: viewingWindow,
-      notes: viewingNotes.trim() || undefined,
-    });
+    const result = existingViewingRequest?.id
+      ? await updateViewingRequest({
+          id: String(existingViewingRequest.id),
+          preferredDate: viewingDate,
+          preferredTimeWindow: viewingWindow,
+          notes: viewingNotes.trim() || undefined,
+        })
+      : await createViewingRequest({
+          propertyId,
+          userId: user?.id,
+          name: resolvedName,
+          phone: resolvedPhone,
+          preferredDate: viewingDate,
+          preferredTimeWindow: viewingWindow,
+          notes: viewingNotes.trim() || undefined,
+        });
     setViewingSubmitting(false);
     if (!result.ok) {
       setViewingError(result.message ?? "Unable to submit your request.");
       return;
     }
     setViewingSuccess(true);
+    if (!existingViewingRequest?.id && user?.id && propertyId) {
+      getViewingRequestForUserProperty(user.id, propertyId).then(({ request }) => {
+        setExistingViewingRequest(request);
+      });
+    }
   };
 
   const handleSave = async () => {
@@ -1144,23 +1184,65 @@ export default function ListingDetailPage() {
               <Phone size={16} style={{ marginRight: 6 }} />
               Contact agent
             </ContactButton>
-            <SaveButton type="button" onClick={handleSave} disabled={saveSubmitting}>
+            <SaveButton type="button" onClick={handleSave} disabled={saveSubmitting} $active={saved}>
               {saved ? "Saved" : "Save property"}
             </SaveButton>
             <SecondaryButton
               as="button"
               type="button"
               onClick={() => {
-                setViewingOpen(true);
-                setViewingSuccess(false);
-                setViewingError(null);
+                if (existingViewingRequest) {
+                  setViewingInfoOpen(true);
+                } else {
+                  setViewingOpen(true);
+                  setViewingSuccess(false);
+                  setViewingError(null);
+                }
               }}
+              $active={Boolean(existingViewingRequest)}
             >
-              Request viewing
+              {existingViewingRequest ? "Viewing requested" : "Request viewing"}
             </SecondaryButton>
           </ContactCard>
         </ContentLayout>
       </PageShell>
+      {viewingInfoOpen && (
+        <ModalOverlay onClick={() => setViewingInfoOpen(false)}>
+          <ModalCard onClick={(event) => event.stopPropagation()}>
+            <SectionTitle>Viewing request</SectionTitle>
+            <strong>{title}</strong>
+            <MetaText>
+              Preferred date: <strong>{formatDateLabel(viewingDate)}</strong>
+            </MetaText>
+            {viewingWindow && (
+              <MetaText>
+                Time window: <strong>{viewingWindow}</strong>
+              </MetaText>
+            )}
+            {viewingNotes ? (
+              <MetaText>Notes: {viewingNotes}</MetaText>
+            ) : (
+              <MetaText>No notes added.</MetaText>
+            )}
+            <ModalActions>
+              <GhostButton type="button" onClick={() => setViewingInfoOpen(false)}>
+                Close
+              </GhostButton>
+              <SubmitButton
+                type="button"
+                onClick={() => {
+                  setViewingInfoOpen(false);
+                  setViewingOpen(true);
+                  setViewingSuccess(false);
+                  setViewingError(null);
+                }}
+              >
+                Edit request
+              </SubmitButton>
+            </ModalActions>
+          </ModalCard>
+        </ModalOverlay>
+      )}
       {viewingOpen && (
         <ModalOverlay onClick={() => setViewingOpen(false)}>
           <ModalCard onClick={(event) => event.stopPropagation()}>

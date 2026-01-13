@@ -45,6 +45,13 @@ export type ViewingRequestInput = {
   notes?: string;
 };
 
+export type ViewingRequestUpdateInput = {
+  id: string;
+  preferredDate: string;
+  preferredTimeWindow: string;
+  notes?: string;
+};
+
 export type InquiryInput = {
   userId: string;
   dealType: "buy" | "rent";
@@ -392,6 +399,43 @@ export async function getViewingRequestsForUser(userId: string) {
   }
 
   return { data: data as Array<Record<string, unknown>>, error: null };
+}
+
+export async function getViewingRequestForUserProperty(userId: string, propertyId: string) {
+  if (!isSupabaseConfigured) {
+    return { request: null as Record<string, unknown> | null, error: "Supabase is not configured." };
+  }
+
+  const { data, error } = await supabase
+    .from("viewing_requests")
+    .select("id,property_id,preferred_date,preferred_time_window,notes,created_at")
+    .eq("user_id", userId)
+    .eq("property_id", propertyId)
+    .maybeSingle();
+
+  if (error) {
+    console.warn("Failed to load viewing request", error);
+    return { request: null, error: error.message };
+  }
+
+  return { request: (data as Record<string, unknown> | null) ?? null, error: null };
+}
+
+export async function updateViewingRequest(input: ViewingRequestUpdateInput) {
+  if (!isSupabaseConfigured) {
+    return { ok: false, message: "Supabase is not configured." };
+  }
+
+  const { error } = await supabase
+    .from("viewing_requests")
+    .update({
+      preferred_date: input.preferredDate,
+      preferred_time_window: input.preferredTimeWindow,
+      notes: input.notes ?? null,
+    })
+    .eq("id", input.id);
+
+  return error ? { ok: false, message: error.message } : { ok: true };
 }
 
 export async function getSavedPropertiesForUser(userId: string) {
