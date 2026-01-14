@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import styled, { css, keyframes } from "styled-components";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import {
   BatteryCharging,
@@ -27,6 +27,7 @@ import { CustomInput } from "@/app/living-site/components/form-controls/CustomIn
 import { CustomSelect } from "@/app/living-site/components/form-controls/CustomSelect";
 import { CustomTextarea } from "@/app/living-site/components/form-controls/CustomTextarea";
 import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
+import { getSalesRequestById, updateSalesRequest } from "@/app/living-site/lib/data";
 
 const PageShell = styled.div`
   max-width: 960px;
@@ -374,16 +375,24 @@ const toNullableString = (value: string) => {
   return trimmed ? trimmed : null;
 };
 
+const toFormNumber = (value: unknown) => {
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  return "";
+};
 
 export default function RequestSalePage() {
   const { user } = useAppState();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editId = searchParams.get("editId");
+  const isEdit = Boolean(editId);
   const fieldId = useId();
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<FormState>(initialState);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [loadingEdit, setLoadingEdit] = useState(false);
   const [mapActive, setMapActive] = useState(false);
   const [mapLoading, setMapLoading] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
@@ -395,6 +404,57 @@ export default function RequestSalePage() {
     district: "",
     township: "",
   });
+
+  useEffect(() => {
+    if (!editId || !user?.id) return;
+    let active = true;
+    setLoadingEdit(true);
+    getSalesRequestById(user.id, editId)
+      .then(({ request, error: loadError }) => {
+        if (!active) return;
+        if (loadError) {
+          setError(loadError);
+          return;
+        }
+        if (!request) {
+          setError("Unable to load sale request details.");
+          return;
+        }
+        const rawPrice = typeof request.price === "number" ? request.price / 100000 : null;
+        setForm({
+          title: String(request.title ?? ""),
+          description: String(request.description ?? ""),
+          deal_type: String(request.deal_type ?? "sale"),
+          property_type: String(request.property_type ?? "house"),
+          price: rawPrice ? String(rawPrice) : "",
+          currency: String(request.currency ?? "MMK"),
+          state_region: String(request.state_region ?? ""),
+          district: String(request.district ?? ""),
+          city: String(request.city ?? ""),
+          township: String(request.township ?? ""),
+          address_text: String(request.address_text ?? ""),
+          bedrooms: toFormNumber(request.bedrooms),
+          bathrooms: toFormNumber(request.bathrooms),
+          area_sqft: toFormNumber(request.area_sqft),
+          has_lift: Boolean(request.has_lift),
+          has_backup_power: Boolean(request.has_backup_power),
+          backup_power_type: String(request.backup_power_type ?? ""),
+          has_parking: Boolean(request.has_parking),
+          latitude: toFormNumber(request.latitude),
+          longitude: toFormNumber(request.longitude),
+          owner_name: String(request.owner_name ?? ""),
+          owner_phone: String(request.owner_phone ?? ""),
+          owner_phone_secondary: String(request.owner_phone_secondary ?? ""),
+        });
+      })
+      .finally(() => {
+        if (active) setLoadingEdit(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [editId, user?.id]);
 
   const isLand = form.property_type === "land";
   const locationReady = Boolean(form.state_region && form.district && form.township);
@@ -646,17 +706,57 @@ export default function RequestSalePage() {
     };
 
     setSubmitting(true);
-    const response = await fetch("/api/public/sales-requests", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    setSubmitting(false);
+    if (isEdit && editId) {
+      if (!user?.id) {
+        setSubmitting(false);
+        setError("Please sign in to update your listing.");
+        return;
+      }
+      const result = await updateSalesRequest({
+        id: editId,
+        userId: user.id,
+        title: form.title.trim(),
+        description: toNullableString(form.description),
+        dealType: form.deal_type,
+        propertyType: form.property_type,
+        price: Number(form.price) * 100000,
+        currency: form.currency,
+        stateRegion: form.state_region.trim(),
+        district: toNullableString(form.district),
+        city: toNullableString(form.city),
+        township: form.township.trim(),
+        addressText: toNullableString(form.address_text),
+        bedrooms: isLand ? null : toNullableNumber(form.bedrooms),
+        bathrooms: isLand ? null : toNullableNumber(form.bathrooms),
+        areaSqft: toNullableNumber(form.area_sqft),
+        hasLift: isLand ? false : form.has_lift,
+        hasBackupPower: isLand ? false : form.has_backup_power,
+        backupPowerType: isLand ? null : form.backup_power_type || null,
+        hasParking: isLand ? false : form.has_parking,
+        latitude: toNullableNumber(form.latitude),
+        longitude: toNullableNumber(form.longitude),
+        ownerName: toNullableString(form.owner_name),
+        ownerPhone: toNullableString(form.owner_phone),
+        ownerPhoneSecondary: toNullableString(form.owner_phone_secondary),
+      });
+      setSubmitting(false);
+      if (!result.ok) {
+        setError(result.message ?? "Unable to update request.");
+        return;
+      }
+    } else {
+      const response = await fetch("/api/public/sales-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      setSubmitting(false);
 
-    if (!response.ok) {
-      const result = await response.json().catch(() => ({}));
-      setError(result.message ?? "Unable to submit request.");
-      return;
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
+        setError(result.message ?? "Unable to submit request.");
+        return;
+      }
     }
 
     setSuccess(true);
@@ -691,12 +791,16 @@ export default function RequestSalePage() {
       <SiteHeader />
       <PageShell>
         <TitleRow>
-          <SectionTitle>Request a sale listing</SectionTitle>
+          <SectionTitle>{isEdit ? "Edit sale listing" : "Request a sale listing"}</SectionTitle>
           <BackButton type="button" onClick={() => router.back()}>
             Back
           </BackButton>
         </TitleRow>
-        <Muted>Share your property details and our team will contact you.</Muted>
+        <Muted>
+          {isEdit
+            ? "Update the details and we’ll continue the listing review."
+            : "Share your property details and our team will contact you."}
+        </Muted>
         <Stepper>
           {steps.map((label, index) => (
             <StepPill key={label} $active={index === step} $completed={index < step}>
@@ -1031,20 +1135,26 @@ export default function RequestSalePage() {
                 <ChevronRight size={16} style={{ marginLeft: 6 }} />
               </PrimaryButton>
             ) : (
-              <PrimaryButton type="button" onClick={handleSubmit} disabled={submitting}>
-                {submitting ? "Submitting..." : "Submit request"}
+              <PrimaryButton type="button" onClick={handleSubmit} disabled={submitting || loadingEdit}>
+                {loadingEdit ? "Loading..." : submitting ? "Submitting..." : isEdit ? "Save changes" : "Submit request"}
               </PrimaryButton>
             )}
           </Actions>
         </FormCard>
       </PageShell>
       <BottomNav />
-      {submitting && <LoadingOverlay message="Submitting request..." />}
+      {(submitting || loadingEdit) && (
+        <LoadingOverlay message={loadingEdit ? "Loading request..." : "Submitting request..."} />
+      )}
       {success && (
         <SuccessOverlay>
           <SuccessModal>
-            <strong>Thanks for your submission.</strong>
-            <Muted>We’ll review and confirm your listing shortly.</Muted>
+            <strong>{isEdit ? "Listing updated." : "Thanks for your submission."}</strong>
+            <Muted>
+              {isEdit
+                ? "We’ll review the changes and follow up shortly."
+                : "We’ll review and confirm your listing shortly."}
+            </Muted>
             <Actions>
               <SecondaryButton type="button" onClick={() => router.push("/")}>
                 Browse listings

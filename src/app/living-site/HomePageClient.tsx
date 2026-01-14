@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Search, SlidersHorizontal, X } from "lucide-react";
 import styled from "styled-components";
@@ -8,19 +8,25 @@ import { SiteHeader } from "@/app/living-site/components/SiteHeader";
 import { BottomNav } from "@/app/living-site/components/BottomNav";
 import { ListingGrid } from "@/app/living-site/components/ListingGrid";
 import { PageSection, SectionTitle } from "@/app/living-site/components/PageSection";
-import { useListings } from "@/app/living-site/hooks/useListings";
+import { useInfiniteListings } from "@/app/living-site/hooks/useInfiniteListings";
 
 const Screen = styled.div`
   padding: 12px;
 
   @media (max-width: 640px) {
-    padding: 12px 0;
+    padding: 0px 0;
+    font-size: 0.92rem;
   }
 `;
 
 const SearchShell = styled.div`
   display: grid;
   gap: 12px;
+
+  @media (max-width: 640px) {
+    padding: 0 12px;
+    gap: 8px;
+  }
 `;
 
 const TopRow = styled.div`
@@ -38,6 +44,11 @@ const SearchBar = styled.div`
   border: 1px solid var(--color-outline);
   background: var(--color-surface);
   flex: 1;
+  min-width: 0;
+
+  @media (max-width: 640px) {
+    padding: 8px 10px;
+  }
 `;
 
 const SearchIcon = styled.span`
@@ -55,6 +66,16 @@ const SearchIcon = styled.span`
   svg {
     width: 14px;
     height: 14px;
+  }
+
+  @media (max-width: 640px) {
+    width: 20px;
+    height: 20px;
+
+    svg {
+      width: 12px;
+      height: 12px;
+    }
   }
 `;
 
@@ -110,6 +131,11 @@ const FilterButton = styled.button`
   cursor: pointer;
   color: var(--color-text);
   box-shadow: var(--shadow-soft);
+
+  @media (max-width: 640px) {
+    width: 32px;
+    height: 32px;
+  }
 `;
 
 const Paper = styled.div`
@@ -125,12 +151,14 @@ const Paper = styled.div`
   flex-direction: column;
   gap: 14px;
   @media (max-width: 640px) {
-    padding: 12px 0;
+    padding: 0px 0;
     border-radius: 0;
     border-left: none;
     border-right: none;
     background: none;
     box-shadow: none;
+    border:none;
+    margin-top: 10px;
   }
 `;
 
@@ -152,6 +180,11 @@ const ClearButton = styled.button`
   height: 28px;
   display: grid;
   place-items: center;
+
+  @media (max-width: 640px) {
+    width: 24px;
+    height: 24px;
+  }
 `;
 
 const FilterOverlay = styled.div`
@@ -239,6 +272,32 @@ const ClearTextButton = styled.button`
   cursor: pointer;
   color: var(--color-muted);
   font-weight: 600;
+`;
+
+const LoadMoreSentinel = styled.div`
+  height: 1px;
+`;
+
+const LoadMoreText = styled.p`
+  margin: 12px 0 0;
+  color: var(--color-muted);
+`;
+
+const LoadMoreButton = styled.button`
+  border: 1px solid var(--color-outline);
+  border-radius: 999px;
+  padding: 8px 16px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-weight: 600;
+  cursor: pointer;
+  margin: 12px auto 0;
+  display: block;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
 `;
 
 const toNumber = (value: string) => {
@@ -329,7 +388,24 @@ export function HomePageClient() {
       township,
     ]
   );
-  const { listings, loading } = useListings(filters);
+  const { listings, loading, loadingMore, hasMore, loadMore } = useInfiniteListings(filters);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!hasMore || loading) return;
+    const target = loadMoreRef.current;
+    if (!target) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          loadMore();
+        }
+      },
+      { rootMargin: "220px" }
+    );
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [hasMore, loadMore, loading]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -434,7 +510,14 @@ export function HomePageClient() {
         </Paper>
         <PageSection>
           <SectionTitle>Featured properties</SectionTitle>
-          <ListingGrid listings={listings.slice(0, 6)} loading={loading} />
+          <ListingGrid listings={listings} loading={loading} />
+          {loadingMore && <LoadMoreText>Loading more properties...</LoadMoreText>}
+          {!loading && hasMore && (
+            <LoadMoreButton type="button" onClick={loadMore} disabled={loadingMore}>
+              {loadingMore ? "Loading..." : "Load more"}
+            </LoadMoreButton>
+          )}
+          {hasMore && !loading && <LoadMoreSentinel ref={loadMoreRef} />}
         </PageSection>
       </Screen>
       {filtersOpen && (

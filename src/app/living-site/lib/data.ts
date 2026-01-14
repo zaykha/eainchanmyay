@@ -9,8 +9,10 @@ export type Listing = {
   currency?: string;
   dealType?: string;
   propertyType?: string;
+  city?: string;
   township?: string;
   district?: string;
+  areaSqft?: number;
   imageUrl?: string;
   raw: Record<string, unknown>;
 };
@@ -313,8 +315,10 @@ export async function getListings(filters?: string | ListingFilters) {
       currency: getString(property.currency) || "MMK",
       dealType: getString(property.deal_type),
       propertyType: getString(property.property_type),
+      city: getString(property.city),
       township: getString(property.township),
       district: getString(property.district),
+      areaSqft: getNumber(property.area_sqft),
       imageUrl: resolveListingImage(property, photos),
       raw: property,
     } as Listing;
@@ -385,7 +389,7 @@ export async function getViewingRequestsForUser(userId: string) {
   const { data, error } = await supabase
     .from("viewing_requests")
     .select(
-      "id,property_id,preferred_date,preferred_time_window,created_at,property:properties(id,title,township,district,price,currency)"
+      "id,property_id,preferred_date,preferred_time_window,created_at,updated_at,property:properties(id,title,township,district,price,currency,deal_type,property_type,bedrooms,bathrooms,area_sqft)"
     )
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
@@ -398,7 +402,48 @@ export async function getViewingRequestsForUser(userId: string) {
     };
   }
 
-  return { data: data as Array<Record<string, unknown>>, error: null };
+  const propertyIds = data
+    .map((row) => String(row.property_id ?? ""))
+    .filter(Boolean);
+  let photosByProperty = new Map<string, Record<string, unknown>[]>();
+
+  if (propertyIds.length) {
+    const { data: photos, error: photoError } = await supabase
+      .from("property_images")
+      .select("*")
+      .in("property_id", propertyIds)
+      .order("is_cover", { ascending: false })
+      .order("sort_order", { ascending: true });
+
+    if (photoError) {
+      console.warn("Failed to load viewing request images", photoError);
+    } else if (photos) {
+      photosByProperty = photos.reduce((map, photo) => {
+        const propertyId = String(photo.property_id ?? "");
+        if (!propertyId) return map;
+        const bucket = map.get(propertyId) ?? [];
+        bucket.push(photo);
+        map.set(propertyId, bucket);
+        return map;
+      }, new Map<string, Record<string, unknown>[]>());
+    }
+  }
+
+  const enriched = data.map((row) => {
+    const property = (row.property as Record<string, unknown>) ?? {};
+    const propertyId = String(row.property_id ?? property.id ?? "");
+    const photos = photosByProperty.get(propertyId) ?? [];
+    const imageUrl = resolveListingImage(property, photos);
+    return {
+      ...row,
+      property: {
+        ...property,
+        imageUrl,
+      },
+    } as Record<string, unknown>;
+  });
+
+  return { data: enriched as Array<Record<string, unknown>>, error: null };
 }
 
 export async function getViewingRequestForUserProperty(userId: string, propertyId: string) {
@@ -432,6 +477,7 @@ export async function updateViewingRequest(input: ViewingRequestUpdateInput) {
       preferred_date: input.preferredDate,
       preferred_time_window: input.preferredTimeWindow,
       notes: input.notes ?? null,
+      updated_at: new Date().toISOString(),
     })
     .eq("id", input.id);
 
@@ -446,7 +492,7 @@ export async function getSavedPropertiesForUser(userId: string) {
   const { data, error } = await supabase
     .from("saved_properties")
     .select(
-      "id,property_id,created_at,property:properties(id,title,township,district,price,currency,deal_type,property_type)"
+      "id,property_id,created_at,property:properties(id,title,township,district,price,currency,deal_type,property_type,bedrooms,bathrooms,area_sqft)"
     )
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
@@ -459,7 +505,48 @@ export async function getSavedPropertiesForUser(userId: string) {
     };
   }
 
-  return { data: data as Array<Record<string, unknown>>, error: null };
+  const propertyIds = data
+    .map((row) => String(row.property_id ?? ""))
+    .filter(Boolean);
+  let photosByProperty = new Map<string, Record<string, unknown>[]>();
+
+  if (propertyIds.length) {
+    const { data: photos, error: photoError } = await supabase
+      .from("property_images")
+      .select("*")
+      .in("property_id", propertyIds)
+      .order("is_cover", { ascending: false })
+      .order("sort_order", { ascending: true });
+
+    if (photoError) {
+      console.warn("Failed to load saved property images", photoError);
+    } else if (photos) {
+      photosByProperty = photos.reduce((map, photo) => {
+        const propertyId = String(photo.property_id ?? "");
+        if (!propertyId) return map;
+        const bucket = map.get(propertyId) ?? [];
+        bucket.push(photo);
+        map.set(propertyId, bucket);
+        return map;
+      }, new Map<string, Record<string, unknown>[]>());
+    }
+  }
+
+  const enriched = data.map((row) => {
+    const property = (row.property as Record<string, unknown>) ?? {};
+    const propertyId = String(row.property_id ?? property.id ?? "");
+    const photos = photosByProperty.get(propertyId) ?? [];
+    const imageUrl = resolveListingImage(property, photos);
+    return {
+      ...row,
+      property: {
+        ...property,
+        imageUrl,
+      },
+    } as Record<string, unknown>;
+  });
+
+  return { data: enriched as Array<Record<string, unknown>>, error: null };
 }
 
 export async function getInquiriesForUser(userId: string) {
@@ -470,7 +557,7 @@ export async function getInquiriesForUser(userId: string) {
   const { data, error } = await supabase
     .from("inquiries")
     .select(
-      "id,deal_type,property_type,state_region,district,township,budget_range,timeline,need_parking,need_lift,need_solar,need_generator,created_at"
+      "id,deal_type,property_type,state_region,district,township,budget_range,timeline,need_parking,need_lift,need_solar,need_generator,created_at,updated_at"
     )
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
@@ -486,6 +573,57 @@ export async function getInquiriesForUser(userId: string) {
   return { data: data as Array<Record<string, unknown>>, error: null };
 }
 
+export async function getInquiryById(userId: string, inquiryId: string) {
+  if (!isSupabaseConfigured) {
+    return { inquiry: null as Record<string, unknown> | null, error: "Supabase is not configured." };
+  }
+
+  const { data, error } = await supabase
+    .from("inquiries")
+    .select(
+      "id,deal_type,property_type,state_region,district,township,budget_range,timeline,need_parking,need_lift,need_solar,need_generator,created_at,updated_at"
+    )
+    .eq("id", inquiryId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    console.warn("Failed to load inquiry", error);
+    return { inquiry: null, error: error.message };
+  }
+
+  return { inquiry: (data as Record<string, unknown> | null) ?? null, error: null };
+}
+
+export async function updateInquiry(input: InquiryInput & { id: string }) {
+  if (!isSupabaseConfigured) {
+    return { ok: false, message: "Supabase is not configured." };
+  }
+
+  const payload = {
+    deal_type: input.dealType,
+    property_type: input.propertyType,
+    state_region: input.stateRegion,
+    district: input.district,
+    township: input.township,
+    budget_range: input.budgetRange,
+    timeline: input.timeline ?? null,
+    need_parking: input.needParking,
+    need_lift: input.needLift,
+    need_solar: input.needSolar,
+    need_generator: input.needGenerator,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error } = await supabase
+    .from("inquiries")
+    .update(payload)
+    .eq("id", input.id)
+    .eq("user_id", input.userId);
+
+  return error ? { ok: false, message: error.message } : { ok: true };
+}
+
 export async function getSalesRequestsForUser(userId: string) {
   if (!isSupabaseConfigured) {
     return { data: [] as Array<Record<string, unknown>>, error: "Supabase is not configured." };
@@ -494,7 +632,7 @@ export async function getSalesRequestsForUser(userId: string) {
   const { data, error } = await supabase
     .from("sales_requests")
     .select(
-      "id,title,deal_type,property_type,price,currency,state_region,district,township,created_at"
+      "id,title,description,deal_type,property_type,price,currency,state_region,district,township,city,address_text,bedrooms,bathrooms,area_sqft,has_lift,has_backup_power,backup_power_type,has_parking,created_at"
     )
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
@@ -508,6 +646,94 @@ export async function getSalesRequestsForUser(userId: string) {
   }
 
   return { data: data as Array<Record<string, unknown>>, error: null };
+}
+
+export async function getSalesRequestById(userId: string, requestId: string) {
+  if (!isSupabaseConfigured) {
+    return { request: null as Record<string, unknown> | null, error: "Supabase is not configured." };
+  }
+
+  const { data, error } = await supabase
+    .from("sales_requests")
+    .select(
+      "id,title,description,deal_type,property_type,price,currency,state_region,district,city,township,address_text,bedrooms,bathrooms,area_sqft,has_lift,has_backup_power,backup_power_type,has_parking,latitude,longitude,owner_name,owner_phone,owner_phone_secondary,created_at"
+    )
+    .eq("id", requestId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    console.warn("Failed to load sales request", error);
+    return { request: null, error: error.message };
+  }
+
+  return { request: (data as Record<string, unknown> | null) ?? null, error: null };
+}
+
+export async function updateSalesRequest(input: {
+  id: string;
+  userId: string;
+  title: string;
+  description: string | null;
+  dealType: string;
+  propertyType: string;
+  price: number;
+  currency: string;
+  stateRegion: string;
+  district: string | null;
+  city: string | null;
+  township: string;
+  addressText: string | null;
+  bedrooms: number | null;
+  bathrooms: number | null;
+  areaSqft: number | null;
+  hasLift: boolean;
+  hasBackupPower: boolean;
+  backupPowerType: string | null;
+  hasParking: boolean;
+  latitude: number | null;
+  longitude: number | null;
+  ownerName: string | null;
+  ownerPhone: string | null;
+  ownerPhoneSecondary: string | null;
+}) {
+  if (!isSupabaseConfigured) {
+    return { ok: false, message: "Supabase is not configured." };
+  }
+
+  const payload = {
+    title: input.title,
+    description: input.description,
+    deal_type: input.dealType,
+    property_type: input.propertyType,
+    price: input.price,
+    currency: input.currency,
+    state_region: input.stateRegion,
+    district: input.district,
+    city: input.city,
+    township: input.township,
+    address_text: input.addressText,
+    bedrooms: input.bedrooms,
+    bathrooms: input.bathrooms,
+    area_sqft: input.areaSqft,
+    has_lift: input.hasLift,
+    has_backup_power: input.hasBackupPower,
+    backup_power_type: input.backupPowerType,
+    has_parking: input.hasParking,
+    latitude: input.latitude,
+    longitude: input.longitude,
+    owner_name: input.ownerName,
+    owner_phone: input.ownerPhone,
+    owner_phone_secondary: input.ownerPhoneSecondary,
+  };
+
+  const { error } = await supabase
+    .from("sales_requests")
+    .update(payload)
+    .eq("id", input.id)
+    .eq("user_id", input.userId);
+
+  return error ? { ok: false, message: error.message } : { ok: true };
 }
 
 export async function createInquiry(input: InquiryInput) {

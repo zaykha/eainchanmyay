@@ -9,7 +9,7 @@ const Grid = styled.div`
   display: grid;
   gap: 12px;
   grid-template-columns: repeat(auto-fill, minmax(260px, 320px));
-  justify-content: start;
+  justify-content: center;
 `;
 
 const EmptyState = styled.div`

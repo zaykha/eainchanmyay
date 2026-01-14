@@ -1,15 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import styled from "styled-components";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { SiteHeader } from "@/app/living-site/components/SiteHeader";
 import { BottomNav } from "@/app/living-site/components/BottomNav";
 import { SectionTitle, Panel } from "@/app/living-site/components/PageSection";
 import { CustomSelect } from "@/app/living-site/components/form-controls/CustomSelect";
 import { getDistricts, getStates, getTownships } from "@/app/living-site/lib/myanmar-geo";
 import { useAppState } from "@/app/living-site/lib/app-state";
-import { createInquiry } from "@/app/living-site/lib/data";
+import { createInquiry, getInquiryById, updateInquiry } from "@/app/living-site/lib/data";
 import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
 
 const PageShell = styled.div`
@@ -121,7 +121,10 @@ const GhostButton = styled.button`
 
 export default function NewInquiryPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useAppState();
+  const editId = searchParams.get("editId");
+  const isEdit = Boolean(editId);
   const [dealType, setDealType] = useState("buy");
   const [propertyType, setPropertyType] = useState("house");
   const [stateRegion, setStateRegion] = useState("");
@@ -136,6 +139,43 @@ export default function NewInquiryPage() {
   const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadingEdit, setLoadingEdit] = useState(false);
+
+  useEffect(() => {
+    if (!editId || !user?.id) return;
+    let active = true;
+    setLoadingEdit(true);
+    getInquiryById(user.id, editId)
+      .then(({ inquiry, error: loadError }) => {
+        if (!active) return;
+        if (loadError) {
+          setError(loadError);
+          return;
+        }
+        if (!inquiry) {
+          setError("Unable to load inquiry details.");
+          return;
+        }
+        setDealType(String(inquiry.deal_type ?? "buy"));
+        setPropertyType(String(inquiry.property_type ?? "house"));
+        setStateRegion(String(inquiry.state_region ?? ""));
+        setDistrict(String(inquiry.district ?? ""));
+        setTownship(String(inquiry.township ?? ""));
+        setBudgetRange(String(inquiry.budget_range ?? ""));
+        setTimeline(String(inquiry.timeline ?? ""));
+        setNeedParking(Boolean(inquiry.need_parking));
+        setNeedLift(Boolean(inquiry.need_lift));
+        setNeedSolar(Boolean(inquiry.need_solar));
+        setNeedGenerator(Boolean(inquiry.need_generator));
+      })
+      .finally(() => {
+        if (active) setLoadingEdit(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [editId, user?.id]);
 
   const handleSubmit = async () => {
     if (!user?.id) {
@@ -148,7 +188,7 @@ export default function NewInquiryPage() {
     }
     setError(null);
     setSubmitting(true);
-    const result = await createInquiry({
+    const payload = {
       userId: user.id,
       dealType: dealType as "buy" | "rent",
       propertyType: propertyType as
@@ -170,7 +210,11 @@ export default function NewInquiryPage() {
       needLift,
       needSolar,
       needGenerator,
-    });
+    };
+    const result =
+      isEdit && editId
+        ? await updateInquiry({ id: editId, ...payload })
+        : await createInquiry(payload);
     setSubmitting(false);
     if (!result.ok) {
       setError(result.message ?? "Unable to submit inquiry.");
@@ -219,12 +263,16 @@ export default function NewInquiryPage() {
       <SiteHeader />
       <PageShell>
         <TitleRow>
-          <SectionTitle>New inquiry</SectionTitle>
+          <SectionTitle>{isEdit ? "Edit inquiry" : "New inquiry"}</SectionTitle>
           <BackButton type="button" onClick={() => router.back()}>
             Back
           </BackButton>
         </TitleRow>
-        <Muted>Tell us what you want to buy or rent. We’ll follow up inside your activities.</Muted>
+        <Muted>
+          {isEdit
+            ? "Update your inquiry details and we’ll continue the conversation."
+            : "Tell us what you want to buy or rent. We’ll follow up inside your activities."}
+        </Muted>
         {!user && (
           <Panel style={{ display: "grid", gap: "10px" }}>
             <Muted>Sign in to submit an inquiry.</Muted>
@@ -363,21 +411,29 @@ export default function NewInquiryPage() {
 
           {error && <Muted style={{ color: "var(--color-danger)" }}>{error}</Muted>}
           {success ? (
-            <Muted>Thanks. Our team will contact you shortly.</Muted>
+            <Muted>{isEdit ? "Inquiry updated." : "Thanks. Our team will contact you shortly."}</Muted>
           ) : (
-            <PrimaryButton type="button" onClick={handleSubmit} disabled={submitting}>
-              {submitting ? "Submitting..." : "Submit inquiry"}
+            <PrimaryButton type="button" onClick={handleSubmit} disabled={submitting || loadingEdit}>
+              {loadingEdit
+                ? "Loading..."
+                : submitting
+                  ? "Submitting..."
+                  : isEdit
+                    ? "Save changes"
+                    : "Submit inquiry"}
             </PrimaryButton>
           )}
         </Panel>
         )}
       </PageShell>
       <BottomNav />
-      {submitting && <LoadingOverlay message="Submitting inquiry..." />}
+      {(submitting || loadingEdit) && (
+        <LoadingOverlay message={loadingEdit ? "Loading inquiry..." : "Submitting inquiry..."} />
+      )}
       {success && (
         <SuccessOverlay>
           <SuccessModal>
-            <strong>Thanks. Our team will contact you shortly.</strong>
+            <strong>{isEdit ? "Inquiry updated." : "Thanks. Our team will contact you shortly."}</strong>
             <ActionRow>
               <GhostButton type="button" onClick={() => router.push("/")}>
                 Browse listings

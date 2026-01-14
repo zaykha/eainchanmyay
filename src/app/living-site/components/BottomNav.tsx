@@ -22,6 +22,12 @@ const Shell = styled.nav`
   overflow: hidden;
   padding: 4px;
   backdrop-filter: blur(8px);
+
+  @media (max-width: 640px) {
+    bottom: 8px;
+    padding: 2px;
+    border-radius: 14px;
+  }
 `;
 
 const NavButton = styled(Link)`
@@ -36,6 +42,12 @@ const NavButton = styled(Link)`
   display: grid;
   gap: 4px;
   justify-items: center;
+
+  @media (max-width: 640px) {
+    padding: 8px 6px;
+    font-size: 0.75rem;
+    gap: 2px;
+  }
 
   &[data-active="true"] {
     color: var(--color-primary);
@@ -70,6 +82,16 @@ const NavIcon = styled.span`
     width: 25px;
     height: 25px;
     stroke: currentColor;
+  }
+
+  @media (max-width: 640px) {
+    width: 22px;
+    height: 22px;
+
+    svg {
+      width: 18px;
+      height: 18px;
+    }
   }
 `;
 

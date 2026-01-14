@@ -22,8 +22,11 @@ export function formatMmk(value: number) {
   if (absValue >= 100000) {
     const lakhs = value / 100000;
     const decimals = lakhs >= 100 ? 0 : lakhs >= 10 ? 1 : 2;
-    const display = lakhs.toFixed(decimals).replace(/\.0+$/, "");
-    return `MMK ${display} Lakh`;
+    const lakhFormatter = new Intl.NumberFormat("en-US", {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: decimals,
+    });
+    return `MMK ${lakhFormatter.format(lakhs)} Lakh`;
   }
 
   return `MMK ${formatter.format(value)}`;

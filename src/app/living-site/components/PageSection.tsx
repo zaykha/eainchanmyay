@@ -13,6 +13,10 @@ export const PageSection = styled.section`
 export const SectionTitle = styled.h2`
   margin: 0 0 2px;
   font-size: 1.6rem;
+
+  @media (max-width: 600px) {
+    font-size: 1.1rem;
+  }
 `;
 
 export const Panel = styled.div`

@@ -36,6 +36,11 @@ const HeaderInner = styled.div`
     box-shadow: var(--frame-shadow);
     pointer-events: none;
   }
+
+  @media (max-width: 640px) {
+    padding: 8px 10px;
+    box-shadow: none;
+  }
 `;
 
 const Brand = styled.div`
@@ -45,6 +50,11 @@ const Brand = styled.div`
   font-weight: 700;
   font-size: 1.1rem;
   letter-spacing: 0.02em;
+
+  @media (max-width: 640px) {
+    font-size: 0.95rem;
+    gap: 8px;
+  }
 `;
 
 const BrandText = styled.div`
@@ -55,6 +65,10 @@ const BrandSub = styled.span`
   font-size: 0.75rem;
   font-weight: 500;
   color: var(--color-muted);
+
+  @media (max-width: 640px) {
+    display: none;
+  }
 `;
 
 const BrandMark = styled.div`
@@ -68,6 +82,11 @@ const BrandMark = styled.div`
   font-weight: 700;
   letter-spacing: 0.5px;
   box-shadow: var(--shadow-soft);
+
+  @media (max-width: 640px) {
+    width: 32px;
+    height: 32px;
+  }
 `;
 
 
@@ -93,6 +112,16 @@ const IconButton = styled(Link)`
     width: 30px;
     height: 30px;
     stroke: currentColor;
+  }
+
+  @media (max-width: 640px) {
+    width: 30px;
+    height: 30px;
+
+    svg {
+      width: 22px;
+      height: 22px;
+    }
   }
 
   &:hover {

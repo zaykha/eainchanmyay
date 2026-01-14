@@ -114,6 +114,10 @@ const CarouselViewport = styled.div`
   display: grid;
   place-items: center;
   background: var(--color-surface-2);
+
+  @media (max-width: 640px) {
+    height: auto;
+  }
 `;
 
 const slideIn = keyframes`
@@ -132,6 +136,12 @@ const CarouselImage = styled.img`
   height: 100%;
   object-fit: contain;
   animation: ${slideIn} 0.2s ease-out;
+
+  @media (max-width: 640px) {
+    height: auto;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+  }
 `;
 
 const CarouselButton = styled.button`
