@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { rateLimit } from "@/app/api/_lib/rate-limit";
 
 type Payload = {
   user_id?: string | null;
@@ -51,6 +52,24 @@ const toNullableNumber = (value: unknown) => {
 };
 
 export async function POST(req: Request) {
+  const limit = rateLimit(req, {
+    windowMs: 60_000,
+    max: 10,
+    minIntervalMs: 1500,
+    keyPrefix: "sales-requests",
+  });
+  if (limit.limited) {
+    return NextResponse.json(
+      { ok: false, message: "Too many requests. Please try again shortly." },
+      {
+        status: 429,
+        headers: {
+          "X-RateLimit-Remaining": String(limit.remaining),
+          "X-RateLimit-Reset": String(limit.resetAt),
+        },
+      }
+    );
+  }
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 

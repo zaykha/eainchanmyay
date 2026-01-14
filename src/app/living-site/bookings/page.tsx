@@ -5,6 +5,7 @@ import { SiteHeader } from "@/app/living-site/components/SiteHeader";
 import { BottomNav } from "@/app/living-site/components/BottomNav";
 import { SectionTitle } from "@/app/living-site/components/PageSection";
 import { EAIN_CONTACT_PHONE } from "@/app/living-site/lib/constants";
+import { useI18n } from "@/app/living-site/lib/i18n";
 
 const PageShell = styled.div`
   max-width: 1140px;
@@ -30,17 +31,18 @@ const Muted = styled.p`
 `;
 
 export default function ContactRequestsPage() {
+  const { t } = useI18n();
   return (
     <div>
       <SiteHeader />
       <PageShell>
-        <SectionTitle>Contact requests</SectionTitle>
+        <SectionTitle>{t("bookings.title")}</SectionTitle>
         <Card>
-          <strong>No contact requests yet</strong>
+          <strong>{t("bookings.emptyTitle")}</strong>
           <Muted>
-            When you reach out to owners or agents, your requests will appear
-            here. For now, call our team at{" "}
-            <a href={`tel:${EAIN_CONTACT_PHONE}`}>{EAIN_CONTACT_PHONE}</a> for help.
+            {t("bookings.emptyBody")}{" "}
+            <a href={`tel:${EAIN_CONTACT_PHONE}`}>{EAIN_CONTACT_PHONE}</a>{" "}
+            {t("bookings.emptyBodySuffix")}
           </Muted>
         </Card>
       </PageShell>

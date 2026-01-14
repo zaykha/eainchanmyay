@@ -1,12 +1,14 @@
 import data from "./myanmar-admin-structured.json";
 
 type StructuredState = {
+  pcode?: string;
   name_en: string;
   name_mm?: string | null;
   districts?: {
+    pcode?: string;
     name_en: string;
     name_mm?: string | null;
-    townships?: { name_en: string; name_mm?: string | null }[];
+    townships?: { pcode?: string; name_en: string; name_mm?: string | null }[];
   }[];
 };
 

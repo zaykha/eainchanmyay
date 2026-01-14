@@ -5,6 +5,7 @@ import styled from "styled-components";
 import { useAppState } from "@/app/living-site/lib/app-state";
 import { supabase, isSupabaseConfigured } from "@/app/living-site/lib/supabaseClient";
 import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
+import { useI18n } from "@/app/living-site/lib/i18n";
 
 const Wrapper = styled.div`
   display: grid;
@@ -168,6 +169,7 @@ type AuthScreenProps = {
 
 export function AuthScreen({ onSuccess }: AuthScreenProps) {
   const { login, register } = useAppState();
+  const { t } = useI18n();
   const [mode, setMode] = useState<Mode>("login");
   const [stage, setStage] = useState<"intro" | "form">("intro");
   const [email, setEmail] = useState("");
@@ -178,11 +180,11 @@ export function AuthScreen({ onSuccess }: AuthScreenProps) {
   const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
 
   const passwordChecks = [
-    { label: "At least 8 characters", ok: password.length >= 8 },
-    { label: "One lowercase letter", ok: /[a-z]/.test(password) },
-    { label: "One uppercase letter", ok: /[A-Z]/.test(password) },
-    { label: "One number", ok: /\d/.test(password) },
-    { label: "One special character", ok: /[^A-Za-z0-9]/.test(password) },
+    { label: t("auth.passwordCheck.length"), ok: password.length >= 8 },
+    { label: t("auth.passwordCheck.lower"), ok: /[a-z]/.test(password) },
+    { label: t("auth.passwordCheck.upper"), ok: /[A-Z]/.test(password) },
+    { label: t("auth.passwordCheck.number"), ok: /\d/.test(password) },
+    { label: t("auth.passwordCheck.special"), ok: /[^A-Za-z0-9]/.test(password) },
   ];
   const passwordStrong = passwordChecks.every((check) => check.ok);
 
@@ -190,18 +192,18 @@ export function AuthScreen({ onSuccess }: AuthScreenProps) {
     event.preventDefault();
     setMessage(null);
     if (!isSupabaseConfigured) {
-      setMessage("Supabase is not configured.");
+      setMessage(t("auth.supabaseMissing"));
       return;
     }
     if (mode === "register" && !passwordStrong) {
-      setMessage("Password is too weak.");
+      setMessage(t("auth.passwordWeak"));
       return;
     }
     if (mode === "register" && (!fullName.trim() || !phoneNumber.trim())) {
-      setMessage("Enter your full name and phone number.");
+      setMessage(t("auth.enterNamePhone"));
       return;
     }
-    setLoadingMessage(mode === "login" ? "Signing in..." : "Creating account...");
+    setLoadingMessage(mode === "login" ? t("auth.signingInShort") : t("auth.creatingAccount"));
     const result =
       mode === "login"
         ? await login(email, password)
@@ -214,17 +216,17 @@ export function AuthScreen({ onSuccess }: AuthScreenProps) {
       setMessage(result.error);
       return;
     }
-    setMessage(mode === "login" ? "Signed in." : "Check your email to confirm.");
+    setMessage(mode === "login" ? t("auth.signedIn") : t("auth.checkEmail"));
     onSuccess?.();
   };
 
   const handleGoogle = async () => {
     setMessage(null);
     if (!isSupabaseConfigured) {
-      setMessage("Supabase is not configured.");
+      setMessage(t("auth.supabaseMissing"));
       return;
     }
-    setLoadingMessage("Redirecting to Google...");
+    setLoadingMessage(t("auth.googleRedirect"));
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
@@ -241,29 +243,33 @@ export function AuthScreen({ onSuccess }: AuthScreenProps) {
     <Wrapper>
       <BrandBlock $align={stage === "intro" ? "center" : "start"}>
         <BrandMark>
-          <img src="/KTLogo.png" alt="Eain Chan Myae logo" />
+          <img src="/KTLogo.png" alt="Eain Chan Myay logo" />
         </BrandMark>
-        <strong>Eain Chan Myae</strong>
-        <Subtitle>Find property sales and rentals faster.</Subtitle>
+        <strong>Eain Chan Myay</strong>
+        <Subtitle>{t("auth.subtitle")}</Subtitle>
       </BrandBlock>
       {stage === "intro" ? (
         <IntroButtons>
           <PrimaryButton type="button" onClick={() => { setMode("login"); setStage("form"); }}>
-            Continue with Email
+            {t("auth.continueEmail")}
           </PrimaryButton>
           <SecondaryButton type="button" onClick={handleGoogle}>
-            Continue with Google
+            {t("auth.continueGoogle")}
           </SecondaryButton>
         </IntroButtons>
       ) : (
         <>
           <Tabs>
-            <TabButton type="button" $active={mode === "login"} onClick={() => setMode("login")}>Login</TabButton>
-            <TabButton type="button" $active={mode === "register"} onClick={() => setMode("register")}>Register</TabButton>
+            <TabButton type="button" $active={mode === "login"} onClick={() => setMode("login")}>
+              {t("auth.login")}
+            </TabButton>
+            <TabButton type="button" $active={mode === "register"} onClick={() => setMode("register")}>
+              {t("auth.register")}
+            </TabButton>
           </Tabs>
           <Form onSubmit={handleSubmit}>
             <Field $filled={Boolean(email)} data-filled={Boolean(email)}>
-              <FloatingLabel className="floating-label">Email</FloatingLabel>
+              <FloatingLabel className="floating-label">{t("auth.email")}</FloatingLabel>
               <Input
                 type="email"
                 value={email}
@@ -272,7 +278,7 @@ export function AuthScreen({ onSuccess }: AuthScreenProps) {
               />
             </Field>
             <Field $filled={Boolean(password)} data-filled={Boolean(password)}>
-              <FloatingLabel className="floating-label">Password</FloatingLabel>
+              <FloatingLabel className="floating-label">{t("auth.password")}</FloatingLabel>
               <Input
                 type="password"
                 value={password}
@@ -293,7 +299,7 @@ export function AuthScreen({ onSuccess }: AuthScreenProps) {
             {mode === "register" && (
               <>
                 <Field $filled={Boolean(fullName)} data-filled={Boolean(fullName)}>
-                  <FloatingLabel className="floating-label">Full name</FloatingLabel>
+                  <FloatingLabel className="floating-label">{t("auth.fullName")}</FloatingLabel>
                   <Input
                     type="text"
                     value={fullName}
@@ -302,7 +308,7 @@ export function AuthScreen({ onSuccess }: AuthScreenProps) {
                   />
                 </Field>
                 <Field $filled={Boolean(phoneNumber)} data-filled={Boolean(phoneNumber)}>
-                  <FloatingLabel className="floating-label">Phone number</FloatingLabel>
+                  <FloatingLabel className="floating-label">{t("auth.phoneNumber")}</FloatingLabel>
                   <Input
                     type="tel"
                     value={phoneNumber}
@@ -312,8 +318,12 @@ export function AuthScreen({ onSuccess }: AuthScreenProps) {
                 </Field>
               </>
             )}
-            <PrimaryButton type="submit">{mode === "login" ? "Sign in" : "Register"}</PrimaryButton>
-            <SecondaryButton type="button" onClick={handleGoogle}>Continue with Google</SecondaryButton>
+            <PrimaryButton type="submit">
+              {mode === "login" ? t("auth.signInButton") : t("auth.registerButton")}
+            </PrimaryButton>
+            <SecondaryButton type="button" onClick={handleGoogle}>
+              {t("auth.continueGoogle")}
+            </SecondaryButton>
           </Form>
         </>
       )}

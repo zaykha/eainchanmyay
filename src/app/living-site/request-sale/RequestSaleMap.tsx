@@ -99,9 +99,9 @@ export default function RequestSaleMap({
           draggable={active}
           icon={markerIcon}
           eventHandlers={{
-            dragend: (event) => {
+            dragend: (event: L.DragEndEvent) => {
               if (!active) return;
-              const marker = event.target;
+              const marker = event.target as L.Marker;
               const latlng = marker.getLatLng();
               onSelect(latlng.lat, latlng.lng);
             },

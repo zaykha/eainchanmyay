@@ -10,7 +10,7 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "Eain Chan Myae",
+  title: "Eain Chan Myay",
   description: "Myanmar real estate marketplace for property sale and rent",
   manifest: "/site.webmanifest",
   icons: {

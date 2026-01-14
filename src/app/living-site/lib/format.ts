@@ -1,5 +1,5 @@
-export function formatCurrency(value?: number, currency?: string) {
-  if (value === undefined || value === null) return "Contact for price";
+export function formatCurrency(value?: number, currency?: string, fallbackLabel = "") {
+  if (value === undefined || value === null) return fallbackLabel;
   const code = currency?.trim() || "MMK";
   const rounded = Math.round(value);
 

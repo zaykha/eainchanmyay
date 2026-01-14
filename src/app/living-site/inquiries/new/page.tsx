@@ -1,16 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import styled from "styled-components";
 import { useRouter, useSearchParams } from "next/navigation";
 import { SiteHeader } from "@/app/living-site/components/SiteHeader";
 import { BottomNav } from "@/app/living-site/components/BottomNav";
 import { SectionTitle, Panel } from "@/app/living-site/components/PageSection";
 import { CustomSelect } from "@/app/living-site/components/form-controls/CustomSelect";
+import { CustomInput } from "@/app/living-site/components/form-controls/CustomInput";
 import { getDistricts, getStates, getTownships } from "@/app/living-site/lib/myanmar-geo";
 import { useAppState } from "@/app/living-site/lib/app-state";
 import { createInquiry, getInquiryById, updateInquiry } from "@/app/living-site/lib/data";
 import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
+import { useI18n } from "@/app/living-site/lib/i18n";
 
 const PageShell = styled.div`
   max-width: 960px;
@@ -119,10 +121,11 @@ const GhostButton = styled.button`
   cursor: pointer;
 `;
 
-export default function NewInquiryPage() {
+function NewInquiryPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAppState();
+  const { t } = useI18n();
   const editId = searchParams.get("editId");
   const isEdit = Boolean(editId);
   const [dealType, setDealType] = useState("buy");
@@ -132,6 +135,9 @@ export default function NewInquiryPage() {
   const [township, setTownship] = useState("");
   const [budgetRange, setBudgetRange] = useState("");
   const [timeline, setTimeline] = useState("");
+  const [bedrooms, setBedrooms] = useState("");
+  const [bathrooms, setBathrooms] = useState("");
+  const [areaSqft, setAreaSqft] = useState("");
   const [needParking, setNeedParking] = useState(false);
   const [needLift, setNeedLift] = useState(false);
   const [needSolar, setNeedSolar] = useState(false);
@@ -153,7 +159,7 @@ export default function NewInquiryPage() {
           return;
         }
         if (!inquiry) {
-          setError("Unable to load inquiry details.");
+          setError(t("inquiry.loadError"));
           return;
         }
         setDealType(String(inquiry.deal_type ?? "buy"));
@@ -163,6 +169,9 @@ export default function NewInquiryPage() {
         setTownship(String(inquiry.township ?? ""));
         setBudgetRange(String(inquiry.budget_range ?? ""));
         setTimeline(String(inquiry.timeline ?? ""));
+        setBedrooms(String(inquiry.bedrooms ?? ""));
+        setBathrooms(String(inquiry.bathrooms ?? ""));
+        setAreaSqft(String(inquiry.area_sqft ?? ""));
         setNeedParking(Boolean(inquiry.need_parking));
         setNeedLift(Boolean(inquiry.need_lift));
         setNeedSolar(Boolean(inquiry.need_solar));
@@ -175,15 +184,37 @@ export default function NewInquiryPage() {
     return () => {
       active = false;
     };
-  }, [editId, user?.id]);
+  }, [editId, user?.id, t]);
+
+  const showBedBathFields = useMemo(
+    () =>
+      ["house", "house_land", "apartment", "condo", "mini_condo", "serviced_apartment"].includes(
+        propertyType
+      ),
+    [propertyType]
+  );
+
+  useEffect(() => {
+    if (!showBedBathFields) {
+      setBedrooms("");
+      setBathrooms("");
+    }
+  }, [showBedBathFields]);
+
+  const toNullableNumber = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    const parsed = Number(trimmed);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
 
   const handleSubmit = async () => {
     if (!user?.id) {
-      setError("Please sign in to submit an inquiry.");
+      setError(t("inquiry.signInRequired"));
       return;
     }
     if (!stateRegion || !district || !township || !budgetRange) {
-      setError("Please complete the required fields.");
+      setError(t("common.completeRequired"));
       return;
     }
     setError(null);
@@ -206,6 +237,9 @@ export default function NewInquiryPage() {
       township,
       budgetRange,
       timeline: timeline ? (timeline as "asap" | "1-3" | "3-6" | "browsing") : null,
+      bedrooms: showBedBathFields ? toNullableNumber(bedrooms) : null,
+      bathrooms: showBedBathFields ? toNullableNumber(bathrooms) : null,
+      areaSqft: toNullableNumber(areaSqft),
       needParking,
       needLift,
       needSolar,
@@ -217,7 +251,7 @@ export default function NewInquiryPage() {
         : await createInquiry(payload);
     setSubmitting(false);
     if (!result.ok) {
-      setError(result.message ?? "Unable to submit inquiry.");
+      setError(result.message ?? t("inquiry.submitError"));
       return;
     }
     setSuccess(true);
@@ -228,32 +262,32 @@ export default function NewInquiryPage() {
   const townshipOptions = getTownships(stateRegion, district);
 
   const propertyTypeOptions = [
-    { value: "land", label: "Land" },
-    { value: "house", label: "House" },
-    { value: "apartment", label: "Apartment" },
-    { value: "mini_condo", label: "Mini condo" },
-    { value: "condo", label: "Condo" },
-    { value: "serviced_apartment", label: "Serviced apartment" },
-    { value: "shop_office", label: "Shop/Office" },
-    { value: "hotel_restaurant", label: "Hotel/Restaurant" },
-    { value: "warehouse", label: "Warehouse" },
+    { value: "land", label: t("property.land") },
+    { value: "house", label: t("property.house") },
+    { value: "apartment", label: t("property.apartment") },
+    { value: "mini_condo", label: t("property.miniCondo") },
+    { value: "condo", label: t("property.condo") },
+    { value: "serviced_apartment", label: t("property.servicedApartment") },
+    { value: "shop_office", label: t("property.commercial") },
+    { value: "hotel_restaurant", label: t("property.commercial") },
+    { value: "warehouse", label: t("property.warehouse") },
   ];
 
   const buyBudgetOptions = [
-    { value: "0-1000", label: "Up to 1,000 Lakh" },
-    { value: "1000-5000", label: "1,000–5,000 Lakh" },
-    { value: "5000-50000", label: "5,000–50,000 Lakh" },
-    { value: "50000-100000", label: "50,000–100,000 Lakh" },
-    { value: "100000+", label: "100,000+ Lakh" },
+    { value: "0-1000", label: t("inquiry.budget.buy1") },
+    { value: "1000-5000", label: t("inquiry.budget.buy2") },
+    { value: "5000-50000", label: t("inquiry.budget.buy3") },
+    { value: "50000-100000", label: t("inquiry.budget.buy4") },
+    { value: "100000+", label: t("inquiry.budget.buy5") },
   ];
 
   const rentBudgetOptions = [
-    { value: "0-5", label: "Up to 5 Lakh" },
-    { value: "5-10", label: "5–10 Lakh" },
-    { value: "10-20", label: "10–20 Lakh" },
-    { value: "20-50", label: "20–50 Lakh" },
-    { value: "50-100", label: "50–100 Lakh" },
-    { value: "100+", label: "100+ Lakh" },
+    { value: "0-5", label: t("inquiry.budget.rent1") },
+    { value: "5-10", label: t("inquiry.budget.rent2") },
+    { value: "10-20", label: t("inquiry.budget.rent3") },
+    { value: "20-50", label: t("inquiry.budget.rent4") },
+    { value: "50-100", label: t("inquiry.budget.rent5") },
+    { value: "100+", label: t("inquiry.budget.rent6") },
   ];
 
   const budgetOptions = dealType === "rent" ? rentBudgetOptions : buyBudgetOptions;
@@ -263,21 +297,19 @@ export default function NewInquiryPage() {
       <SiteHeader />
       <PageShell>
         <TitleRow>
-          <SectionTitle>{isEdit ? "Edit inquiry" : "New inquiry"}</SectionTitle>
+          <SectionTitle>{isEdit ? t("inquiry.editTitle") : t("inquiry.newTitle")}</SectionTitle>
           <BackButton type="button" onClick={() => router.back()}>
-            Back
+            {t("common.back")}
           </BackButton>
         </TitleRow>
         <Muted>
-          {isEdit
-            ? "Update your inquiry details and we’ll continue the conversation."
-            : "Tell us what you want to buy or rent. We’ll follow up inside your activities."}
+          {isEdit ? t("inquiry.editSubtitle") : t("inquiry.newSubtitle")}
         </Muted>
         {!user && (
           <Panel style={{ display: "grid", gap: "10px" }}>
-            <Muted>Sign in to submit an inquiry.</Muted>
+            <Muted>{t("inquiry.signInRequired")}</Muted>
             <PrimaryButton type="button" onClick={() => router.push("/auth")}>
-              Sign in
+              {t("auth.signIn")}
             </PrimaryButton>
           </Panel>
         )}
@@ -287,17 +319,17 @@ export default function NewInquiryPage() {
             <CustomSelect
               id="inquiry-deal-type"
               name="deal_type"
-              label="Deal type"
+              label={t("inquiry.dealType")}
               value={dealType}
               onChange={(value) => setDealType(value)}
             >
-              <option value="buy">Buy</option>
-              <option value="rent">Rent</option>
+              <option value="buy">{t("inquiry.buy")}</option>
+              <option value="rent">{t("inquiry.rent")}</option>
             </CustomSelect>
             <CustomSelect
               id="inquiry-property-type"
               name="property_type"
-              label="Property type"
+              label={t("inquiry.propertyType")}
               value={propertyType}
               onChange={(value) => setPropertyType(value)}
             >
@@ -313,7 +345,7 @@ export default function NewInquiryPage() {
             <CustomSelect
               id="inquiry-state"
               name="state_region"
-              label="Preferred state/region"
+              label={t("inquiry.state")}
               value={stateRegion}
               onChange={(value) => {
                 setStateRegion(value);
@@ -330,7 +362,7 @@ export default function NewInquiryPage() {
             <CustomSelect
               id="inquiry-district"
               name="district"
-              label="Preferred city (district)"
+              label={t("inquiry.city")}
               value={district}
               onChange={(value) => {
                 setDistrict(value);
@@ -347,7 +379,7 @@ export default function NewInquiryPage() {
             <CustomSelect
               id="inquiry-township"
               name="township"
-              label="Preferred township"
+              label={t("inquiry.township")}
               value={township}
               onChange={(value) => setTownship(value)}
               disabled={!district}
@@ -363,7 +395,7 @@ export default function NewInquiryPage() {
           <CustomSelect
             id="inquiry-budget-range"
             name="budget_range"
-            label="Budget range (Lakh)"
+            label={t("inquiry.budgetRange")}
             value={budgetRange}
             onChange={(value) => setBudgetRange(value)}
           >
@@ -377,50 +409,78 @@ export default function NewInquiryPage() {
           <CustomSelect
             id="inquiry-timeline"
             name="timeline"
-            label="Timeline"
+            label={t("inquiry.timeline")}
             value={timeline}
             onChange={(value) => setTimeline(value)}
           >
-            <option value="asap">ASAP</option>
-            <option value="1-3">1–3 months</option>
-            <option value="3-6">3–6 months</option>
-            <option value="browsing">Just browsing</option>
+            <option value="asap">{t("inquiry.timeline.asap")}</option>
+            <option value="1-3">{t("inquiry.timeline.oneThree")}</option>
+            <option value="3-6">{t("inquiry.timeline.threeSix")}</option>
+            <option value="browsing">{t("inquiry.timeline.browsing")}</option>
           </CustomSelect>
 
           <FieldGroup>
-            <strong>Requirements</strong>
+            <CustomInput
+              id="inquiry-area-sqft"
+              label={t("inquiry.areaSqft")}
+              name="area_sqft"
+              value={areaSqft}
+              onChange={(event) => setAreaSqft(event.target.value)}
+            />
+            {showBedBathFields && (
+              <>
+                <CustomInput
+                  id="inquiry-bedrooms"
+                  label={t("inquiry.bedrooms")}
+                  name="bedrooms"
+                  value={bedrooms}
+                  onChange={(event) => setBedrooms(event.target.value)}
+                />
+                <CustomInput
+                  id="inquiry-bathrooms"
+                  label={t("inquiry.bathrooms")}
+                  name="bathrooms"
+                  value={bathrooms}
+                  onChange={(event) => setBathrooms(event.target.value)}
+                />
+              </>
+            )}
+          </FieldGroup>
+
+          <FieldGroup>
+            <strong>{t("inquiry.requirements")}</strong>
             <TileGrid>
               <Tile type="button" $active={needParking} onClick={() => setNeedParking(!needParking)}>
-                Need parking
+                {t("inquiry.needParking")}
               </Tile>
               <Tile type="button" $active={needLift} onClick={() => setNeedLift(!needLift)}>
-                Need lift
+                {t("inquiry.needLift")}
               </Tile>
               <Tile type="button" $active={needSolar} onClick={() => setNeedSolar(!needSolar)}>
-                Need solar
+                {t("inquiry.needSolar")}
               </Tile>
               <Tile
                 type="button"
                 $active={needGenerator}
                 onClick={() => setNeedGenerator(!needGenerator)}
               >
-                Need generator
+                {t("inquiry.needGenerator")}
               </Tile>
             </TileGrid>
           </FieldGroup>
 
           {error && <Muted style={{ color: "var(--color-danger)" }}>{error}</Muted>}
           {success ? (
-            <Muted>{isEdit ? "Inquiry updated." : "Thanks. Our team will contact you shortly."}</Muted>
+            <Muted>{isEdit ? t("inquiry.updated") : t("inquiry.thanks")}</Muted>
           ) : (
             <PrimaryButton type="button" onClick={handleSubmit} disabled={submitting || loadingEdit}>
               {loadingEdit
-                ? "Loading..."
+                ? t("common.loading")
                 : submitting
-                  ? "Submitting..."
+                  ? t("common.submitting")
                   : isEdit
-                    ? "Save changes"
-                    : "Submit inquiry"}
+                    ? t("common.saveChanges")
+                    : t("inquiry.submit")}
             </PrimaryButton>
           )}
         </Panel>
@@ -428,23 +488,33 @@ export default function NewInquiryPage() {
       </PageShell>
       <BottomNav />
       {(submitting || loadingEdit) && (
-        <LoadingOverlay message={loadingEdit ? "Loading inquiry..." : "Submitting inquiry..."} />
+        <LoadingOverlay
+          message={loadingEdit ? t("inquiry.loading") : t("inquiry.submitting")}
+        />
       )}
       {success && (
         <SuccessOverlay>
           <SuccessModal>
-            <strong>{isEdit ? "Inquiry updated." : "Thanks. Our team will contact you shortly."}</strong>
+            <strong>{isEdit ? t("inquiry.updated") : t("inquiry.thanks")}</strong>
             <ActionRow>
               <GhostButton type="button" onClick={() => router.push("/")}>
-                Browse listings
+                {t("inquiry.browse")}
               </GhostButton>
               <PrimaryButton type="button" onClick={() => router.push("/activities")}>
-                Go to activities
+                {t("inquiry.goActivities")}
               </PrimaryButton>
             </ActionRow>
           </SuccessModal>
         </SuccessOverlay>
       )}
     </div>
+  );
+}
+
+export default function NewInquiryPage() {
+  return (
+    <Suspense fallback={<LoadingOverlay message="Loading..." />}>
+      <NewInquiryPageContent />
+    </Suspense>
   );
 }

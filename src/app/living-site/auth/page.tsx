@@ -7,6 +7,7 @@ import { isSupabaseConfigured } from "@/app/living-site/lib/supabaseClient";
 import { useAppState } from "@/app/living-site/lib/app-state";
 import { AuthScreen } from "@/app/living-site/components/AuthScreen";
 import { useRouter } from "next/navigation";
+import { useI18n } from "@/app/living-site/lib/i18n";
 
 const Centered = styled.main`
   min-height: 100vh;
@@ -87,6 +88,7 @@ const Message = styled.p`
 export default function AuthPage() {
   const { user, logout } = useAppState();
   const router = useRouter();
+  const { t } = useI18n();
   const [message, setMessage] = useState<string | null>(null);
   const [resumePath, setResumePath] = useState<string | null>(null);
   const [redirecting, setRedirecting] = useState(false);
@@ -126,27 +128,26 @@ export default function AuthPage() {
       <AuthCard>
         <CardHeader>
           <BackButton type="button" onClick={() => router.back()}>
-            Back
+            {t("auth.back")}
           </BackButton>
         </CardHeader>
         <CardBody>
           {!isSupabaseConfigured && (
             <Message>
-              Configure NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to
-              enable auth.
+              {t("auth.supabaseMissing")}
             </Message>
           )}
           {user ? (
             <div>
-              <p>{redirecting ? "Redirecting..." : "Signing you in..."}</p>
+              <p>{redirecting ? t("auth.redirecting") : t("auth.signingIn")}</p>
               <SecondaryButton
                 type="button"
                 onClick={async () => {
                   await logout();
-                  setMessage("Signed out.");
+                  setMessage(t("auth.signedOut"));
                 }}
               >
-                Sign out
+                {t("common.signOut")}
               </SecondaryButton>
             </div>
           ) : (

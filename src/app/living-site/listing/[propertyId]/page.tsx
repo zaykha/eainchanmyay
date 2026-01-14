@@ -34,6 +34,7 @@ import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
 import { CustomInput } from "@/app/living-site/components/form-controls/CustomInput";
 import { CustomSelect } from "@/app/living-site/components/form-controls/CustomSelect";
 import { CustomTextarea } from "@/app/living-site/components/form-controls/CustomTextarea";
+import { useI18n } from "@/app/living-site/lib/i18n";
 
 const PageShell = styled.div`
   max-width: 1140px;
@@ -265,12 +266,6 @@ const ContentLayout = styled.div`
   @media (max-width: 900px) {
     grid-template-columns: 1fr;
   }
-`;
-
-const PriceLine = styled.div`
-  font-size: 1.6rem;
-  font-weight: 700;
-  color: var(--color-text);
 `;
 
 const PriceBadge = styled.div`
@@ -619,18 +614,28 @@ const formatLabel = (value?: string) =>
     ? value.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase())
     : "";
 
-const formatDealType = (value?: string) => {
+const formatDealType = (value: string | undefined, t: (key: string) => string) => {
   if (!value) return "";
   const lowered = value.toLowerCase();
-  if (lowered === "sale") return "For sale";
-  if (lowered === "rent") return "For rent";
+  if (lowered === "sale") return t("listing.forSale");
+  if (lowered === "rent") return t("listing.forRent");
   return formatLabel(value);
 };
 
-const formatPropertyType = (value?: string) => {
+const formatPropertyType = (value: string | undefined, t: (key: string) => string) => {
   if (!value) return "";
   const lowered = value.toLowerCase();
-  if (lowered === "house_land") return "House + Land";
+  if (lowered === "house_land") return t("property.houseLand");
+  if (lowered === "land") return t("property.land");
+  if (lowered === "house") return t("property.house");
+  if (lowered === "apartment") return t("property.apartment");
+  if (lowered === "mini_condo") return t("property.miniCondo");
+  if (lowered === "condo") return t("property.condo");
+  if (lowered === "serviced_apartment") return t("property.servicedApartment");
+  if (lowered === "warehouse") return t("property.warehouse");
+  if (["shop_office", "hotel_restaurant", "commercial"].includes(lowered)) {
+    return t("property.commercial");
+  }
   return formatLabel(value);
 };
 
@@ -643,11 +648,11 @@ const getNumber = (value: unknown) => {
   return undefined;
 };
 
-const formatDateLabel = (value?: string) => {
+const formatDateLabel = (value: string | undefined, locale: string) => {
   if (!value) return "";
   const parsed = parseDate(value);
   if (!parsed) return "";
-  return parsed.toLocaleDateString("en-US", {
+  return parsed.toLocaleDateString(locale, {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -691,14 +696,27 @@ type DateTimePickerProps = {
   name: string;
   value: string;
   onChange: (value: string) => void;
+  locale: string;
+  dayLabels: string[];
+  prevLabel: string;
+  nextLabel: string;
 };
 
-function DateTimePicker({ label, name, value, onChange }: DateTimePickerProps) {
+function DateTimePicker({
+  label,
+  name,
+  value,
+  onChange,
+  locale,
+  dayLabels,
+  prevLabel,
+  nextLabel,
+}: DateTimePickerProps) {
   const [open, setOpen] = useState(false);
   const selectedDate = value ? parseDate(value) : null;
   const [currentMonth, setCurrentMonth] = useState<Date>(selectedDate ?? new Date());
   const days = useMemo(() => getCalendarDays(currentMonth), [currentMonth]);
-  const monthLabel = currentMonth.toLocaleDateString("en-US", {
+  const monthLabel = currentMonth.toLocaleDateString(locale, {
     month: "long",
     year: "numeric",
   });
@@ -715,7 +733,7 @@ function DateTimePicker({ label, name, value, onChange }: DateTimePickerProps) {
             setOpen(true);
           }}
         >
-          <SelectValue $muted={!value}>{formatDateLabel(value)}</SelectValue>
+          <SelectValue $muted={!value}>{formatDateLabel(value, locale)}</SelectValue>
         </DateTrigger>
       </FloatingField>
       {open && (
@@ -730,7 +748,7 @@ function DateTimePicker({ label, name, value, onChange }: DateTimePickerProps) {
                   )
                 }
               >
-                Prev
+                {prevLabel}
               </CalendarNav>
               <strong>{monthLabel}</strong>
               <CalendarNav
@@ -741,11 +759,11 @@ function DateTimePicker({ label, name, value, onChange }: DateTimePickerProps) {
                   )
                 }
               >
-                Next
+                {nextLabel}
               </CalendarNav>
             </CalendarHeader>
             <CalendarGrid>
-              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+              {dayLabels.map((day) => (
                 <span
                   key={day}
                   style={{
@@ -787,6 +805,7 @@ function DateTimePicker({ label, name, value, onChange }: DateTimePickerProps) {
 export default function ListingDetailPage() {
   const params = useParams();
   const { user } = useAppState();
+  const { t, language } = useI18n();
   const propertyId = params?.propertyId as string | undefined;
   const { detail, loading } = useListingDetail(propertyId);
   const [viewingOpen, setViewingOpen] = useState(false);
@@ -802,17 +821,29 @@ export default function ListingDetailPage() {
   const [existingViewingRequest, setExistingViewingRequest] = useState<Record<string, unknown> | null>(
     null
   );
-  const [profileLoading, setProfileLoading] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveSubmitting, setSaveSubmitting] = useState(false);
+  const locale =
+    language === "mm" ? "my-MM" : language === "zh" ? "zh-CN" : language === "th" ? "th-TH" : "en-US";
   const timeWindowOptions = [
-    { value: "9-12", label: "Morning (9–12)" },
-    { value: "12-3", label: "Afternoon (12–3)" },
-    { value: "3-6", label: "Evening (3–6)" },
-    { value: "6-9", label: "Night (6–9)" },
+    { value: "9-12", label: t("listing.timeWindow.morning") },
+    { value: "12-3", label: t("listing.timeWindow.afternoon") },
+    { value: "3-6", label: t("listing.timeWindow.evening") },
+    { value: "6-9", label: t("listing.timeWindow.night") },
   ];
+  const dayLabels = [
+    t("calendar.sun"),
+    t("calendar.mon"),
+    t("calendar.tue"),
+    t("calendar.wed"),
+    t("calendar.thu"),
+    t("calendar.fri"),
+    t("calendar.sat"),
+  ];
+  const viewingWindowLabel =
+    timeWindowOptions.find((option) => option.value === viewingWindow)?.label || viewingWindow;
 
   useEffect(() => {
     if (!user?.id || !propertyId) return;
@@ -841,7 +872,6 @@ export default function ListingDetailPage() {
     if (viewingName.trim() && viewingPhone.trim()) return;
 
     let active = true;
-    setProfileLoading(true);
     getCustomerProfile(user.id)
       .then(({ profile }) => {
         if (!active || !profile) return;
@@ -853,9 +883,7 @@ export default function ListingDetailPage() {
         }
       })
       .finally(() => {
-        if (active) {
-          setProfileLoading(false);
-        }
+        if (!active) return;
       });
 
     return () => {
@@ -886,7 +914,7 @@ export default function ListingDetailPage() {
     return (
       <div>
         <SiteHeader />
-        <LoadingOverlay message="Loading property..." />
+        <LoadingOverlay message={t("listing.loadingProperty")} />
       </div>
     );
   }
@@ -895,18 +923,18 @@ export default function ListingDetailPage() {
     return (
       <div>
         <SiteHeader />
-        <PageShell>Property not found.</PageShell>
+        <PageShell>{t("listing.notFound")}</PageShell>
       </div>
     );
   }
 
   const { property } = detail;
-  const title = (property.title as string) || "Property";
+  const title = (property.title as string) || t("listing.property");
   const description = (property.description as string) || "";
   const price = property.price as number | undefined;
   const currency = (property.currency as string) || "MMK";
-  const dealType = formatDealType(property.deal_type as string);
-  const propertyType = formatPropertyType(property.property_type as string);
+  const dealType = formatDealType(property.deal_type as string, t);
+  const propertyType = formatPropertyType(property.property_type as string, t);
   const propertyTypeRaw = String(property.property_type ?? "").toLowerCase();
   const locationParts = [
     property.township,
@@ -934,7 +962,7 @@ export default function ListingDetailPage() {
   const areaSqft = property.area_sqft as number | undefined;
   const formattedArea =
     typeof areaSqft === "number"
-      ? new Intl.NumberFormat("en-US").format(areaSqft)
+      ? new Intl.NumberFormat(locale).format(areaSqft)
       : undefined;
   const primaryContact = EAIN_CONTACT_PHONE;
   const showBeds =
@@ -945,28 +973,28 @@ export default function ListingDetailPage() {
     bathrooms !== undefined;
   const featureItems: Array<{ key: string; label: string; icon: React.ElementType }> = [];
   if (showBeds) {
-    featureItems.push({ key: "beds", label: `${bedrooms} bedrooms`, icon: BedDouble });
+    featureItems.push({ key: "beds", label: `${bedrooms} ${t("listing.bedrooms")}`, icon: BedDouble });
   }
   if (showBaths) {
-    featureItems.push({ key: "baths", label: `${bathrooms} bathrooms`, icon: Bath });
+    featureItems.push({ key: "baths", label: `${bathrooms} ${t("listing.bathrooms")}`, icon: Bath });
   }
   if (formattedArea) {
-    featureItems.push({ key: "area", label: `${formattedArea} sqft`, icon: Ruler });
+    featureItems.push({ key: "area", label: `${formattedArea} ${t("listing.areaSqft")}`, icon: Ruler });
   }
   if (!showBeds && !showBaths && dealType) {
     featureItems.push({ key: "deal", label: dealType, icon: Tag });
   }
-  featureItems.push({ key: "type", label: propertyType || "Property", icon: Home });
+  featureItems.push({ key: "type", label: propertyType || t("listing.property"), icon: Home });
 
   const handleViewingSubmit = async () => {
     if (!propertyId) return;
-    const resolvedName = viewingName.trim() || user?.email || "Customer";
+    const resolvedName = viewingName.trim() || user?.email || t("listing.customer");
     const resolvedPhone = viewingPhone.trim();
     if (!resolvedPhone || !viewingDate || !viewingWindow) {
       setViewingError(
         user
-          ? "We need a phone number on file to confirm your request."
-          : "Please complete all required fields."
+          ? t("listing.phoneRequired")
+          : t("listing.completeRequired")
       );
       return;
     }
@@ -990,7 +1018,7 @@ export default function ListingDetailPage() {
         });
     setViewingSubmitting(false);
     if (!result.ok) {
-      setViewingError(result.message ?? "Unable to submit your request.");
+      setViewingError(result.message ?? t("listing.unableSubmitRequest"));
       return;
     }
     setViewingSuccess(true);
@@ -1039,14 +1067,14 @@ export default function ListingDetailPage() {
             <SectionTitle>{title}</SectionTitle>
             <Location>
               <MapPin size={16} />
-              {locationParts || city || "Location TBD"}
+              {locationParts || city || t("listing.locationTbd")}
             </Location>
             <TagRow>
               {dealType && <TagPill>{dealType}</TagPill>}
               {propertyType && <TagPill>{propertyType}</TagPill>}
             </TagRow>
           </TitleBlock>
-          <PriceBadge>{formatCurrency(price, currency)}</PriceBadge>
+          <PriceBadge>{formatCurrency(price, currency, t("listing.contactPrice"))}</PriceBadge>
         </HeaderRow>
         <Gallery>
           {galleryUrls.length ? (
@@ -1055,12 +1083,12 @@ export default function ListingDetailPage() {
                 <CarouselViewport onClick={() => setLightboxOpen(true)}>
                   <CarouselImage
                     src={galleryUrls[activeImageIndex]}
-                    alt={`${title} photo ${activeImageIndex + 1}`}
+                    alt={`${title} ${t("listing.photoLabel")} ${activeImageIndex + 1}`}
                   />
                 </CarouselViewport>
                 <PrevButton
                   type="button"
-                  aria-label="Previous photo"
+                  aria-label={t("listing.previousPhoto")}
                   onClick={() =>
                     setActiveImageIndex((prev) => Math.max(0, prev - 1))
                   }
@@ -1070,7 +1098,7 @@ export default function ListingDetailPage() {
                 </PrevButton>
                 <NextButton
                   type="button"
-                  aria-label="Next photo"
+                  aria-label={t("listing.nextPhoto")}
                   onClick={() =>
                     setActiveImageIndex((prev) =>
                       Math.min(galleryUrls.length - 1, prev + 1)
@@ -1088,7 +1116,7 @@ export default function ListingDetailPage() {
                       key={`dot-${index}`}
                       type="button"
                       $active={index === activeImageIndex}
-                      aria-label={`Go to photo ${index + 1}`}
+                      aria-label={`${t("listing.goToPhoto")} ${index + 1}`}
                       onClick={() => setActiveImageIndex(index)}
                     />
                   ))}
@@ -1096,7 +1124,7 @@ export default function ListingDetailPage() {
               )}
             </>
           ) : (
-            <ImagePlaceholder>No photo available</ImagePlaceholder>
+            <ImagePlaceholder>{t("listing.noPhotoAvailable")}</ImagePlaceholder>
           )}
         </Gallery>
         {lightboxOpen && (
@@ -1105,13 +1133,13 @@ export default function ListingDetailPage() {
               <LightboxHeader>
                 <strong>{title}</strong>
                 <CloseButton type="button" onClick={() => setLightboxOpen(false)}>
-                  Close
+                  {t("common.close")}
                 </CloseButton>
               </LightboxHeader>
               <LightboxViewport>
                 <LightboxNavButton
                   type="button"
-                  aria-label="Previous photo"
+                  aria-label={t("listing.previousPhoto")}
                   onClick={() =>
                     setActiveImageIndex((prev) => Math.max(0, prev - 1))
                   }
@@ -1122,11 +1150,11 @@ export default function ListingDetailPage() {
                 <LightboxImage
                   key={galleryUrls[activeImageIndex]}
                   src={galleryUrls[activeImageIndex]}
-                  alt={`${title} photo ${activeImageIndex + 1}`}
+                  alt={`${title} ${t("listing.photoLabel")} ${activeImageIndex + 1}`}
                 />
                 <LightboxNavButton
                   type="button"
-                  aria-label="Next photo"
+                  aria-label={t("listing.nextPhoto")}
                   onClick={() =>
                     setActiveImageIndex((prev) =>
                       Math.min(galleryUrls.length - 1, prev + 1)
@@ -1144,7 +1172,7 @@ export default function ListingDetailPage() {
                       key={`lightbox-dot-${index}`}
                       type="button"
                       $active={index === activeImageIndex}
-                      aria-label={`Go to photo ${index + 1}`}
+                      aria-label={`${t("listing.goToPhoto")} ${index + 1}`}
                       onClick={() => setActiveImageIndex(index)}
                     />
                   ))}
@@ -1164,38 +1192,38 @@ export default function ListingDetailPage() {
               ))}
             </FeatureRow>
             <SectionBlock>
-              <SectionTitle>Description</SectionTitle>
-              {description ? <p>{description}</p> : <MetaText>No description yet.</MetaText>}
+              <SectionTitle>{t("listing.description")}</SectionTitle>
+              {description ? <p>{description}</p> : <MetaText>{t("listing.noDescription")}</MetaText>}
             </SectionBlock>
             <SectionBlock>
-              <SectionTitle>Location</SectionTitle>
-              <MetaText>{locationParts || city || "Location details coming soon."}</MetaText>
+              <SectionTitle>{t("listing.location")}</SectionTitle>
+              <MetaText>{locationParts || city || t("listing.locationDetailsSoon")}</MetaText>
               {addressText && <MetaText>{addressText}</MetaText>}
               {city && !locationParts.includes(city) && <MetaText>{city}</MetaText>}
               {mapsUrl && (
                 <MapLink href={mapsUrl} target="_blank" rel="noreferrer">
                   <MapPin size={16} />
-                  Open in Google Maps
+                  {t("listing.openMaps")}
                 </MapLink>
               )}
             </SectionBlock>
           </div>
           <ContactCard>
-            <ContactTitle>Contact agent</ContactTitle>
-            <TrustPill>Verified agent • Response within 24h</TrustPill>
+            <ContactTitle>{t("listing.contactAgent")}</ContactTitle>
+            <TrustPill>{t("listing.verifiedAgent")}</TrustPill>
             <ContactRow>
-              <strong>Eain Chan Myae Advisory</strong>
-              <span>Call our team for verified owner connections.</span>
+              <strong>Eain Chan Myay Advisory</strong>
+              <span>{t("listing.contactSubtitle")}</span>
               <span>
-                Hotline: <a href={`tel:${EAIN_CONTACT_PHONE}`}>{EAIN_CONTACT_PHONE}</a>
+                {t("listing.hotline")}: <a href={`tel:${EAIN_CONTACT_PHONE}`}>{EAIN_CONTACT_PHONE}</a>
               </span>
             </ContactRow>
             <ContactButton href={`tel:${primaryContact}`}>
               <Phone size={16} style={{ marginRight: 6 }} />
-              Contact agent
+              {t("listing.contactAgent")}
             </ContactButton>
             <SaveButton type="button" onClick={handleSave} disabled={saveSubmitting} $active={saved}>
-              {saved ? "Saved" : "Save property"}
+              {saved ? t("listing.saved") : t("listing.saveProperty")}
             </SaveButton>
             <SecondaryButton
               as="button"
@@ -1211,7 +1239,7 @@ export default function ListingDetailPage() {
               }}
               $active={Boolean(existingViewingRequest)}
             >
-              {existingViewingRequest ? "Viewing requested" : "Request viewing"}
+              {existingViewingRequest ? t("listing.viewingRequested") : t("listing.requestViewing")}
             </SecondaryButton>
           </ContactCard>
         </ContentLayout>
@@ -1219,24 +1247,24 @@ export default function ListingDetailPage() {
       {viewingInfoOpen && (
         <ModalOverlay onClick={() => setViewingInfoOpen(false)}>
           <ModalCard onClick={(event) => event.stopPropagation()}>
-            <SectionTitle>Viewing request</SectionTitle>
+            <SectionTitle>{t("listing.viewingRequest")}</SectionTitle>
             <strong>{title}</strong>
             <MetaText>
-              Preferred date: <strong>{formatDateLabel(viewingDate)}</strong>
+              {t("listing.preferredDate")}: <strong>{formatDateLabel(viewingDate, locale)}</strong>
             </MetaText>
             {viewingWindow && (
               <MetaText>
-                Time window: <strong>{viewingWindow}</strong>
+                {t("listing.timeWindow")}: <strong>{viewingWindowLabel}</strong>
               </MetaText>
             )}
             {viewingNotes ? (
-              <MetaText>Notes: {viewingNotes}</MetaText>
+              <MetaText>{t("listing.notes")}: {viewingNotes}</MetaText>
             ) : (
-              <MetaText>No notes added.</MetaText>
+              <MetaText>{t("listing.noNotes")}</MetaText>
             )}
             <ModalActions>
               <GhostButton type="button" onClick={() => setViewingInfoOpen(false)}>
-                Close
+                {t("common.close")}
               </GhostButton>
               <SubmitButton
                 type="button"
@@ -1247,7 +1275,7 @@ export default function ListingDetailPage() {
                   setViewingError(null);
                 }}
               >
-                Edit request
+                {t("listing.editRequest")}
               </SubmitButton>
             </ModalActions>
           </ModalCard>
@@ -1256,7 +1284,7 @@ export default function ListingDetailPage() {
       {viewingOpen && (
         <ModalOverlay onClick={() => setViewingOpen(false)}>
           <ModalCard onClick={(event) => event.stopPropagation()}>
-            <SectionTitle>Request viewing</SectionTitle>
+            <SectionTitle>{t("listing.requestViewing")}</SectionTitle>
             {viewingSuccess ? null : (
               <>
                 <strong>{title}</strong>
@@ -1264,14 +1292,14 @@ export default function ListingDetailPage() {
                   <>
                     <CustomInput
                       id="viewing-name"
-                      label="Full name"
+                      label={t("listing.fullName")}
                       name="name"
                       value={viewingName}
                       onChange={(event) => setViewingName(event.target.value)}
                     />
                     <CustomInput
                       id="viewing-phone"
-                      label="Phone number"
+                      label={t("listing.phoneNumber")}
                       name="phone"
                       value={viewingPhone}
                       onChange={(event) => setViewingPhone(event.target.value)}
@@ -1279,14 +1307,18 @@ export default function ListingDetailPage() {
                   </>
                 )}
                 <DateTimePicker
-                  label="Preferred date"
+                  label={t("listing.preferredDate")}
                   name="preferred_date"
                   value={viewingDate}
                   onChange={setViewingDate}
+                  locale={locale}
+                  dayLabels={dayLabels}
+                  prevLabel={t("common.previous")}
+                  nextLabel={t("common.next")}
                 />
                 <CustomSelect
                   id="viewing-window"
-                  label="Time window"
+                  label={t("listing.timeWindow")}
                   name="preferred_time_window"
                   value={viewingWindow}
                   onChange={(value) => setViewingWindow(value)}
@@ -1299,7 +1331,7 @@ export default function ListingDetailPage() {
                 </CustomSelect>
                 <CustomTextarea
                   id="viewing-notes"
-                  label="Notes (optional)"
+                  label={t("listing.notesOptional")}
                   name="notes"
                   value={viewingNotes}
                   onChange={(event) => setViewingNotes(event.target.value)}
@@ -1308,11 +1340,11 @@ export default function ListingDetailPage() {
             )}
             {!user && !viewingSuccess && (
               <BenefitCard>
-                <strong>Sign in to track your requests</strong>
+                <strong>{t("listing.signInToTrack")}</strong>
                 <BenefitList>
-                  <li>Save properties and compare later.</li>
-                  <li>See viewing request status in one place.</li>
-                  <li>Get price-change alerts and similar listings.</li>
+                  <li>{t("listing.saveCompare")}</li>
+                  <li>{t("listing.viewStatus")}</li>
+                  <li>{t("listing.priceAlerts")}</li>
                 </BenefitList>
                 <ModalActions>
                   <GhostButton
@@ -1327,7 +1359,7 @@ export default function ListingDetailPage() {
                       window.location.href = "/auth";
                     }}
                   >
-                    Sign in
+                    {t("common.signIn")}
                   </GhostButton>
                 </ModalActions>
               </BenefitCard>
@@ -1335,13 +1367,13 @@ export default function ListingDetailPage() {
             {viewingError && <ErrorText>{viewingError}</ErrorText>}
             {viewingSuccess && (
               <SuccessCard>
-                <strong>Request sent</strong>
-                <p>We’ll confirm by phone.</p>
+                <strong>{t("listing.requestSent")}</strong>
+                <p>{t("listing.confirmByPhone")}</p>
               </SuccessCard>
             )}
             <ModalActions>
               <GhostButton type="button" onClick={() => setViewingOpen(false)}>
-                Close
+                {t("common.close")}
               </GhostButton>
               {!viewingSuccess && (
                 <SubmitButton
@@ -1349,7 +1381,7 @@ export default function ListingDetailPage() {
                   onClick={handleViewingSubmit}
                   disabled={viewingSubmitting}
                 >
-                  {viewingSubmitting ? "Submitting..." : "Submit request"}
+                  {viewingSubmitting ? t("common.submitting") : t("listing.submitRequest")}
                 </SubmitButton>
               )}
             </ModalActions>

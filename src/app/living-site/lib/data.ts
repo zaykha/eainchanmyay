@@ -72,6 +72,9 @@ export type InquiryInput = {
   township: string;
   budgetRange: string;
   timeline?: "asap" | "1-3" | "3-6" | "browsing" | null;
+  bedrooms: number | null;
+  bathrooms: number | null;
+  areaSqft: number | null;
   needParking: boolean;
   needLift: boolean;
   needSolar: boolean;
@@ -157,10 +160,7 @@ function getNumber(value: unknown) {
 }
 
 function getListingTitle(property: Record<string, unknown>) {
-  return (
-    getString(property.title) ||
-    "Property"
-  );
+  return getString(property.title) || "";
 }
 
 function getListingLocation(property: Record<string, unknown>) {
@@ -174,7 +174,7 @@ function getListingLocation(property: Record<string, unknown>) {
     return pieces.join(", ");
   }
 
-  return getString(property.city) || "Location TBD";
+  return getString(property.city) || "";
 }
 
 function getListingPrice(property: Record<string, unknown>) {
@@ -276,7 +276,7 @@ export async function getListings(filters?: string | ListingFilters) {
     return [] as Listing[];
   }
 
-  let filtered = applyLocationQuery(properties, query ?? "");
+  const filtered = applyLocationQuery(properties, query ?? "");
 
   const ids = filtered.map((property) => property.id).filter(Boolean);
   let photosByProperty = new Map<string, Record<string, unknown>[]>();
@@ -402,7 +402,8 @@ export async function getViewingRequestsForUser(userId: string) {
     };
   }
 
-  const propertyIds = data
+  const rows = data as Array<Record<string, unknown>>;
+  const propertyIds = rows
     .map((row) => String(row.property_id ?? ""))
     .filter(Boolean);
   let photosByProperty = new Map<string, Record<string, unknown>[]>();
@@ -429,7 +430,7 @@ export async function getViewingRequestsForUser(userId: string) {
     }
   }
 
-  const enriched = data.map((row) => {
+  const enriched = rows.map((row) => {
     const property = (row.property as Record<string, unknown>) ?? {};
     const propertyId = String(row.property_id ?? property.id ?? "");
     const photos = photosByProperty.get(propertyId) ?? [];
@@ -505,7 +506,8 @@ export async function getSavedPropertiesForUser(userId: string) {
     };
   }
 
-  const propertyIds = data
+  const rows = data as Array<Record<string, unknown>>;
+  const propertyIds = rows
     .map((row) => String(row.property_id ?? ""))
     .filter(Boolean);
   let photosByProperty = new Map<string, Record<string, unknown>[]>();
@@ -532,7 +534,7 @@ export async function getSavedPropertiesForUser(userId: string) {
     }
   }
 
-  const enriched = data.map((row) => {
+  const enriched = rows.map((row) => {
     const property = (row.property as Record<string, unknown>) ?? {};
     const propertyId = String(row.property_id ?? property.id ?? "");
     const photos = photosByProperty.get(propertyId) ?? [];
@@ -557,7 +559,7 @@ export async function getInquiriesForUser(userId: string) {
   const { data, error } = await supabase
     .from("inquiries")
     .select(
-      "id,deal_type,property_type,state_region,district,township,budget_range,timeline,need_parking,need_lift,need_solar,need_generator,created_at,updated_at"
+      "id,deal_type,property_type,state_region,district,township,budget_range,timeline,bedrooms,bathrooms,area_sqft,need_parking,need_lift,need_solar,need_generator,created_at,updated_at"
     )
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
@@ -581,7 +583,7 @@ export async function getInquiryById(userId: string, inquiryId: string) {
   const { data, error } = await supabase
     .from("inquiries")
     .select(
-      "id,deal_type,property_type,state_region,district,township,budget_range,timeline,need_parking,need_lift,need_solar,need_generator,created_at,updated_at"
+      "id,deal_type,property_type,state_region,district,township,budget_range,timeline,bedrooms,bathrooms,area_sqft,need_parking,need_lift,need_solar,need_generator,created_at,updated_at"
     )
     .eq("id", inquiryId)
     .eq("user_id", userId)
@@ -608,6 +610,9 @@ export async function updateInquiry(input: InquiryInput & { id: string }) {
     township: input.township,
     budget_range: input.budgetRange,
     timeline: input.timeline ?? null,
+    bedrooms: input.bedrooms,
+    bathrooms: input.bathrooms,
+    area_sqft: input.areaSqft,
     need_parking: input.needParking,
     need_lift: input.needLift,
     need_solar: input.needSolar,
@@ -750,6 +755,9 @@ export async function createInquiry(input: InquiryInput) {
     township: input.township,
     budget_range: input.budgetRange,
     timeline: input.timeline ?? null,
+    bedrooms: input.bedrooms,
+    bathrooms: input.bathrooms,
+    area_sqft: input.areaSqft,
     need_parking: input.needParking,
     need_lift: input.needLift,
     need_solar: input.needSolar,

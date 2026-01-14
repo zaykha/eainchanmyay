@@ -1,17 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getListings, type Listing, type ListingFilters } from "@/app/living-site/lib/data";
 
 export function useListings(filters?: ListingFilters) {
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
+  const stableFilters = useMemo<ListingFilters | undefined>(
+    () => (filters ? { ...filters } : undefined),
+    [filters]
+  );
 
   useEffect(() => {
     let active = true;
 
     setLoading(true);
-    getListings(filters)
+    getListings(stableFilters)
       .then((data) => {
         if (active) {
           setListings(data);
@@ -26,20 +30,7 @@ export function useListings(filters?: ListingFilters) {
     return () => {
       active = false;
     };
-  }, [
-    filters?.bathrooms,
-    filters?.bedrooms,
-    filters?.dealType,
-    filters?.district,
-    filters?.maxAreaSqft,
-    filters?.maxPrice,
-    filters?.minAreaSqft,
-    filters?.minPrice,
-    filters?.propertyType,
-    filters?.query,
-    filters?.stateRegion,
-    filters?.township,
-  ]);
+  }, [stableFilters]);
 
   return { listings, loading };
 }

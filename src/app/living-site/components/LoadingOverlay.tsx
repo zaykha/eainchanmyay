@@ -2,21 +2,6 @@
 
 import styled, { keyframes } from "styled-components";
 
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      "dotlottie-player": React.DetailedHTMLProps<
-        React.HTMLAttributes<HTMLElement> & {
-          src?: string;
-          autoplay?: boolean;
-          loop?: boolean;
-        },
-        HTMLElement
-      >;
-    }
-  }
-}
-
 const Overlay = styled.div`
   position: fixed;
   inset: 0;
@@ -62,7 +47,7 @@ export function LoadingOverlay({ message }: LoadingOverlayProps) {
   return (
     <Overlay>
       <div style={{ display: "grid", gap: "10px", justifyItems: "center" }}>
-        <Logo src="/KTLogo.png" alt="Eain Chan Myae" />
+        <Logo src="/KTLogo.png" alt="Eain Chan Myay" />
         {message ? <Message>{message}</Message> : null}
       </div>
     </Overlay>

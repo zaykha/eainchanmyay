@@ -10,10 +10,16 @@ import {
 } from "@/app/living-site/styles/theme";
 
 type ThemeMode = "light" | "dark";
+type Language = "mm" | "en" | "zh" | "th";
 
 type ThemeContextValue = {
   mode: ThemeMode;
   toggle: () => void;
+};
+
+type LanguageContextValue = {
+  language: Language;
+  setLanguage: (lang: Language) => void;
 };
 
 const ThemeContext = createContext<ThemeContextValue>({
@@ -21,12 +27,22 @@ const ThemeContext = createContext<ThemeContextValue>({
   toggle: () => {},
 });
 
+const LanguageContext = createContext<LanguageContextValue>({
+  language: "mm",
+  setLanguage: () => {},
+});
+
 export function useThemeMode() {
   return useContext(ThemeContext);
 }
 
+export function useLanguage() {
+  return useContext(LanguageContext);
+}
+
 export function Providers({ children }: { children: React.ReactNode }) {
   const [mode, setMode] = useState<ThemeMode>("light");
+  const [language, setLanguageState] = useState<Language>("mm");
   const theme = mode === "dark" ? eainChanMyaeDarkTheme : eainChanMyaeLightTheme;
 
   useEffect(() => {
@@ -39,6 +55,23 @@ export function Providers({ children }: { children: React.ReactNode }) {
     const media = window.matchMedia("(prefers-color-scheme: dark)");
     setMode(media.matches ? "dark" : "light");
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = window.localStorage.getItem("ecm_lang") as Language | null;
+    if (stored === "mm" || stored === "en" || stored === "zh" || stored === "th") {
+      setLanguageState(stored);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    document.documentElement.setAttribute("lang", language);
+    document.documentElement.style.setProperty("--font-scale", language === "mm" ? "0.8" : "1");
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("ecm_lang", language);
+    }
+  }, [language]);
 
   const value = useMemo(
     () => ({
@@ -54,14 +87,24 @@ export function Providers({ children }: { children: React.ReactNode }) {
     [mode]
   );
 
+  const languageValue = useMemo(
+    () => ({
+      language,
+      setLanguage: (lang: Language) => setLanguageState(lang),
+    }),
+    [language]
+  );
+
   return (
     <ThemeContext.Provider value={value}>
-      <ThemeProvider theme={theme}>
-        <AppStateProvider>
-          <GlobalStyle />
-          {children}
-        </AppStateProvider>
-      </ThemeProvider>
+      <LanguageContext.Provider value={languageValue}>
+        <ThemeProvider theme={theme}>
+          <AppStateProvider>
+            <GlobalStyle />
+            {children}
+          </AppStateProvider>
+        </ThemeProvider>
+      </LanguageContext.Provider>
     </ThemeContext.Provider>
   );
 }

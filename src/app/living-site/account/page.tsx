@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { SiteHeader } from "@/app/living-site/components/SiteHeader";
 import { BottomNav } from "@/app/living-site/components/BottomNav";
-import { PageSection, SectionTitle, Panel } from "@/app/living-site/components/PageSection";
+import { Panel } from "@/app/living-site/components/PageSection";
 import { useAppState } from "@/app/living-site/lib/app-state";
 import { formatCurrency } from "@/app/living-site/lib/format";
 import {
@@ -29,6 +29,7 @@ import {
   getSavedPropertiesForUser,
   getViewingRequestsForUser,
 } from "@/app/living-site/lib/data";
+import { useI18n } from "@/app/living-site/lib/i18n";
 
 const PageShell = styled.div`
   max-width: 1140px;
@@ -70,6 +71,22 @@ const ListItemGrid = styled(ListItem)`
   }
 `;
 
+const ImageCard = styled(ListItemGrid)<{ $image?: string }>`
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+    background-image: ${(props) =>
+      props.$image
+        ? `linear-gradient(90deg, rgba(12, 18, 36, 0.8), rgba(12, 18, 36, 0.6), rgba(12, 18, 36, 0.2)),
+           linear-gradient(0deg, rgba(12, 18, 36, 0.45), rgba(12, 18, 36, 0.45)),
+           url(${props.$image})`
+        : "none"};
+    background-size: cover;
+    background-position: center;
+    position: relative;
+    overflow: hidden;
+  }
+`;
+
 const Thumbnail = styled.div`
   width: 92px;
   height: 100%;
@@ -80,7 +97,7 @@ const Thumbnail = styled.div`
   overflow: hidden;
   display: grid;
   place-items: center;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--color-muted);
 
   img {
@@ -91,15 +108,29 @@ const Thumbnail = styled.div`
   }
 
   @media (max-width: 640px) {
-    width: 84px;
-    min-height: 84px;
-    border-radius: 8px;
+    display: none;
   }
 `;
 
 const ItemContent = styled.div`
   display: grid;
   gap: 6px;
+`;
+
+const ImageCardContent = styled(ItemContent)`
+  @media (max-width: 640px) {
+    position: relative;
+    z-index: 1;
+    color: #fff;
+
+    * {
+      color: rgba(255, 255, 255);
+    }
+
+    svg {
+      color: #fff;
+    }
+  }
 `;
 
 const Muted = styled.p`
@@ -165,12 +196,20 @@ const DetailRow = styled.div`
   }
 `;
 
+const DetailRowHorizontal = styled(DetailRow)`
+  @media (max-width: 640px) {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px 12px;
+  }
+`;
+
 const IconLabel = styled.span`
   display: inline-flex;
   align-items: center;
   gap: 6px;
   font-size: 13px;
-  color: var(--color-muted);
+  // color: var(--color-muted);
 
   svg {
     width: 14px;
@@ -178,7 +217,7 @@ const IconLabel = styled.span`
   }
 
   @media (max-width: 640px) {
-    font-size: 0.85rem;
+    font-size: 0.75rem;
   }
 `;
 
@@ -206,6 +245,9 @@ const MobileOnly = styled.span`
     align-items: center;
     justify-content: center;
     width: 100%;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.7rem;
   }
 `;
 
@@ -406,26 +448,113 @@ const formatEnum = (value: unknown) => {
   return String(value).replace(/_/g, " ");
 };
 
-const formatDate = (value: unknown) => {
+const formatDealTypeLabel = (value: unknown, t: (key: string) => string) => {
+  if (!value) return "";
+  const lowered = String(value).toLowerCase();
+  if (lowered === "sale") return t("listing.forSale");
+  if (lowered === "rent") return t("listing.forRent");
+  return formatEnum(value);
+};
+
+const formatInquiryDealLabel = (value: unknown, t: (key: string) => string) => {
+  if (!value) return "";
+  const lowered = String(value).toLowerCase();
+  if (lowered === "buy") return t("inquiry.buy");
+  if (lowered === "rent") return t("inquiry.rent");
+  return formatEnum(value);
+};
+
+const formatPropertyTypeLabel = (value: unknown, t: (key: string) => string) => {
+  if (!value) return "";
+  const lowered = String(value).toLowerCase();
+  if (lowered === "land") return t("property.land");
+  if (lowered === "house") return t("property.house");
+  if (lowered === "house_land") return t("property.houseLand");
+  if (lowered === "apartment") return t("property.apartment");
+  if (lowered === "mini_condo") return t("property.miniCondo");
+  if (lowered === "condo") return t("property.condo");
+  if (lowered === "serviced_apartment") return t("property.servicedApartment");
+  if (["shop_office", "hotel_restaurant", "commercial"].includes(lowered)) {
+    return t("property.commercial");
+  }
+  if (lowered === "warehouse") return t("property.warehouse");
+  return formatEnum(value);
+};
+
+const formatTimelineLabel = (value: unknown, t: (key: string) => string) => {
+  if (!value) return "";
+  const raw = String(value);
+  const map: Record<string, string> = {
+    asap: t("inquiry.timeline.asap"),
+    "1-3": t("inquiry.timeline.oneThree"),
+    "3-6": t("inquiry.timeline.threeSix"),
+    browsing: t("inquiry.timeline.browsing"),
+  };
+  return map[raw] ?? formatEnum(value);
+};
+
+const formatBudgetLabel = (
+  value: unknown,
+  dealType: unknown,
+  t: (key: string) => string
+) => {
+  if (!value) return "";
+  const raw = String(value);
+  const isRent = String(dealType ?? "").toLowerCase() === "rent";
+  const map = isRent
+    ? {
+        "0-5": t("inquiry.budget.rent1"),
+        "5-10": t("inquiry.budget.rent2"),
+        "10-20": t("inquiry.budget.rent3"),
+        "20-50": t("inquiry.budget.rent4"),
+        "50-100": t("inquiry.budget.rent5"),
+        "100+": t("inquiry.budget.rent6"),
+      }
+    : {
+        "0-1000": t("inquiry.budget.buy1"),
+        "1000-5000": t("inquiry.budget.buy2"),
+        "5000-50000": t("inquiry.budget.buy3"),
+        "50000-100000": t("inquiry.budget.buy4"),
+        "100000+": t("inquiry.budget.buy5"),
+      };
+  return map[raw as keyof typeof map] ?? raw;
+};
+
+const formatDate = (value: unknown, locale: string) => {
   if (!value) return "";
   const date = new Date(String(value));
   if (Number.isNaN(date.getTime())) return String(value);
-  return date.toLocaleDateString("en-US", {
+  return date.toLocaleDateString(locale, {
     month: "short",
     day: "numeric",
     year: "numeric",
   });
 };
 
-const formatArea = (value: unknown) => {
+const formatTimeWindow = (value: unknown, t: (key: string) => string) => {
+  if (!value) return "";
+  const raw = String(value);
+  const map: Record<string, string> = {
+    "9-12": t("listing.timeWindow.morning"),
+    "12-3": t("listing.timeWindow.afternoon"),
+    "3-6": t("listing.timeWindow.evening"),
+    "6-9": t("listing.timeWindow.night"),
+  };
+  return map[raw] ?? raw;
+};
+
+const formatArea = (value: unknown, locale: string, unitLabel: string) => {
   const numeric = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(numeric)) return "";
-  return `${numeric.toLocaleString("en-US")} sqft`;
+  return `${numeric.toLocaleString(locale)} ${unitLabel}`;
 };
 
 export default function AccountPage() {
   const { user, loading } = useAppState();
   const router = useRouter();
+  const { t, language } = useI18n();
+  const locale =
+    language === "mm" ? "my-MM" : language === "zh" ? "zh-CN" : language === "th" ? "th-TH" : "en-US";
   const [viewingRequests, setViewingRequests] = useState<Array<Record<string, unknown>>>([]);
   const [savedProperties, setSavedProperties] = useState<Array<Record<string, unknown>>>([]);
   const [inquiries, setInquiries] = useState<Array<Record<string, unknown>>>([]);
@@ -479,16 +608,16 @@ export default function AccountPage() {
       <PageShell>
         {!user && (
           <BenefitsCard>
-            <strong>Why create an account?</strong>
+            <strong>{t("account.whyTitle")}</strong>
             <BenefitList>
-              <li>Save properties and compare later.</li>
-              <li>Track viewing requests and follow-up status.</li>
-              <li>Get faster requests with prefilled contact details.</li>
-              <li>Receive price-change alerts and similar listings.</li>
-              <li>Priority follow-up from our agents.</li>
+              <li>{t("account.benefit.saveCompare")}</li>
+              <li>{t("account.benefit.trackViewing")}</li>
+              <li>{t("account.benefit.prefilled")}</li>
+              <li>{t("account.benefit.alerts")}</li>
+              <li>{t("account.benefit.priority")}</li>
             </BenefitList>
             <CTAButton type="button" onClick={() => router.push("/auth")}>
-              Sign in
+              {t("common.signIn")}
             </CTAButton>
           </BenefitsCard>
         )}
@@ -503,9 +632,10 @@ export default function AccountPage() {
                     $active={activeTab === "viewing"}
                     onClick={() => setActiveTab("viewing")}
                   >
-                    <DesktopOnly>Viewing requests</DesktopOnly>
+                    <DesktopOnly>{t("account.viewing")}</DesktopOnly>
                     <MobileOnly>
                       <Eye size={16} />
+                      <span>{t("account.view")}</span>
                     </MobileOnly>
                   </TabButton>
                   <TabButton
@@ -513,9 +643,10 @@ export default function AccountPage() {
                     $active={activeTab === "saved"}
                     onClick={() => setActiveTab("saved")}
                   >
-                    <DesktopOnly>Saved properties</DesktopOnly>
+                    <DesktopOnly>{t("account.saved")}</DesktopOnly>
                     <MobileOnly>
                       <Heart size={16} />
+                      <span>{t("account.savedShort")}</span>
                     </MobileOnly>
                   </TabButton>
                   <TabButton
@@ -523,9 +654,10 @@ export default function AccountPage() {
                     $active={activeTab === "inquiries"}
                     onClick={() => setActiveTab("inquiries")}
                   >
-                    <DesktopOnly>Inquiries</DesktopOnly>
+                    <DesktopOnly>{t("account.inquiries")}</DesktopOnly>
                     <MobileOnly>
                       <Mail size={16} />
+                      <span>{t("account.inbox")}</span>
                     </MobileOnly>
                   </TabButton>
                   <TabButton
@@ -533,16 +665,17 @@ export default function AccountPage() {
                     $active={activeTab === "sales"}
                     onClick={() => setActiveTab("sales")}
                   >
-                    <DesktopOnly>Sale listings</DesktopOnly>
+                    <DesktopOnly>{t("account.sales")}</DesktopOnly>
                     <MobileOnly>
                       <TagIcon size={16} />
+                      <span>{t("account.salesShort")}</span>
                     </MobileOnly>
                   </TabButton>
                 </TabBar>
               </HeaderRow>
 
               {loading || dataLoading ? (
-                <Muted>Loading account data...</Muted>
+                <Muted>{t("account.loading")}</Muted>
               ) : loadError ? (
                 <Muted style={{ color: "var(--color-danger)" }}>{loadError}</Muted>
               ) : activeTab === "viewing" ? (
@@ -551,28 +684,26 @@ export default function AccountPage() {
                     {viewingRequests.map((request) => {
                       const property = request.property as Record<string, unknown> | undefined;
                       const propertyId = String(request.property_id ?? property?.id ?? "");
-                      const title = (property?.title as string) || "Property";
+                      const title = (property?.title as string) || t("listing.property");
                       const location = [property?.township, property?.district]
                         .filter(Boolean)
                         .join(", ");
                       const imageUrl = property?.imageUrl as string | undefined;
                       const price = property?.price as number | undefined;
                       const currency = (property?.currency as string) || "MMK";
-                      const typeLabel = formatEnum(property?.property_type);
-                      const dealLabel = formatEnum(property?.deal_type);
+                      const typeLabel = formatPropertyTypeLabel(property?.property_type, t);
+                      const dealLabel = formatDealTypeLabel(property?.deal_type, t);
                       const bedrooms = property?.bedrooms as number | undefined;
                       const bathrooms = property?.bathrooms as number | undefined;
-                      const area = formatArea(property?.area_sqft);
-                      const requestedDate = formatDate(request.preferred_date);
-                      const requestedTime = request.preferred_time_window
-                        ? String(request.preferred_time_window)
-                        : "";
+                      const area = formatArea(property?.area_sqft, locale, t("listing.areaSqft"));
+                      const requestedDate = formatDate(request.preferred_date, locale);
+                      const requestedTime = formatTimeWindow(request.preferred_time_window, t);
                       const requestedLabel = [requestedDate, requestedTime]
                         .filter(Boolean)
                         .join(" | ");
-                      const createdAt = formatDate(request.created_at);
+                      const createdAt = formatDate(request.created_at, locale);
                       return (
-                        <ListItemGrid
+                        <ImageCard
                           key={String(request.id)}
                           role="button"
                           tabIndex={0}
@@ -583,65 +714,68 @@ export default function AccountPage() {
                               router.push(`/listing/${propertyId}`);
                             }
                           }}
-                          aria-label={`View ${title}`}
+                          aria-label={`${t("account.view")} ${title}`}
+                          $image={imageUrl}
                         >
                           <Thumbnail>
-                            {imageUrl ? <img src={imageUrl} alt={title} /> : "No photo"}
+                            {imageUrl ? <img src={imageUrl} alt={title} /> : t("listing.noPhoto")}
                           </Thumbnail>
-                          <ItemContent>
+                          <ImageCardContent>
                             <TitleRow>
                               <TitleGroup>
                                 <strong>{title}</strong>
                                 {dealLabel ? <DealPill>{dealLabel}</DealPill> : null}
                               </TitleGroup>
-                              <StatusRow>
-                                <StatusBadge>
-                                  <BadgeCheck size={12} />
-                                  Requested
-                                </StatusBadge>
-                                <span>{createdAt || "TBD"}</span>
-                              </StatusRow>
+                              <DesktopOnly>
+                                <StatusRow>
+                                  <StatusBadge>
+                                    <BadgeCheck size={12} />
+                                    {t("account.requested")}
+                                  </StatusBadge>
+                                  <span>{createdAt || t("account.requestedTbd")}</span>
+                                </StatusRow>
+                              </DesktopOnly>
                             </TitleRow>
                             <IconLabel>
                               <MapPin />
-                              {location || "Location TBD"}
+                              {location || t("account.locationTbd")}
                             </IconLabel>
-                            <CardDivider />
+                            {/* <CardDivider /> */}
                             <DetailRow>
                               <IconLabel>
                                 <Calendar />
-                                {requestedLabel || "TBD"}
+                                {requestedLabel || t("account.requestedTbd")}
                               </IconLabel>
                               <IconLabel>
                                 <TagIcon />
-                                {formatCurrency(price, currency) || "TBD"}
+                                {formatCurrency(price, currency) || t("account.requestedTbd")}
                               </IconLabel>
                             </DetailRow>
-                            <DetailRow>
+                            <DetailRowHorizontal>
                               <IconLabel>
                                 <Home />
-                                {[typeLabel].filter(Boolean).join(" ") || "TBD"}
+                                {[typeLabel].filter(Boolean).join(" ") || t("account.requestedTbd")}
                               </IconLabel>
                               <IconLabel>
                                 <BedDouble />
-                                {bedrooms ?? "TBD"}
+                                {bedrooms ?? t("account.requestedTbd")}
                               </IconLabel>
                               <IconLabel>
                                 <Bath />
-                                {bathrooms ?? "TBD"}
+                                {bathrooms ?? t("account.requestedTbd")}
                               </IconLabel>
                               <IconLabel>
                                 <Ruler />
-                                {area || "TBD"}
+                                {area || t("account.requestedTbd")}
                               </IconLabel>
-                            </DetailRow>
-                          </ItemContent>
-                        </ListItemGrid>
+                            </DetailRowHorizontal>
+                          </ImageCardContent>
+                        </ImageCard>
                       );
                     })}
                   </List>
                 ) : (
-                  <Muted>No viewing requests yet.</Muted>
+                  <Muted>{t("account.noViewing")}</Muted>
                 )
               ) : activeTab === "saved" ? (
                 savedProperties.length ? (
@@ -649,21 +783,21 @@ export default function AccountPage() {
                     {savedProperties.map((item) => {
                       const property = item.property as Record<string, unknown> | undefined;
                       const propertyId = String(item.property_id ?? property?.id ?? "");
-                      const title = (property?.title as string) || "Property";
+                      const title = (property?.title as string) || t("listing.property");
                       const price = property?.price as number | undefined;
                       const currency = (property?.currency as string) || "MMK";
                       const location = [property?.township, property?.district]
                         .filter(Boolean)
                         .join(", ");
                       const imageUrl = property?.imageUrl as string | undefined;
-                      const typeLabel = formatEnum(property?.property_type);
-                      const dealLabel = formatEnum(property?.deal_type);
+                      const typeLabel = formatPropertyTypeLabel(property?.property_type, t);
+                      const dealLabel = formatDealTypeLabel(property?.deal_type, t);
                       const bedrooms = property?.bedrooms as number | undefined;
                       const bathrooms = property?.bathrooms as number | undefined;
-                      const area = formatArea(property?.area_sqft);
-                      const savedAt = formatDate(item.created_at);
+                      const area = formatArea(property?.area_sqft, locale, t("listing.areaSqft"));
+                      const savedAt = formatDate(item.created_at, locale);
                       return (
-                        <ListItemGrid
+                        <ImageCard
                           key={String(item.id)}
                           role="button"
                           tabIndex={0}
@@ -674,83 +808,88 @@ export default function AccountPage() {
                               router.push(`/listing/${propertyId}`);
                             }
                           }}
-                          aria-label={`View ${title}`}
+                          aria-label={`${t("account.view")} ${title}`}
+                          $image={imageUrl}
                         >
                           <Thumbnail>
-                            {imageUrl ? <img src={imageUrl} alt={title} /> : "No photo"}
+                            {imageUrl ? <img src={imageUrl} alt={title} /> : t("listing.noPhoto")}
                           </Thumbnail>
-                          <ItemContent>
+                          <ImageCardContent>
                             <TitleRow>
                               <TitleGroup>
                                 <strong>{title}</strong>
                                 {dealLabel ? <DealPill>{dealLabel}</DealPill> : null}
                               </TitleGroup>
-                              <StatusRow>
-                                <StatusBadge>
-                                  <BadgeCheck size={12} />
-                                  Saved
-                                </StatusBadge>
-                                <span>{savedAt || "TBD"}</span>
-                              </StatusRow>
+                              <DesktopOnly>
+                                <StatusRow>
+                                  <StatusBadge>
+                                    <BadgeCheck size={12} />
+                                    {t("account.savedBadge")}
+                                  </StatusBadge>
+                                  <span>{savedAt || t("account.requestedTbd")}</span>
+                                </StatusRow>
+                              </DesktopOnly>
                             </TitleRow>
                             <IconLabel>
                               <MapPin />
-                              {location || "Location TBD"}
+                              {location || t("account.locationTbd")}
                             </IconLabel>
-                            <CardDivider />
+                            {/* <CardDivider /> */}
                             <DetailRow>
                               <IconLabel>
                                 <Calendar />
-                                {savedAt || "TBD"}
+                                {savedAt || t("account.requestedTbd")}
                               </IconLabel>
                               <IconLabel>
                                 <TagIcon />
-                                {formatCurrency(price, currency) || "TBD"}
+                                {formatCurrency(price, currency) || t("account.requestedTbd")}
                               </IconLabel>
                               <IconLabel>
                                 <Home />
-                                {[typeLabel].filter(Boolean).join(" ") || "TBD"}
+                                {[typeLabel].filter(Boolean).join(" ") || t("account.requestedTbd")}
                               </IconLabel>
                             </DetailRow>
-                            <DetailRow>
+                            <DetailRowHorizontal>
                               <IconLabel>
                                 <BedDouble />
-                                {bedrooms ?? "TBD"}
+                                {bedrooms ?? t("account.requestedTbd")}
                               </IconLabel>
                               <IconLabel>
                                 <Bath />
-                                {bathrooms ?? "TBD"}
+                                {bathrooms ?? t("account.requestedTbd")}
                               </IconLabel>
                               <IconLabel>
                                 <Ruler />
-                                {area || "TBD"}
+                                {area || t("account.requestedTbd")}
                               </IconLabel>
-                            </DetailRow>
-                          </ItemContent>
-                        </ListItemGrid>
+                            </DetailRowHorizontal>
+                           
+                          </ImageCardContent>
+                        </ImageCard>
                       );
                     })}
                   </List>
                 ) : (
-                  <Muted>No saved properties yet.</Muted>
+                  <Muted>{t("account.noSaved")}</Muted>
                 )
               ) : activeTab === "inquiries" ? (
                 <>
                   <ActionRow>
                     <TabAction type="button" onClick={() => router.push("/inquiries/new")}>
-                      + inquiry
+                      {t("account.newInquiry")}
                     </TabAction>
                   </ActionRow>
                   {inquiries.length ? (
                     <List>
                       {inquiries.map((item) => {
                         const needs = [];
-                        if (item.need_parking) needs.push("Parking");
-                        if (item.need_lift) needs.push("Lift");
-                        if (item.need_solar) needs.push("Solar");
-                        if (item.need_generator) needs.push("Generator");
-                        const timeline = formatEnum(item.timeline);
-                        const createdAt = formatDate(item.created_at);
+                        if (item.need_parking) needs.push(t("account.needParking"));
+                        if (item.need_lift) needs.push(t("account.needLift"));
+                        if (item.need_solar) needs.push(t("account.needSolar"));
+                        if (item.need_generator) needs.push(t("account.needGenerator"));
+                        const timeline = formatTimelineLabel(item.timeline, t);
+                        const budgetLabel = formatBudgetLabel(item.budget_range, item.deal_type, t);
+                        const createdAt = formatDate(item.created_at, locale);
                         return (
                           <ListItem
                             key={String(item.id)}
@@ -763,37 +902,38 @@ export default function AccountPage() {
                                 setActiveInquiry(item);
                               }
                             }}
-                            aria-label="View inquiry details"
+                            aria-label={t("account.viewInquiryDetails")}
                           >
                             <TitleRow>
                               <TitleGroup>
                                 <strong>
-                                  {String(item.deal_type ?? "").toUpperCase()} {formatEnum(item.property_type)}
+                                  {formatInquiryDealLabel(item.deal_type, t)}{" "}
+                                  {formatPropertyTypeLabel(item.property_type, t)}
                                 </strong>
                               </TitleGroup>
                               <StatusRow>
                                 <StatusBadge>
                                   <BadgeCheck size={12} />
-                                  Inquiry
+                                  {t("account.inquiry")}
                                 </StatusBadge>
-                                <span>{createdAt || "TBD"}</span>
+                                <span>{createdAt || t("account.requestedTbd")}</span>
                               </StatusRow>
                             </TitleRow>
                             <IconLabel>
                               <MapPin />
                               {[item.township, item.district, item.state_region]
                                 .filter(Boolean)
-                                .join(", ") || "Location TBD"}
+                                .join(", ") || t("account.locationTbd")}
                             </IconLabel>
                             <CardDivider />
                             <DetailRow>
                               <IconLabel>
                                 <TagIcon />
-                                {String(item.budget_range ?? "") || "TBD"}
+                                {budgetLabel || t("account.requestedTbd")}
                               </IconLabel>
                               <IconLabel>
                                 <Clock />
-                                {timeline || "TBD"}
+                                {timeline || t("account.requestedTbd")}
                               </IconLabel>
                             </DetailRow>
                             {needs.length ? (
@@ -803,32 +943,32 @@ export default function AccountPage() {
                                 ))}
                               </TagRow>
                             ) : (
-                              <Muted>No special requirements</Muted>
+                              <Muted>{t("account.noSpecial")}</Muted>
                             )}
                           </ListItem>
                         );
                       })}
                     </List>
                   ) : (
-                    <Muted>No inquiries yet. Start a new inquiry to reach our team.</Muted>
+                    <Muted>{t("account.noInquiries")}</Muted>
                   )}
                   <FloatingAction type="button" onClick={() => router.push("/inquiries/new")}>
-                    + inquiry
+                    {t("account.newInquiry")}
                   </FloatingAction>
                 </>
               ) : (
                 <>
                   <ActionRow>
                     <TabAction type="button" onClick={() => router.push("/request-sale")}>
-                      + sale listing
+                      {t("account.newSale")}
                     </TabAction>
                   </ActionRow>
                   {salesRequests.length ? (
                     <List>
                       {salesRequests.map((item) => {
-                        const typeLabel = formatEnum(item.property_type);
-                        const dealLabel = formatEnum(item.deal_type);
-                        const createdAt = formatDate(item.created_at);
+                        const typeLabel = formatPropertyTypeLabel(item.property_type, t);
+                        const dealLabel = formatDealTypeLabel(item.deal_type, t);
+                        const createdAt = formatDate(item.created_at, locale);
                         return (
                           <ListItem
                             key={String(item.id)}
@@ -841,40 +981,40 @@ export default function AccountPage() {
                                 setActiveSale(item);
                               }
                             }}
-                            aria-label="View sale request details"
+                            aria-label={`${t("account.view")} ${t("account.saleRequest")}`}
                           >
                             <TitleRow>
                               <TitleGroup>
-                                <strong>{String(item.title ?? "Sale request")}</strong>
+                            <strong>{String(item.title ?? t("account.saleRequest"))}</strong>
                                 {dealLabel ? <DealPill>{dealLabel}</DealPill> : null}
                               </TitleGroup>
                               <StatusRow>
                                 <StatusBadge>
                                   <BadgeCheck size={12} />
-                                  Submitted
+                                  {t("account.submitted")}
                                 </StatusBadge>
-                                <span>{createdAt || "TBD"}</span>
+                                <span>{createdAt || t("account.requestedTbd")}</span>
                               </StatusRow>
                             </TitleRow>
                             <IconLabel>
                               <MapPin />
                               {[item.township, item.district, item.state_region]
                                 .filter(Boolean)
-                                .join(", ") || "Location TBD"}
+                                .join(", ") || t("account.locationTbd")}
                             </IconLabel>
                             <CardDivider />
                             <DetailRow>
                               <IconLabel>
                                 <Calendar />
-                                {createdAt || "TBD"}
+                                {createdAt || t("account.requestedTbd")}
                               </IconLabel>
                               <IconLabel>
                                 <TagIcon />
-                                {formatCurrency(item.price as number, item.currency as string) || "TBD"}
+                                {formatCurrency(item.price as number, item.currency as string) || t("account.requestedTbd")}
                               </IconLabel>
                               <IconLabel>
                                 <Home />
-                                {[typeLabel].filter(Boolean).join(" ") || "TBD"}
+                                {[typeLabel].filter(Boolean).join(" ") || t("account.requestedTbd")}
                               </IconLabel>
                             </DetailRow>
                           </ListItem>
@@ -882,10 +1022,10 @@ export default function AccountPage() {
                       })}
                     </List>
                   ) : (
-                    <Muted>No sale listing requests yet.</Muted>
+                    <Muted>{t("account.noSales")}</Muted>
                   )}
                   <FloatingAction type="button" onClick={() => router.push("/request-sale")}>
-                    + sale listing
+                    {t("account.newSale")}
                   </FloatingAction>
                 </>
               )}
@@ -899,11 +1039,14 @@ export default function AccountPage() {
             <ModalHeader>
               <div>
                 <strong>
-                  {String(activeInquiry.deal_type ?? "").toUpperCase()} {formatEnum(activeInquiry.property_type)}
+                  {formatInquiryDealLabel(activeInquiry.deal_type, t)}{" "}
+                  {formatPropertyTypeLabel(activeInquiry.property_type, t)}
                 </strong>
-                <Muted>{formatDate(activeInquiry.created_at) || "Submitted date TBD"}</Muted>
+              <Muted>
+                {formatDate(activeInquiry.created_at, locale) || t("account.submittedTbd")}
+              </Muted>
               </div>
-              <GhostButton type="button" onClick={closeDetails} aria-label="Close details">
+              <GhostButton type="button" onClick={closeDetails} aria-label={t("account.close")}>
                 <X size={16} />
               </GhostButton>
             </ModalHeader>
@@ -911,25 +1054,26 @@ export default function AccountPage() {
               <MapPin />
               {[activeInquiry.township, activeInquiry.district, activeInquiry.state_region]
                 .filter(Boolean)
-                .join(", ") || "Location TBD"}
+                .join(", ") || t("account.locationTbd")}
             </IconLabel>
             <CardDivider />
             <DetailRow>
               <IconLabel>
                 <TagIcon />
-                {String(activeInquiry.budget_range ?? "") || "Budget TBD"}
+                {formatBudgetLabel(activeInquiry.budget_range, activeInquiry.deal_type, t) ||
+                  t("account.budgetTbd")}
               </IconLabel>
               <IconLabel>
                 <Clock />
-                {formatEnum(activeInquiry.timeline) || "Timeline TBD"}
+                {formatTimelineLabel(activeInquiry.timeline, t) || t("account.timelineTbd")}
               </IconLabel>
             </DetailRow>
             {(() => {
               const needs = [];
-              if (activeInquiry.need_parking) needs.push("Parking");
-              if (activeInquiry.need_lift) needs.push("Lift");
-              if (activeInquiry.need_solar) needs.push("Solar");
-              if (activeInquiry.need_generator) needs.push("Generator");
+              if (activeInquiry.need_parking) needs.push(t("account.needParking"));
+              if (activeInquiry.need_lift) needs.push(t("account.needLift"));
+              if (activeInquiry.need_solar) needs.push(t("account.needSolar"));
+              if (activeInquiry.need_generator) needs.push(t("account.needGenerator"));
               return needs.length ? (
                 <TagRow>
                   {needs.map((need) => (
@@ -937,12 +1081,12 @@ export default function AccountPage() {
                   ))}
                 </TagRow>
               ) : (
-                <Muted>No special requirements</Muted>
+                <Muted>{t("account.noSpecial")}</Muted>
               );
             })()}
             <ModalActions>
               <GhostButton type="button" onClick={closeDetails}>
-                Close
+                {t("account.close")}
               </GhostButton>
               <CTAButton
                 type="button"
@@ -951,7 +1095,7 @@ export default function AccountPage() {
                   router.push(`/inquiries/new?editId=${String(activeInquiry.id ?? "")}`);
                 }}
               >
-                Edit inquiry
+                {t("account.editInquiry")}
               </CTAButton>
             </ModalActions>
           </ModalCard>
@@ -962,10 +1106,12 @@ export default function AccountPage() {
           <ModalCard onClick={(event) => event.stopPropagation()}>
             <ModalHeader>
               <div>
-                <strong>{String(activeSale.title ?? "Sale request")}</strong>
-                <Muted>{formatDate(activeSale.created_at) || "Submitted date TBD"}</Muted>
+                <strong>{String(activeSale.title ?? t("account.saleRequest"))}</strong>
+              <Muted>
+                {formatDate(activeSale.created_at, locale) || t("account.submittedTbd")}
+              </Muted>
               </div>
-              <GhostButton type="button" onClick={closeDetails} aria-label="Close details">
+              <GhostButton type="button" onClick={closeDetails} aria-label={t("account.close")}>
                 <X size={16} />
               </GhostButton>
             </ModalHeader>
@@ -973,31 +1119,36 @@ export default function AccountPage() {
               <MapPin />
               {[activeSale.township, activeSale.district, activeSale.state_region]
                 .filter(Boolean)
-                .join(", ") || "Location TBD"}
+                .join(", ") || t("account.locationTbd")}
             </IconLabel>
             <CardDivider />
             <DetailRow>
               <IconLabel>
                 <TagIcon />
-                {formatCurrency(activeSale.price as number, activeSale.currency as string) || "Price TBD"}
+                {formatCurrency(activeSale.price as number, activeSale.currency as string) || t("account.priceTbd")}
               </IconLabel>
               <IconLabel>
                 <Home />
-                {[formatEnum(activeSale.deal_type), formatEnum(activeSale.property_type)]
+                {[formatDealTypeLabel(activeSale.deal_type, t), formatPropertyTypeLabel(activeSale.property_type, t)]
                   .filter(Boolean)
-                  .join(" ") || "Type TBD"}
+                  .join(" ") || t("account.typeTbd")}
               </IconLabel>
               <IconLabel>
                 <BedDouble />
-                {activeSale.bedrooms ?? "TBD"}
+                {typeof activeSale.bedrooms === "number"
+                  ? activeSale.bedrooms
+                  : t("account.requestedTbd")}
               </IconLabel>
               <IconLabel>
                 <Bath />
-                {activeSale.bathrooms ?? "TBD"}
+                {typeof activeSale.bathrooms === "number"
+                  ? activeSale.bathrooms
+                  : t("account.requestedTbd")}
               </IconLabel>
               <IconLabel>
                 <Ruler />
-                {formatArea(activeSale.area_sqft) || "TBD"}
+                {formatArea(activeSale.area_sqft, locale, t("listing.areaSqft")) ||
+                  t("account.requestedTbd")}
               </IconLabel>
             </DetailRow>
             {activeSale.address_text ? (
@@ -1008,7 +1159,7 @@ export default function AccountPage() {
             {activeSale.description ? <Muted>{String(activeSale.description)}</Muted> : null}
             <ModalActions>
               <GhostButton type="button" onClick={closeDetails}>
-                Close
+                {t("account.close")}
               </GhostButton>
               <CTAButton
                 type="button"
@@ -1017,7 +1168,7 @@ export default function AccountPage() {
                   router.push(`/request-sale?editId=${String(activeSale.id ?? "")}`);
                 }}
               >
-                Edit listing
+                {t("account.editListing")}
               </CTAButton>
             </ModalActions>
           </ModalCard>

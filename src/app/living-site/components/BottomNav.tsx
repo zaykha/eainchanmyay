@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import styled from "styled-components";
 import { Compass, ClipboardList, Settings } from "lucide-react";
+import { useI18n } from "@/app/living-site/lib/i18n";
 
 const Shell = styled.nav`
   position: fixed;
@@ -97,11 +98,12 @@ const NavIcon = styled.span`
 
 export function BottomNav() {
   const pathname = usePathname();
+  const { t } = useI18n();
 
   const navItems = [
-    { label: "Explore", icon: <Compass size={18} />, path: "/" },
-    { label: "Activities", icon: <ClipboardList size={18} />, path: "/activities" },
-    { label: "Settings", icon: <Settings size={18} />, path: "/settings" },
+    { label: t("nav.explore"), icon: <Compass size={18} />, path: "/" },
+    { label: t("nav.activities"), icon: <ClipboardList size={18} />, path: "/activities" },
+    { label: t("nav.settings"), icon: <Settings size={18} />, path: "/settings" },
   ];
 
   return (

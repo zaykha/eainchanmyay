@@ -8,6 +8,7 @@ import { BottomNav } from "@/app/living-site/components/BottomNav";
 import { SectionTitle } from "@/app/living-site/components/PageSection";
 import { useListingDetail } from "@/app/living-site/hooks/useListingDetail";
 import { createViewingRequest } from "@/app/living-site/lib/data";
+import { useI18n } from "@/app/living-site/lib/i18n";
 
 const PageShell = styled.div`
   max-width: 1140px;
@@ -108,6 +109,7 @@ export default function RequestViewingPage() {
   const params = useParams();
   const propertyId = params?.propertyId as string | undefined;
   const { detail, loading } = useListingDetail(propertyId);
+  const { t } = useI18n();
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -122,7 +124,7 @@ export default function RequestViewingPage() {
     return (
       <div>
         <SiteHeader />
-        <PageShell>Loading property...</PageShell>
+        <PageShell>{t("booking.loadingProperty")}</PageShell>
       </div>
     );
   }
@@ -131,16 +133,16 @@ export default function RequestViewingPage() {
     return (
       <div>
         <SiteHeader />
-        <PageShell>Property not found.</PageShell>
+        <PageShell>{t("booking.notFound")}</PageShell>
       </div>
     );
   }
 
-  const title = (detail.property.title as string) || "Property";
+  const title = (detail.property.title as string) || t("listing.property");
 
   const handleSubmit = async () => {
     if (!name.trim() || !phone.trim() || !preferredDate || !preferredWindow) {
-      setError("Please complete all required fields.");
+      setError(t("booking.completeRequired"));
       return;
     }
     setError(null);
@@ -156,7 +158,7 @@ export default function RequestViewingPage() {
     setSubmitting(false);
 
     if (!result.ok) {
-      setError(result.message ?? "Unable to submit your request.");
+      setError(result.message ?? t("booking.unableSubmit"));
       return;
     }
 
@@ -167,30 +169,30 @@ export default function RequestViewingPage() {
     <div>
       <SiteHeader />
       <PageShell>
-        <SectionTitle>Request viewing</SectionTitle>
-        <Muted>Best for users who want to propose a time.</Muted>
+        <SectionTitle>{t("booking.requestTitle")}</SectionTitle>
+        <Muted>{t("booking.subtitle")}</Muted>
         <Card>
           <strong>{title}</strong>
           <Field>
-            Name
+            {t("booking.nameLabel")}
             <Input
               type="text"
-              placeholder="Your full name"
+              placeholder={t("booking.namePlaceholder")}
               value={name}
               onChange={(event) => setName(event.target.value)}
             />
           </Field>
           <Field>
-            Phone
+            {t("booking.phoneLabel")}
             <Input
               type="tel"
-              placeholder="09-000-000-000"
+              placeholder={t("booking.phonePlaceholder")}
               value={phone}
               onChange={(event) => setPhone(event.target.value)}
             />
           </Field>
           <Field>
-            Preferred date
+            {t("booking.preferredDate")}
             <Input
               type="date"
               value={preferredDate}
@@ -198,21 +200,21 @@ export default function RequestViewingPage() {
             />
           </Field>
           <Field>
-            Preferred time window
+            {t("booking.timeWindow")}
             <Select
               value={preferredWindow}
               onChange={(event) => setPreferredWindow(event.target.value)}
             >
-              <option value="">Select a time window</option>
-              <option value="morning">Morning</option>
-              <option value="afternoon">Afternoon</option>
-              <option value="evening">Evening</option>
+              <option value="">{t("booking.timeWindowPlaceholder")}</option>
+              <option value="morning">{t("booking.timeWindow.morning")}</option>
+              <option value="afternoon">{t("booking.timeWindow.afternoon")}</option>
+              <option value="evening">{t("booking.timeWindow.evening")}</option>
             </Select>
           </Field>
           <Field>
-            Notes (optional)
+            {t("booking.notesOptional")}
             <Textarea
-              placeholder="Add parking needs, gate access, or any notes."
+              placeholder={t("booking.notesPlaceholder")}
               value={notes}
               onChange={(event) => setNotes(event.target.value)}
             />
@@ -220,12 +222,12 @@ export default function RequestViewingPage() {
           {error && <ErrorText>{error}</ErrorText>}
           {success ? (
             <SuccessCard>
-              <strong>Request sent</strong>
-              <Muted>We’ll confirm by phone.</Muted>
+              <strong>{t("booking.requestSent")}</strong>
+              <Muted>{t("booking.confirmByPhone")}</Muted>
             </SuccessCard>
           ) : (
             <SubmitButton type="button" onClick={handleSubmit} disabled={submitting}>
-              {submitting ? "Submitting..." : "Submit request"}
+              {submitting ? t("booking.submitting") : t("booking.submitRequest")}
             </SubmitButton>
           )}
         </Card>

@@ -9,6 +9,9 @@ import { BottomNav } from "@/app/living-site/components/BottomNav";
 import { ListingGrid } from "@/app/living-site/components/ListingGrid";
 import { PageSection, SectionTitle } from "@/app/living-site/components/PageSection";
 import { useInfiniteListings } from "@/app/living-site/hooks/useInfiniteListings";
+import { useI18n } from "@/app/living-site/lib/i18n";
+import { CustomSelect } from "@/app/living-site/components/form-controls/CustomSelect";
+import { getDistricts, getStates, getTownships } from "@/app/living-site/lib/myanmar-geo";
 
 const Screen = styled.div`
   padding: 12px;
@@ -39,7 +42,7 @@ const SearchBar = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 12px;
+  padding: 4px 12px;
   border-radius: 12px;
   border: 1px solid var(--color-outline);
   background: var(--color-surface);
@@ -85,6 +88,7 @@ const SearchInput = styled.input`
   width: 100%;
   background: transparent;
   color: var(--color-text);
+  padding: 5px 0;
 `;
 
 const RangeRow = styled.div`
@@ -100,24 +104,6 @@ const RangeInput = styled.input`
   padding: 10px 12px;
   background: var(--color-surface);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.4);
-`;
-
-const TextInput = styled.input`
-  width: 100%;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-outline);
-  padding: 10px 12px;
-  background: var(--color-surface);
-  color: var(--color-text);
-`;
-
-const SelectInput = styled.select`
-  width: 100%;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-outline);
-  padding: 10px 12px;
-  background: var(--color-surface);
-  color: var(--color-text);
 `;
 
 const FilterButton = styled.button`
@@ -195,6 +181,11 @@ const FilterOverlay = styled.div`
   place-items: center;
   z-index: 80;
   padding: 16px;
+
+  @media (max-width: 640px) {
+    padding: 0;
+    align-items: stretch;
+  }
 `;
 
 const FilterCard = styled.div`
@@ -206,6 +197,13 @@ const FilterCard = styled.div`
   box-shadow: var(--shadow-soft);
   display: grid;
   gap: 14px;
+
+  @media (max-width: 640px) {
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+    overflow-y: auto;
+  }
 `;
 
 const FilterHeader = styled.div`
@@ -307,6 +305,7 @@ const toNumber = (value: string) => {
 
 export function HomePageClient() {
   const router = useRouter();
+  const { t } = useI18n();
   const params = useSearchParams();
   const initialQuery = params.get("q") ?? "";
   const initialDealType = params.get("deal") ?? "";
@@ -389,6 +388,29 @@ export function HomePageClient() {
     ]
   );
   const { listings, loading, loadingMore, hasMore, loadMore } = useInfiniteListings(filters);
+  const stateOptions = useMemo(() => getStates(), []);
+  const districtOptions = useMemo(
+    () => (pendingStateRegion ? getDistricts(pendingStateRegion) : []),
+    [pendingStateRegion]
+  );
+  const townshipOptions = useMemo(
+    () => (pendingStateRegion && pendingDistrict ? getTownships(pendingStateRegion, pendingDistrict) : []),
+    [pendingStateRegion, pendingDistrict]
+  );
+  const showBedBathFilters = useMemo(
+    () =>
+      ["house", "house_land", "apartment", "condo", "mini_condo", "serviced_apartment"].includes(
+        pendingPropertyType
+      ),
+    [pendingPropertyType]
+  );
+
+  useEffect(() => {
+    if (!showBedBathFilters) {
+      setPendingBedrooms("");
+      setPendingBathrooms("");
+    }
+  }, [showBedBathFilters]);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -456,7 +478,7 @@ export function HomePageClient() {
                   <Search size={14} />
                 </SearchIcon>
                 <SearchInput
-                  placeholder="Search townships, districts, or property names"
+                  placeholder={t("home.searchPlaceholder")}
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                 />
@@ -464,7 +486,7 @@ export function HomePageClient() {
               <FilterActions>
                 <FilterButton
                   type="button"
-                  aria-label="Filters"
+                  aria-label={t("home.filters")}
                   onClick={() => {
                     setPendingDealType(dealType);
                     setPendingPropertyType(propertyType);
@@ -485,7 +507,7 @@ export function HomePageClient() {
                 {hasActiveFilters && (
                   <ClearButton
                     type="button"
-                    aria-label="Clear filters"
+                    aria-label={t("home.clear")}
                     onClick={() => {
                       setQuery("");
                       setDealType("");
@@ -509,12 +531,12 @@ export function HomePageClient() {
           </SearchShell>
         </Paper>
         <PageSection>
-          <SectionTitle>Featured properties</SectionTitle>
+          <SectionTitle>{t("home.featured")}</SectionTitle>
           <ListingGrid listings={listings} loading={loading} />
-          {loadingMore && <LoadMoreText>Loading more properties...</LoadMoreText>}
+          {loadingMore && <LoadMoreText>{t("home.loadingMore")}</LoadMoreText>}
           {!loading && hasMore && (
             <LoadMoreButton type="button" onClick={loadMore} disabled={loadingMore}>
-              {loadingMore ? "Loading..." : "Load more"}
+              {loadingMore ? t("home.loadingMore") : t("home.loadMore")}
             </LoadMoreButton>
           )}
           {hasMore && !loading && <LoadMoreSentinel ref={loadMoreRef} />}
@@ -524,7 +546,7 @@ export function HomePageClient() {
         <FilterOverlay onClick={() => setFiltersOpen(false)}>
           <FilterCard onClick={(event) => event.stopPropagation()}>
             <FilterHeader>
-              <FilterTitle>Filters</FilterTitle>
+              <FilterTitle>{t("home.filters")}</FilterTitle>
               <FilterClose
                 type="button"
                 aria-label="Close filters"
@@ -534,107 +556,137 @@ export function HomePageClient() {
               </FilterClose>
             </FilterHeader>
             <FilterField>
-              <FilterLabel>Deal type</FilterLabel>
-              <SelectInput
+              <CustomSelect
+                id="filters-deal-type"
+                name="deal_type"
+                label={t("filter.dealType")}
                 value={pendingDealType}
-                onChange={(event) => setPendingDealType(event.target.value)}
+                onChange={(value) => setPendingDealType(value)}
               >
-                <option value="">Any</option>
-                <option value="sale">For sale</option>
-                <option value="rent">For rent</option>
-              </SelectInput>
+                <option value="sale">{t("listing.forSale")}</option>
+                <option value="rent">{t("listing.forRent")}</option>
+              </CustomSelect>
             </FilterField>
             <FilterField>
-              <FilterLabel>Property type</FilterLabel>
-              <SelectInput
+              <CustomSelect
+                id="filters-property-type"
+                name="property_type"
+                label={t("filter.propertyType")}
                 value={pendingPropertyType}
-                onChange={(event) => setPendingPropertyType(event.target.value)}
+                onChange={(value) => setPendingPropertyType(value)}
               >
-                <option value="">Any</option>
-                <option value="land">Land</option>
-                <option value="house">House</option>
-                <option value="house_land">House + Land</option>
-                <option value="apartment">Apartment</option>
-                <option value="commercial">Commercial</option>
-              </SelectInput>
+                <option value="land">{t("property.land")}</option>
+                <option value="house">{t("property.house")}</option>
+                <option value="house_land">{t("property.houseLand")}</option>
+                <option value="apartment">{t("property.apartment")}</option>
+                <option value="commercial">{t("property.commercial")}</option>
+              </CustomSelect>
             </FilterField>
             <FilterField>
-              <FilterLabel>State or region</FilterLabel>
-              <TextInput
+              <CustomSelect
+                id="filters-state"
+                name="state_region"
+                label={t("filter.state")}
                 value={pendingStateRegion}
-                onChange={(event) => setPendingStateRegion(event.target.value)}
-                placeholder="Yangon, Mandalay, Bago..."
-              />
+                onChange={(value) => {
+                  setPendingStateRegion(value);
+                  setPendingDistrict("");
+                  setPendingTownship("");
+                }}
+              >
+                {stateOptions.map((state) => (
+                  <option key={state.pcode} value={state.name_en}>
+                    {state.name_en}
+                  </option>
+                ))}
+              </CustomSelect>
             </FilterField>
             <FilterField>
-              <FilterLabel>District</FilterLabel>
-              <TextInput
+              <CustomSelect
+                id="filters-district"
+                name="district"
+                label={t("filter.district")}
                 value={pendingDistrict}
-                onChange={(event) => setPendingDistrict(event.target.value)}
-                placeholder="Mayangone, Ahlone..."
-              />
+                onChange={(value) => {
+                  setPendingDistrict(value);
+                  setPendingTownship("");
+                }}
+                disabled={!pendingStateRegion}
+              >
+                {districtOptions.map((item) => (
+                  <option key={item.pcode} value={item.name_en}>
+                    {item.name_en}
+                  </option>
+                ))}
+              </CustomSelect>
             </FilterField>
             <FilterField>
-              <FilterLabel>Township</FilterLabel>
-              <TextInput
+              <CustomSelect
+                id="filters-township"
+                name="township"
+                label={t("filter.township")}
                 value={pendingTownship}
-                onChange={(event) => setPendingTownship(event.target.value)}
-                placeholder="Sanchaung, Kamayut..."
-              />
+                onChange={(value) => setPendingTownship(value)}
+                disabled={!pendingDistrict}
+              >
+                {townshipOptions.map((item) => (
+                  <option key={item.pcode} value={item.name_en}>
+                    {item.name_en}
+                  </option>
+                ))}
+              </CustomSelect>
             </FilterField>
             <FilterField>
-              <FilterLabel>Price range (MMK)</FilterLabel>
+              <FilterLabel>{t("filter.priceRange")}</FilterLabel>
               <RangeRow>
                 <RangeInput
                   type="number"
                   min={0}
-                  placeholder="Min"
                   value={pendingMinPrice}
                   onChange={(event) => setPendingMinPrice(event.target.value)}
                 />
                 <RangeInput
                   type="number"
                   min={0}
-                  placeholder="Max"
                   value={pendingMaxPrice}
                   onChange={(event) => setPendingMaxPrice(event.target.value)}
                 />
               </RangeRow>
             </FilterField>
+            {showBedBathFilters && (
+              <>
+                <FilterField>
+                  <FilterLabel>{t("filter.bedrooms")}</FilterLabel>
+                  <RangeInput
+                    type="number"
+                    min={0}
+                    value={pendingBedrooms}
+                    onChange={(event) => setPendingBedrooms(event.target.value)}
+                  />
+                </FilterField>
+                <FilterField>
+                  <FilterLabel>{t("filter.bathrooms")}</FilterLabel>
+                  <RangeInput
+                    type="number"
+                    min={0}
+                    value={pendingBathrooms}
+                    onChange={(event) => setPendingBathrooms(event.target.value)}
+                  />
+                </FilterField>
+              </>
+            )}
             <FilterField>
-              <FilterLabel>Bedrooms</FilterLabel>
-              <RangeInput
-                type="number"
-                min={0}
-                placeholder="At least"
-                value={pendingBedrooms}
-                onChange={(event) => setPendingBedrooms(event.target.value)}
-              />
-            </FilterField>
-            <FilterField>
-              <FilterLabel>Bathrooms</FilterLabel>
-              <RangeInput
-                type="number"
-                min={0}
-                placeholder="At least"
-                value={pendingBathrooms}
-                onChange={(event) => setPendingBathrooms(event.target.value)}
-              />
-            </FilterField>
-            <FilterField>
-              <FilterLabel>Area (sqft)</FilterLabel>
+              <FilterLabel>{t("filter.area")}</FilterLabel>
               <RangeRow>
                 <RangeInput
                   type="number"
                   min={0}
-                  placeholder="Min"
                   value={pendingMinArea}
                   onChange={(event) => setPendingMinArea(event.target.value)}
                 />
                 <RangeInput
                   type="number"
                   min={0}
-                  placeholder="Max"
                   value={pendingMaxArea}
                   onChange={(event) => setPendingMaxArea(event.target.value)}
                 />
@@ -657,7 +709,7 @@ export function HomePageClient() {
                   setPendingMaxArea("");
                 }}
               >
-                Clear
+                {t("home.clear")}
               </ClearTextButton>
               <ApplyButton
                 type="button"
@@ -676,7 +728,7 @@ export function HomePageClient() {
                   setFiltersOpen(false);
                 }}
               >
-                Apply filters
+                {t("filter.apply")}
               </ApplyButton>
             </FilterFooter>
           </FilterCard>

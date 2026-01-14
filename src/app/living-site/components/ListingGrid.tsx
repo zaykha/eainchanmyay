@@ -4,6 +4,7 @@ import styled from "styled-components";
 import type { Listing } from "@/app/living-site/lib/data";
 import { ListingCard } from "@/app/living-site/components/ListingCard";
 import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
+import { useI18n } from "@/app/living-site/lib/i18n";
 
 const Grid = styled.div`
   display: grid;
@@ -27,12 +28,13 @@ type ListingGridProps = {
 };
 
 export function ListingGrid({ listings, loading }: ListingGridProps) {
+  const { t } = useI18n();
   if (loading) {
-    return <LoadingOverlay message="Loading listings..." />;
+    return <LoadingOverlay message={t("listing.loading")} />;
   }
 
   if (!listings.length) {
-    return <EmptyState>No properties match your search yet.</EmptyState>;
+    return <EmptyState>{t("listing.empty")}</EmptyState>;
   }
 
   return (

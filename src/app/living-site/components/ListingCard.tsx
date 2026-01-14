@@ -15,6 +15,7 @@ import {
 import styled from "styled-components";
 import type { Listing } from "@/app/living-site/lib/data";
 import { formatCurrency } from "@/app/living-site/lib/format";
+import { useI18n } from "@/app/living-site/lib/i18n";
 
 const Card = styled.article`
   background: var(--color-surface);
@@ -167,66 +168,76 @@ const formatLabel = (value?: string) =>
     ? value.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase())
     : "";
 
-const formatDealType = (value?: string) => {
+const formatDealType = (value: string | undefined, t: (key: string) => string) => {
   if (!value) return "";
   const lowered = value.toLowerCase();
-  if (lowered === "sale") return "For sale";
-  if (lowered === "rent") return "For rent";
+  if (lowered === "sale") return t("listing.forSale");
+  if (lowered === "rent") return t("listing.forRent");
   return formatLabel(value);
 };
 
-const formatPropertyType = (value?: string) => {
+const getPropertyTypeLabel = (value: string | undefined, t: (key: string) => string) => {
   if (!value) return "";
   const lowered = value.toLowerCase();
-  if (lowered === "house_land") return "House + Land";
+  if (lowered === "land") return t("property.land");
+  if (lowered === "house") return t("property.house");
+  if (lowered === "house_land") return t("property.houseLand");
+  if (lowered === "apartment") return t("property.apartment");
+  if (lowered === "mini_condo") return t("property.miniCondo");
+  if (lowered === "condo") return t("property.condo");
+  if (lowered === "serviced_apartment") return t("property.servicedApartment");
+  if (["shop_office", "hotel_restaurant", "commercial"].includes(lowered)) {
+    return t("property.commercial");
+  }
+  if (lowered === "warehouse") return t("property.warehouse");
   return formatLabel(value);
 };
 
-const formatArea = (value?: number) => {
-  if (!value) return "";
-  return `${value.toLocaleString("en-US")} sqft`;
-};
-
-const getPropertyTypeIcon = (value?: string) => {
+const getPropertyTypeIcon = (value?: string, size = 20) => {
   const lowered = value?.toLowerCase() ?? "";
-  if (["land"].includes(lowered)) return LandPlot;
-  if (["house", "house_land"].includes(lowered)) return Home;
-  if (["condo", "mini_condo"].includes(lowered)) return TowerControl;
-  if (["apartment", "serviced_apartment"].includes(lowered)) return Building2;
-  if (["shop_office", "hotel_restaurant", "commercial"].includes(lowered)) return Store;
-  if (["warehouse"].includes(lowered)) return Warehouse;
-  return Home;
+  if (["land"].includes(lowered)) return <LandPlot size={size} />;
+  if (["house", "house_land"].includes(lowered)) return <Home size={size} />;
+  if (["condo", "mini_condo"].includes(lowered)) return <TowerControl size={size} />;
+  if (["apartment", "serviced_apartment"].includes(lowered)) return <Building2 size={size} />;
+  if (["shop_office", "hotel_restaurant", "commercial"].includes(lowered)) return <Store size={size} />;
+  if (["warehouse"].includes(lowered)) return <Warehouse size={size} />;
+  return <Home size={size} />;
 };
 
 export function ListingCard({ listing }: ListingCardProps) {
+  const { t } = useI18n();
   const normalizedDealType = listing.dealType?.toLowerCase();
-  const dealLabel = formatDealType(listing.dealType) || "For sale";
-  const PropertyTypeIcon = getPropertyTypeIcon(listing.propertyType);
+  const dealLabel = formatDealType(listing.dealType, t) || t("listing.forSale");
   const cityLabel = listing.city || listing.location;
-  const townshipLabel = listing.township || listing.district || "Township TBD";
-  const areaLabel = formatArea(listing.areaSqft);
+  const townshipLabel = listing.township || listing.district || "";
+  const areaLabel = listing.areaSqft
+    ? `${listing.areaSqft.toLocaleString("en-US")} ${t("listing.areaSqft")}`
+    : "";
+  const title = listing.title || t("listing.property");
   return (
-    <Link href={`/listing/${listing.id}`} aria-label={listing.title}>
+    <Link href={`/listing/${listing.id}`} aria-label={title}>
       <Card>
         <Cover>
           {listing.imageUrl ? (
-            <img src={listing.imageUrl} alt={listing.title} />
+            <img src={listing.imageUrl} alt={title} />
           ) : (
-            <span>No photo</span>
+            <span>{t("listing.noPhoto")}</span>
           )}
           <DealRibbon $dealType={normalizedDealType}>{dealLabel}</DealRibbon>
-          <PricePill>{formatCurrency(listing.price, listing.currency)}</PricePill>
+          <PricePill>
+            {formatCurrency(listing.price, listing.currency, t("listing.contactPrice"))}
+          </PricePill>
         </Cover>
         <Content>
           <LeftStack>
-            <Title>{listing.title}</Title>
+            <Title>{title}</Title>
             <InfoRow>
               <MapPin />
-              {townshipLabel}
+              {townshipLabel || t("listing.townshipTbd")}
             </InfoRow>
             <InfoRow>
               <Landmark />
-              {cityLabel || "City TBD"}
+              {cityLabel || t("listing.cityTbd")}
             </InfoRow>
            
             {areaLabel ? (
@@ -237,8 +248,8 @@ export function ListingCard({ listing }: ListingCardProps) {
             ) : null}
           </LeftStack>
           <PropertyTypeTag>
-            <PropertyTypeIcon size={20} />
-            <span>{formatPropertyType(listing.propertyType) || "Property"}</span>
+            {getPropertyTypeIcon(listing.propertyType)}
+            <span>{getPropertyTypeLabel(listing.propertyType, t) || t("listing.property")}</span>
           </PropertyTypeTag>
         </Content>
       </Card>

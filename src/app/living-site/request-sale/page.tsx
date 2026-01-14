@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useId, useMemo, useRef, useState } from "react";
 import styled, { css, keyframes } from "styled-components";
 import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
@@ -28,6 +28,7 @@ import { CustomSelect } from "@/app/living-site/components/form-controls/CustomS
 import { CustomTextarea } from "@/app/living-site/components/form-controls/CustomTextarea";
 import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
 import { getSalesRequestById, updateSalesRequest } from "@/app/living-site/lib/data";
+import { useI18n } from "@/app/living-site/lib/i18n";
 
 const PageShell = styled.div`
   max-width: 960px;
@@ -280,22 +281,23 @@ const SuccessModal = styled(Panel)`
 `;
 
 type Option = { value: string; label: string };
+type OptionDefinition = { value: string; labelKey: string };
 
-const dealTypeOptions: Option[] = [
-  { value: "sale", label: "For sale" },
-  { value: "rent", label: "For rent" },
+const dealTypeOptions: OptionDefinition[] = [
+  { value: "sale", labelKey: "requestSale.dealType.sale" },
+  { value: "rent", labelKey: "requestSale.dealType.rent" },
 ];
 
-const propertyTypeOptions: Option[] = [
-  { value: "land", label: "Land" },
-  { value: "house", label: "House" },
-  { value: "apartment", label: "Apartment" },
-  { value: "mini_condo", label: "Mini condo" },
-  { value: "condo", label: "Condo" },
-  { value: "serviced_apartment", label: "Serviced apartment" },
-  { value: "shop_office", label: "Shop/Office" },
-  { value: "hotel_restaurant", label: "Hotel/Restaurant" },
-  { value: "warehouse", label: "Warehouse" },
+const propertyTypeOptions: OptionDefinition[] = [
+  { value: "land", labelKey: "requestSale.propertyType.land" },
+  { value: "house", labelKey: "requestSale.propertyType.house" },
+  { value: "apartment", labelKey: "requestSale.propertyType.apartment" },
+  { value: "mini_condo", labelKey: "requestSale.propertyType.miniCondo" },
+  { value: "condo", labelKey: "requestSale.propertyType.condo" },
+  { value: "serviced_apartment", labelKey: "requestSale.propertyType.serviced" },
+  { value: "shop_office", labelKey: "requestSale.propertyType.shopOffice" },
+  { value: "hotel_restaurant", labelKey: "requestSale.propertyType.hotelRestaurant" },
+  { value: "warehouse", labelKey: "requestSale.propertyType.warehouse" },
 ];
 
 const currencyOptions: Option[] = [
@@ -305,7 +307,13 @@ const currencyOptions: Option[] = [
   { value: "THB", label: "THB" },
 ];
 
-const steps = ["Basics", "Location", "Details", "Pricing", "Contact person"];
+const stepKeys = [
+  "requestSale.steps.basics",
+  "requestSale.steps.location",
+  "requestSale.steps.details",
+  "requestSale.steps.pricing",
+  "requestSale.steps.contact",
+];
 
 const MYANMAR_CENTER: [number, number] = [21.9162, 95.956];
 const DEFAULT_ZOOM = 6;
@@ -380,8 +388,16 @@ const toFormNumber = (value: unknown) => {
   return "";
 };
 
-export default function RequestSalePage() {
+const toBackupPowerType = (value: unknown): FormState["backup_power_type"] => {
+  if (value === "solar" || value === "generator" || value === "solar_generator") {
+    return value;
+  }
+  return "";
+};
+
+function RequestSalePageContent() {
   const { user } = useAppState();
+  const { t } = useI18n();
   const router = useRouter();
   const searchParams = useSearchParams();
   const editId = searchParams.get("editId");
@@ -399,6 +415,16 @@ export default function RequestSalePage() {
   const [locateAttempted, setLocateAttempted] = useState(false);
   const [mapPosition, setMapPosition] = useState<[number, number] | null>(null);
   const [attention, setAttention] = useState(false);
+  const stepLabels = useMemo(() => stepKeys.map((key) => t(key)), [t]);
+  const localizedDealTypeOptions = useMemo<Option[]>(
+    () => dealTypeOptions.map((option) => ({ value: option.value, label: t(option.labelKey) })),
+    [t]
+  );
+  const localizedPropertyTypeOptions = useMemo<Option[]>(
+    () =>
+      propertyTypeOptions.map((option) => ({ value: option.value, label: t(option.labelKey) })),
+    [t]
+  );
   const prevLocationRef = useRef({
     state_region: "",
     district: "",
@@ -417,7 +443,7 @@ export default function RequestSalePage() {
           return;
         }
         if (!request) {
-          setError("Unable to load sale request details.");
+          setError(t("requestSale.error.load"));
           return;
         }
         const rawPrice = typeof request.price === "number" ? request.price / 100000 : null;
@@ -438,7 +464,7 @@ export default function RequestSalePage() {
           area_sqft: toFormNumber(request.area_sqft),
           has_lift: Boolean(request.has_lift),
           has_backup_power: Boolean(request.has_backup_power),
-          backup_power_type: String(request.backup_power_type ?? ""),
+          backup_power_type: toBackupPowerType(request.backup_power_type),
           has_parking: Boolean(request.has_parking),
           latitude: toFormNumber(request.latitude),
           longitude: toFormNumber(request.longitude),
@@ -454,17 +480,17 @@ export default function RequestSalePage() {
     return () => {
       active = false;
     };
-  }, [editId, user?.id]);
+  }, [editId, user?.id, t]);
 
   const isLand = form.property_type === "land";
   const locationReady = Boolean(form.state_region && form.district && form.township);
 
   const backupTiles = useMemo(
     () => [
-      { key: "solar", label: "Solar", icon: Sun },
-      { key: "generator", label: "Generator", icon: BatteryCharging },
+      { key: "solar", label: t("requestSale.backupPower.solar"), icon: Sun },
+      { key: "generator", label: t("requestSale.backupPower.generator"), icon: BatteryCharging },
     ],
-    []
+    [t]
   );
 
   const states = useMemo(() => getStates(), []);
@@ -521,17 +547,17 @@ export default function RequestSalePage() {
 
   const propertyTiles = useMemo(
     () => [
-      { key: "land", label: "Land", icon: MapPin },
-      { key: "house", label: "House", icon: Home },
-      { key: "apartment", label: "Apartment", icon: Building2 },
-      { key: "mini_condo", label: "Mini condo", icon: Building2 },
-      { key: "condo", label: "Condo", icon: TowerControl },
-      { key: "serviced_apartment", label: "Serviced", icon: Building2 },
-      { key: "shop_office", label: "Shop/Office", icon: Store },
-      { key: "hotel_restaurant", label: "Hotel/Restaurant", icon: Hotel },
-      { key: "warehouse", label: "Warehouse", icon: Warehouse },
+      { key: "land", label: t("requestSale.propertyType.land"), icon: MapPin },
+      { key: "house", label: t("requestSale.propertyType.house"), icon: Home },
+      { key: "apartment", label: t("requestSale.propertyType.apartment"), icon: Building2 },
+      { key: "mini_condo", label: t("requestSale.propertyType.miniCondo"), icon: Building2 },
+      { key: "condo", label: t("requestSale.propertyType.condo"), icon: TowerControl },
+      { key: "serviced_apartment", label: t("requestSale.propertyType.serviced"), icon: Building2 },
+      { key: "shop_office", label: t("requestSale.propertyType.shopOffice"), icon: Store },
+      { key: "hotel_restaurant", label: t("requestSale.propertyType.hotelRestaurant"), icon: Hotel },
+      { key: "warehouse", label: t("requestSale.propertyType.warehouse"), icon: Warehouse },
     ],
-    []
+    [t]
   );
 
   const handleLocateOnMap = async () => {
@@ -551,13 +577,13 @@ export default function RequestSalePage() {
       const result = await response.json();
       const first = result?.[0];
       if (!first) {
-        setMapError("Location not found. Try a nearby area.");
+        setMapError(t("requestSale.error.locationNotFound"));
         return;
       }
       const lat = Number(first.lat);
       const lng = Number(first.lon);
       if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-        setMapError("Location not found. Try a nearby area.");
+        setMapError(t("requestSale.error.locationNotFound"));
         return;
       }
       setMapPosition([lat, lng]);
@@ -567,8 +593,8 @@ export default function RequestSalePage() {
         latitude: lat.toFixed(6),
         longitude: lng.toFixed(6),
       }));
-    } catch (fetchError) {
-      setMapError("Unable to locate the area right now.");
+    } catch {
+      setMapError(t("requestSale.error.locate"));
     } finally {
       setMapLoading(false);
     }
@@ -579,7 +605,7 @@ export default function RequestSalePage() {
     const lat = Number(form.latitude);
     const lng = Number(form.longitude);
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-      setMapError("Enter a valid latitude and longitude.");
+      setMapError(t("requestSale.error.latLng"));
       return;
     }
 
@@ -599,7 +625,7 @@ export default function RequestSalePage() {
         address?.township || address?.suburb || address?.neighbourhood || address?.city;
 
       if (!state || !district || !township) {
-        setMapError("Could not match a location from that lat/lng.");
+        setMapError(t("requestSale.error.latLngNoMatch"));
         return;
       }
 
@@ -618,8 +644,8 @@ export default function RequestSalePage() {
       }));
       setMapPosition([lat, lng]);
       setMapActive(true);
-    } catch (fetchError) {
-      setMapError("Could not match a location from that lat/lng.");
+    } catch {
+      setMapError(t("requestSale.error.latLngNoMatch"));
     } finally {
       setMapLoading(false);
     }
@@ -640,21 +666,21 @@ export default function RequestSalePage() {
   const handleNext = () => {
     setError(null);
     if (step === 0 && !form.title.trim()) {
-      setError("Title is required.");
+      setError(t("requestSale.error.titleRequired"));
       return;
     }
     if (
       step === 1 &&
       (!form.state_region.trim() || !form.district.trim() || !form.township.trim())
     ) {
-      setError("State/Region, district, and township are required.");
+      setError(t("requestSale.error.locationRequired"));
       return;
     }
     if (step === 3 && !form.price.trim()) {
-      setError("Price is required.");
+      setError(t("requestSale.error.priceRequired"));
       return;
     }
-    setStep((prev) => Math.min(steps.length - 1, prev + 1));
+    setStep((prev) => Math.min(stepKeys.length - 1, prev + 1));
   };
 
   const handleSubmit = async () => {
@@ -665,15 +691,15 @@ export default function RequestSalePage() {
       !form.district.trim() ||
       !form.township.trim()
     ) {
-      setError("Please complete required fields.");
+      setError(t("requestSale.error.completeRequired"));
       return;
     }
     if (!form.price.trim()) {
-      setError("Price is required.");
+      setError(t("requestSale.error.priceRequired"));
       return;
     }
     if (form.has_backup_power && !form.backup_power_type) {
-      setError("Select a backup power type.");
+      setError(t("requestSale.error.backupRequired"));
       return;
     }
 
@@ -709,7 +735,7 @@ export default function RequestSalePage() {
     if (isEdit && editId) {
       if (!user?.id) {
         setSubmitting(false);
-        setError("Please sign in to update your listing.");
+        setError(t("requestSale.error.signIn"));
         return;
       }
       const result = await updateSalesRequest({
@@ -741,7 +767,7 @@ export default function RequestSalePage() {
       });
       setSubmitting(false);
       if (!result.ok) {
-        setError(result.message ?? "Unable to update request.");
+        setError(result.message ?? t("requestSale.error.updateFailed"));
         return;
       }
     } else {
@@ -754,7 +780,7 @@ export default function RequestSalePage() {
 
       if (!response.ok) {
         const result = await response.json().catch(() => ({}));
-        setError(result.message ?? "Unable to submit request.");
+        setError(result.message ?? t("requestSale.error.submitFailed"));
         return;
       }
     }
@@ -773,11 +799,11 @@ export default function RequestSalePage() {
       <div>
         <SiteHeader />
         <PageShell>
-          <SectionTitle>Request a sale listing</SectionTitle>
+          <SectionTitle>{t("requestSale.titleNew")}</SectionTitle>
           <Panel>
-            <Muted>Sign in to submit a property for sale or rent.</Muted>
+            <Muted>{t("requestSale.signInPrompt")}</Muted>
             <PrimaryButton type="button" onClick={() => router.push("/auth")}>
-              Sign in to continue
+              {t("requestSale.signInContinue")}
             </PrimaryButton>
           </Panel>
         </PageShell>
@@ -791,18 +817,20 @@ export default function RequestSalePage() {
       <SiteHeader />
       <PageShell>
         <TitleRow>
-          <SectionTitle>{isEdit ? "Edit sale listing" : "Request a sale listing"}</SectionTitle>
+          <SectionTitle>
+            {isEdit ? t("requestSale.titleEdit") : t("requestSale.titleNew")}
+          </SectionTitle>
           <BackButton type="button" onClick={() => router.back()}>
-            Back
+            {t("common.back")}
           </BackButton>
         </TitleRow>
         <Muted>
           {isEdit
-            ? "Update the details and we’ll continue the listing review."
-            : "Share your property details and our team will contact you."}
+            ? t("requestSale.subtitleEdit")
+            : t("requestSale.subtitleNew")}
         </Muted>
         <Stepper>
-          {steps.map((label, index) => (
+          {stepLabels.map((label, index) => (
             <StepPill key={label} $active={index === step} $completed={index < step}>
               {index < step && <CheckCircle2 size={14} />}
               {label}
@@ -815,26 +843,26 @@ export default function RequestSalePage() {
             <>
               <CustomInput
                 id={`${fieldId}-title`}
-                label="Title"
+                label={t("requestSale.titleLabel")}
                 name="title"
                 value={form.title}
                 onChange={(event) => setField("title", event.target.value)}
               />
               <CustomTextarea
                 id={`${fieldId}-description`}
-                label="Description"
+                label={t("requestSale.descriptionLabel")}
                 name="description"
                 value={form.description}
                 onChange={(event) => setField("description", event.target.value)}
               />
               <CustomSelect
                 id={`${fieldId}-deal-type`}
-                label="Deal type"
+                label={t("requestSale.dealTypeLabel")}
                 name="deal_type"
                 value={form.deal_type}
                 onChange={(value) => setField("deal_type", value)}
               >
-                {dealTypeOptions.map((option) => (
+                {localizedDealTypeOptions.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
@@ -842,12 +870,12 @@ export default function RequestSalePage() {
               </CustomSelect>
               <CustomSelect
                 id={`${fieldId}-property-type`}
-                label="Property type"
+                label={t("requestSale.propertyTypeLabel")}
                 name="property_type"
                 value={form.property_type}
                 onChange={(value) => setField("property_type", value)}
               >
-                {propertyTypeOptions.map((option) => (
+                {localizedPropertyTypeOptions.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
@@ -873,7 +901,7 @@ export default function RequestSalePage() {
             <>
               <CustomSelect
                 id={`${fieldId}-state-region`}
-                label="State/Region"
+                label={t("requestSale.stateRegionLabel")}
                 name="state_region"
                 value={form.state_region}
                 onChange={(value) =>
@@ -893,7 +921,7 @@ export default function RequestSalePage() {
               </CustomSelect>
               <CustomSelect
                 id={`${fieldId}-district`}
-                label="City (District/City)"
+                label={t("requestSale.cityLabel")}
                 name="district"
                 value={form.district}
                 disabled={!form.state_region}
@@ -913,7 +941,7 @@ export default function RequestSalePage() {
               </CustomSelect>
               <CustomSelect
                 id={`${fieldId}-township`}
-                label="Township"
+                label={t("requestSale.townshipLabel")}
                 name="township"
                 value={form.township}
                 disabled={!form.district}
@@ -927,7 +955,7 @@ export default function RequestSalePage() {
               </CustomSelect>
               <CustomTextarea
                 id={`${fieldId}-address-text`}
-                label="Address text"
+                label={t("requestSale.addressLabel")}
                 name="address_text"
                 value={form.address_text}
                 onChange={(event) => setField("address_text", event.target.value)}
@@ -939,15 +967,15 @@ export default function RequestSalePage() {
                   disabled={!locationReady || mapLoading}
                   $attention={locationReady && !mapActive && attention}
                 >
-                  Locate on map
+                  {t("requestSale.locateOnMap")}
                 </MapButton>
                 {locateAttempted && (
                   <MapButton type="button" onClick={handleUseLatLng} disabled={mapLoading}>
-                    Use lat/lng
+                    {t("requestSale.useLatLng")}
                   </MapButton>
                 )}
               </MapActions>
-              <MapHelper>Tap the map to place a pin once activated.</MapHelper>
+              <MapHelper>{t("requestSale.mapHelper")}</MapHelper>
               <MapFrame>
                 <MapCanvas $inactive={!mapActive || mapLoading}>
                   <RequestSaleMap
@@ -959,19 +987,19 @@ export default function RequestSalePage() {
                   />
                 </MapCanvas>
                 {(!mapActive || mapLoading) && (
-                  <MapOverlay>{mapLoading ? "Loading" : "?"}</MapOverlay>
+                  <MapOverlay>{mapLoading ? t("common.loading") : "?"}</MapOverlay>
                 )}
               </MapFrame>
               <CustomInput
                 id={`${fieldId}-latitude`}
-                label="Latitude"
+                label={t("requestSale.latitudeLabel")}
                 name="latitude"
                 value={form.latitude}
                 onChange={(event) => setField("latitude", event.target.value)}
               />
               <CustomInput
                 id={`${fieldId}-longitude`}
-                label="Longitude"
+                label={t("requestSale.longitudeLabel")}
                 name="longitude"
                 value={form.longitude}
                 onChange={(event) => setField("longitude", event.target.value)}
@@ -984,7 +1012,7 @@ export default function RequestSalePage() {
             <>
               <CustomInput
                 id={`${fieldId}-area-sqft`}
-                label="Area (sqft)"
+                label={t("requestSale.areaLabel")}
                 name="area_sqft"
                 value={form.area_sqft}
                 onChange={(event) => setField("area_sqft", event.target.value)}
@@ -993,14 +1021,14 @@ export default function RequestSalePage() {
                 <>
                   <CustomInput
                     id={`${fieldId}-bedrooms`}
-                    label="Bedrooms"
+                    label={t("requestSale.bedroomsLabel")}
                     name="bedrooms"
                     value={form.bedrooms}
                     onChange={(event) => setField("bedrooms", event.target.value)}
                   />
                   <CustomInput
                     id={`${fieldId}-bathrooms`}
-                    label="Bathrooms"
+                    label={t("requestSale.bathroomsLabel")}
                     name="bathrooms"
                     value={form.bathrooms}
                     onChange={(event) => setField("bathrooms", event.target.value)}
@@ -1016,7 +1044,7 @@ export default function RequestSalePage() {
                       onClick={() => setField("has_lift", !form.has_lift)}
                     >
                       <TowerControl size={18} />
-                      Lift
+                      {t("requestSale.lift")}
                     </Tile>
                     <Tile
                       type="button"
@@ -1024,10 +1052,10 @@ export default function RequestSalePage() {
                       onClick={() => setField("has_parking", !form.has_parking)}
                     >
                       <ParkingSquare size={18} />
-                      Parking
+                      {t("requestSale.parking")}
                     </Tile>
                   </TileGrid>
-                  <Muted>Backup power</Muted>
+                  <Muted>{t("requestSale.backupPower")}</Muted>
                   <TileGrid>
                     {backupTiles.map((tile) => {
                       const active =
@@ -1072,14 +1100,14 @@ export default function RequestSalePage() {
             <>
               <CustomInput
                 id={`${fieldId}-price`}
-                label="Price (Lakh)"
+                label={t("requestSale.priceLabel")}
                 name="price"
                 value={form.price}
                 onChange={(event) => setField("price", event.target.value)}
               />
               <CustomSelect
                 id={`${fieldId}-currency`}
-                label="Currency"
+                label={t("requestSale.currencyLabel")}
                 name="currency"
                 value={form.currency}
                 onChange={(value) => setField("currency", value)}
@@ -1097,21 +1125,21 @@ export default function RequestSalePage() {
             <>
               <CustomInput
                 id={`${fieldId}-owner-name`}
-                label="Contact person name"
+                label={t("requestSale.contactNameLabel")}
                 name="owner_name"
                 value={form.owner_name}
                 onChange={(event) => setField("owner_name", event.target.value)}
               />
               <CustomInput
                 id={`${fieldId}-owner-phone`}
-                label="Contact person phone"
+                label={t("requestSale.contactPhoneLabel")}
                 name="owner_phone"
                 value={form.owner_phone}
                 onChange={(event) => setField("owner_phone", event.target.value)}
               />
               <CustomInput
                 id={`${fieldId}-owner-phone-secondary`}
-                label="Contact person phone (secondary)"
+                label={t("requestSale.contactPhoneSecondaryLabel")}
                 name="owner_phone_secondary"
                 value={form.owner_phone_secondary}
                 onChange={(event) => setField("owner_phone_secondary", event.target.value)}
@@ -1127,16 +1155,22 @@ export default function RequestSalePage() {
               onClick={() => setStep((prev) => Math.max(0, prev - 1))}
               disabled={step === 0}
             >
-              Back
+              {t("common.back")}
             </SecondaryButton>
-            {step < steps.length - 1 ? (
+            {step < stepKeys.length - 1 ? (
               <PrimaryButton type="button" onClick={handleNext}>
-                Next
+                {t("common.next")}
                 <ChevronRight size={16} style={{ marginLeft: 6 }} />
               </PrimaryButton>
             ) : (
               <PrimaryButton type="button" onClick={handleSubmit} disabled={submitting || loadingEdit}>
-                {loadingEdit ? "Loading..." : submitting ? "Submitting..." : isEdit ? "Save changes" : "Submit request"}
+                {loadingEdit
+                  ? t("common.loading")
+                  : submitting
+                    ? t("common.submitting")
+                    : isEdit
+                      ? t("common.saveChanges")
+                      : t("listing.submitRequest")}
               </PrimaryButton>
             )}
           </Actions>
@@ -1144,28 +1178,38 @@ export default function RequestSalePage() {
       </PageShell>
       <BottomNav />
       {(submitting || loadingEdit) && (
-        <LoadingOverlay message={loadingEdit ? "Loading request..." : "Submitting request..."} />
+        <LoadingOverlay
+          message={loadingEdit ? t("requestSale.loadingRequest") : t("requestSale.submittingRequest")}
+        />
       )}
       {success && (
         <SuccessOverlay>
           <SuccessModal>
-            <strong>{isEdit ? "Listing updated." : "Thanks for your submission."}</strong>
+            <strong>{isEdit ? t("requestSale.successUpdated") : t("requestSale.successThanks")}</strong>
             <Muted>
               {isEdit
-                ? "We’ll review the changes and follow up shortly."
-                : "We’ll review and confirm your listing shortly."}
+                ? t("requestSale.successReviewUpdate")
+                : t("requestSale.successReviewNew")}
             </Muted>
             <Actions>
               <SecondaryButton type="button" onClick={() => router.push("/")}>
-                Browse listings
+                {t("requestSale.browseListings")}
               </SecondaryButton>
               <PrimaryButton type="button" onClick={() => router.push("/activities")}>
-                Go to activities
+                {t("requestSale.goActivities")}
               </PrimaryButton>
             </Actions>
           </SuccessModal>
         </SuccessOverlay>
       )}
     </div>
+  );
+}
+
+export default function RequestSalePage() {
+  return (
+    <Suspense fallback={<LoadingOverlay message="Loading..." />}>
+      <RequestSalePageContent />
+    </Suspense>
   );
 }

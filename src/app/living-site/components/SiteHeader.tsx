@@ -2,9 +2,12 @@
 
 import Link from "next/link";
 import styled from "styled-components";
-import { MoonStar, Settings, SunMedium, ClipboardList } from "lucide-react";
+import { MoonStar, Settings, SunMedium } from "lucide-react";
 import { useAppState } from "@/app/living-site/lib/app-state";
-import { useThemeMode } from "@/app/living-site/components/Providers";
+import { useLanguage, useThemeMode } from "@/app/living-site/components/Providers";
+import { useI18n } from "@/app/living-site/lib/i18n";
+import { useState } from "react";
+import { CustomSelect } from "@/app/living-site/components/form-controls/CustomSelect";
 
 const Header = styled.header`
   position: sticky;
@@ -96,7 +99,7 @@ const Actions = styled.div`
   align-items: center;
 `;
 
-const IconButton = styled(Link)`
+const IconButton = styled.button`
   width: 36px;
   height: 36px;
   border-radius: var(--radius-md);
@@ -107,6 +110,7 @@ const IconButton = styled(Link)`
   justify-content: center;
   cursor: pointer;
   color: var(--color-muted);
+  padding: 0;
 
   svg {
     width: 30px;
@@ -130,34 +134,185 @@ const IconButton = styled(Link)`
   }
 `;
 
+const IconLink = styled(Link)`
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-outline);
+  background: color-mix(in srgb, var(--color-surface) 90%, transparent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--color-muted);
+  text-decoration: none;
+
+  svg {
+    width: 30px;
+    height: 30px;
+    stroke: currentColor;
+  }
+
+  @media (max-width: 640px) {
+    width: 30px;
+    height: 30px;
+
+    svg {
+      width: 22px;
+      height: 22px;
+    }
+  }
+
+  &:hover {
+    color: var(--color-text);
+    box-shadow: 0 0 0 2px rgba(12, 18, 36, 0.06);
+  }
+`;
+
+const LanguageOverlay = styled.div`
+  position: fixed;
+  inset: 0;
+  background: rgba(12, 18, 36, 0.45);
+  display: grid;
+  place-items: center;
+  z-index: 90;
+  padding: 16px;
+`;
+
+const LanguageCard = styled.div`
+  width: min(360px, 92vw);
+  background: var(--color-surface);
+  border: 1px solid var(--color-outline);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: var(--shadow-soft);
+  display: grid;
+  gap: 12px;
+`;
+
+const LanguageHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+`;
+
+const LanguageTitle = styled.h4`
+  margin: 0;
+  font-size: 1rem;
+`;
+
+const ButtonRow = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+`;
+
+const ActionButton = styled.button`
+  border: 1px solid var(--color-outline);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  font-weight: 600;
+  cursor: pointer;
+`;
+
+const PrimaryButton = styled(ActionButton)`
+  background: var(--gradient);
+  color: #fff;
+  border-color: rgba(0, 0, 0, 0.12);
+  box-shadow: var(--frame-shadow);
+`;
+
 export function SiteHeader() {
   const { user } = useAppState();
   const { mode, toggle } = useThemeMode();
+  const { t } = useI18n();
+  const { language, setLanguage } = useLanguage();
+  const [languageOpen, setLanguageOpen] = useState(false);
+  const [selectedLanguage, setSelectedLanguage] = useState(language);
+
+  const languageOptions = [
+    { value: "mm", label: "Myanmar" },
+    { value: "en", label: "English" },
+    { value: "zh", label: "中文" },
+    { value: "th", label: "ไทย" },
+  ];
+
+  const languageFlag = (value: string) => {
+    if (value === "mm") return "🇲🇲";
+    if (value === "zh") return "🇨🇳";
+    if (value === "th") return "🇹🇭";
+    return "🇬🇧";
+  };
 
   return (
     <Header>
       <HeaderInner>
         <Brand>
           <BrandMark>
-            <img src="/KTLogo.png" alt="Eain Chan Myae logo" />
+            <img src="/KTLogo.png" alt="Eain Chan Myay logo" />
           </BrandMark>
           <BrandText>
-            <Link href="/">Eain Chan Myae</Link>
-            <BrandSub>Myanmar real estate marketplace</BrandSub>
+            <Link href="/">Eain Chan Myay</Link>
+            <BrandSub>{t("site.tagline")}</BrandSub>
           </BrandText>
         </Brand>
         <Actions>
-          <IconButton href="/activities" aria-label="Activities">
-            <ClipboardList strokeWidth={1.6} />
+          <IconButton
+            type="button"
+            onClick={() => {
+              setSelectedLanguage(language);
+              setLanguageOpen(true);
+            }}
+            aria-label={t("settings.language")}
+          >
+            {languageFlag(language)}
           </IconButton>
-          <IconButton as="button" type="button" onClick={toggle} aria-label="Toggle theme">
+          <IconButton type="button" onClick={toggle} aria-label={t("nav.toggleTheme")}>
             {mode === "dark" ? <SunMedium strokeWidth={1.6} /> : <MoonStar strokeWidth={1.6} />}
           </IconButton>
-          <IconButton href={user ? "/settings" : "/auth"} aria-label="Settings">
+          <IconLink href={user ? "/settings" : "/auth"} aria-label={t("nav.settings")}>
             <Settings strokeWidth={1.6} />
-          </IconButton>
+          </IconLink>
         </Actions>
       </HeaderInner>
+      {languageOpen && (
+        <LanguageOverlay onClick={() => setLanguageOpen(false)}>
+          <LanguageCard onClick={(event) => event.stopPropagation()}>
+            <LanguageHeader>
+              <LanguageTitle>{t("settings.language")}</LanguageTitle>
+              <ActionButton type="button" onClick={() => setLanguageOpen(false)}>
+                {t("common.close")}
+              </ActionButton>
+            </LanguageHeader>
+            <CustomSelect
+              id="language-picker"
+              name="language"
+              label={t("settings.language")}
+              value={selectedLanguage}
+              onChange={(value) => setSelectedLanguage(value as "mm" | "en" | "zh" | "th")}
+            >
+              {languageOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </CustomSelect>
+            <ButtonRow>
+              <PrimaryButton
+                type="button"
+                onClick={() => {
+                  setLanguage(selectedLanguage as "mm" | "en" | "zh" | "th");
+                  setLanguageOpen(false);
+                }}
+              >
+                {t("common.saveChanges")}
+              </PrimaryButton>
+            </ButtonRow>
+          </LanguageCard>
+        </LanguageOverlay>
+      )}
     </Header>
   );
 }

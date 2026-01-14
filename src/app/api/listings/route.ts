@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { resolveListingImage } from "@/app/living-site/lib/images";
+import { rateLimit } from "@/app/api/_lib/rate-limit";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
@@ -18,6 +19,24 @@ const getNumber = (value: unknown) => {
 };
 
 export async function GET(request: Request) {
+  const limit = rateLimit(request, {
+    windowMs: 60_000,
+    max: 120,
+    minIntervalMs: 200,
+    keyPrefix: "listings",
+  });
+  if (limit.limited) {
+    return NextResponse.json(
+      { error: "Too many requests. Please try again shortly." },
+      {
+        status: 429,
+        headers: {
+          "X-RateLimit-Remaining": String(limit.remaining),
+          "X-RateLimit-Reset": String(limit.resetAt),
+        },
+      }
+    );
+  }
   if (!isConfigured) {
     return NextResponse.json({
       data: [],
@@ -139,11 +158,11 @@ export async function GET(request: Request) {
     const photos = photosByProperty.get(id) ?? [];
     return {
       id,
-      title: getString(property.title) || "Property",
+      title: getString(property.title) || "",
       location:
         [property.township, property.district, property.state_region]
           .filter(Boolean)
-          .join(", ") || getString(property.city) || "Location TBD",
+          .join(", ") || getString(property.city) || "",
       price: getNumber(property.price),
       currency: getString(property.currency) || "MMK",
       dealType: getString(property.deal_type),
@@ -160,11 +179,20 @@ export async function GET(request: Request) {
   const total = count ?? listings.length;
   const hasMore = from + listings.length < total;
 
-  return NextResponse.json({
-    data: listings,
-    page,
-    pageSize,
-    total,
-    hasMore,
-  });
+  return NextResponse.json(
+    {
+      data: listings,
+      page,
+      pageSize,
+      total,
+      hasMore,
+    },
+    {
+      headers: {
+        "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+        "X-RateLimit-Remaining": String(limit.remaining),
+        "X-RateLimit-Reset": String(limit.resetAt),
+      },
+    }
+  );
 }
