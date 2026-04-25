@@ -88,8 +88,13 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     if (!isSupabaseConfigured) {
       return { error: "Supabase is not configured." };
     }
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return error ? { error: error.message } : {};
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      return error ? { error: error.message } : {};
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to reach the authentication service.";
+      return { error: message || "Unable to reach the authentication service." };
+    }
   };
 
   const register = async (
@@ -100,24 +105,33 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     if (!isSupabaseConfigured) {
       return { error: "Supabase is not configured." };
     }
-    const { data, error } = await supabase.auth.signUp({ email, password });
-    if (error) {
-      return { error: error.message };
+    try {
+      const { data, error } = await supabase.auth.signUp({ email, password });
+      if (error) {
+        return { error: error.message };
+      }
+      if (data.user) {
+        await upsertCustomerProfile({
+          id: data.user.id,
+          email: data.user.email ?? email,
+          name: profile?.name,
+          contactNumber: profile?.contactNumber,
+        });
+      }
+      return { user: data.user ?? undefined };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to reach the authentication service.";
+      return { error: message || "Unable to reach the authentication service." };
     }
-    if (data.user) {
-      await upsertCustomerProfile({
-        id: data.user.id,
-        email: data.user.email ?? email,
-        name: profile?.name,
-        contactNumber: profile?.contactNumber,
-      });
-    }
-    return { user: data.user ?? undefined };
   };
 
   const logout = async () => {
     if (!isSupabaseConfigured) return;
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch {
+      // Swallow network logout errors to avoid breaking the UI.
+    }
   };
 
   const value = useMemo(

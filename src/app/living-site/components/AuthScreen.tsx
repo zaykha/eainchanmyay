@@ -9,69 +9,94 @@ import { useI18n } from "@/app/living-site/lib/i18n";
 
 const Wrapper = styled.div`
   display: grid;
-  gap: 16px;
+  gap: 18px;
 `;
 
-const BrandBlock = styled.div<{ $align: "center" | "start" }>`
+const Header = styled.div`
   display: grid;
-  justify-items: ${(props) => (props.$align === "center" ? "center" : "start")};
-  gap: 6px;
+  gap: 10px;
 `;
 
-const BrandMark = styled.div`
-  width: 56px;
-  height: 56px;
-  border-radius: 14px;
+const TopBar = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+`;
+
+const SwitchRoleButton = styled.button`
   border: 1px solid var(--color-outline);
-  background: var(--color-surface-2);
-  display: grid;
-  place-items: center;
-  box-shadow: var(--shadow-soft);
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: #fff;
+  color: var(--color-text);
+  font-weight: 600;
+  cursor: pointer;
+`;
 
-  img {
-    width: 32px;
-    height: 32px;
+const RoleBadge = styled.span`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: rgba(235, 35, 64, 0.08);
+  color: var(--color-primary);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+`;
+
+const Title = styled.h2`
+  margin: 0;
+  font-size: 2rem;
+  line-height: 0.95;
+
+  @media (max-width: 720px) {
+    font-size: 1.55rem;
   }
 `;
 
 const Subtitle = styled.p`
   margin: 0;
   color: var(--color-muted);
-  font-size: 0.9rem;
-`;
-
-const IntroButtons = styled.div`
-  display: grid;
-  gap: 12px;
+  font-size: 0.95rem;
+  line-height: 1.55;
 `;
 
 const Tabs = styled.div`
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  border: 1px solid var(--color-outline);
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--color-surface-2) 80%, transparent);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--color-surface-2) 88%, transparent);
   overflow: hidden;
-  width: 100%;
 `;
 
 const TabButton = styled.button<{ $active: boolean }>`
   border: none;
-  background: ${(props) =>
-    props.$active
-      ? "linear-gradient(135deg, var(--color-primary), var(--color-primary-dark))"
-      : "transparent"};
+  background: ${(props) => (props.$active ? "var(--gradient)" : "transparent")};
   color: ${(props) => (props.$active ? "#fff" : "var(--color-text)")};
-  padding: 12px 14px;
+  padding: 13px 14px;
   cursor: pointer;
-  font-weight: 600;
-  box-shadow: ${(props) =>
-    props.$active ? "0 10px 20px rgba(235, 35, 64, 0.25)" : "none"};
+  font-weight: 700;
 `;
 
 const Form = styled.form`
   display: grid;
   gap: 12px;
+`;
+
+const TwoCol = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+
+  @media (max-width: 720px) {
+    grid-template-columns: 1fr;
+  }
 `;
 
 const Field = styled.label<{ $filled: boolean }>`
@@ -92,40 +117,47 @@ const FloatingLabel = styled.span`
   top: 10px;
   font-size: 0.75rem;
   color: color-mix(in srgb, var(--color-muted) 80%, transparent);
-  background: var(--color-surface-2);
+  background: #fff;
   padding: 0 4px;
   transition: transform 0.15s ease, color 0.15s ease;
   transform-origin: left center;
 `;
 
 const Input = styled.input`
-  border-radius: 10px;
+  border-radius: 14px;
   border: 1px solid var(--color-outline);
   padding: 16px 12px 10px;
-  background: var(--color-surface-2);
+  background: #fff;
   color: var(--color-text);
-  height: 46px;
+  min-height: 52px;
 `;
 
 const PrimaryButton = styled.button`
-  border: 1px solid rgba(0, 0, 0, 0.12);
-  border-radius: var(--radius-md);
-  padding: 12px 14px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 999px;
+  padding: 14px 18px;
   background: var(--gradient);
   color: #fff;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
-  box-shadow: var(--frame-shadow);
+  box-shadow: 0 18px 30px rgba(235, 35, 64, 0.2);
 `;
 
 const SecondaryButton = styled.button`
   border: 1px solid var(--color-outline);
-  border-radius: var(--radius-md);
-  padding: 12px 14px;
-  background: var(--color-surface-2);
+  border-radius: 999px;
+  padding: 13px 16px;
+  background: #fff;
   color: var(--color-text);
   cursor: pointer;
   font-weight: 600;
+`;
+
+const InlineHelp = styled.p`
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.88rem;
+  text-align: center;
 `;
 
 const Message = styled.p`
@@ -154,24 +186,21 @@ const StrengthDot = styled.span<{ $active: boolean }>`
   border-radius: 999px;
   border: 1px solid var(--color-outline);
   background: ${(props) => (props.$active ? "var(--color-primary)" : "transparent")};
-  box-shadow: ${(props) =>
-    props.$active
-      ? "0 0 0 2px color-mix(in srgb, var(--color-primary) 25%, transparent)"
-      : "none"};
 `;
 
-
 type Mode = "login" | "register";
+export type AuthRole = "customer" | "agent";
 
 type AuthScreenProps = {
+  role: AuthRole;
   onSuccess?: () => void;
+  onChangeRole?: () => void;
 };
 
-export function AuthScreen({ onSuccess }: AuthScreenProps) {
+export function AuthScreen({ role, onSuccess, onChangeRole }: AuthScreenProps) {
   const { login, register } = useAppState();
   const { t } = useI18n();
   const [mode, setMode] = useState<Mode>("login");
-  const [stage, setStage] = useState<"intro" | "form">("intro");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -187,6 +216,26 @@ export function AuthScreen({ onSuccess }: AuthScreenProps) {
     { label: t("auth.passwordCheck.special"), ok: /[^A-Za-z0-9]/.test(password) },
   ];
   const passwordStrong = passwordChecks.every((check) => check.ok);
+
+  const roleBadge = role === "agent" ? "Agent access" : "Customer account";
+  const title =
+    role === "agent"
+      ? mode === "login"
+        ? "Agent sign in"
+        : "Create agent account"
+      : mode === "login"
+        ? "Welcome back"
+        : "Create your account";
+  const subtitle =
+    role === "agent"
+      ? "Access listing submissions, manage leads, and continue into the agent tools."
+      : "Save listings, track inquiries, and reach out to trusted agents faster.";
+  const submitLabel =
+    mode === "login"
+      ? t("auth.signInButton")
+      : role === "agent"
+        ? "Create Agent Account"
+        : "Create Account";
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -227,110 +276,122 @@ export function AuthScreen({ onSuccess }: AuthScreenProps) {
       return;
     }
     setLoadingMessage(t("auth.googleRedirect"));
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/auth`,
-      },
-    });
-    if (error) {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth`,
+        },
+      });
+      if (error) {
+        setLoadingMessage(null);
+        setMessage(error.message);
+      }
+    } catch (error) {
       setLoadingMessage(null);
-      setMessage(error.message);
+      setMessage(error instanceof Error ? error.message : "Unable to reach the authentication service.");
     }
   };
 
   return (
     <Wrapper>
-      <BrandBlock $align={stage === "intro" ? "center" : "start"}>
-        <BrandMark>
-          <img src="/KTLogo.png" alt="Eain Chan Myay logo" />
-        </BrandMark>
-        <strong>Eain Chan Myay</strong>
-        <Subtitle>{t("auth.subtitle")}</Subtitle>
-      </BrandBlock>
-      {stage === "intro" ? (
-        <IntroButtons>
-          <PrimaryButton type="button" onClick={() => { setMode("login"); setStage("form"); }}>
-            {t("auth.continueEmail")}
-          </PrimaryButton>
-          <SecondaryButton type="button" onClick={handleGoogle}>
-            {t("auth.continueGoogle")}
-          </SecondaryButton>
-        </IntroButtons>
-      ) : (
-        <>
-          <Tabs>
-            <TabButton type="button" $active={mode === "login"} onClick={() => setMode("login")}>
-              {t("auth.login")}
-            </TabButton>
-            <TabButton type="button" $active={mode === "register"} onClick={() => setMode("register")}>
-              {t("auth.register")}
-            </TabButton>
-          </Tabs>
-          <Form onSubmit={handleSubmit}>
-            <Field $filled={Boolean(email)} data-filled={Boolean(email)}>
-              <FloatingLabel className="floating-label">{t("auth.email")}</FloatingLabel>
+      <Header>
+        <TopBar>
+          <RoleBadge>{roleBadge}</RoleBadge>
+          {onChangeRole ? (
+            <SwitchRoleButton type="button" onClick={onChangeRole}>
+              Switch role
+            </SwitchRoleButton>
+          ) : null}
+        </TopBar>
+        <div>
+          <Title>{title}</Title>
+          <Subtitle>{subtitle}</Subtitle>
+        </div>
+      </Header>
+
+      <Tabs>
+        <TabButton type="button" $active={mode === "login"} onClick={() => setMode("login")}>
+          {t("auth.login")}
+        </TabButton>
+        <TabButton type="button" $active={mode === "register"} onClick={() => setMode("register")}>
+          {role === "agent" ? "Create agent account" : t("auth.register")}
+        </TabButton>
+      </Tabs>
+
+      <Form onSubmit={handleSubmit}>
+        {mode === "register" ? (
+          <TwoCol>
+            <Field $filled={Boolean(fullName)} data-filled={Boolean(fullName)}>
+              <FloatingLabel className="floating-label">{t("auth.fullName")}</FloatingLabel>
               <Input
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
+                type="text"
+                value={fullName}
+                onChange={(event) => setFullName(event.target.value)}
                 required
               />
             </Field>
-            <Field $filled={Boolean(password)} data-filled={Boolean(password)}>
-              <FloatingLabel className="floating-label">{t("auth.password")}</FloatingLabel>
+            <Field $filled={Boolean(phoneNumber)} data-filled={Boolean(phoneNumber)}>
+              <FloatingLabel className="floating-label">{t("auth.phoneNumber")}</FloatingLabel>
               <Input
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
+                type="tel"
+                value={phoneNumber}
+                onChange={(event) => setPhoneNumber(event.target.value)}
                 required
               />
             </Field>
-            {mode === "register" && (
-              <StrengthList>
-                {passwordChecks.map((check) => (
-                  <StrengthItem key={check.label} $active={check.ok}>
-                    <StrengthDot $active={check.ok} />
-                    <span>{check.label}</span>
-                  </StrengthItem>
-                ))}
-              </StrengthList>
-            )}
-            {mode === "register" && (
-              <>
-                <Field $filled={Boolean(fullName)} data-filled={Boolean(fullName)}>
-                  <FloatingLabel className="floating-label">{t("auth.fullName")}</FloatingLabel>
-                  <Input
-                    type="text"
-                    value={fullName}
-                    onChange={(event) => setFullName(event.target.value)}
-                    required
-                  />
-                </Field>
-                <Field $filled={Boolean(phoneNumber)} data-filled={Boolean(phoneNumber)}>
-                  <FloatingLabel className="floating-label">{t("auth.phoneNumber")}</FloatingLabel>
-                  <Input
-                    type="tel"
-                    value={phoneNumber}
-                    onChange={(event) => setPhoneNumber(event.target.value)}
-                    required
-                  />
-                </Field>
-              </>
-            )}
-            <PrimaryButton type="submit">
-              {mode === "login" ? t("auth.signInButton") : t("auth.registerButton")}
-            </PrimaryButton>
+          </TwoCol>
+        ) : null}
+
+        <Field $filled={Boolean(email)} data-filled={Boolean(email)}>
+          <FloatingLabel className="floating-label">{t("auth.email")}</FloatingLabel>
+          <Input
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            required
+          />
+        </Field>
+
+        <Field $filled={Boolean(password)} data-filled={Boolean(password)}>
+          <FloatingLabel className="floating-label">{t("auth.password")}</FloatingLabel>
+          <Input
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            required
+          />
+        </Field>
+
+        {mode === "register" && (
+          <StrengthList>
+            {passwordChecks.map((check) => (
+              <StrengthItem key={check.label} $active={check.ok}>
+                <StrengthDot $active={check.ok} />
+                <span>{check.label}</span>
+              </StrengthItem>
+            ))}
+          </StrengthList>
+        )}
+
+        <PrimaryButton type="submit">{submitLabel}</PrimaryButton>
+
+        {role === "customer" ? (
+          <>
+            <InlineHelp>
+              {mode === "login" ? "New here? Create a free account." : "Prefer a faster sign in?"}
+            </InlineHelp>
             <SecondaryButton type="button" onClick={handleGoogle}>
               {t("auth.continueGoogle")}
             </SecondaryButton>
-          </Form>
-        </>
-      )}
+          </>
+        ) : (
+          <InlineHelp>Agent accounts use the same secure credentials and continue into agent tools.</InlineHelp>
+        )}
+      </Form>
+
       {message && <Message>{message}</Message>}
-      {loadingMessage && (
-        <LoadingOverlay message={loadingMessage} />
-      )}
+      {loadingMessage && <LoadingOverlay message={loadingMessage} />}
     </Wrapper>
   );
 }

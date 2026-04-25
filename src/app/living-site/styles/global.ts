@@ -44,7 +44,6 @@ export const GlobalStyle = createGlobalStyle`
       ${(props: ThemeProps) => props.theme!.background.texture});
     background-size: var(--body-bg-size, auto, 18px 18px, 16px 16px);
     background-attachment: var(--body-bg-attachment, fixed);
-    padding-bottom: 96px;
   }
 
   a {
