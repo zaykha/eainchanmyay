@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import styled from "styled-components";
 import { ArrowLeft } from "lucide-react";
@@ -9,6 +9,7 @@ import { useAppState } from "@/app/living-site/lib/app-state";
 import { AuthScreen, type AuthRole } from "@/app/living-site/components/AuthScreen";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/app/living-site/lib/i18n";
+import type { ProfileRole } from "@/app/living-site/lib/data";
 
 const Page = styled.main<{ $stageLocked?: boolean }>`
   min-height: 100vh;
@@ -466,13 +467,15 @@ const roleCards = [
 ];
 
 export default function AuthPage() {
-  const { user, logout } = useAppState();
+  const { user, logout, profileRole, profileReady, authToken } = useAppState();
   const router = useRouter();
   const { t } = useI18n();
   const [message, setMessage] = useState<string | null>(null);
   const [resumePath, setResumePath] = useState<string | null>(null);
   const [redirecting, setRedirecting] = useState(false);
   const [role, setRole] = useState<AuthRole | null>(null);
+  const [authResolvedRole, setAuthResolvedRole] = useState<ProfileRole | null>(null);
+  const bootstrapStartedForUser = useRef<string | null>(null);
   const stageLocked = !role && !user;
 
   useEffect(() => {
@@ -490,11 +493,47 @@ export default function AuthPage() {
   }, []);
 
   useEffect(() => {
-    if (!user) return;
-    const target = role === "agent" ? "/request-sale" : resumePath || "/";
-    setRedirecting(true);
-    router.replace(target);
-  }, [resumePath, role, router, user]);
+    if (!user || !profileReady) return;
+
+    const effectiveRole = authResolvedRole ?? profileRole;
+    const redirectToTarget = (target: string) => {
+      setRedirecting(true);
+      router.replace(target);
+    };
+
+    if (effectiveRole === "vendor_user") {
+      if (!authToken) return;
+      if (bootstrapStartedForUser.current === user.id) return;
+
+      bootstrapStartedForUser.current = user.id;
+
+      void (async () => {
+        const response = await fetch("/api/vendors/bootstrap", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${authToken}`,
+          },
+          body: JSON.stringify({ vendorType: "solo_agent" }),
+        });
+
+        const payload = (await response.json().catch(() => null)) as { message?: string } | null;
+
+        if (!response.ok) {
+          setRedirecting(false);
+          setMessage(payload?.message ?? "Unable to set up the vendor workspace.");
+          bootstrapStartedForUser.current = null;
+          return;
+        }
+
+        redirectToTarget("/request-sale");
+      })();
+
+      return;
+    }
+
+    redirectToTarget(resumePath || "/");
+  }, [authResolvedRole, authToken, profileReady, profileRole, resumePath, router, user]);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -528,11 +567,6 @@ export default function AuthPage() {
       document.documentElement.style.overscrollBehavior = previousHtmlOverscroll;
     };
   }, [stageLocked]);
-
-  const successTarget = useMemo(() => {
-    if (role === "agent") return "/request-sale";
-    return resumePath || "/";
-  }, [resumePath, role]);
 
   return (
     <Page $stageLocked={stageLocked}>
@@ -629,11 +663,11 @@ export default function AuthPage() {
                 <AuthScreen
                   role={role}
                   onChangeRole={() => setRole(null)}
-                  onSuccess={() => {
+                  onSuccess={(resolvedRole) => {
+                    setAuthResolvedRole(resolvedRole);
                     if (typeof window !== "undefined") {
                       window.localStorage.removeItem("kaiten_living_auth_resume");
                     }
-                    router.replace(successTarget);
                   }}
                 />
               ) : null}

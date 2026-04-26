@@ -88,6 +88,16 @@ export type CustomerProfile = {
   contact_number: string | null;
 };
 
+export type ProfileRole = "user" | "vendor_user" | "staff" | "admin" | "master_admin";
+
+export type ProfileSummary = {
+  id: string;
+  email: string | null;
+  name: string | null;
+  contact_number: string | null;
+  role: ProfileRole | null;
+};
+
 export async function getCustomerProfile(userId: string) {
   if (!isSupabaseConfigured) {
     return { profile: null, error: "Supabase is not configured." };
@@ -112,11 +122,37 @@ export async function getCustomerProfile(userId: string) {
   };
 }
 
+export async function getProfileSummary(userId: string) {
+  if (!isSupabaseConfigured) {
+    return { profile: null, error: "Supabase is not configured." };
+  }
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id,email,full_name,phone,role")
+    .eq("id", userId)
+    .maybeSingle();
+
+  return {
+    profile: data
+      ? {
+          id: String(data.id),
+          email: (data.email as string | null) ?? null,
+          name: (data.full_name as string | null) ?? null,
+          contact_number: (data.phone as string | null) ?? null,
+          role: (data.role as ProfileRole | null) ?? null,
+        }
+      : null,
+    error: error?.message,
+  };
+}
+
 export async function upsertCustomerProfile(input: {
   id: string;
   email?: string | null;
   name?: string | null;
   contactNumber?: string | null;
+  role?: ProfileRole;
 }) {
   if (!isSupabaseConfigured) {
     return { ok: false, message: "Supabase is not configured." };
@@ -124,8 +160,11 @@ export async function upsertCustomerProfile(input: {
 
   const payload: Record<string, unknown> = {
     id: input.id,
-    role: "user",
   };
+
+  if (input.role !== undefined) {
+    payload.role = input.role;
+  }
 
   if (input.email !== undefined) {
     payload.email = input.email;

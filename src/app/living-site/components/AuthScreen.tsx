@@ -6,6 +6,7 @@ import { useAppState } from "@/app/living-site/lib/app-state";
 import { supabase, isSupabaseConfigured } from "@/app/living-site/lib/supabaseClient";
 import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
 import { useI18n } from "@/app/living-site/lib/i18n";
+import type { ProfileRole } from "@/app/living-site/lib/data";
 
 const Wrapper = styled.div`
   display: grid;
@@ -193,7 +194,7 @@ export type AuthRole = "customer" | "agent";
 
 type AuthScreenProps = {
   role: AuthRole;
-  onSuccess?: () => void;
+  onSuccess?: (role: ProfileRole | null) => void;
   onChangeRole?: () => void;
 };
 
@@ -236,6 +237,7 @@ export function AuthScreen({ role, onSuccess, onChangeRole }: AuthScreenProps) {
       : role === "agent"
         ? "Create Agent Account"
         : "Create Account";
+  const targetProfileRole: ProfileRole = role === "agent" ? "vendor_user" : "user";
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -255,10 +257,11 @@ export function AuthScreen({ role, onSuccess, onChangeRole }: AuthScreenProps) {
     setLoadingMessage(mode === "login" ? t("auth.signingInShort") : t("auth.creatingAccount"));
     const result =
       mode === "login"
-        ? await login(email, password)
+        ? await login(email, password, role)
         : await register(email, password, {
             name: fullName.trim(),
             contactNumber: phoneNumber.trim(),
+            role: targetProfileRole,
           });
     setLoadingMessage(null);
     if (result.error) {
@@ -266,7 +269,7 @@ export function AuthScreen({ role, onSuccess, onChangeRole }: AuthScreenProps) {
       return;
     }
     setMessage(mode === "login" ? t("auth.signedIn") : t("auth.checkEmail"));
-    onSuccess?.();
+    onSuccess?.(result.role ?? targetProfileRole);
   };
 
   const handleGoogle = async () => {

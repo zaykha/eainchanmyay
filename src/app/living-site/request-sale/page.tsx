@@ -396,7 +396,7 @@ const toBackupPowerType = (value: unknown): FormState["backup_power_type"] => {
 };
 
 function RequestSalePageContent() {
-  const { user } = useAppState();
+  const { user, profileRole, profileReady } = useAppState();
   const { t } = useI18n();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -804,6 +804,38 @@ function RequestSalePageContent() {
             <Muted>{t("requestSale.signInPrompt")}</Muted>
             <PrimaryButton type="button" onClick={() => router.push("/auth")}>
               {t("requestSale.signInContinue")}
+            </PrimaryButton>
+          </Panel>
+        </PageShell>
+        <BottomNav />
+      </div>
+    );
+  }
+
+  if (!profileReady) {
+    return (
+      <div>
+        <SiteHeader />
+        <PageShell>
+          <Panel>
+            <Muted>Loading workspace access…</Muted>
+          </Panel>
+        </PageShell>
+        <BottomNav />
+      </div>
+    );
+  }
+
+  if (profileRole !== "vendor_user" && profileRole !== "staff" && profileRole !== "admin" && profileRole !== "master_admin") {
+    return (
+      <div>
+        <SiteHeader />
+        <PageShell>
+          <SectionTitle>{t("requestSale.titleNew")}</SectionTitle>
+          <Panel>
+            <Muted>Only vendor accounts can access this workflow.</Muted>
+            <PrimaryButton type="button" onClick={() => router.push("/")}>
+              Back to home
             </PrimaryButton>
           </Panel>
         </PageShell>
