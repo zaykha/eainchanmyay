@@ -1181,7 +1181,7 @@ const footerLinks = [
   { label: "Partners", href: "#partners" },
   { label: "Support", href: "/faq" },
   { label: "About Us", href: "/terms" },
-  { label: "Agent", href: "/request-sale" },
+  { label: "Agent", href: "/vendor" },
   { label: "Contact Us", href: "/privacy" },
 ];
 

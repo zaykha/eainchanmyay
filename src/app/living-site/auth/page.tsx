@@ -526,7 +526,7 @@ export default function AuthPage() {
           return;
         }
 
-        redirectToTarget("/request-sale");
+        redirectToTarget("/vendor");
       })();
 
       return;
@@ -633,7 +633,7 @@ export default function AuthPage() {
                 </VisualTitle>
                 <VisualSubtitle>
                   {role === "agent"
-                    ? "Use one account for listings, lead handling, and sale submissions. We can route new agent users into the request flow after sign up."
+                    ? "Use one account for listings, lead handling, and your vendor workspace. We can route new agent users into the vendor dashboard after sign up."
                     : "Save homes, return to your inquiries, and keep your property search moving without losing context."}
                 </VisualSubtitle>
               </VisualHeading>

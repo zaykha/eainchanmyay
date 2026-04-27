@@ -430,6 +430,7 @@ function RequestSalePageContent() {
     district: "",
     township: "",
   });
+  const vendorReturnPath = isEdit && editId ? `/vendor/sales-requests` : "/vendor";
 
   useEffect(() => {
     if (!editId || !user?.id) return;
@@ -1224,12 +1225,25 @@ function RequestSalePageContent() {
                 : t("requestSale.successReviewNew")}
             </Muted>
             <Actions>
-              <SecondaryButton type="button" onClick={() => router.push("/")}>
-                {t("requestSale.browseListings")}
-              </SecondaryButton>
-              <PrimaryButton type="button" onClick={() => router.push("/activities")}>
-                {t("requestSale.goActivities")}
-              </PrimaryButton>
+              {profileRole === "vendor_user" ? (
+                <>
+                  <SecondaryButton type="button" onClick={() => router.push("/vendor/properties")}>
+                    Go to vendor properties
+                  </SecondaryButton>
+                  <PrimaryButton type="button" onClick={() => router.push(vendorReturnPath)}>
+                    Back to vendor workspace
+                  </PrimaryButton>
+                </>
+              ) : (
+                <>
+                  <SecondaryButton type="button" onClick={() => router.push("/")}>
+                    {t("requestSale.browseListings")}
+                  </SecondaryButton>
+                  <PrimaryButton type="button" onClick={() => router.push("/activities")}>
+                    {t("requestSale.goActivities")}
+                  </PrimaryButton>
+                </>
+              )}
             </Actions>
           </SuccessModal>
         </SuccessOverlay>
