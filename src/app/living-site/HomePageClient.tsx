@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ChevronDown, Map, MapPin, Menu, MessageCircleMore, Plus, Search, SlidersHorizontal, X } from "lucide-react";
+import { Map, MapPin, Menu, MessageCircleMore, Plus, Search, SlidersHorizontal, X } from "lucide-react";
 import styled from "styled-components";
 import { ListingGrid } from "@/app/living-site/components/ListingGrid";
 import { CustomSelect } from "@/app/living-site/components/form-controls/CustomSelect";
@@ -1226,7 +1226,7 @@ const propertyCards = [
 export function HomePageClient() {
   const router = useRouter();
   const { t } = useI18n();
-  const { user } = useAppState();
+  const { user, profileRole, profileReady, loading: authLoading } = useAppState();
   const { language, setLanguage } = useLanguage();
   const params = useSearchParams();
   const initialQuery = params.get("q") ?? "";
@@ -1348,6 +1348,7 @@ export function HomePageClient() {
 
   const locationSummary = [stateRegion, district, township].filter(Boolean).join(" / ");
   const accountLabel = useMemo(() => {
+    if (profileReady && profileRole === "vendor_user") return "Hub";
     if (!user) return "Account";
     const fullName =
       typeof user.user_metadata?.full_name === "string"
@@ -1358,7 +1359,8 @@ export function HomePageClient() {
     if (fullName) return fullName;
     const emailPrefix = user.email?.split("@")[0]?.trim();
     return emailPrefix || "My Account";
-  }, [user]);
+  }, [profileReady, profileRole, user]);
+  const accountHref = !profileReady || authLoading ? "/account" : profileRole === "vendor_user" ? "/hub" : user ? "/account" : "/auth";
 
   useEffect(() => {
     if (!showBedBathFilters) {
@@ -1453,7 +1455,7 @@ export function HomePageClient() {
                       {item.label}
                     </Link>
                   ))}
-                  <Link href={user ? "/account" : "/auth"}>{accountLabel}</Link>
+                  <Link href={accountHref}>{accountLabel}</Link>
                 </HeaderLinks>
                 <HeaderActions>
                   <LanguageTrigger
@@ -1668,7 +1670,7 @@ export function HomePageClient() {
                   {item.label}
                 </Link>
               ))}
-              <Link href={user ? "/account" : "/auth"} onClick={() => setMobileMenuOpen(false)}>
+              <Link href={accountHref} onClick={() => setMobileMenuOpen(false)}>
                 {accountLabel}
               </Link>
             </MobileMenuLinks>

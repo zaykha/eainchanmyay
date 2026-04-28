@@ -43,7 +43,7 @@ async function getScopedProperty(context: VendorRequestContext, propertyId: stri
   const { data: property, error } = await supabase
     .from("properties")
     .select(
-      "id,title,description,deal_type,property_type,status,price,currency,state_region,district,township,city,address_text,bedrooms,bathrooms,area_sqft,has_lift,has_backup_power,backup_power_type,has_parking,latitude,longitude,created_at,updated_at,created_by,is_deleted"
+      "id,title,description,deal_type,property_type,status,price,currency,state_region,district,township,city,address_text,bedrooms,bathrooms,area_sqft,has_lift,has_backup_power,backup_power_type,has_parking,latitude,longitude,created_at,updated_at,created_by,is_deleted,verification_status,verified_at,verification_notes"
     )
     .eq("id", propertyId)
     .in("created_by", memberIds)
@@ -173,7 +173,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ pr
     .update(payload)
     .eq("id", propertyId)
     .select(
-      "id,title,description,deal_type,property_type,status,price,currency,state_region,district,township,city,address_text,bedrooms,bathrooms,area_sqft,has_lift,has_backup_power,backup_power_type,has_parking,latitude,longitude,created_at,updated_at"
+      "id,title,description,deal_type,property_type,status,price,currency,state_region,district,township,city,address_text,bedrooms,bathrooms,area_sqft,has_lift,has_backup_power,backup_power_type,has_parking,latitude,longitude,created_at,updated_at,verification_status,verified_at,verification_notes"
     )
     .maybeSingle();
 

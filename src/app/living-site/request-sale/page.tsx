@@ -166,6 +166,15 @@ const ErrorText = styled.p`
   font-weight: 600;
 `;
 
+const LimitNotice = styled.div<{ $danger?: boolean }>`
+  border-radius: 18px;
+  border: 1px solid ${(props) => (props.$danger ? "rgba(255, 148, 148, 0.22)" : "rgba(255, 210, 92, 0.22)")};
+  background: ${(props) => (props.$danger ? "rgba(255, 148, 148, 0.08)" : "rgba(255, 210, 92, 0.08)")};
+  padding: 14px 16px;
+  color: ${(props) => (props.$danger ? "#a61c2f" : "#7a5b00")};
+  line-height: 1.6;
+`;
+
 const fadeIn = keyframes`
   from {
     opacity: 0;
@@ -346,6 +355,22 @@ type FormState = {
   owner_phone_secondary: string;
 };
 
+type WorkspaceLimits = {
+  limits?: {
+    currentPlan?: {
+      name: string;
+    };
+    listingCount?: number;
+    listingLimit?: number;
+    listingNearLimit?: boolean;
+    listingOverLimit?: boolean;
+    suggestedUpgrade?: {
+      name: string;
+      priceLabel: string;
+    } | null;
+  };
+};
+
 const initialState: FormState = {
   title: "",
   description: "",
@@ -396,7 +421,7 @@ const toBackupPowerType = (value: unknown): FormState["backup_power_type"] => {
 };
 
 function RequestSalePageContent() {
-  const { user, profileRole, profileReady } = useAppState();
+  const { user, profileRole, profileReady, authToken } = useAppState();
   const { t } = useI18n();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -409,6 +434,7 @@ function RequestSalePageContent() {
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [loadingEdit, setLoadingEdit] = useState(false);
+  const [workspaceLimits, setWorkspaceLimits] = useState<WorkspaceLimits["limits"] | null>(null);
   const [mapActive, setMapActive] = useState(false);
   const [mapLoading, setMapLoading] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
@@ -431,6 +457,28 @@ function RequestSalePageContent() {
     township: "",
   });
   const vendorReturnPath = isEdit && editId ? `/vendor/sales-requests` : "/vendor";
+
+  useEffect(() => {
+    if (!authToken || profileRole !== "vendor_user") return;
+
+    let cancelled = false;
+    const loadWorkspaceLimits = async () => {
+      const response = await fetch("/api/vendor/workspace", {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+      });
+      const payload = (await response.json().catch(() => null)) as WorkspaceLimits | null;
+      if (!cancelled && response.ok) {
+        setWorkspaceLimits(payload?.limits ?? null);
+      }
+    };
+
+    void loadWorkspaceLimits();
+    return () => {
+      cancelled = true;
+    };
+  }, [authToken, profileRole]);
 
   useEffect(() => {
     if (!editId || !user?.id) return;
@@ -772,16 +820,24 @@ function RequestSalePageContent() {
         return;
       }
     } else {
-      const response = await fetch("/api/public/sales-requests", {
+      const endpoint = profileRole === "vendor_user" ? "/api/vendor/sales-requests" : "/api/public/sales-requests";
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (profileRole === "vendor_user" && authToken) {
+        headers.Authorization = `Bearer ${authToken}`;
+      }
+
+      const response = await fetch(endpoint, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(payload),
       });
       setSubmitting(false);
 
       if (!response.ok) {
-        const result = await response.json().catch(() => ({}));
-        setError(result.message ?? t("requestSale.error.submitFailed"));
+        const result = (await response.json().catch(() => ({}))) as { message?: string; error?: string };
+        setError(result.message ?? result.error ?? t("requestSale.error.submitFailed"));
         return;
       }
     }
@@ -862,6 +918,17 @@ function RequestSalePageContent() {
             ? t("requestSale.subtitleEdit")
             : t("requestSale.subtitleNew")}
         </Muted>
+        {workspaceLimits?.listingNearLimit ? (
+          <LimitNotice $danger={workspaceLimits.listingOverLimit}>
+            {workspaceLimits.listingOverLimit
+              ? "Your workspace is already above its current listing soft limit. Submission stays open for now, but the next billing phase should turn this into an upgrade or cleanup path."
+              : `You are close to your current ${workspaceLimits.currentPlan?.name || "plan"} limit: ${workspaceLimits.listingCount ?? 0}/${workspaceLimits.listingLimit ?? 0} listings. ${
+                  workspaceLimits.suggestedUpgrade
+                    ? `Recommended upgrade: ${workspaceLimits.suggestedUpgrade.name} (${workspaceLimits.suggestedUpgrade.priceLabel}).`
+                    : ""
+                }`}
+          </LimitNotice>
+        ) : null}
         <Stepper>
           {stepLabels.map((label, index) => (
             <StepPill key={label} $active={index === step} $completed={index < step}>

@@ -4,7 +4,20 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import styled from "styled-components";
-import { Building2, CalendarDays, ClipboardList, LayoutDashboard, Menu, MessagesSquare, Plus, Settings, Users2, X } from "lucide-react";
+import {
+  Building2,
+  CalendarDays,
+  ClipboardList,
+  FileSpreadsheet,
+  LayoutDashboard,
+  Menu,
+  MessagesSquare,
+  Plus,
+  Settings,
+  ShieldCheck,
+  Users2,
+  X,
+} from "lucide-react";
 import { useAppState } from "@/app/living-site/lib/app-state";
 import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
 
@@ -200,6 +213,8 @@ const navItems = [
   { href: "/vendor/sales-requests", label: "Sales Requests", icon: ClipboardList },
   { href: "/vendor/inquiries", label: "Inquiries", icon: MessagesSquare },
   { href: "/vendor/team", label: "Team", icon: Users2 },
+  { href: "/vendor/import", label: "Bulk Import", icon: FileSpreadsheet },
+  { href: "/vendor/verification", label: "Verification", icon: ShieldCheck },
   { href: "/request-sale", label: "Request Listing", icon: Plus },
   { href: "/vendor/settings", label: "Settings", icon: Settings },
 ];
@@ -210,6 +225,8 @@ type WorkspaceSummary = {
     name: string;
     vendor_type: string;
     plan: string | null;
+    billing_status: string | null;
+    billing_provider: string | null;
   };
   membership: {
     role: string;
@@ -245,28 +262,21 @@ export function VendorShell({ children }: { children: React.ReactNode }) {
       };
 
       try {
-        let { response, payload } = await runWorkspaceFetch();
+        const { response, payload } = await runWorkspaceFetch();
 
         if (!response.ok && payload?.error === "Vendor membership not found.") {
-          const bootstrapResponse = await fetch("/api/vendors/bootstrap", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${authToken}`,
-            },
-            body: JSON.stringify({ vendorType: "solo_agent" }),
-          });
-
-          if (!bootstrapResponse.ok) {
-            const bootstrapPayload = (await bootstrapResponse.json().catch(() => null)) as { message?: string } | null;
-            throw new Error(bootstrapPayload?.message ?? "Unable to set up the vendor workspace.");
-          }
-
-          ({ response, payload } = await runWorkspaceFetch());
+          router.replace("/vendor-setup");
+          return;
         }
 
         if (!response.ok || !payload?.vendor) {
           throw new Error(payload?.error ?? "Unable to load the vendor workspace.");
+        }
+
+        const requiresActiveBilling = payload.vendor.plan && payload.vendor.plan !== "free";
+        if (requiresActiveBilling && payload.vendor.billing_status !== "active") {
+          router.replace("/vendor-setup");
+          return;
         }
 
         if (!cancelled) {
@@ -288,7 +298,7 @@ export function VendorShell({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [authToken, profileReady, profileRole]);
+  }, [authToken, profileReady, profileRole, router]);
 
   if (!profileReady) {
     return <LoadingOverlay message="Loading vendor workspace..." />;

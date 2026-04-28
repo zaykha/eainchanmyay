@@ -467,7 +467,7 @@ const roleCards = [
 ];
 
 export default function AuthPage() {
-  const { user, logout, profileRole, profileReady, authToken } = useAppState();
+  const { user, logout, profileRole, profileReady } = useAppState();
   const router = useRouter();
   const { t } = useI18n();
   const [message, setMessage] = useState<string | null>(null);
@@ -475,8 +475,15 @@ export default function AuthPage() {
   const [redirecting, setRedirecting] = useState(false);
   const [role, setRole] = useState<AuthRole | null>(null);
   const [authResolvedRole, setAuthResolvedRole] = useState<ProfileRole | null>(null);
-  const bootstrapStartedForUser = useRef<string | null>(null);
+  const mismatchHandledRef = useRef(false);
+  const roleRef = useRef<AuthRole | null>(null);
+  const logoutRef = useRef(logout);
   const stageLocked = !role && !user;
+
+  useEffect(() => {
+    roleRef.current = role;
+    logoutRef.current = logout;
+  }, [logout, role]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -496,44 +503,47 @@ export default function AuthPage() {
     if (!user || !profileReady) return;
 
     const effectiveRole = authResolvedRole ?? profileRole;
+    const selectedRole = roleRef.current;
+    const isAgentSelection = selectedRole === "agent";
+    const isCustomerSelection = selectedRole === "customer";
+    const selectedAgentButWrongRole = isAgentSelection && effectiveRole !== "vendor_user";
+    const selectedCustomerButWrongRole = isCustomerSelection && effectiveRole === "vendor_user";
+
+    if (selectedAgentButWrongRole || selectedCustomerButWrongRole) {
+      if (mismatchHandledRef.current) return;
+      mismatchHandledRef.current = true;
+
+      const mismatchMessage = selectedAgentButWrongRole
+        ? "This account is not registered as an agency account. Use customer sign in instead."
+        : "This account is registered as an agency account. Use agency sign in instead.";
+
+      setRedirecting(false);
+      setAuthResolvedRole(null);
+      setMessage(mismatchMessage);
+
+      if (typeof window !== "undefined") {
+        window.alert(mismatchMessage);
+      }
+
+      void logoutRef.current().finally(() => {
+        router.replace("/auth");
+      });
+      return;
+    }
+
+    mismatchHandledRef.current = false;
     const redirectToTarget = (target: string) => {
       setRedirecting(true);
       router.replace(target);
     };
 
     if (effectiveRole === "vendor_user") {
-      if (!authToken) return;
-      if (bootstrapStartedForUser.current === user.id) return;
-
-      bootstrapStartedForUser.current = user.id;
-
-      void (async () => {
-        const response = await fetch("/api/vendors/bootstrap", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${authToken}`,
-          },
-          body: JSON.stringify({ vendorType: "solo_agent" }),
-        });
-
-        const payload = (await response.json().catch(() => null)) as { message?: string } | null;
-
-        if (!response.ok) {
-          setRedirecting(false);
-          setMessage(payload?.message ?? "Unable to set up the vendor workspace.");
-          bootstrapStartedForUser.current = null;
-          return;
-        }
-
-        redirectToTarget("/vendor");
-      })();
-
+      redirectToTarget("/hub");
       return;
     }
 
-    redirectToTarget(resumePath || "/");
-  }, [authResolvedRole, authToken, profileReady, profileRole, resumePath, router, user]);
+    redirectToTarget(resumePath && resumePath !== "/" ? resumePath : "/account");
+  }, [authResolvedRole, profileReady, profileRole, resumePath, router, user]);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -664,6 +674,7 @@ export default function AuthPage() {
                   role={role}
                   onChangeRole={() => setRole(null)}
                   onSuccess={(resolvedRole) => {
+                    mismatchHandledRef.current = false;
                     setAuthResolvedRole(resolvedRole);
                     if (typeof window !== "undefined") {
                       window.localStorage.removeItem("kaiten_living_auth_resume");

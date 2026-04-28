@@ -366,6 +366,16 @@ const ContactRow = styled.div`
   }
 `;
 
+const AgencyCard = styled(Link)`
+  border: 1px solid var(--color-outline);
+  border-radius: 16px;
+  padding: 14px 16px;
+  background: var(--color-surface-2);
+  display: grid;
+  gap: 6px;
+  color: inherit;
+`;
+
 const ContactButton = styled.a`
   display: inline-flex;
   align-items: center;
@@ -804,7 +814,7 @@ function DateTimePicker({
 
 export default function ListingDetailPage() {
   const params = useParams();
-  const { user } = useAppState();
+  const { user, authToken } = useAppState();
   const { t, language } = useI18n();
   const propertyId = params?.propertyId as string | undefined;
   const { detail, loading } = useListingDetail(propertyId);
@@ -910,6 +920,39 @@ export default function ListingDetailPage() {
     setActiveImageIndex(0);
   }, [galleryUrls.length]);
 
+  useEffect(() => {
+    if (!propertyId || !detail) return;
+
+    const storageKey = "ecm_listing_view_session_id";
+    let sessionId = "";
+    try {
+      sessionId = window.localStorage.getItem(storageKey) || "";
+      if (!sessionId) {
+        sessionId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+        window.localStorage.setItem(storageKey, sessionId);
+      }
+    } catch {
+      sessionId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    }
+
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (authToken) {
+      headers.Authorization = `Bearer ${authToken}`;
+    }
+
+    void fetch(`/api/public/listings/${propertyId}/view`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        source: "listing_detail",
+        sessionId,
+      }),
+      keepalive: true,
+    }).catch(() => undefined);
+  }, [authToken, detail, propertyId]);
+
   if (loading) {
     return (
       <div>
@@ -929,6 +972,7 @@ export default function ListingDetailPage() {
   }
 
   const { property } = detail;
+  const agency = (detail.agency ?? null) as Record<string, unknown> | null;
   const title = (property.title as string) || t("listing.property");
   const description = (property.description as string) || "";
   const price = property.price as number | undefined;
@@ -964,7 +1008,15 @@ export default function ListingDetailPage() {
     typeof areaSqft === "number"
       ? new Intl.NumberFormat(locale).format(areaSqft)
       : undefined;
-  const primaryContact = EAIN_CONTACT_PHONE;
+  const propertyVerificationStatus = typeof property.verification_status === "string" ? property.verification_status : null;
+  const agencyVerificationStatus = agency && typeof agency.verification_status === "string" ? agency.verification_status : null;
+  const agencySlug = agency && typeof agency.slug === "string" ? agency.slug : null;
+  const agencyName = agency && typeof agency.name === "string" ? agency.name : null;
+  const agencyTagline = agency && typeof agency.tagline === "string" ? agency.tagline : null;
+  const agencyPhone = agency && typeof agency.contact_phone === "string" ? agency.contact_phone : null;
+  const primaryContact = agencyPhone || EAIN_CONTACT_PHONE;
+  const showVerifiedListing = propertyVerificationStatus === "approved";
+  const showVerifiedAgency = !showVerifiedListing && agencyVerificationStatus === "approved";
   const showBeds =
     ["house", "house_land", "apartment"].includes(propertyTypeRaw) &&
     bedrooms !== undefined;
@@ -1210,14 +1262,21 @@ export default function ListingDetailPage() {
           </div>
           <ContactCard>
             <ContactTitle>{t("listing.contactAgent")}</ContactTitle>
-            <TrustPill>{t("listing.verifiedAgent")}</TrustPill>
+            {showVerifiedListing ? <TrustPill>Verified listing</TrustPill> : null}
+            {showVerifiedAgency ? <TrustPill>{t("listing.verifiedAgent")}</TrustPill> : null}
             <ContactRow>
-              <strong>Eain Chan Myay Advisory</strong>
+              <strong>{agencyName || "Eain Chan Myay Advisory"}</strong>
               <span>{t("listing.contactSubtitle")}</span>
               <span>
-                {t("listing.hotline")}: <a href={`tel:${EAIN_CONTACT_PHONE}`}>{EAIN_CONTACT_PHONE}</a>
+                {t("listing.hotline")}: <a href={`tel:${primaryContact}`}>{primaryContact}</a>
               </span>
             </ContactRow>
+            {agencySlug ? (
+              <AgencyCard href={`/agency/${agencySlug}`}>
+                <strong>{agencyName || "Agency profile"}</strong>
+                <span>{agencyTagline || "Open the public agency storefront and browse more listings."}</span>
+              </AgencyCard>
+            ) : null}
             <ContactButton href={`tel:${primaryContact}`}>
               <Phone size={16} style={{ marginRight: 6 }} />
               {t("listing.contactAgent")}

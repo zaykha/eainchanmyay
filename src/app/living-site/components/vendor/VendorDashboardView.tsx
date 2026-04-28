@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import styled from "styled-components";
-import { CalendarClock, ClipboardList, FolderKanban, Layers3, Wallet } from "lucide-react";
+import { CalendarClock, ClipboardList, Eye, FolderKanban, Layers3, TrendingUp, Wallet } from "lucide-react";
 import { useAppState } from "@/app/living-site/lib/app-state";
 import { formatCurrency } from "@/app/living-site/lib/format";
 import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
@@ -77,6 +77,16 @@ const DetailGrid = styled.div`
   gap: 16px;
 
   @media (max-width: 980px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const AnalyticsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+
+  @media (max-width: 1100px) {
     grid-template-columns: 1fr;
   }
 `;
@@ -194,6 +204,29 @@ const RecentMeta = styled.div`
   font-size: 0.9rem;
 `;
 
+const MiniList = styled.div`
+  display: grid;
+  gap: 10px;
+`;
+
+const InsightRow = styled.div`
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  color: #d8deea;
+  font-size: 0.94rem;
+`;
+
+const Notice = styled.div<{ $danger?: boolean }>`
+  border-radius: 22px;
+  border: 1px solid ${(props) => (props.$danger ? "rgba(255, 148, 148, 0.22)" : "rgba(255, 210, 92, 0.22)")};
+  background: ${(props) => (props.$danger ? "rgba(255, 148, 148, 0.08)" : "rgba(255, 210, 92, 0.08)")};
+  padding: 16px 18px;
+  color: ${(props) => (props.$danger ? "#ffd9df" : "#f2dfab")};
+  line-height: 1.6;
+`;
+
 type OverviewPayload = {
   workspace: {
     vendor: {
@@ -206,6 +239,23 @@ type OverviewPayload = {
       role: string;
     };
     teamSize: number;
+    limits?: {
+      currentPlan?: {
+        name: string;
+      };
+      listingCount?: number;
+      listingLimit?: number;
+      listingNearLimit?: boolean;
+      listingOverLimit?: boolean;
+      agentCount?: number;
+      agentLimit?: number;
+      agentNearLimit?: boolean;
+      agentOverLimit?: boolean;
+      suggestedUpgrade?: {
+        name: string;
+        priceLabel: string;
+      } | null;
+    };
   };
   metrics: {
     totalProperties: number;
@@ -218,6 +268,14 @@ type OverviewPayload = {
     publishedValue: number;
     salesRequestsCount: number;
     appointmentsCount: number;
+    listingViewsCount: number;
+    uniqueListingViewers: number;
+    inquiryLeadCount: number;
+    qualifiedLeadCount: number;
+    closedLeadCount: number;
+    lostLeadCount: number;
+    leadConversionRate: number;
+    viewToLeadRate: number;
   };
   nextAppointment:
     | {
@@ -229,6 +287,28 @@ type OverviewPayload = {
     | null;
   statusMix: Array<{ key: string; count: number }>;
   listingTypes: Array<{ key: string; count: number }>;
+  agentPerformance: Array<{
+    user_id: string;
+    name: string;
+    listings_count: number;
+    published_count: number;
+    total_views: number;
+    appointments_count: number;
+    assigned_leads: number;
+    qualified_leads: number;
+    closed_leads: number;
+  }>;
+  marketInsights: {
+    topDemandTownships: Array<{ label: string; count: number }>;
+    topPropertyDemand: Array<{ key: string; count: number }>;
+    topViewedListings: Array<{
+      property_id: string;
+      title: string;
+      township: string | null;
+      status: string | null;
+      views: number;
+    }>;
+  };
   recentProperties: Array<{
     id: string;
     title: string | null;
@@ -315,9 +395,22 @@ export function VendorDashboardView() {
       <Header>
         <Title>{data.workspace.vendor.name}</Title>
         <Subtitle>
-          Dashboard overview for your vendor workspace. Membership role: {labelize(data.workspace.membership.role)}.
+          Dashboard overview for your vendor workspace. Membership role: {labelize(data.workspace.membership.role)}. Current plan:{" "}
+          {data.workspace.limits?.currentPlan?.name || labelize(data.workspace.vendor.plan)}.
         </Subtitle>
       </Header>
+
+      {data.workspace.limits && (data.workspace.limits.listingNearLimit || data.workspace.limits.agentNearLimit) ? (
+        <Notice $danger={data.workspace.limits.listingOverLimit || data.workspace.limits.agentOverLimit}>
+          {data.workspace.limits.listingOverLimit || data.workspace.limits.agentOverLimit
+            ? "This workspace is over its current plan soft limit. The next billing phase should force this account into an upgrade or reduction path."
+            : `This workspace is close to its plan limit: ${data.workspace.limits.listingCount ?? 0}/${data.workspace.limits.listingLimit ?? 0} listings and ${data.workspace.limits.agentCount ?? 0}/${data.workspace.limits.agentLimit ?? 0} seats. ${
+                data.workspace.limits.suggestedUpgrade
+                  ? `Recommended upgrade: ${data.workspace.limits.suggestedUpgrade.name} (${data.workspace.limits.suggestedUpgrade.priceLabel}).`
+                  : ""
+              }`}
+        </Notice>
+      ) : null}
 
       <SummaryGrid>
         <Card>
@@ -354,6 +447,24 @@ export function VendorDashboardView() {
           </MetricTop>
           <MetricValue>{data.metrics.salesRequestsCount}</MetricValue>
           <BlockCopy>Lead-side submissions and draft listing requests.</BlockCopy>
+        </Card>
+
+        <Card>
+          <MetricTop>
+            <MetricTitle>Listing views</MetricTitle>
+            <Eye size={18} color="#ff5d78" />
+          </MetricTop>
+          <MetricValue>{data.metrics.listingViewsCount}</MetricValue>
+          <BlockCopy>{data.metrics.uniqueListingViewers} unique viewers captured so far.</BlockCopy>
+        </Card>
+
+        <Card>
+          <MetricTop>
+            <MetricTitle>Lead conversion</MetricTitle>
+            <TrendingUp size={18} color="#ff5d78" />
+          </MetricTop>
+          <MetricValue>{data.metrics.leadConversionRate}%</MetricValue>
+          <BlockCopy>{data.metrics.closedLeadCount} closed from {data.metrics.inquiryLeadCount} routed leads.</BlockCopy>
         </Card>
       </SummaryGrid>
 
@@ -450,6 +561,114 @@ export function VendorDashboardView() {
             </RecentList>
           ) : (
             <Empty>No properties created yet.</Empty>
+          )}
+        </Card>
+      </DetailGrid>
+
+      <AnalyticsGrid>
+        <Card>
+          <BlockTitle>Lead funnel</BlockTitle>
+          <StatsList>
+            <StatRow>
+              <span>Routed leads</span>
+              <CountPill>{data.metrics.inquiryLeadCount}</CountPill>
+            </StatRow>
+            <StatRow>
+              <span>Qualified leads</span>
+              <CountPill>{data.metrics.qualifiedLeadCount}</CountPill>
+            </StatRow>
+            <StatRow>
+              <span>Closed leads</span>
+              <CountPill>{data.metrics.closedLeadCount}</CountPill>
+            </StatRow>
+            <StatRow>
+              <span>Lost leads</span>
+              <CountPill>{data.metrics.lostLeadCount}</CountPill>
+            </StatRow>
+            <StatRow>
+              <span>View to lead rate</span>
+              <CountPill>{data.metrics.viewToLeadRate}%</CountPill>
+            </StatRow>
+          </StatsList>
+        </Card>
+
+        <Card>
+          <BlockTitle>Top demand townships</BlockTitle>
+          {data.marketInsights.topDemandTownships.length ? (
+            <MiniList>
+              {data.marketInsights.topDemandTownships.map((item) => (
+                <InsightRow key={item.label}>
+                  <span>{item.label}</span>
+                  <CountPill>{item.count}</CountPill>
+                </InsightRow>
+              ))}
+            </MiniList>
+          ) : (
+            <Empty>No routed inquiry demand hotspots yet.</Empty>
+          )}
+        </Card>
+
+        <Card>
+          <BlockTitle>Property demand mix</BlockTitle>
+          {data.marketInsights.topPropertyDemand.length ? (
+            <MiniList>
+              {data.marketInsights.topPropertyDemand.map((item) => (
+                <InsightRow key={item.key}>
+                  <span>{labelize(item.key)}</span>
+                  <CountPill>{item.count}</CountPill>
+                </InsightRow>
+              ))}
+            </MiniList>
+          ) : (
+            <Empty>No inquiry demand mix yet.</Empty>
+          )}
+        </Card>
+      </AnalyticsGrid>
+
+      <DetailGrid>
+        <Card>
+          <BlockTitle>Per-agent performance</BlockTitle>
+          {data.agentPerformance.length ? (
+            <MiniList>
+              {data.agentPerformance.map((agent) => (
+                <InsightRow key={agent.user_id}>
+                  <span>
+                    {agent.name}
+                    <br />
+                    <span style={{ color: "#9aa4b6", fontSize: "0.85rem" }}>
+                      {agent.listings_count} listings • {agent.assigned_leads} leads • {agent.closed_leads} closed
+                    </span>
+                  </span>
+                  <CountPill>{agent.total_views}</CountPill>
+                </InsightRow>
+              ))}
+            </MiniList>
+          ) : (
+            <Empty>No team performance data yet.</Empty>
+          )}
+        </Card>
+
+        <Card>
+          <BlockTitle>Top viewed listings</BlockTitle>
+          {data.marketInsights.topViewedListings.length ? (
+            <MiniList>
+              {data.marketInsights.topViewedListings.map((listing) => (
+                <InsightRow key={listing.property_id}>
+                  <span>
+                    <Link href={`/vendor/properties/${listing.property_id}`} style={{ color: "#f8fafc", fontWeight: 700 }}>
+                      {listing.title}
+                    </Link>
+                    <br />
+                    <span style={{ color: "#9aa4b6", fontSize: "0.85rem" }}>
+                      {[listing.township, labelize(listing.status)].filter(Boolean).join(" • ")}
+                    </span>
+                  </span>
+                  <CountPill>{listing.views}</CountPill>
+                </InsightRow>
+              ))}
+            </MiniList>
+          ) : (
+            <Empty>No listing view data yet. Views will start showing after the public listing tracker is live.</Empty>
           )}
         </Card>
       </DetailGrid>

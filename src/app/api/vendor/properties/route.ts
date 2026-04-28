@@ -13,6 +13,7 @@ type PropertyRow = {
   township: string | null;
   city: string | null;
   created_at: string | null;
+  verification_status: string | null;
 };
 
 export async function GET(request: Request) {
@@ -34,7 +35,7 @@ export async function GET(request: Request) {
 
   let queryBuilder = supabase
     .from("properties")
-    .select("id,title,deal_type,property_type,price,currency,status,district,township,city,created_at")
+    .select("id,title,deal_type,property_type,price,currency,status,district,township,city,created_at,verification_status")
     .in("created_by", memberIds)
     .eq("is_deleted", false)
     .order("created_at", { ascending: false });

@@ -1,0 +1,236 @@
+import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+import { createDingerPrebuiltCheckoutUrl } from "@/lib/dinger";
+import { getBearerToken } from "@/lib/vendor-auth";
+import { getVendorPlan, isVendorPlanKey } from "@/lib/vendor-plans";
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+
+const dingerClientId = process.env.DINGER_CLIENT_ID ?? "";
+const dingerPublicKey = process.env.DINGER_PUBLIC_KEY ?? "";
+const dingerMerchantKey = process.env.DINGER_MERCHANT_KEY ?? "";
+const dingerProjectName = process.env.DINGER_PROJECT_NAME ?? "";
+const dingerMerchantName = process.env.DINGER_MERCHANT_NAME ?? "";
+const dingerBillingProvider = "dinger";
+
+const isConfigured = Boolean(supabaseUrl && supabaseServiceRoleKey);
+const isDingerConfigured = Boolean(
+  dingerClientId && dingerPublicKey && dingerMerchantKey && dingerProjectName && dingerMerchantName
+);
+
+function getFallbackVendorName(email: string | null | undefined) {
+  if (!email) return "My Vendor Workspace";
+  const localPart = email.split("@")[0]?.trim() ?? "";
+  return localPart ? `${localPart} Workspace` : "My Vendor Workspace";
+}
+
+export async function POST(request: Request) {
+  if (!isConfigured) {
+    return NextResponse.json({ error: "Supabase is not configured." }, { status: 500 });
+  }
+
+  if (!isDingerConfigured) {
+    return NextResponse.json({ error: "Dinger is not configured." }, { status: 500 });
+  }
+
+  const token = getBearerToken(request);
+  if (!token) {
+    return NextResponse.json({ error: "Missing authorization token." }, { status: 401 });
+  }
+
+  let body: {
+    plan?: string;
+    vendorType?: "solo_agent" | "agency" | "developer";
+    vendorName?: string;
+  } = {};
+
+  try {
+    body = (await request.json()) as typeof body;
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON." }, { status: 400 });
+  }
+
+  if (!isVendorPlanKey(body.plan) || body.plan === "free") {
+    return NextResponse.json({ error: "A paid plan is required for checkout." }, { status: 400 });
+  }
+
+  const plan = getVendorPlan(body.plan);
+  const vendorType = body.vendorType ?? "agency";
+
+  const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+
+  const { data: userData, error: authError } = await supabase.auth.getUser(token);
+  const user = userData.user;
+
+  if (authError || !user) {
+    return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  }
+
+  const { data: profileData, error: profileError } = await supabase
+    .from("profiles")
+    .select("id,full_name,email,role")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (profileError || !profileData) {
+    return NextResponse.json({ error: profileError?.message ?? "Profile not found." }, { status: 403 });
+  }
+
+  if (profileData.role !== "vendor_user") {
+    return NextResponse.json({ error: "Only vendor accounts can start billing checkout." }, { status: 403 });
+  }
+
+  const { data: existingMembershipRows, error: membershipError } = await supabase
+    .from("vendor_members")
+    .select("vendor_id,role,status,vendor:vendors(id,name,plan,billing_status)")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: true })
+    .limit(1);
+
+  if (membershipError) {
+    return NextResponse.json({ error: membershipError.message }, { status: 500 });
+  }
+
+  const existingMembership = existingMembershipRows?.[0] as
+    | {
+        vendor_id?: string | null;
+        role?: string | null;
+        status?: string | null;
+        vendor?:
+          | {
+              id?: string | null;
+              name?: string | null;
+              plan?: string | null;
+              billing_status?: string | null;
+            }
+          | Array<{
+              id?: string | null;
+              name?: string | null;
+              plan?: string | null;
+              billing_status?: string | null;
+            }>
+          | null;
+      }
+    | undefined;
+
+  const existingVendor = Array.isArray(existingMembership?.vendor)
+    ? existingMembership?.vendor[0]
+    : existingMembership?.vendor;
+
+  let vendorId = existingVendor?.id ? String(existingVendor.id) : null;
+
+  if (!vendorId) {
+    const vendorName =
+      body.vendorName?.trim() ||
+      (typeof profileData.full_name === "string" && profileData.full_name.trim()) ||
+      getFallbackVendorName((profileData.email as string | null | undefined) ?? user.email);
+
+    const { data: vendorData, error: vendorInsertError } = await supabase
+      .from("vendors")
+      .insert({
+        name: vendorName,
+        vendor_type: vendorType,
+        plan: plan.key,
+        billing_status: "pending",
+        billing_provider: dingerBillingProvider,
+      })
+      .select("id")
+      .single();
+
+    if (vendorInsertError || !vendorData?.id) {
+      return NextResponse.json(
+        { error: vendorInsertError?.message ?? "Unable to create vendor workspace for checkout." },
+        { status: 500 }
+      );
+    }
+
+    vendorId = String(vendorData.id);
+
+    const { error: memberInsertError } = await supabase.from("vendor_members").insert({
+      vendor_id: vendorId,
+      user_id: user.id,
+      role: "owner",
+      status: "active",
+    });
+
+    if (memberInsertError) {
+      await supabase.from("vendors").delete().eq("id", vendorId);
+      return NextResponse.json({ error: memberInsertError.message }, { status: 500 });
+    }
+  } else {
+    const { error: vendorUpdateError } = await supabase
+      .from("vendors")
+      .update({
+        plan: plan.key,
+        billing_status: "pending",
+        billing_provider: dingerBillingProvider,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", vendorId);
+
+    if (vendorUpdateError) {
+      return NextResponse.json({ error: vendorUpdateError.message }, { status: 500 });
+    }
+  }
+
+  const merchantOrderId = `vendor-plan-${vendorId}-${Date.now()}`;
+
+  const { data: paymentRow, error: paymentError } = await supabase
+    .from("vendor_payments")
+    .insert({
+      vendor_id: vendorId,
+      plan: plan.key,
+      amount: plan.monthlyPriceMmk,
+      currency: "MMK",
+      provider: dingerBillingProvider,
+      provider_order_id: merchantOrderId,
+      status: "pending",
+      raw_payload: {
+        initiated_by: user.id,
+        source: "vendor_setup",
+      },
+    })
+    .select("id")
+    .single();
+
+  if (paymentError || !paymentRow?.id) {
+    return NextResponse.json({ error: paymentError?.message ?? "Unable to create payment record." }, { status: 500 });
+  }
+
+  const checkoutUrl = createDingerPrebuiltCheckoutUrl({
+    clientId: dingerClientId,
+    publicKey: dingerPublicKey,
+    merchantKey: dingerMerchantKey,
+    projectName: dingerProjectName,
+    merchantName: dingerMerchantName,
+    customerName:
+      (typeof profileData.full_name === "string" && profileData.full_name.trim()) ||
+      (profileData.email as string | null) ||
+      "Vendor User",
+    totalAmount: plan.monthlyPriceMmk,
+    merchantOrderId,
+    items: [
+      {
+        name: `${plan.name} vendor plan`,
+        amount: plan.monthlyPriceMmk,
+        quantity: 1,
+      },
+    ],
+    production: process.env.DINGER_ENV === "production",
+  });
+
+  return NextResponse.json({
+    ok: true,
+    checkoutUrl,
+    vendorId,
+    paymentId: String(paymentRow.id),
+    merchantOrderId,
+    plan: plan.key,
+  });
+}

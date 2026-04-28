@@ -26,6 +26,18 @@ export type VendorRequestContext = {
     name: string;
     vendor_type: string;
     plan: string | null;
+    billing_status: string | null;
+    billing_provider: string | null;
+    slug: string | null;
+    tagline: string | null;
+    description: string | null;
+    contact_phone: string | null;
+    contact_email: string | null;
+    logo_url: string | null;
+    cover_image_url: string | null;
+    strengths: string[];
+    public_storefront_enabled: boolean;
+    verified_status: string | null;
   };
   membership: {
     role: string;
@@ -34,7 +46,25 @@ export type VendorRequestContext = {
   memberIds: string[];
 };
 
+type VendorRequestContextOptions = {
+  allowPendingBilling?: boolean;
+};
+
 export async function getVendorRequestContext(request: Request): Promise<
+  | { ok: true; context: VendorRequestContext }
+  | { ok: false; response: NextResponse }
+>;
+export async function getVendorRequestContext(
+  request: Request,
+  options: VendorRequestContextOptions
+): Promise<
+  | { ok: true; context: VendorRequestContext }
+  | { ok: false; response: NextResponse }
+>;
+export async function getVendorRequestContext(
+  request: Request,
+  options: VendorRequestContextOptions = {}
+): Promise<
   | { ok: true; context: VendorRequestContext }
   | { ok: false; response: NextResponse }
 > {
@@ -92,7 +122,9 @@ export async function getVendorRequestContext(request: Request): Promise<
 
   const { data: membershipRows, error: membershipError } = await supabase
     .from("vendor_members")
-    .select("role,status,vendor:vendors(id,name,vendor_type,plan),created_at")
+    .select(
+      "role,status,vendor:vendors(id,name,vendor_type,plan,billing_status,billing_provider,slug,tagline,description,contact_phone,contact_email,logo_url,cover_image_url,strengths,public_storefront_enabled,verified_status:verification_status),created_at"
+    )
     .eq("user_id", user.id)
     .eq("status", "active")
     .order("created_at", { ascending: true })
@@ -115,12 +147,36 @@ export async function getVendorRequestContext(request: Request): Promise<
               name?: string | null;
               vendor_type?: string | null;
               plan?: string | null;
+              billing_status?: string | null;
+              billing_provider?: string | null;
+              slug?: string | null;
+              tagline?: string | null;
+              description?: string | null;
+              contact_phone?: string | null;
+              contact_email?: string | null;
+              logo_url?: string | null;
+              cover_image_url?: string | null;
+              strengths?: unknown;
+              public_storefront_enabled?: boolean | null;
+              verified_status?: string | null;
             }
           | Array<{
               id?: string | null;
               name?: string | null;
               vendor_type?: string | null;
               plan?: string | null;
+              billing_status?: string | null;
+              billing_provider?: string | null;
+              slug?: string | null;
+              tagline?: string | null;
+              description?: string | null;
+              contact_phone?: string | null;
+              contact_email?: string | null;
+              logo_url?: string | null;
+              cover_image_url?: string | null;
+              strengths?: unknown;
+              public_storefront_enabled?: boolean | null;
+              verified_status?: string | null;
             }>
           | null;
       }
@@ -152,6 +208,17 @@ export async function getVendorRequestContext(request: Request): Promise<
     .map((row) => String(row.user_id ?? ""))
     .filter(Boolean);
 
+  const requiresActiveBilling = vendorRaw.plan && vendorRaw.plan !== "free";
+  if (requiresActiveBilling && vendorRaw.billing_status !== "active" && !options.allowPendingBilling) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: "Billing activation required before accessing the paid vendor workspace." },
+        { status: 402 }
+      ),
+    };
+  }
+
   return {
     ok: true,
     context: {
@@ -171,6 +238,20 @@ export async function getVendorRequestContext(request: Request): Promise<
         name: String(vendorRaw.name),
         vendor_type: String(vendorRaw.vendor_type),
         plan: (vendorRaw.plan as string | null) ?? null,
+        billing_status: (vendorRaw.billing_status as string | null) ?? null,
+        billing_provider: (vendorRaw.billing_provider as string | null) ?? null,
+        slug: (vendorRaw.slug as string | null) ?? null,
+        tagline: (vendorRaw.tagline as string | null) ?? null,
+        description: (vendorRaw.description as string | null) ?? null,
+        contact_phone: (vendorRaw.contact_phone as string | null) ?? null,
+        contact_email: (vendorRaw.contact_email as string | null) ?? null,
+        logo_url: (vendorRaw.logo_url as string | null) ?? null,
+        cover_image_url: (vendorRaw.cover_image_url as string | null) ?? null,
+        strengths: Array.isArray(vendorRaw.strengths)
+          ? vendorRaw.strengths.map((item) => String(item)).filter(Boolean)
+          : [],
+        public_storefront_enabled: vendorRaw.public_storefront_enabled !== false,
+        verified_status: (vendorRaw.verified_status as string | null) ?? null,
       },
       membership: {
         role: String(membershipRow.role),

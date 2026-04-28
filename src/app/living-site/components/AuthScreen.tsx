@@ -266,6 +266,9 @@ export function AuthScreen({ role, onSuccess, onChangeRole }: AuthScreenProps) {
     setLoadingMessage(null);
     if (result.error) {
       setMessage(result.error);
+      if (typeof window !== "undefined") {
+        window.alert(result.error);
+      }
       return;
     }
     setMessage(mode === "login" ? t("auth.signedIn") : t("auth.checkEmail"));

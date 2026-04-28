@@ -1,1 +1,1 @@
-export { default } from "../living-site/activities/page";
+export { default } from "../living-site/account/page";

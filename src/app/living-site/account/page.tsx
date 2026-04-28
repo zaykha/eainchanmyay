@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import styled from "styled-components";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import {
   BadgeCheck,
   Bath,
@@ -364,6 +365,99 @@ const CTAButton = styled.button`
   box-shadow: var(--frame-shadow);
 `;
 
+const VendorGrid = styled.div`
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+
+  @media (max-width: 960px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const VendorCard = styled(Panel)`
+  display: grid;
+  gap: 14px;
+`;
+
+const VendorHero = styled.div`
+  display: grid;
+  gap: 8px;
+`;
+
+const VendorTitle = styled.h2`
+  margin: 0;
+  font-size: clamp(1.5rem, 3vw, 2.1rem);
+`;
+
+const VendorMeta = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+`;
+
+const VendorPill = styled.span<{ $tone?: "success" | "warning" | "neutral" }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid
+    ${(props) =>
+      props.$tone === "success"
+        ? "rgba(16, 185, 129, 0.28)"
+        : props.$tone === "warning"
+        ? "rgba(245, 158, 11, 0.28)"
+        : "var(--color-outline)"};
+  background: ${(props) =>
+    props.$tone === "success"
+      ? "rgba(16, 185, 129, 0.12)"
+      : props.$tone === "warning"
+      ? "rgba(245, 158, 11, 0.12)"
+      : "var(--color-surface-2)"};
+  color: ${(props) =>
+    props.$tone === "success" ? "#0f766e" : props.$tone === "warning" ? "#b45309" : "var(--color-text)"};
+  font-size: 0.82rem;
+  font-weight: 700;
+`;
+
+const VendorActionGrid = styled.div`
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const VendorAction = styled(Link)`
+  border: 1px solid var(--color-outline);
+  border-radius: 16px;
+  background: var(--color-surface);
+  padding: 14px 16px;
+  display: grid;
+  gap: 6px;
+  color: inherit;
+  text-decoration: none;
+  box-shadow: var(--shadow-soft);
+`;
+
+const VendorActionTitle = styled.strong`
+  color: var(--color-text);
+`;
+
+const VendorActionCopy = styled.span`
+  color: var(--color-muted);
+  line-height: 1.55;
+  font-size: 0.92rem;
+`;
+
+const VendorSectionTitle = styled.h3`
+  margin: 0;
+  font-size: 1rem;
+`;
+
 const FloatingAction = styled.button`
   position: fixed;
   right: 16px;
@@ -381,19 +475,6 @@ const FloatingAction = styled.button`
   @media (min-width: 641px) {
     display: none;
   }
-`;
-
-const BenefitsCard = styled(Panel)`
-  display: grid;
-  gap: 10px;
-`;
-
-const BenefitList = styled.ul`
-  margin: 0;
-  padding-left: 18px;
-  color: var(--color-muted);
-  display: grid;
-  gap: 6px;
 `;
 
 const CardDivider = styled.div`
@@ -550,8 +631,9 @@ const formatArea = (value: unknown, locale: string, unitLabel: string) => {
 };
 
 export default function AccountPage() {
-  const { user, loading } = useAppState();
+  const { user, loading, profileRole, profileReady, authToken } = useAppState();
   const router = useRouter();
+  const pathname = usePathname();
   const { t, language } = useI18n();
   const locale =
     language === "mm" ? "my-MM" : language === "zh" ? "zh-CN" : language === "th" ? "th-TH" : "en-US";
@@ -566,9 +648,50 @@ export default function AccountPage() {
   );
   const [activeInquiry, setActiveInquiry] = useState<Record<string, unknown> | null>(null);
   const [activeSale, setActiveSale] = useState<Record<string, unknown> | null>(null);
+  const [vendorWorkspace, setVendorWorkspace] = useState<{
+    vendor: {
+      id: string;
+      name: string;
+      vendor_type: string;
+      plan: string | null;
+      billing_status?: string | null;
+      public_storefront_enabled?: boolean;
+      slug?: string | null;
+      verified_status?: string | null;
+    };
+    membership: {
+      role: string;
+    };
+    limits?: {
+      currentPlan?: {
+        name: string;
+      };
+      listingCount?: number;
+      listingLimit?: number;
+      agentCount?: number;
+      agentLimit?: number;
+    };
+  } | null>(null);
+  const [vendorWorkspaceError, setVendorWorkspaceError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!profileReady || loading) return;
+    if (!user) {
+      router.replace("/auth");
+      return;
+    }
+    if (profileRole === "vendor_user" && pathname === "/account") {
+      router.replace("/hub");
+      return;
+    }
+    if (profileRole !== "vendor_user" && pathname === "/hub") {
+      router.replace("/account");
+    }
+  }, [loading, pathname, profileReady, profileRole, router, user]);
 
   useEffect(() => {
     if (!user?.id) return;
+    if (profileRole === "vendor_user") return;
     let active = true;
     setDataLoading(true);
     Promise.all([
@@ -595,34 +718,236 @@ export default function AccountPage() {
     return () => {
       active = false;
     };
-  }, [user?.id]);
+  }, [profileRole, user?.id]);
+
+  useEffect(() => {
+    if (profileRole !== "vendor_user" || !authToken) return;
+
+    let active = true;
+    setVendorWorkspaceError(null);
+
+    fetch("/api/vendor/workspace", {
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+      },
+    })
+      .then(async (response) => {
+        const payload = (await response.json().catch(() => null)) as
+          | {
+              vendor?: {
+                id: string;
+                name: string;
+                vendor_type: string;
+                plan: string | null;
+                billing_status?: string | null;
+                public_storefront_enabled?: boolean;
+                slug?: string | null;
+                verified_status?: string | null;
+              };
+              membership?: { role: string };
+              limits?: {
+                currentPlan?: { name: string };
+                listingCount?: number;
+                listingLimit?: number;
+                agentCount?: number;
+                agentLimit?: number;
+              };
+              error?: string;
+            }
+          | null;
+        if (!response.ok) {
+          throw new Error(payload?.error || "Unable to load vendor workspace.");
+        }
+        if (active) {
+          setVendorWorkspace(
+            payload?.vendor && payload?.membership
+              ? {
+                  vendor: payload.vendor,
+                  membership: payload.membership,
+                  limits: payload.limits,
+                }
+              : null
+          );
+        }
+      })
+      .catch((error) => {
+        if (active) {
+          setVendorWorkspaceError(error instanceof Error ? error.message : "Unable to load vendor workspace.");
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [authToken, profileRole]);
 
   const closeDetails = () => {
     setActiveInquiry(null);
     setActiveSale(null);
   };
 
+  const labelize = (value: string | null | undefined) =>
+    value
+      ? value
+          .split("_")
+          .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+          .join(" ")
+      : "Unknown";
+
+  if (loading || !profileReady) {
+    return (
+      <div>
+        <SiteHeader />
+        <PageShell>
+          <Muted>{t("account.loading")}</Muted>
+        </PageShell>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div>
+        <SiteHeader />
+        <PageShell>
+          <Muted>{t("account.loading")}</Muted>
+        </PageShell>
+      </div>
+    );
+  }
+
   return (
     <div>
       <SiteHeader />
       <PageShell>
-        {!user && (
-          <BenefitsCard>
-            <strong>{t("account.whyTitle")}</strong>
-            <BenefitList>
-              <li>{t("account.benefit.saveCompare")}</li>
-              <li>{t("account.benefit.trackViewing")}</li>
-              <li>{t("account.benefit.prefilled")}</li>
-              <li>{t("account.benefit.alerts")}</li>
-              <li>{t("account.benefit.priority")}</li>
-            </BenefitList>
-            <CTAButton type="button" onClick={() => router.push("/auth")}>
-              {t("common.signIn")}
-            </CTAButton>
-          </BenefitsCard>
+        {user && profileRole === "vendor_user" && (
+          <VendorGrid>
+            <VendorCard>
+              <VendorHero>
+                <VendorTitle>{vendorWorkspace?.vendor.name || "Agency account"}</VendorTitle>
+                <Muted>
+                  Agency account access depends on your workspace role and the current plan. Use this page as the entry point to your dashboard, public agency profile, and operational tools.
+                </Muted>
+                <VendorMeta>
+                  <VendorPill>{vendorWorkspace?.limits?.currentPlan?.name || labelize(vendorWorkspace?.vendor.plan)}</VendorPill>
+                  <VendorPill>{labelize(vendorWorkspace?.membership.role)}</VendorPill>
+                  {vendorWorkspace?.vendor.verified_status === "approved" ? (
+                    <VendorPill $tone="success">
+                      <BadgeCheck size={14} />
+                      Verified agency
+                    </VendorPill>
+                  ) : null}
+                  {vendorWorkspace?.vendor.billing_status && vendorWorkspace.vendor.plan !== "free" ? (
+                    <VendorPill $tone={vendorWorkspace.vendor.billing_status === "active" ? "success" : "warning"}>
+                      {labelize(vendorWorkspace.vendor.billing_status)}
+                    </VendorPill>
+                  ) : null}
+                </VendorMeta>
+              </VendorHero>
+
+              {vendorWorkspaceError ? <Muted>{vendorWorkspaceError}</Muted> : null}
+
+              <VendorSectionTitle>Workspace</VendorSectionTitle>
+              <VendorActionGrid>
+                <VendorAction href="/vendor">
+                  <VendorActionTitle>Dashboard</VendorActionTitle>
+                  <VendorActionCopy>
+                    Open your agency dashboard, analytics, listings, and lead operations.
+                  </VendorActionCopy>
+                </VendorAction>
+
+                <VendorAction href="/vendor/properties">
+                  <VendorActionTitle>Properties</VendorActionTitle>
+                  <VendorActionCopy>
+                    Review current listings, verification state, and property activity.
+                  </VendorActionCopy>
+                </VendorAction>
+
+                <VendorAction href="/vendor/inquiries">
+                  <VendorActionTitle>Lead Inbox</VendorActionTitle>
+                  <VendorActionCopy>
+                    Handle routed marketplace inquiries, pipeline stages, reminders, and templates.
+                  </VendorActionCopy>
+                </VendorAction>
+
+                <VendorAction href="/vendor/settings">
+                  <VendorActionTitle>Agency Profile</VendorActionTitle>
+                  <VendorActionCopy>
+                    Update public storefront branding, contact points, and agency strengths.
+                  </VendorActionCopy>
+                </VendorAction>
+              </VendorActionGrid>
+            </VendorCard>
+
+            <VendorCard>
+              <VendorSectionTitle>Access by role and plan</VendorSectionTitle>
+              <List>
+                <ListItem>
+                  <strong>Membership role</strong>
+                  <Muted>{labelize(vendorWorkspace?.membership.role)}</Muted>
+                </ListItem>
+                <ListItem>
+                  <strong>Listing capacity</strong>
+                  <Muted>
+                    {vendorWorkspace?.limits?.listingCount ?? 0} / {vendorWorkspace?.limits?.listingLimit ?? 0} listings
+                  </Muted>
+                </ListItem>
+                <ListItem>
+                  <strong>Team capacity</strong>
+                  <Muted>
+                    {vendorWorkspace?.limits?.agentCount ?? 0} / {vendorWorkspace?.limits?.agentLimit ?? 0} seats
+                  </Muted>
+                </ListItem>
+                <ListItem>
+                  <strong>Public storefront</strong>
+                  <Muted>
+                    {vendorWorkspace?.vendor.public_storefront_enabled && vendorWorkspace?.vendor.slug
+                      ? `Live at /agency/${vendorWorkspace.vendor.slug}`
+                      : "Not published yet"}
+                  </Muted>
+                </ListItem>
+              </List>
+
+              <VendorActionGrid>
+                {(vendorWorkspace?.membership.role === "owner" || vendorWorkspace?.membership.role === "admin") && (
+                  <VendorAction href="/vendor/team">
+                    <VendorActionTitle>Team</VendorActionTitle>
+                    <VendorActionCopy>
+                      Manage agents, assignments, and operational seats in this workspace.
+                    </VendorActionCopy>
+                  </VendorAction>
+                )}
+
+                {(vendorWorkspace?.membership.role === "owner" || vendorWorkspace?.membership.role === "admin") && (
+                  <VendorAction href="/vendor/verification">
+                    <VendorActionTitle>Verification</VendorActionTitle>
+                    <VendorActionCopy>
+                      Submit or review manual agency verification requirements for this workspace.
+                    </VendorActionCopy>
+                  </VendorAction>
+                )}
+
+                {vendorWorkspace?.vendor.public_storefront_enabled && vendorWorkspace?.vendor.slug ? (
+                  <VendorAction href={`/agency/${vendorWorkspace.vendor.slug}`}>
+                    <VendorActionTitle>Public Profile</VendorActionTitle>
+                    <VendorActionCopy>
+                      Open the live storefront buyers see for this agency.
+                    </VendorActionCopy>
+                  </VendorAction>
+                ) : null}
+
+                <VendorAction href="/request-sale">
+                  <VendorActionTitle>Request Listing</VendorActionTitle>
+                  <VendorActionCopy>
+                    Add a new property submission within your current plan limits.
+                  </VendorActionCopy>
+                </VendorAction>
+              </VendorActionGrid>
+            </VendorCard>
+          </VendorGrid>
         )}
 
-        {user && (
+        {profileRole !== "vendor_user" && (
           <>
             {/* <PageSection> */}
               <HeaderRow>
@@ -1174,7 +1499,7 @@ export default function AccountPage() {
           </ModalCard>
         </ModalOverlay>
       )}
-      <BottomNav />
+      {profileRole !== "vendor_user" ? <BottomNav /> : null}
     </div>
   );
 }

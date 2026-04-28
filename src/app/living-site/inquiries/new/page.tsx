@@ -10,7 +10,7 @@ import { CustomSelect } from "@/app/living-site/components/form-controls/CustomS
 import { CustomInput } from "@/app/living-site/components/form-controls/CustomInput";
 import { getDistricts, getStates, getTownships } from "@/app/living-site/lib/myanmar-geo";
 import { useAppState } from "@/app/living-site/lib/app-state";
-import { createInquiry, getInquiryById, updateInquiry } from "@/app/living-site/lib/data";
+import { getInquiryById, updateInquiry } from "@/app/living-site/lib/data";
 import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
 import { useI18n } from "@/app/living-site/lib/i18n";
 
@@ -124,7 +124,7 @@ const GhostButton = styled.button`
 function NewInquiryPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user } = useAppState();
+  const { user, authToken } = useAppState();
   const { t } = useI18n();
   const editId = searchParams.get("editId");
   const isEdit = Boolean(editId);
@@ -248,7 +248,25 @@ function NewInquiryPageContent() {
     const result =
       isEdit && editId
         ? await updateInquiry({ id: editId, ...payload })
-        : await createInquiry(payload);
+        : await (async () => {
+            if (!authToken) {
+              return { ok: false, message: t("inquiry.submitError") };
+            }
+
+            const response = await fetch("/api/public/inquiries", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${authToken}`,
+              },
+              body: JSON.stringify(payload),
+            });
+
+            const apiPayload = (await response.json().catch(() => null)) as { error?: string } | null;
+            return response.ok
+              ? { ok: true }
+              : { ok: false, message: apiPayload?.error ?? t("inquiry.submitError") };
+          })();
     setSubmitting(false);
     if (!result.ok) {
       setError(result.message ?? t("inquiry.submitError"));

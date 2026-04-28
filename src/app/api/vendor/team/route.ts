@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { getVendorRequestContext } from "@/app/api/vendor/_lib/context";
+import { getVendorPlanUsage } from "@/app/api/vendor/_lib/plan-limits";
 
 function normalizeRole(input: unknown) {
-  return input === "owner" || input === "admin" || input === "staff" ? input : null;
+  if (input === "staff") return "agent";
+  return input === "owner" || input === "admin" || input === "agent" ? input : null;
 }
 
 function normalizeStatus(input: unknown) {
@@ -31,7 +33,7 @@ export async function GET(request: Request) {
     const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
     return {
       user_id: String(row.user_id ?? ""),
-      role: String(row.role ?? "staff"),
+      role: String(row.role === "staff" ? "agent" : row.role ?? "agent"),
       status: String(row.status ?? "active"),
       created_at: row.created_at ?? null,
       full_name: (profile?.full_name as string | null) ?? null,
@@ -50,9 +52,20 @@ export async function POST(request: Request) {
   }
 
   const { supabase, membership, vendor } = result.context;
+  const { planUsage } = await getVendorPlanUsage(result.context);
 
   if (!["owner", "admin"].includes(membership.role)) {
     return NextResponse.json({ error: "Only owner or admin members can invite team seats." }, { status: 403 });
+  }
+
+  if (planUsage.agentUsage >= planUsage.agentLimit) {
+    return NextResponse.json(
+      {
+        error: `Your ${planUsage.plan.name} plan allows up to ${planUsage.agentLimit} active seats. Upgrade to add more agents.`,
+        code: "SEAT_LIMIT_REACHED",
+      },
+      { status: 403 }
+    );
   }
 
   let body: { email?: string; role?: string } = {};

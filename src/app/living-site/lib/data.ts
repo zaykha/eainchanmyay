@@ -20,6 +20,7 @@ export type Listing = {
 export type ListingDetail = {
   property: Record<string, unknown>;
   images: Record<string, unknown>[];
+  agency?: Record<string, unknown> | null;
 };
 
 export type ListingFilters = {
@@ -372,7 +373,7 @@ export async function getListingDetail(propertyId: string) {
   const { data: property, error } = await supabase
     .from("properties")
     .select(
-      "id,title,description,deal_type,property_type,price,currency,state_region,district,township,city,address_text,bedrooms,bathrooms,area_sqft,latitude,longitude"
+      "id,title,description,deal_type,property_type,price,currency,state_region,district,township,city,address_text,bedrooms,bathrooms,area_sqft,latitude,longitude,created_by,verification_status"
     )
     .eq("id", propertyId)
     .eq("status", "published")
@@ -390,9 +391,40 @@ export async function getListingDetail(propertyId: string) {
     .eq("property_id", propertyId)
     .order("sort_order", { ascending: true });
 
+  let agency: Record<string, unknown> | null = null;
+  const createdBy = typeof property.created_by === "string" ? property.created_by : "";
+
+  if (createdBy) {
+    const { data: membership } = await supabase
+      .from("vendor_members")
+      .select(
+        "vendor:vendors(id,name,slug,tagline,contact_phone,contact_email,plan,verification_status,public_storefront_enabled)"
+      )
+      .eq("user_id", createdBy)
+      .eq("status", "active")
+      .limit(1)
+      .maybeSingle();
+
+    const vendorRaw = Array.isArray(membership?.vendor) ? membership?.vendor[0] : membership?.vendor;
+    if (vendorRaw?.id && vendorRaw.name) {
+      agency = {
+        id: String(vendorRaw.id),
+        name: String(vendorRaw.name),
+        slug: (vendorRaw.slug as string | null) ?? null,
+        tagline: (vendorRaw.tagline as string | null) ?? null,
+        contact_phone: (vendorRaw.contact_phone as string | null) ?? null,
+        contact_email: (vendorRaw.contact_email as string | null) ?? null,
+        plan: (vendorRaw.plan as string | null) ?? null,
+        verification_status: (vendorRaw.verification_status as string | null) ?? null,
+        public_storefront_enabled: vendorRaw.public_storefront_enabled !== false,
+      };
+    }
+  }
+
   return {
     property,
     images: images ?? [],
+    agency,
   } as ListingDetail;
 }
 

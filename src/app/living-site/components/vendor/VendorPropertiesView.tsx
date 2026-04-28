@@ -170,6 +170,15 @@ const EmptyCard = styled.div`
   line-height: 1.65;
 `;
 
+const Notice = styled.div<{ $danger?: boolean }>`
+  border-radius: 22px;
+  border: 1px solid ${(props) => (props.$danger ? "rgba(255, 148, 148, 0.22)" : "rgba(255, 210, 92, 0.22)")};
+  background: ${(props) => (props.$danger ? "rgba(255, 148, 148, 0.08)" : "rgba(255, 210, 92, 0.08)")};
+  padding: 16px 18px;
+  color: ${(props) => (props.$danger ? "#ffd9df" : "#f2dfab")};
+  line-height: 1.6;
+`;
+
 type PropertyItem = {
   id: string;
   title: string | null;
@@ -182,6 +191,23 @@ type PropertyItem = {
   township: string | null;
   city: string | null;
   appointments_count: number;
+  verification_status: string | null;
+};
+
+type WorkspaceLimits = {
+  limits?: {
+    currentPlan?: {
+      name: string;
+    };
+    listingCount?: number;
+    listingLimit?: number;
+    listingNearLimit?: boolean;
+    listingOverLimit?: boolean;
+    suggestedUpgrade?: {
+      name: string;
+      priceLabel: string;
+    } | null;
+  };
 };
 
 function labelize(value: string | null | undefined) {
@@ -197,6 +223,7 @@ export function VendorPropertiesView() {
   const [items, setItems] = useState<PropertyItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [workspaceLimits, setWorkspaceLimits] = useState<WorkspaceLimits["limits"] | null>(null);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("");
   const [dealType, setDealType] = useState("");
@@ -220,17 +247,29 @@ export function VendorPropertiesView() {
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch(requestUrl, {
-          headers: {
-            Authorization: `Bearer ${authToken}`,
-          },
-        });
+        const [response, workspaceResponse] = await Promise.all([
+          fetch(requestUrl, {
+            headers: {
+              Authorization: `Bearer ${authToken}`,
+            },
+          }),
+          fetch("/api/vendor/workspace", {
+            headers: {
+              Authorization: `Bearer ${authToken}`,
+            },
+          }),
+        ]);
         const payload = (await response.json()) as { items?: PropertyItem[]; error?: string };
+        const workspacePayload = (await workspaceResponse.json()) as WorkspaceLimits & { error?: string };
         if (!response.ok) {
           throw new Error(payload?.error || "Unable to load vendor properties.");
         }
+        if (!workspaceResponse.ok) {
+          throw new Error(workspacePayload?.error || "Unable to load workspace limits.");
+        }
         if (!cancelled) {
           setItems(payload.items ?? []);
+          setWorkspaceLimits(workspacePayload.limits ?? null);
         }
       } catch (err) {
         if (!cancelled) {
@@ -267,6 +306,18 @@ export function VendorPropertiesView() {
           <span>Request listing</span>
         </ActionLink>
       </Header>
+
+      {workspaceLimits?.listingNearLimit ? (
+        <Notice $danger={workspaceLimits.listingOverLimit}>
+          {workspaceLimits.listingOverLimit
+            ? "This workspace is already over its current listing soft limit. New listing intake should move behind an upgrade flow in a later phase."
+            : `This workspace is close to its listing limit: ${workspaceLimits.listingCount ?? items.length}/${workspaceLimits.listingLimit ?? items.length}. ${
+                workspaceLimits.suggestedUpgrade
+                  ? `Recommended upgrade: ${workspaceLimits.suggestedUpgrade.name} (${workspaceLimits.suggestedUpgrade.priceLabel}).`
+                  : ""
+              }`}
+        </Notice>
+      ) : null}
 
       <Filters>
         <Input
@@ -323,6 +374,7 @@ export function VendorPropertiesView() {
               <Meta>
                 <Pill>{labelize(property.deal_type)}</Pill>
                 <Pill>{labelize(property.property_type)}</Pill>
+                <Pill>{`Verification: ${labelize(property.verification_status)}`}</Pill>
               </Meta>
               <Row>
                 <span>Price</span>

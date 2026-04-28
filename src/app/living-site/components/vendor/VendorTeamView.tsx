@@ -164,6 +164,15 @@ const Message = styled.p`
   line-height: 1.55;
 `;
 
+const Notice = styled.div<{ $danger?: boolean }>`
+  border-radius: 20px;
+  border: 1px solid ${(props) => (props.$danger ? "rgba(255, 148, 148, 0.22)" : "rgba(255, 210, 92, 0.22)")};
+  background: ${(props) => (props.$danger ? "rgba(255, 148, 148, 0.08)" : "rgba(255, 210, 92, 0.08)")};
+  padding: 16px 18px;
+  color: ${(props) => (props.$danger ? "#ffd9df" : "#f2dfab")};
+  line-height: 1.6;
+`;
+
 type Member = {
   user_id: string;
   role: string;
@@ -172,6 +181,26 @@ type Member = {
   full_name: string | null;
   email: string | null;
   phone: string | null;
+};
+
+type WorkspaceLimits = {
+  membership?: {
+    role?: string | null;
+  };
+  limits?: {
+    currentPlan?: {
+      name: string;
+    };
+    agentCount?: number;
+    agentLimit?: number;
+    agentNearLimit?: boolean;
+    agentOverLimit?: boolean;
+    suggestedUpgrade?: {
+      name: string;
+      priceLabel: string;
+    } | null;
+  };
+  error?: string;
 };
 
 function labelize(value: string | null | undefined) {
@@ -188,8 +217,9 @@ export function VendorTeamView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [canManage, setCanManage] = useState(false);
+  const [workspaceLimits, setWorkspaceLimits] = useState<WorkspaceLimits["limits"] | null>(null);
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState("staff");
+  const [inviteRole, setInviteRole] = useState("agent");
   const [savingInvite, setSavingInvite] = useState(false);
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
 
@@ -219,10 +249,7 @@ export function VendorTeamView() {
           }),
         ]);
         const payload = (await teamResponse.json()) as { members?: Member[]; error?: string };
-        const workspacePayload = (await workspaceResponse.json()) as {
-          membership?: { role?: string | null };
-          error?: string;
-        };
+        const workspacePayload = (await workspaceResponse.json()) as WorkspaceLimits;
         if (!teamResponse.ok) {
           throw new Error(payload?.error || "Unable to load the vendor team.");
         }
@@ -232,6 +259,7 @@ export function VendorTeamView() {
         if (!cancelled) {
           setMembers(payload.members ?? []);
           setCanManage(["owner", "admin"].includes(String(workspacePayload.membership?.role ?? "")));
+          setWorkspaceLimits(workspacePayload.limits ?? null);
         }
       } catch (err) {
         if (!cancelled) {
@@ -271,11 +299,12 @@ export function VendorTeamView() {
       if (!response.ok) {
         throw new Error(payload?.error || "Unable to add vendor member.");
       }
-      if (payload.member) {
-        setMembers((prev) => [...prev, payload.member]);
+      const newMember = payload.member;
+      if (newMember) {
+        setMembers((prev) => [...prev, newMember]);
       }
       setInviteEmail("");
-      setInviteRole("staff");
+      setInviteRole("agent");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to add vendor member.");
     } finally {
@@ -332,12 +361,24 @@ export function VendorTeamView() {
         <Heading>
           <Title>Team</Title>
           <Subtitle>
-            Manage vendor workspace seats under this company. Phase 2 supports existing vendor users by email and lets owner/admin accounts adjust roles and seat status.
+            Manage vendor workspace seats under this company. Phase 2 adds plan-aware seat visibility while the billing and hard enforcement layer is still being built.
           </Subtitle>
         </Heading>
       </Header>
 
       {error ? <Message>{error}</Message> : null}
+
+      {workspaceLimits && workspaceLimits.agentNearLimit ? (
+        <Notice $danger={workspaceLimits.agentOverLimit}>
+          {workspaceLimits.agentOverLimit
+            ? "This workspace is above its current seat soft limit. New billing enforcement should force an upgrade or seat reduction in a later phase."
+            : `This workspace is close to its seat limit: ${workspaceLimits.agentCount ?? activeCount}/${workspaceLimits.agentLimit ?? activeCount}. ${
+                workspaceLimits.suggestedUpgrade
+                  ? `Recommended upgrade: ${workspaceLimits.suggestedUpgrade.name} (${workspaceLimits.suggestedUpgrade.priceLabel}).`
+                  : ""
+              }`}
+        </Notice>
+      ) : null}
 
       <Grid>
         <Card>
@@ -359,7 +400,7 @@ export function VendorTeamView() {
                   required
                 />
                 <Select value={inviteRole} onChange={(event) => setInviteRole(event.target.value)}>
-                  <option value="staff">Staff</option>
+                  <option value="agent">Agent</option>
                   <option value="admin">Admin</option>
                   <option value="owner">Owner</option>
                 </Select>
@@ -386,7 +427,7 @@ export function VendorTeamView() {
             <br />
             Admin: operational and team management
             <br />
-            Staff: day-to-day workspace access
+            Agent: day-to-day workspace access and field operations
           </Empty>
         </Card>
       </Grid>
@@ -423,9 +464,9 @@ export function VendorTeamView() {
                         String(formData.get("status") || member.status)
                       );
                     }}
-                  >
-                    <Select name="role" defaultValue={member.role}>
-                      <option value="staff">Staff</option>
+                    >
+                      <Select name="role" defaultValue={member.role}>
+                      <option value="agent">Agent</option>
                       <option value="admin">Admin</option>
                       <option value="owner">Owner</option>
                     </Select>

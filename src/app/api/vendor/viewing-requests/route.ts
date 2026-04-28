@@ -1,6 +1,14 @@
 import { NextResponse } from "next/server";
 import { getVendorRequestContext } from "@/app/api/vendor/_lib/context";
 
+const allowedLeadStatuses = new Set(["new", "contacted", "scheduled", "closed", "lost"]);
+
+function normalizeLeadStatus(value: unknown) {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toLowerCase();
+  return allowedLeadStatuses.has(normalized) ? normalized : null;
+}
+
 export async function GET(request: Request) {
   const result = await getVendorRequestContext(request);
   if (!result.ok) {
@@ -42,7 +50,7 @@ export async function GET(request: Request) {
 
   const { data, error } = await supabase
     .from("viewing_requests")
-    .select("id,property_id,name,phone,preferred_date,preferred_time_window,notes,created_at,updated_at")
+    .select("id,property_id,name,phone,preferred_date,preferred_time_window,notes,lead_status,created_at,updated_at")
     .in("property_id", propertyIds)
     .order("created_at", { ascending: false });
 
@@ -59,4 +67,76 @@ export async function GET(request: Request) {
   });
 
   return NextResponse.json({ items });
+}
+
+export async function PATCH(request: Request) {
+  const result = await getVendorRequestContext(request);
+  if (!result.ok) {
+    return result.response;
+  }
+
+  const { supabase, memberIds } = result.context;
+  const raw = (await request.json().catch(() => null)) as { id?: unknown; lead_status?: unknown } | null;
+
+  const requestId = typeof raw?.id === "string" ? raw.id.trim() : "";
+  const leadStatus = normalizeLeadStatus(raw?.lead_status);
+
+  if (!requestId) {
+    return NextResponse.json({ error: "Viewing request id is required." }, { status: 400 });
+  }
+
+  if (!leadStatus) {
+    return NextResponse.json({ error: "Invalid lead status." }, { status: 400 });
+  }
+
+  const { data: requestRow, error: requestLookupError } = await supabase
+    .from("viewing_requests")
+    .select("id,property_id,lead_status")
+    .eq("id", requestId)
+    .maybeSingle();
+
+  if (requestLookupError) {
+    return NextResponse.json({ error: requestLookupError.message }, { status: 500 });
+  }
+
+  if (!requestRow?.id || !requestRow.property_id) {
+    return NextResponse.json({ error: "Viewing request not found." }, { status: 404 });
+  }
+
+  const { data: propertyRow, error: propertyLookupError } = await supabase
+    .from("properties")
+    .select("id,created_by")
+    .eq("id", requestRow.property_id)
+    .eq("is_deleted", false)
+    .maybeSingle();
+
+  if (propertyLookupError) {
+    return NextResponse.json({ error: propertyLookupError.message }, { status: 500 });
+  }
+
+  if (!propertyRow?.id || !memberIds.includes(String(propertyRow.created_by ?? ""))) {
+    return NextResponse.json({ error: "Viewing request not found in this vendor workspace." }, { status: 404 });
+  }
+
+  const { data: updatedRow, error: updateError } = await supabase
+    .from("viewing_requests")
+    .update({
+      lead_status: leadStatus,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", requestId)
+    .select("id,lead_status,updated_at")
+    .maybeSingle();
+
+  if (updateError) {
+    return NextResponse.json({ error: updateError.message }, { status: 500 });
+  }
+
+  return NextResponse.json({
+    item: {
+      id: String(updatedRow?.id ?? requestId),
+      lead_status: String(updatedRow?.lead_status ?? leadStatus),
+      updated_at: updatedRow?.updated_at ?? null,
+    },
+  });
 }

@@ -89,7 +89,7 @@ export async function POST(request: Request) {
     (typeof profileData?.full_name === "string" && profileData.full_name.trim()) ||
     getFallbackVendorName((profileData?.email as string | null | undefined) ?? user.email);
   const vendorType = body.vendorType ?? "solo_agent";
-  const plan = body.plan?.trim() ? body.plan.trim() : null;
+  const plan = body.plan?.trim() ? body.plan.trim() : "free";
 
   const { data: vendorData, error: vendorError } = await supabase
     .from("vendors")
