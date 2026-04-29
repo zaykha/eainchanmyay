@@ -1,3 +1,5 @@
+import { propertyTypeValues } from "@/lib/property-types";
+
 export const vendorImportTemplateColumns = [
   "external_id",
   "title",
@@ -72,17 +74,7 @@ export const vendorImportTemplateSampleRow: Record<VendorImportTemplateColumn, s
 
 export const vendorImportAllowedDealTypes = new Set(["sale", "rent"]);
 export const vendorImportAllowedStatuses = new Set(["draft", "published", "sold", "rented", "archived"]);
-export const vendorImportAllowedPropertyTypes = new Set([
-  "land",
-  "house",
-  "apartment",
-  "mini_condo",
-  "condo",
-  "serviced_apartment",
-  "shop_office",
-  "hotel_restaurant",
-  "warehouse",
-]);
+export const vendorImportAllowedPropertyTypes = new Set(propertyTypeValues);
 
 export type VendorImportPreviewRow = {
   rowNumber: number;

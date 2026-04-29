@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from "@/app/living-site/lib/supabase";
 import { resolveListingImage } from "@/app/living-site/lib/images";
+import type { PropertyType } from "@/lib/property-types";
 
 export type Listing = {
   id: string;
@@ -58,16 +59,7 @@ export type ViewingRequestUpdateInput = {
 export type InquiryInput = {
   userId: string;
   dealType: "buy" | "rent";
-  propertyType:
-    | "land"
-    | "house"
-    | "apartment"
-    | "mini_condo"
-    | "condo"
-    | "serviced_apartment"
-    | "shop_office"
-    | "hotel_restaurant"
-    | "warehouse";
+  propertyType: PropertyType;
   stateRegion: string;
   district: string;
   township: string;
@@ -385,45 +377,46 @@ export async function getListingDetail(propertyId: string) {
     return null;
   }
 
-  const { data: images } = await supabase
-    .from("property_images")
-    .select("*")
-    .eq("property_id", propertyId)
-    .order("sort_order", { ascending: true });
+  const createdBy = typeof property.created_by === "string" ? property.created_by : "";
+  const [imagesResult, membershipResult] = await Promise.all([
+    supabase
+      .from("property_images")
+      .select("*")
+      .eq("property_id", propertyId)
+      .order("sort_order", { ascending: true }),
+    createdBy
+      ? supabase
+          .from("vendor_members")
+          .select(
+            "vendor:vendors(id,name,slug,tagline,contact_phone,contact_email,plan,verification_status,public_storefront_enabled)"
+          )
+          .eq("user_id", createdBy)
+          .eq("status", "active")
+          .limit(1)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+  ]);
 
   let agency: Record<string, unknown> | null = null;
-  const createdBy = typeof property.created_by === "string" ? property.created_by : "";
-
-  if (createdBy) {
-    const { data: membership } = await supabase
-      .from("vendor_members")
-      .select(
-        "vendor:vendors(id,name,slug,tagline,contact_phone,contact_email,plan,verification_status,public_storefront_enabled)"
-      )
-      .eq("user_id", createdBy)
-      .eq("status", "active")
-      .limit(1)
-      .maybeSingle();
-
-    const vendorRaw = Array.isArray(membership?.vendor) ? membership?.vendor[0] : membership?.vendor;
-    if (vendorRaw?.id && vendorRaw.name) {
-      agency = {
-        id: String(vendorRaw.id),
-        name: String(vendorRaw.name),
-        slug: (vendorRaw.slug as string | null) ?? null,
-        tagline: (vendorRaw.tagline as string | null) ?? null,
-        contact_phone: (vendorRaw.contact_phone as string | null) ?? null,
-        contact_email: (vendorRaw.contact_email as string | null) ?? null,
-        plan: (vendorRaw.plan as string | null) ?? null,
-        verification_status: (vendorRaw.verification_status as string | null) ?? null,
-        public_storefront_enabled: vendorRaw.public_storefront_enabled !== false,
-      };
-    }
+  const membership = membershipResult.data;
+  const vendorRaw = Array.isArray(membership?.vendor) ? membership?.vendor[0] : membership?.vendor;
+  if (vendorRaw?.id && vendorRaw.name) {
+    agency = {
+      id: String(vendorRaw.id),
+      name: String(vendorRaw.name),
+      slug: (vendorRaw.slug as string | null) ?? null,
+      tagline: (vendorRaw.tagline as string | null) ?? null,
+      contact_phone: (vendorRaw.contact_phone as string | null) ?? null,
+      contact_email: (vendorRaw.contact_email as string | null) ?? null,
+      plan: (vendorRaw.plan as string | null) ?? null,
+      verification_status: (vendorRaw.verification_status as string | null) ?? null,
+      public_storefront_enabled: vendorRaw.public_storefront_enabled !== false,
+    };
   }
 
   return {
     property,
-    images: images ?? [],
+    images: imagesResult.data ?? [],
     agency,
   } as ListingDetail;
 }

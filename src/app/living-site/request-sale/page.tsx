@@ -5,6 +5,7 @@ import styled, { css, keyframes } from "styled-components";
 import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import {
+  BadgeDollarSign,
   BatteryCharging,
   Building2,
   CheckCircle2,
@@ -16,10 +17,10 @@ import {
   Store,
   Sun,
   TowerControl,
+  UserRound,
   Warehouse,
 } from "lucide-react";
-import { SiteHeader } from "@/app/living-site/components/SiteHeader";
-import { BottomNav } from "@/app/living-site/components/BottomNav";
+import { MarketplaceHeader } from "@/app/living-site/components/MarketplaceHeader";
 import { SectionTitle, Panel } from "@/app/living-site/components/PageSection";
 import { useAppState } from "@/app/living-site/lib/app-state";
 import { getDistricts, getStates, getTownships } from "@/app/living-site/lib/myanmar-geo";
@@ -27,8 +28,14 @@ import { CustomInput } from "@/app/living-site/components/form-controls/CustomIn
 import { CustomSelect } from "@/app/living-site/components/form-controls/CustomSelect";
 import { CustomTextarea } from "@/app/living-site/components/form-controls/CustomTextarea";
 import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
-import { getSalesRequestById, updateSalesRequest } from "@/app/living-site/lib/data";
+import { getSalesRequestById, getSalesRequestsForUser, updateSalesRequest } from "@/app/living-site/lib/data";
 import { useI18n } from "@/app/living-site/lib/i18n";
+import {
+  formatPropertyTypeValue,
+  normalizeSelectablePropertyType,
+  propertyTypeDefinitions,
+  type PropertyType,
+} from "@/lib/property-types";
 
 const PageShell = styled.div`
   max-width: 960px;
@@ -85,6 +92,17 @@ const StepPill = styled.span<{ $active?: boolean; $completed?: boolean }>`
   gap: 6px;
 `;
 
+const StepIconWrap = styled.span`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+`;
+
 const FormCard = styled(Panel)`
   display: grid;
   gap: 14px;
@@ -94,7 +112,8 @@ const FormCard = styled(Panel)`
 const TileGrid = styled.div`
   display: grid;
   gap: 10px;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(112px, 148px));
+  justify-content: start;
 `;
 
 const Tile = styled.button<{ $active?: boolean }>`
@@ -115,6 +134,29 @@ const Tile = styled.button<{ $active?: boolean }>`
   text-align: center;
   line-height: 1.15;
   cursor: pointer;
+
+  svg {
+    width: 18px;
+    height: 18px;
+  }
+`;
+
+const PropertyGroups = styled.div`
+  display: grid;
+  gap: 14px;
+`;
+
+const PropertyGroup = styled.div`
+  display: grid;
+  gap: 8px;
+`;
+
+const PropertyGroupLabel = styled.div`
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted);
 `;
 
 const Actions = styled.div`
@@ -166,6 +208,14 @@ const ErrorText = styled.p`
   font-weight: 600;
 `;
 
+const FieldHint = styled.div`
+  margin-top: -6px;
+  display: flex;
+  justify-content: flex-end;
+  font-size: 0.8rem;
+  color: var(--color-muted);
+`;
+
 const LimitNotice = styled.div<{ $danger?: boolean }>`
   border-radius: 18px;
   border: 1px solid ${(props) => (props.$danger ? "rgba(255, 148, 148, 0.22)" : "rgba(255, 210, 92, 0.22)")};
@@ -200,6 +250,8 @@ const attentionShake = keyframes`
     transform: translateX(0);
   }
 `;
+
+const REQUEST_DESCRIPTION_MAX_LENGTH = 500;
 
 const MapFrame = styled.div`
   position: relative;
@@ -297,17 +349,7 @@ const dealTypeOptions: OptionDefinition[] = [
   { value: "rent", labelKey: "requestSale.dealType.rent" },
 ];
 
-const propertyTypeOptions: OptionDefinition[] = [
-  { value: "land", labelKey: "requestSale.propertyType.land" },
-  { value: "house", labelKey: "requestSale.propertyType.house" },
-  { value: "apartment", labelKey: "requestSale.propertyType.apartment" },
-  { value: "mini_condo", labelKey: "requestSale.propertyType.miniCondo" },
-  { value: "condo", labelKey: "requestSale.propertyType.condo" },
-  { value: "serviced_apartment", labelKey: "requestSale.propertyType.serviced" },
-  { value: "shop_office", labelKey: "requestSale.propertyType.shopOffice" },
-  { value: "hotel_restaurant", labelKey: "requestSale.propertyType.hotelRestaurant" },
-  { value: "warehouse", labelKey: "requestSale.propertyType.warehouse" },
-];
+const propertyTypeOptions = propertyTypeDefinitions;
 
 const currencyOptions: Option[] = [
   { value: "MMK", label: "MMK" },
@@ -324,6 +366,15 @@ const stepKeys = [
   "requestSale.steps.contact",
 ];
 
+const propertyGroupOrder = ["residential", "commercial", "industrial", "special"] as const;
+
+const propertyGroupLabels: Record<(typeof propertyGroupOrder)[number], string> = {
+  residential: "Residential",
+  commercial: "Commercial",
+  industrial: "Industrial",
+  special: "Special",
+};
+
 const MYANMAR_CENTER: [number, number] = [21.9162, 95.956];
 const DEFAULT_ZOOM = 6;
 
@@ -333,7 +384,7 @@ type FormState = {
   title: string;
   description: string;
   deal_type: string;
-  property_type: string;
+  property_type: PropertyType;
   price: string;
   currency: string;
   state_region: string;
@@ -434,6 +485,7 @@ function RequestSalePageContent() {
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [loadingEdit, setLoadingEdit] = useState(false);
+  const [existingRequestCount, setExistingRequestCount] = useState(0);
   const [workspaceLimits, setWorkspaceLimits] = useState<WorkspaceLimits["limits"] | null>(null);
   const [mapActive, setMapActive] = useState(false);
   const [mapLoading, setMapLoading] = useState(false);
@@ -441,15 +493,51 @@ function RequestSalePageContent() {
   const [locateAttempted, setLocateAttempted] = useState(false);
   const [mapPosition, setMapPosition] = useState<[number, number] | null>(null);
   const [attention, setAttention] = useState(false);
-  const stepLabels = useMemo(() => stepKeys.map((key) => t(key)), [t]);
+  const stepItems = useMemo(
+    () => [
+      { key: stepKeys[0], label: t(stepKeys[0]), icon: Home },
+      { key: stepKeys[1], label: t(stepKeys[1]), icon: MapPin },
+      { key: stepKeys[2], label: t(stepKeys[2]), icon: Building2 },
+      { key: stepKeys[3], label: t(stepKeys[3]), icon: BadgeDollarSign },
+      { key: stepKeys[4], label: t(stepKeys[4]), icon: UserRound },
+    ],
+    [t]
+  );
   const localizedDealTypeOptions = useMemo<Option[]>(
     () => dealTypeOptions.map((option) => ({ value: option.value, label: t(option.labelKey) })),
     [t]
   );
-  const localizedPropertyTypeOptions = useMemo<Option[]>(
+  const propertyTiles = useMemo(
     () =>
-      propertyTypeOptions.map((option) => ({ value: option.value, label: t(option.labelKey) })),
+      propertyTypeOptions.map((option) => ({
+        key: option.value,
+        group: option.group,
+        label: formatPropertyTypeValue(option.value, t),
+        icon:
+          option.value === "land"
+            ? MapPin
+            : option.value === "house"
+              ? Home
+              : option.value === "condo"
+                ? TowerControl
+                : option.value === "shop" || option.value === "office" || option.value === "shop_office" || option.value === "marketplace"
+                  ? Store
+                  : option.value === "hotel" || option.value === "restaurant"
+                    ? Hotel
+                    : option.value === "warehouse" || option.value === "industrial"
+                      ? Warehouse
+                      : Building2,
+      })),
     [t]
+  );
+  const propertyGroups = useMemo(
+    () =>
+      propertyGroupOrder.map((group) => ({
+        key: group,
+        label: propertyGroupLabels[group],
+        items: propertyTiles.filter((item) => item.group === group),
+      })),
+    [propertyTiles]
   );
   const prevLocationRef = useRef({
     state_region: "",
@@ -457,6 +545,9 @@ function RequestSalePageContent() {
     township: "",
   });
   const vendorReturnPath = isEdit && editId ? `/vendor/sales-requests` : "/vendor";
+  const isVendorFlow =
+    profileRole === "vendor_user" || profileRole === "staff" || profileRole === "admin" || profileRole === "master_admin";
+  const customerLimitReached = !isVendorFlow && !isEdit && existingRequestCount >= 1;
 
   useEffect(() => {
     if (!authToken || profileRole !== "vendor_user") return;
@@ -500,7 +591,7 @@ function RequestSalePageContent() {
           title: String(request.title ?? ""),
           description: String(request.description ?? ""),
           deal_type: String(request.deal_type ?? "sale"),
-          property_type: String(request.property_type ?? "house"),
+          property_type: normalizeSelectablePropertyType(String(request.property_type ?? "house")),
           price: rawPrice ? String(rawPrice) : "",
           currency: String(request.currency ?? "MMK"),
           state_region: String(request.state_region ?? ""),
@@ -530,6 +621,23 @@ function RequestSalePageContent() {
       active = false;
     };
   }, [editId, user?.id, t]);
+
+  useEffect(() => {
+    if (!user?.id || isVendorFlow) {
+      setExistingRequestCount(0);
+      return;
+    }
+
+    let active = true;
+    getSalesRequestsForUser(user.id).then(({ data }) => {
+      if (!active) return;
+      setExistingRequestCount(data.length);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [isVendorFlow, user?.id]);
 
   const isLand = form.property_type === "land";
   const locationReady = Boolean(form.state_region && form.district && form.township);
@@ -593,21 +701,6 @@ function RequestSalePageContent() {
       setMapPosition(null);
     }
   }, [form.latitude, form.longitude, mapActive]);
-
-  const propertyTiles = useMemo(
-    () => [
-      { key: "land", label: t("requestSale.propertyType.land"), icon: MapPin },
-      { key: "house", label: t("requestSale.propertyType.house"), icon: Home },
-      { key: "apartment", label: t("requestSale.propertyType.apartment"), icon: Building2 },
-      { key: "mini_condo", label: t("requestSale.propertyType.miniCondo"), icon: Building2 },
-      { key: "condo", label: t("requestSale.propertyType.condo"), icon: TowerControl },
-      { key: "serviced_apartment", label: t("requestSale.propertyType.serviced"), icon: Building2 },
-      { key: "shop_office", label: t("requestSale.propertyType.shopOffice"), icon: Store },
-      { key: "hotel_restaurant", label: t("requestSale.propertyType.hotelRestaurant"), icon: Hotel },
-      { key: "warehouse", label: t("requestSale.propertyType.warehouse"), icon: Warehouse },
-    ],
-    [t]
-  );
 
   const handleLocateOnMap = async () => {
     if (!locationReady) return;
@@ -824,7 +917,7 @@ function RequestSalePageContent() {
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
       };
-      if (profileRole === "vendor_user" && authToken) {
+      if (authToken) {
         headers.Authorization = `Bearer ${authToken}`;
       }
 
@@ -854,7 +947,7 @@ function RequestSalePageContent() {
   if (!user) {
     return (
       <div>
-        <SiteHeader />
+        <MarketplaceHeader />
         <PageShell>
           <SectionTitle>{t("requestSale.titleNew")}</SectionTitle>
           <Panel>
@@ -864,46 +957,26 @@ function RequestSalePageContent() {
             </PrimaryButton>
           </Panel>
         </PageShell>
-        <BottomNav />
       </div>
     );
   }
 
-  if (!profileReady) {
+  if (!profileReady && isEdit) {
     return (
       <div>
-        <SiteHeader />
+        <MarketplaceHeader />
         <PageShell>
           <Panel>
-            <Muted>Loading workspace access…</Muted>
+            <Muted>Loading request details…</Muted>
           </Panel>
         </PageShell>
-        <BottomNav />
-      </div>
-    );
-  }
-
-  if (profileRole !== "vendor_user" && profileRole !== "staff" && profileRole !== "admin" && profileRole !== "master_admin") {
-    return (
-      <div>
-        <SiteHeader />
-        <PageShell>
-          <SectionTitle>{t("requestSale.titleNew")}</SectionTitle>
-          <Panel>
-            <Muted>Only vendor accounts can access this workflow.</Muted>
-            <PrimaryButton type="button" onClick={() => router.push("/")}>
-              Back to home
-            </PrimaryButton>
-          </Panel>
-        </PageShell>
-        <BottomNav />
       </div>
     );
   }
 
   return (
     <div>
-      <SiteHeader />
+      <MarketplaceHeader />
       <PageShell>
         <TitleRow>
           <SectionTitle>
@@ -918,6 +991,13 @@ function RequestSalePageContent() {
             ? t("requestSale.subtitleEdit")
             : t("requestSale.subtitleNew")}
         </Muted>
+        {!isVendorFlow ? (
+          <LimitNotice $danger={customerLimitReached}>
+            {customerLimitReached
+              ? "You already used your 1 property request for this account. Edit the existing request from Account instead of creating another one."
+              : `1 property request per account. Current usage: ${existingRequestCount}/1. Every request is reviewed before it is listed.`}
+          </LimitNotice>
+        ) : null}
         {workspaceLimits?.listingNearLimit ? (
           <LimitNotice $danger={workspaceLimits.listingOverLimit}>
             {workspaceLimits.listingOverLimit
@@ -930,10 +1010,16 @@ function RequestSalePageContent() {
           </LimitNotice>
         ) : null}
         <Stepper>
-          {stepLabels.map((label, index) => (
-            <StepPill key={label} $active={index === step} $completed={index < step}>
-              {index < step && <CheckCircle2 size={14} />}
-              {label}
+          {stepItems.map((item, index) => (
+            <StepPill key={item.key} $active={index === step} $completed={index < step}>
+              {index < step ? (
+                <CheckCircle2 size={14} />
+              ) : (
+                <StepIconWrap>
+                  <item.icon />
+                </StepIconWrap>
+              )}
+              {item.label}
             </StepPill>
           ))}
         </Stepper>
@@ -954,7 +1040,9 @@ function RequestSalePageContent() {
                 name="description"
                 value={form.description}
                 onChange={(event) => setField("description", event.target.value)}
+                maxLength={REQUEST_DESCRIPTION_MAX_LENGTH}
               />
+              <FieldHint>{form.description.length}/{REQUEST_DESCRIPTION_MAX_LENGTH}</FieldHint>
               <CustomSelect
                 id={`${fieldId}-deal-type`}
                 label={t("requestSale.dealTypeLabel")}
@@ -968,32 +1056,26 @@ function RequestSalePageContent() {
                   </option>
                 ))}
               </CustomSelect>
-              <CustomSelect
-                id={`${fieldId}-property-type`}
-                label={t("requestSale.propertyTypeLabel")}
-                name="property_type"
-                value={form.property_type}
-                onChange={(value) => setField("property_type", value)}
-              >
-                {localizedPropertyTypeOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
+              <PropertyGroups>
+                {propertyGroups.map((group) => (
+                  <PropertyGroup key={group.key}>
+                    <PropertyGroupLabel>{group.label}</PropertyGroupLabel>
+                    <TileGrid>
+                      {group.items.map((tile) => (
+                        <Tile
+                          key={tile.key}
+                          type="button"
+                          $active={form.property_type === tile.key}
+                          onClick={() => setField("property_type", tile.key)}
+                        >
+                          <tile.icon size={16} />
+                          {tile.label}
+                        </Tile>
+                      ))}
+                    </TileGrid>
+                  </PropertyGroup>
                 ))}
-              </CustomSelect>
-              <TileGrid>
-                {propertyTiles.map((tile) => (
-                  <Tile
-                    key={tile.key}
-                    type="button"
-                    $active={form.property_type === tile.key}
-                    onClick={() => setField("property_type", tile.key)}
-                  >
-                    <tile.icon size={18} />
-                    {tile.label}
-                  </Tile>
-                ))}
-              </TileGrid>
+              </PropertyGroups>
             </>
           )}
 
@@ -1263,7 +1345,7 @@ function RequestSalePageContent() {
                 <ChevronRight size={16} style={{ marginLeft: 6 }} />
               </PrimaryButton>
             ) : (
-              <PrimaryButton type="button" onClick={handleSubmit} disabled={submitting || loadingEdit}>
+              <PrimaryButton type="button" onClick={handleSubmit} disabled={submitting || loadingEdit || customerLimitReached}>
                 {loadingEdit
                   ? t("common.loading")
                   : submitting
@@ -1276,7 +1358,6 @@ function RequestSalePageContent() {
           </Actions>
         </FormCard>
       </PageShell>
-      <BottomNav />
       {(submitting || loadingEdit) && (
         <LoadingOverlay
           message={loadingEdit ? t("requestSale.loadingRequest") : t("requestSale.submittingRequest")}
@@ -1306,7 +1387,7 @@ function RequestSalePageContent() {
                   <SecondaryButton type="button" onClick={() => router.push("/")}>
                     {t("requestSale.browseListings")}
                   </SecondaryButton>
-                  <PrimaryButton type="button" onClick={() => router.push("/activities")}>
+                  <PrimaryButton type="button" onClick={() => router.push("/account")}>
                     {t("requestSale.goActivities")}
                   </PrimaryButton>
                 </>

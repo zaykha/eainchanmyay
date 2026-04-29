@@ -166,6 +166,43 @@ const Message = styled.p`
   margin: 0;
 `;
 
+const PopupOverlay = styled.div`
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.34);
+`;
+
+const PopupCard = styled.div`
+  width: min(460px, 100%);
+  border-radius: 24px;
+  padding: 22px;
+  background: #fff;
+  box-shadow: 0 26px 70px rgba(15, 23, 42, 0.18);
+  display: grid;
+  gap: 14px;
+`;
+
+const PopupTitle = styled.h3`
+  margin: 0;
+  font-size: 1.15rem;
+  color: var(--color-text);
+`;
+
+const PopupText = styled.p`
+  margin: 0;
+  color: var(--color-muted);
+  line-height: 1.6;
+`;
+
+const PopupActions = styled.div`
+  display: flex;
+  justify-content: flex-end;
+`;
+
 const StrengthList = styled.div`
   display: grid;
   gap: 6px;
@@ -191,12 +228,46 @@ const StrengthDot = styled.span<{ $active: boolean }>`
 
 type Mode = "login" | "register";
 export type AuthRole = "customer" | "agent";
+export const AGENT_ONBOARDING_STORAGE_KEY = "kaiten_vendor_onboarding_pending";
+export const AGENT_REGISTERING_STORAGE_KEY = "kaiten_vendor_registering";
+
+export type AuthSuccessPayload = {
+  role: ProfileRole | null;
+  mode: Mode;
+};
 
 type AuthScreenProps = {
   role: AuthRole;
-  onSuccess?: (role: ProfileRole | null) => void;
+  onSuccess?: (payload: AuthSuccessPayload) => void;
   onChangeRole?: () => void;
 };
+
+async function precheckPortalRole(email: string) {
+  const response = await fetch("/api/auth/check-role", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ email }),
+  });
+
+  const payload = (await response.json().catch(() => null)) as
+    | {
+        role?: ProfileRole | null;
+        found?: boolean;
+        error?: string;
+      }
+    | null;
+
+  if (!response.ok) {
+    throw new Error(payload?.error || "Unable to verify account type.");
+  }
+
+  return {
+    role: payload?.role ?? null,
+    found: Boolean(payload?.found),
+  };
+}
 
 export function AuthScreen({ role, onSuccess, onChangeRole }: AuthScreenProps) {
   const { login, register } = useAppState();
@@ -207,6 +278,7 @@ export function AuthScreen({ role, onSuccess, onChangeRole }: AuthScreenProps) {
   const [fullName, setFullName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [message, setMessage] = useState<string | null>(null);
+  const [popupMessage, setPopupMessage] = useState<string | null>(null);
   const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
 
   const passwordChecks = [
@@ -254,10 +326,39 @@ export function AuthScreen({ role, onSuccess, onChangeRole }: AuthScreenProps) {
       setMessage(t("auth.enterNamePhone"));
       return;
     }
+    const normalizedEmail = email.trim().toLowerCase();
+    const isAgentRegistration = mode === "register" && role === "agent";
+    if (typeof window !== "undefined" && isAgentRegistration) {
+      window.localStorage.setItem(AGENT_REGISTERING_STORAGE_KEY, "1");
+    }
+    if (mode === "login") {
+      setLoadingMessage(t("auth.signingInShort"));
+      try {
+        const roleCheck = await precheckPortalRole(normalizedEmail);
+        const selectedAgentPortal = role === "agent";
+        const selectedCustomerPortal = role === "customer";
+        const wrongForAgent = selectedAgentPortal && roleCheck.found && roleCheck.role !== "vendor_user";
+        const wrongForCustomer = selectedCustomerPortal && roleCheck.found && roleCheck.role === "vendor_user";
+
+        if (wrongForAgent || wrongForCustomer) {
+          const portalMessage = wrongForAgent
+            ? "This account is not registered as an agency account. Use customer sign in instead."
+            : "This account is registered as an agency account. Use agency sign in instead.";
+          setLoadingMessage(null);
+          setMessage(portalMessage);
+          setPopupMessage(portalMessage);
+          return;
+        }
+      } catch (error) {
+        setLoadingMessage(null);
+        setMessage(error instanceof Error ? error.message : "Unable to verify account type.");
+        return;
+      }
+    }
     setLoadingMessage(mode === "login" ? t("auth.signingInShort") : t("auth.creatingAccount"));
     const result =
       mode === "login"
-        ? await login(email, password, role)
+        ? await login(normalizedEmail, password, role)
         : await register(email, password, {
             name: fullName.trim(),
             contactNumber: phoneNumber.trim(),
@@ -265,14 +366,22 @@ export function AuthScreen({ role, onSuccess, onChangeRole }: AuthScreenProps) {
           });
     setLoadingMessage(null);
     if (result.error) {
-      setMessage(result.error);
-      if (typeof window !== "undefined") {
-        window.alert(result.error);
+      if (typeof window !== "undefined" && isAgentRegistration) {
+        window.localStorage.removeItem(AGENT_REGISTERING_STORAGE_KEY);
+        window.localStorage.removeItem(AGENT_ONBOARDING_STORAGE_KEY);
       }
+      setMessage(result.error);
+      setPopupMessage(result.error);
       return;
     }
+    if (typeof window !== "undefined" && isAgentRegistration) {
+      window.localStorage.removeItem(AGENT_REGISTERING_STORAGE_KEY);
+    }
     setMessage(mode === "login" ? t("auth.signedIn") : t("auth.checkEmail"));
-    onSuccess?.(result.role ?? targetProfileRole);
+    onSuccess?.({
+      role: result.role ?? targetProfileRole,
+      mode,
+    });
   };
 
   const handleGoogle = async () => {
@@ -340,7 +449,8 @@ export function AuthScreen({ role, onSuccess, onChangeRole }: AuthScreenProps) {
             <Field $filled={Boolean(phoneNumber)} data-filled={Boolean(phoneNumber)}>
               <FloatingLabel className="floating-label">{t("auth.phoneNumber")}</FloatingLabel>
               <Input
-                type="tel"
+                type="number"
+                inputMode="numeric"
                 value={phoneNumber}
                 onChange={(event) => setPhoneNumber(event.target.value)}
                 required
@@ -397,6 +507,24 @@ export function AuthScreen({ role, onSuccess, onChangeRole }: AuthScreenProps) {
       </Form>
 
       {message && <Message>{message}</Message>}
+      {popupMessage ? (
+        <PopupOverlay onClick={() => setPopupMessage(null)}>
+          <PopupCard
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="auth-popup-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <PopupTitle id="auth-popup-title">Sign-in issue</PopupTitle>
+            <PopupText>{popupMessage}</PopupText>
+            <PopupActions>
+              <SecondaryButton type="button" onClick={() => setPopupMessage(null)}>
+                Close
+              </SecondaryButton>
+            </PopupActions>
+          </PopupCard>
+        </PopupOverlay>
+      ) : null}
       {loadingMessage && <LoadingOverlay message={loadingMessage} />}
     </Wrapper>
   );

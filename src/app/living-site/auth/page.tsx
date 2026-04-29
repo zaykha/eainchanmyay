@@ -6,7 +6,13 @@ import styled from "styled-components";
 import { ArrowLeft } from "lucide-react";
 import { isSupabaseConfigured } from "@/app/living-site/lib/supabaseClient";
 import { useAppState } from "@/app/living-site/lib/app-state";
-import { AuthScreen, type AuthRole } from "@/app/living-site/components/AuthScreen";
+import {
+  AGENT_ONBOARDING_STORAGE_KEY,
+  AGENT_REGISTERING_STORAGE_KEY,
+  AuthScreen,
+  type AuthRole,
+  type AuthSuccessPayload,
+} from "@/app/living-site/components/AuthScreen";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/app/living-site/lib/i18n";
 import type { ProfileRole } from "@/app/living-site/lib/data";
@@ -451,6 +457,43 @@ const Message = styled.p`
   color: var(--color-muted);
 `;
 
+const PopupOverlay = styled.div`
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.34);
+`;
+
+const PopupCard = styled.div`
+  width: min(460px, 100%);
+  border-radius: 24px;
+  padding: 22px;
+  background: #fff;
+  box-shadow: 0 26px 70px rgba(15, 23, 42, 0.18);
+  display: grid;
+  gap: 14px;
+`;
+
+const PopupTitle = styled.h3`
+  margin: 0;
+  font-size: 1.15rem;
+  color: var(--color-text);
+`;
+
+const PopupText = styled.p`
+  margin: 0;
+  color: var(--color-muted);
+  line-height: 1.6;
+`;
+
+const PopupActions = styled.div`
+  display: flex;
+  justify-content: flex-end;
+`;
+
 const roleCards = [
   {
     role: "customer" as const,
@@ -471,6 +514,7 @@ export default function AuthPage() {
   const router = useRouter();
   const { t } = useI18n();
   const [message, setMessage] = useState<string | null>(null);
+  const [popupMessage, setPopupMessage] = useState<string | null>(null);
   const [resumePath, setResumePath] = useState<string | null>(null);
   const [redirecting, setRedirecting] = useState(false);
   const [role, setRole] = useState<AuthRole | null>(null);
@@ -502,12 +546,28 @@ export default function AuthPage() {
   useEffect(() => {
     if (!user || !profileReady) return;
 
+    if (typeof window !== "undefined") {
+      const onboardingPending = window.localStorage.getItem(AGENT_ONBOARDING_STORAGE_KEY) === "1";
+      if (onboardingPending) {
+        setRedirecting(true);
+        router.replace("/vendor-setup");
+        return;
+      }
+    }
+
     const effectiveRole = authResolvedRole ?? profileRole;
     const selectedRole = roleRef.current;
     const isAgentSelection = selectedRole === "agent";
     const isCustomerSelection = selectedRole === "customer";
     const selectedAgentButWrongRole = isAgentSelection && effectiveRole !== "vendor_user";
     const selectedCustomerButWrongRole = isCustomerSelection && effectiveRole === "vendor_user";
+
+    if (typeof window !== "undefined") {
+      const agentRegistrationPending = window.localStorage.getItem(AGENT_REGISTERING_STORAGE_KEY) === "1";
+      if (agentRegistrationPending && isAgentSelection && !effectiveRole) {
+        return;
+      }
+    }
 
     if (selectedAgentButWrongRole || selectedCustomerButWrongRole) {
       if (mismatchHandledRef.current) return;
@@ -520,10 +580,7 @@ export default function AuthPage() {
       setRedirecting(false);
       setAuthResolvedRole(null);
       setMessage(mismatchMessage);
-
-      if (typeof window !== "undefined") {
-        window.alert(mismatchMessage);
-      }
+      setPopupMessage(mismatchMessage);
 
       void logoutRef.current().finally(() => {
         router.replace("/auth");
@@ -544,6 +601,21 @@ export default function AuthPage() {
 
     redirectToTarget(resumePath && resumePath !== "/" ? resumePath : "/account");
   }, [authResolvedRole, profileReady, profileRole, resumePath, router, user]);
+
+  const handleAuthSuccess = ({ role: resolvedRole, mode }: AuthSuccessPayload) => {
+    mismatchHandledRef.current = false;
+    setAuthResolvedRole(resolvedRole);
+
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem("kaiten_living_auth_resume");
+
+      if (resolvedRole === "vendor_user" && mode === "register") {
+        window.localStorage.setItem(AGENT_ONBOARDING_STORAGE_KEY, "1");
+      } else {
+        window.localStorage.removeItem(AGENT_ONBOARDING_STORAGE_KEY);
+      }
+    }
+  };
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -662,6 +734,10 @@ export default function AuthPage() {
                   <BackButton
                     type="button"
                     onClick={async () => {
+                      if (typeof window !== "undefined") {
+                        window.localStorage.removeItem(AGENT_REGISTERING_STORAGE_KEY);
+                        window.localStorage.removeItem(AGENT_ONBOARDING_STORAGE_KEY);
+                      }
                       await logout();
                       setMessage(t("auth.signedOut"));
                     }}
@@ -673,13 +749,7 @@ export default function AuthPage() {
                 <AuthScreen
                   role={role}
                   onChangeRole={() => setRole(null)}
-                  onSuccess={(resolvedRole) => {
-                    mismatchHandledRef.current = false;
-                    setAuthResolvedRole(resolvedRole);
-                    if (typeof window !== "undefined") {
-                      window.localStorage.removeItem("kaiten_living_auth_resume");
-                    }
-                  }}
+                  onSuccess={handleAuthSuccess}
                 />
               ) : null}
               {message && <Message>{message}</Message>}
@@ -687,6 +757,24 @@ export default function AuthPage() {
           </AuthLayout>
         )}
       </Shell>
+      {popupMessage ? (
+        <PopupOverlay onClick={() => setPopupMessage(null)}>
+          <PopupCard
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="auth-page-popup-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <PopupTitle id="auth-page-popup-title">Sign-in issue</PopupTitle>
+            <PopupText>{popupMessage}</PopupText>
+            <PopupActions>
+              <BackButton type="button" onClick={() => setPopupMessage(null)}>
+                Close
+              </BackButton>
+            </PopupActions>
+          </PopupCard>
+        </PopupOverlay>
+      ) : null}
     </Page>
   );
 }

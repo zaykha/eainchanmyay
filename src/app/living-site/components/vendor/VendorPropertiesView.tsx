@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import styled from "styled-components";
+import { propertyTypeDefinitions } from "@/lib/property-types";
 import { ChevronRight, Filter, Plus } from "lucide-react";
 import { useAppState } from "@/app/living-site/lib/app-state";
 import { formatCurrency } from "@/app/living-site/lib/format";
@@ -341,13 +342,11 @@ export function VendorPropertiesView() {
         </Select>
         <Select value={propertyType} onChange={(event) => setPropertyType(event.target.value)} aria-label="Filter by property type">
           <option value="">All types</option>
-          <option value="house">House</option>
-          <option value="apartment">Apartment</option>
-          <option value="mini_condo">Mini Condo</option>
-          <option value="condo">Condo</option>
-          <option value="land">Land</option>
-          <option value="shop_office">Shop / Office</option>
-          <option value="hotel_restaurant">Hotel / Restaurant</option>
+          {propertyTypeDefinitions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
         </Select>
       </Filters>
 

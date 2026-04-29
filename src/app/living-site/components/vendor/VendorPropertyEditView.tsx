@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
+import { normalizeSelectablePropertyType, propertyTypeDefinitions } from "@/lib/property-types";
 import { ArrowLeft, Save } from "lucide-react";
 import { useAppState } from "@/app/living-site/lib/app-state";
 import { getDistricts, getStates, getTownships } from "@/app/living-site/lib/myanmar-geo";
@@ -233,7 +234,7 @@ export function VendorPropertyEditView({ propertyId }: { propertyId: string }) {
             title: String(property.title ?? ""),
             description: String(property.description ?? ""),
             deal_type: String(property.deal_type ?? "sale"),
-            property_type: String(property.property_type ?? "house"),
+            property_type: normalizeSelectablePropertyType(String(property.property_type ?? "house")),
             status: String(property.status ?? "draft"),
             price: toFormNumber(property.price),
             currency: String(property.currency ?? "MMK"),
@@ -365,15 +366,11 @@ export function VendorPropertyEditView({ propertyId }: { propertyId: string }) {
           <Label>
             Property type
             <Select value={form.property_type} onChange={(event) => setField("property_type", event.target.value)}>
-              <option value="land">Land</option>
-              <option value="house">House</option>
-              <option value="apartment">Apartment</option>
-              <option value="mini_condo">Mini Condo</option>
-              <option value="condo">Condo</option>
-              <option value="serviced_apartment">Serviced Apartment</option>
-              <option value="shop_office">Shop / Office</option>
-              <option value="hotel_restaurant">Hotel / Restaurant</option>
-              <option value="warehouse">Warehouse</option>
+              {propertyTypeDefinitions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </Select>
           </Label>
           <Label style={{ gridColumn: "1 / -1" }}>

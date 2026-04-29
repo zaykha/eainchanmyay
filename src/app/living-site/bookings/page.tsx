@@ -1,8 +1,7 @@
 "use client";
 
 import styled from "styled-components";
-import { SiteHeader } from "@/app/living-site/components/SiteHeader";
-import { BottomNav } from "@/app/living-site/components/BottomNav";
+import { MarketplaceHeader } from "@/app/living-site/components/MarketplaceHeader";
 import { SectionTitle } from "@/app/living-site/components/PageSection";
 import { EAIN_CONTACT_PHONE } from "@/app/living-site/lib/constants";
 import { useI18n } from "@/app/living-site/lib/i18n";
@@ -34,7 +33,7 @@ export default function ContactRequestsPage() {
   const { t } = useI18n();
   return (
     <div>
-      <SiteHeader />
+      <MarketplaceHeader />
       <PageShell>
         <SectionTitle>{t("bookings.title")}</SectionTitle>
         <Card>
@@ -46,7 +45,6 @@ export default function ContactRequestsPage() {
           </Muted>
         </Card>
       </PageShell>
-      <BottomNav />
     </div>
   );
 }

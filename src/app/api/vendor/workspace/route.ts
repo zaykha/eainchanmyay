@@ -4,12 +4,25 @@ import { getVendorPlanUsage } from "@/app/api/vendor/_lib/plan-limits";
 import { normalizeStorefrontPayload } from "@/lib/vendor-storefront";
 
 export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const includeUsage = searchParams.get("includeUsage") !== "false";
   const result = await getVendorRequestContext(request, { allowPendingBilling: true });
   if (!result.ok) {
     return result.response;
   }
 
   const { vendor, membership, profile } = result.context;
+  if (!includeUsage) {
+    return NextResponse.json({
+      vendor,
+      membership,
+      profile: {
+        full_name: profile.full_name,
+        email: profile.email,
+      },
+    });
+  }
+
   const { propertyCount, salesRequestCount, planUsage } = await getVendorPlanUsage(result.context);
 
   return NextResponse.json({
@@ -56,6 +69,7 @@ export async function PATCH(request: Request) {
   }
 
   const payload = normalizeStorefrontPayload(body);
+  const rawName = typeof body.name === "string" ? body.name.trim() : "";
   if (payload.slug !== undefined && !payload.slug) {
     return NextResponse.json({ error: "Storefront slug cannot be empty." }, { status: 400 });
   }
@@ -63,6 +77,13 @@ export async function PATCH(request: Request) {
   const updates = Object.fromEntries(
     Object.entries(payload).filter(([, value]) => value !== undefined)
   );
+
+  if (typeof body.name === "string") {
+    if (!rawName) {
+      return NextResponse.json({ error: "Agency name cannot be empty." }, { status: 400 });
+    }
+    updates.name = rawName;
+  }
 
   if (!Object.keys(updates).length) {
     return NextResponse.json({ error: "No storefront changes were provided." }, { status: 400 });

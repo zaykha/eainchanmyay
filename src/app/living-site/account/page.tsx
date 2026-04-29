@@ -5,22 +5,30 @@ import styled from "styled-components";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  ArrowUpRight,
   BadgeCheck,
   Bath,
   BedDouble,
+  Building2,
   Calendar,
   Clock,
   Eye,
+  Globe2,
   Heart,
   Home,
   Mail,
+  Menu,
   MapPin,
+  Plus,
   Ruler,
+  Settings,
+  ShieldCheck,
+  Sparkles,
   Tag as TagIcon,
+  Users2,
   X,
 } from "lucide-react";
-import { SiteHeader } from "@/app/living-site/components/SiteHeader";
-import { BottomNav } from "@/app/living-site/components/BottomNav";
+import { useLanguage } from "@/app/living-site/components/Providers";
 import { Panel } from "@/app/living-site/components/PageSection";
 import { useAppState } from "@/app/living-site/lib/app-state";
 import { formatCurrency } from "@/app/living-site/lib/format";
@@ -31,6 +39,242 @@ import {
   getViewingRequestsForUser,
 } from "@/app/living-site/lib/data";
 import { useI18n } from "@/app/living-site/lib/i18n";
+import { getUpgradePlan, getVendorPlan } from "@/lib/vendor-plans";
+import { isVendorStorefrontSetupComplete } from "@/lib/vendor-storefront";
+import { formatPropertyTypeValue } from "@/lib/property-types";
+
+const Header = styled.header`
+  padding-bottom: 14px;
+
+  @media (max-width: 720px) {
+    padding: 0;
+  }
+`;
+
+const HeaderInner = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+
+  @media (max-width: 960px) {
+    flex-wrap: wrap;
+    gap: 14px;
+  }
+
+  @media (max-width: 720px) {
+    display: grid;
+    grid-template-columns: 40px 1fr 40px;
+    align-items: center;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    padding: 10px 12px;
+    box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08);
+  }
+`;
+
+const HeaderBrand = styled(Link)`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+
+  @media (max-width: 720px) {
+    justify-self: center;
+    gap: 8px;
+  }
+`;
+
+const HeaderBrandMark = styled.div`
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: #fff;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.12);
+  overflow: hidden;
+  flex-shrink: 0;
+
+  img {
+    width: 30px;
+    height: 30px;
+    object-fit: contain;
+  }
+
+  @media (max-width: 720px) {
+    width: 34px;
+    height: 34px;
+
+    img {
+      width: 24px;
+      height: 24px;
+    }
+  }
+`;
+
+const HeaderBrandText = styled.div`
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+`;
+
+const HeaderBrandName = styled.span`
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.1;
+
+  @media (max-width: 720px) {
+    font-size: 0.95rem;
+  }
+`;
+
+const HeaderBrandSub = styled.span`
+  color: var(--color-muted);
+  font-size: 0.8rem;
+  letter-spacing: 0.02em;
+
+  @media (max-width: 720px) {
+    display: none;
+  }
+`;
+
+const HeaderLinks = styled.nav`
+  display: flex;
+  align-items: center;
+  gap: 30px;
+  margin-left: auto;
+  color: rgba(26, 34, 48, 0.86);
+  font-size: 0.92rem;
+
+  a {
+    white-space: nowrap;
+  }
+
+  @media (max-width: 1100px) {
+    gap: 18px;
+  }
+
+  @media (max-width: 960px) {
+    order: 3;
+    width: 100%;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-left: 0;
+  }
+
+  @media (max-width: 720px) {
+    display: none;
+  }
+`;
+
+const HeaderActions = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  @media (max-width: 720px) {
+    justify-self: end;
+  }
+`;
+
+const MobileMenuButton = styled.button`
+  display: none;
+
+  @media (max-width: 720px) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: transparent;
+    color: var(--color-text);
+    padding: 0;
+    cursor: pointer;
+    justify-self: start;
+
+    svg {
+      width: 24px;
+      height: 24px;
+    }
+  }
+`;
+
+const LanguageTrigger = styled.button`
+  border: none;
+  background: transparent;
+  color: #fff;
+  padding: 0;
+  font-size: 2rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  text-shadow: 0 6px 18px rgba(15, 23, 42, 0.24);
+
+  @media (max-width: 720px) {
+    font-size: 1.55rem;
+    text-shadow: none;
+  }
+`;
+
+const MobileMenuOverlay = styled.div`
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 12, 22, 0.5);
+  z-index: 115;
+  display: none;
+
+  @media (max-width: 720px) {
+    display: grid;
+    align-items: start;
+  }
+`;
+
+const MobileMenuDrawer = styled.div`
+  width: 100%;
+  max-height: min(72vh, 480px);
+  background: #fff;
+  box-shadow: 0 26px 50px rgba(15, 23, 42, 0.18);
+  padding: 18px 18px 20px;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 18px;
+  border-radius: 0 0 24px 24px;
+  overflow-y: auto;
+`;
+
+const MobileMenuHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+`;
+
+const MobileMenuTitle = styled.h3`
+  margin: 0;
+  font-size: 1rem;
+`;
+
+const MobileMenuLinks = styled.nav`
+  display: grid;
+  gap: 6px;
+
+  a {
+    padding: 12px 2px;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
+`;
 
 const PageShell = styled.div`
   max-width: 1140px;
@@ -274,6 +518,34 @@ const ActionRow = styled.div`
   width: 100%;
 `;
 
+const ToolbarRow = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+`;
+
+const UtilityLink = styled(Link)`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 12px;
+  width: 42px;
+  height: 42px;
+  background: var(--color-surface-2);
+  color: var(--color-muted);
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: var(--shadow-soft);
+
+  @media (max-width: 640px) {
+    width: 40px;
+    height: 40px;
+  }
+`;
+
 const TabBar = styled.div`
   display: inline-flex;
   flex-wrap: wrap;
@@ -352,6 +624,23 @@ const TabAction = styled.button`
   @media (max-width: 640px) {
     display: none;
   }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+`;
+
+const InlineNotice = styled.div<{ $danger?: boolean }>`
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid ${(props) => (props.$danger ? "rgba(255, 148, 148, 0.22)" : "rgba(255, 210, 92, 0.22)")};
+  background: ${(props) => (props.$danger ? "rgba(255, 148, 148, 0.08)" : "rgba(255, 210, 92, 0.08)")};
+  padding: 12px 14px;
+  color: ${(props) => (props.$danger ? "#a61c2f" : "#7a5b00")};
+  font-size: 0.9rem;
+  line-height: 1.5;
 `;
 
 const CTAButton = styled.button`
@@ -458,6 +747,111 @@ const VendorSectionTitle = styled.h3`
   font-size: 1rem;
 `;
 
+const StarterHeader = styled.div`
+  display: grid;
+  gap: 14px;
+`;
+
+const StarterGrid = styled.div`
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+
+  @media (max-width: 720px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const StarterStat = styled.div`
+  border: 1px solid var(--color-outline);
+  border-radius: 18px;
+  padding: 14px 16px;
+  background: var(--color-surface-2);
+  display: grid;
+  gap: 8px;
+`;
+
+const StarterStatTop = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--color-muted);
+
+  svg {
+    width: 18px;
+    height: 18px;
+  }
+`;
+
+const StarterStatValue = styled.div`
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--color-text);
+`;
+
+const StarterActions = styled.div`
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+
+  @media (max-width: 720px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const StarterAction = styled(Link)`
+  border: 1px solid var(--color-outline);
+  border-radius: 20px;
+  padding: 16px;
+  background: var(--color-surface);
+  display: grid;
+  gap: 14px;
+  color: inherit;
+  text-decoration: none;
+  box-shadow: var(--shadow-soft);
+`;
+
+const StarterActionIcon = styled.div`
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  color: var(--color-primary);
+  display: grid;
+  place-items: center;
+
+  svg {
+    width: 20px;
+    height: 20px;
+  }
+`;
+
+const StarterActionLabel = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-weight: 700;
+  color: var(--color-text);
+`;
+
+const UpgradeCard = styled(Link)`
+  border: 1px solid color-mix(in srgb, var(--color-primary) 26%, var(--color-outline));
+  border-radius: 24px;
+  padding: 18px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-primary) 10%, var(--color-surface)) 0%,
+    var(--color-surface) 100%
+  );
+  color: inherit;
+  text-decoration: none;
+  display: grid;
+  gap: 10px;
+  box-shadow: var(--shadow-soft);
+`;
+
 const FloatingAction = styled.button`
   position: fixed;
   right: 16px;
@@ -546,21 +940,134 @@ const formatInquiryDealLabel = (value: unknown, t: (key: string) => string) => {
 };
 
 const formatPropertyTypeLabel = (value: unknown, t: (key: string) => string) => {
-  if (!value) return "";
-  const lowered = String(value).toLowerCase();
-  if (lowered === "land") return t("property.land");
-  if (lowered === "house") return t("property.house");
-  if (lowered === "house_land") return t("property.houseLand");
-  if (lowered === "apartment") return t("property.apartment");
-  if (lowered === "mini_condo") return t("property.miniCondo");
-  if (lowered === "condo") return t("property.condo");
-  if (lowered === "serviced_apartment") return t("property.servicedApartment");
-  if (["shop_office", "hotel_restaurant", "commercial"].includes(lowered)) {
-    return t("property.commercial");
-  }
-  if (lowered === "warehouse") return t("property.warehouse");
-  return formatEnum(value);
+  return formatPropertyTypeValue(typeof value === "string" ? value : null, t) || formatEnum(value);
 };
+
+function AccountHeader({ isVendor }: { isVendor: boolean }) {
+  const { user } = useAppState();
+  const { t } = useI18n();
+  const { language, setLanguage } = useLanguage();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [languageOpen, setLanguageOpen] = useState(false);
+  const navLinks = [
+    { label: "Articles", href: "/faq" },
+    { label: "Our Partners", href: "/#partners" },
+    { label: "Collections", href: "/#collections" },
+  ];
+  const languageOptions = [
+    { value: "en", flag: "🇬🇧", name: "English", label: "Eng" },
+    { value: "mm", flag: "🇲🇲", name: "Myanmar", label: "မြန်မာ" },
+    { value: "zh", flag: "🇨🇳", name: "Chinese", label: "中文" },
+    { value: "th", flag: "🇹🇭", name: "Thai", label: "ไทย" },
+  ] as const;
+  const activeLanguage =
+    languageOptions.find((option) => option.value === language) ?? languageOptions[0];
+  const accountLabel = !user ? "Sign in / Register" : isVendor ? "Hub" : "Account";
+  const accountHref = !user ? "/auth" : isVendor ? "/hub" : "/account";
+
+  return (
+    <>
+      <Header>
+        <HeaderInner>
+          <MobileMenuButton
+            type="button"
+            aria-label="Open navigation menu"
+            onClick={() => setMobileMenuOpen(true)}
+          >
+            <Menu />
+          </MobileMenuButton>
+          <HeaderBrand href="/">
+            <HeaderBrandMark>
+              <img src="/KTLogo.png" alt="Eain Chan Myay logo" />
+            </HeaderBrandMark>
+            <HeaderBrandText>
+              <HeaderBrandName>EainChanMyay.com</HeaderBrandName>
+              <HeaderBrandSub>{t("site.tagline")}</HeaderBrandSub>
+            </HeaderBrandText>
+          </HeaderBrand>
+
+          <HeaderLinks>
+            {navLinks.map((item) => (
+              <Link key={item.label} href={item.href}>
+                {item.label}
+              </Link>
+            ))}
+            <Link href={accountHref}>{accountLabel}</Link>
+          </HeaderLinks>
+
+          <HeaderActions>
+            <LanguageTrigger
+              type="button"
+              aria-label="Open language selector"
+              onClick={() => setLanguageOpen(true)}
+            >
+              {activeLanguage.flag}
+            </LanguageTrigger>
+          </HeaderActions>
+        </HeaderInner>
+      </Header>
+
+      {mobileMenuOpen ? (
+        <MobileMenuOverlay onClick={() => setMobileMenuOpen(false)}>
+          <MobileMenuDrawer onClick={(event) => event.stopPropagation()}>
+            <MobileMenuHeader>
+              <MobileMenuTitle>Menu</MobileMenuTitle>
+              <GhostButton type="button" onClick={() => setMobileMenuOpen(false)}>
+                Close
+              </GhostButton>
+            </MobileMenuHeader>
+            <MobileMenuLinks>
+              {navLinks.map((item) => (
+                <Link key={item.label} href={item.href} onClick={() => setMobileMenuOpen(false)}>
+                  {item.label}
+                </Link>
+              ))}
+              <Link href={accountHref} onClick={() => setMobileMenuOpen(false)}>
+                {accountLabel}
+              </Link>
+            </MobileMenuLinks>
+          </MobileMenuDrawer>
+        </MobileMenuOverlay>
+      ) : null}
+
+      {languageOpen ? (
+        <ModalOverlay onClick={() => setLanguageOpen(false)}>
+          <ModalCard onClick={(event) => event.stopPropagation()}>
+            <ModalHeader>
+              <div>
+                <VendorSectionTitle>{t("settings.language")}</VendorSectionTitle>
+                <Muted>Choose the language for your marketplace experience.</Muted>
+              </div>
+              <GhostButton type="button" onClick={() => setLanguageOpen(false)}>
+                Close
+              </GhostButton>
+            </ModalHeader>
+            <VendorActionGrid>
+              {languageOptions.map((option) => (
+                <GhostButton
+                  key={option.value}
+                  type="button"
+                  onClick={() => {
+                    setLanguage(option.value);
+                    setLanguageOpen(false);
+                  }}
+                  style={{
+                    borderColor:
+                      option.value === language ? "rgba(235, 35, 64, 0.28)" : "var(--color-outline)",
+                    background:
+                      option.value === language ? "rgba(235, 35, 64, 0.06)" : "transparent",
+                  }}
+                >
+                  {option.flag} {option.name}
+                </GhostButton>
+              ))}
+            </VendorActionGrid>
+          </ModalCard>
+        </ModalOverlay>
+      ) : null}
+    </>
+  );
+}
 
 const formatTimelineLabel = (value: unknown, t: (key: string) => string) => {
   if (!value) return "";
@@ -648,6 +1155,7 @@ export default function AccountPage() {
   );
   const [activeInquiry, setActiveInquiry] = useState<Record<string, unknown> | null>(null);
   const [activeSale, setActiveSale] = useState<Record<string, unknown> | null>(null);
+  const [onboardingPending, setOnboardingPending] = useState(false);
   const [vendorWorkspace, setVendorWorkspace] = useState<{
     vendor: {
       id: string;
@@ -675,19 +1183,29 @@ export default function AccountPage() {
   const [vendorWorkspaceError, setVendorWorkspaceError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    setOnboardingPending(window.localStorage.getItem("kaiten_vendor_onboarding_pending") === "1");
+  }, []);
+
+  useEffect(() => {
     if (!profileReady || loading) return;
     if (!user) {
       router.replace("/auth");
       return;
     }
-    if (profileRole === "vendor_user" && pathname === "/account") {
+    if ((profileRole === "vendor_user" || onboardingPending || Boolean(vendorWorkspace?.vendor.id)) && pathname === "/account") {
       router.replace("/hub");
       return;
     }
-    if (profileRole !== "vendor_user" && pathname === "/hub") {
+    if (
+      profileRole !== "vendor_user" &&
+      !onboardingPending &&
+      !vendorWorkspace?.vendor.id &&
+      pathname === "/hub"
+    ) {
       router.replace("/account");
     }
-  }, [loading, pathname, profileReady, profileRole, router, user]);
+  }, [loading, onboardingPending, pathname, profileReady, profileRole, router, user, vendorWorkspace]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -721,7 +1239,7 @@ export default function AccountPage() {
   }, [profileRole, user?.id]);
 
   useEffect(() => {
-    if (profileRole !== "vendor_user" || !authToken) return;
+    if (!authToken || (!onboardingPending && profileRole !== "vendor_user" && pathname !== "/hub")) return;
 
     let active = true;
     setVendorWorkspaceError(null);
@@ -759,6 +1277,10 @@ export default function AccountPage() {
           throw new Error(payload?.error || "Unable to load vendor workspace.");
         }
         if (active) {
+          if (typeof window !== "undefined") {
+            window.localStorage.removeItem("kaiten_vendor_onboarding_pending");
+          }
+          setOnboardingPending(false);
           setVendorWorkspace(
             payload?.vendor && payload?.membership
               ? {
@@ -779,12 +1301,21 @@ export default function AccountPage() {
     return () => {
       active = false;
     };
-  }, [authToken, profileRole]);
+  }, [authToken, onboardingPending, pathname, profileRole]);
 
   const closeDetails = () => {
     setActiveInquiry(null);
     setActiveSale(null);
   };
+
+  const currentVendorPlan = getVendorPlan(vendorWorkspace?.vendor.plan);
+  const suggestedUpgrade = getUpgradePlan(vendorWorkspace?.vendor.plan);
+  const isFreeAgencyPlan = vendorWorkspace?.vendor.plan === "free";
+  const storefrontReady = vendorWorkspace ? isVendorStorefrontSetupComplete(vendorWorkspace.vendor) : false;
+  const listingLimit = vendorWorkspace?.limits?.listingLimit ?? currentVendorPlan.listingLimit;
+  const listingUsage = vendorWorkspace?.limits?.listingCount ?? 0;
+  const agentLimit = vendorWorkspace?.limits?.agentLimit ?? currentVendorPlan.agentLimit;
+  const agentUsage = vendorWorkspace?.limits?.agentCount ?? 1;
 
   const labelize = (value: string | null | undefined) =>
     value
@@ -794,10 +1325,16 @@ export default function AccountPage() {
           .join(" ")
       : "Unknown";
 
-  if (loading || !profileReady) {
+  useEffect(() => {
+    if (pathname === "/hub" && vendorWorkspace && !storefrontReady) {
+      router.replace("/agency-setup");
+    }
+  }, [pathname, router, storefrontReady, vendorWorkspace]);
+
+  if (!user && (loading || !profileReady)) {
     return (
       <div>
-        <SiteHeader />
+        <AccountHeader isVendor={false} />
         <PageShell>
           <Muted>{t("account.loading")}</Muted>
         </PageShell>
@@ -808,7 +1345,7 @@ export default function AccountPage() {
   if (!user) {
     return (
       <div>
-        <SiteHeader />
+        <AccountHeader isVendor={false} />
         <PageShell>
           <Muted>{t("account.loading")}</Muted>
         </PageShell>
@@ -818,23 +1355,19 @@ export default function AccountPage() {
 
   return (
     <div>
-      <SiteHeader />
+      <AccountHeader isVendor={profileRole === "vendor_user"} />
       <PageShell>
-        {user && profileRole === "vendor_user" && (
+        {user && (profileRole === "vendor_user" || onboardingPending || Boolean(vendorWorkspace?.vendor.id)) && (
           <VendorGrid>
             <VendorCard>
-              <VendorHero>
+              <StarterHeader>
                 <VendorTitle>{vendorWorkspace?.vendor.name || "Agency account"}</VendorTitle>
-                <Muted>
-                  Agency account access depends on your workspace role and the current plan. Use this page as the entry point to your dashboard, public agency profile, and operational tools.
-                </Muted>
                 <VendorMeta>
-                  <VendorPill>{vendorWorkspace?.limits?.currentPlan?.name || labelize(vendorWorkspace?.vendor.plan)}</VendorPill>
+                  <VendorPill>{vendorWorkspace?.limits?.currentPlan?.name || currentVendorPlan.name}</VendorPill>
                   <VendorPill>{labelize(vendorWorkspace?.membership.role)}</VendorPill>
                   {vendorWorkspace?.vendor.verified_status === "approved" ? (
                     <VendorPill $tone="success">
                       <BadgeCheck size={14} />
-                      Verified agency
                     </VendorPill>
                   ) : null}
                   {vendorWorkspace?.vendor.billing_status && vendorWorkspace.vendor.plan !== "free" ? (
@@ -843,44 +1376,144 @@ export default function AccountPage() {
                     </VendorPill>
                   ) : null}
                 </VendorMeta>
-              </VendorHero>
+              </StarterHeader>
 
               {vendorWorkspaceError ? <Muted>{vendorWorkspaceError}</Muted> : null}
 
-              <VendorSectionTitle>Workspace</VendorSectionTitle>
-              <VendorActionGrid>
-                <VendorAction href="/vendor">
-                  <VendorActionTitle>Dashboard</VendorActionTitle>
-                  <VendorActionCopy>
-                    Open your agency dashboard, analytics, listings, and lead operations.
-                  </VendorActionCopy>
-                </VendorAction>
+              {isFreeAgencyPlan ? (
+                <>
+                  <StarterGrid>
+                    <StarterStat>
+                      <StarterStatTop>
+                        <span>Listings</span>
+                        <Building2 />
+                      </StarterStatTop>
+                      <StarterStatValue>
+                        {listingUsage} / {listingLimit}
+                      </StarterStatValue>
+                    </StarterStat>
+                    <StarterStat>
+                      <StarterStatTop>
+                        <span>Seats</span>
+                        <Users2 />
+                      </StarterStatTop>
+                      <StarterStatValue>
+                        {agentUsage} / {agentLimit}
+                      </StarterStatValue>
+                    </StarterStat>
+                    <StarterStat>
+                      <StarterStatTop>
+                        <span>Storefront</span>
+                        <Globe2 />
+                      </StarterStatTop>
+                      <StarterStatValue>
+                        {vendorWorkspace?.vendor.public_storefront_enabled && vendorWorkspace?.vendor.slug
+                          ? "Live"
+                          : "Draft"}
+                      </StarterStatValue>
+                    </StarterStat>
+                  </StarterGrid>
 
-                <VendorAction href="/vendor/properties">
-                  <VendorActionTitle>Properties</VendorActionTitle>
-                  <VendorActionCopy>
-                    Review current listings, verification state, and property activity.
-                  </VendorActionCopy>
-                </VendorAction>
+                  {suggestedUpgrade ? (
+                    <UpgradeCard href="/vendor-setup">
+                      <VendorMeta>
+                        <VendorPill $tone="warning">
+                          <Sparkles size={14} />
+                          Upgrade
+                        </VendorPill>
+                      </VendorMeta>
+                      <StarterActionLabel>
+                        <span>{suggestedUpgrade.name}</span>
+                        <ArrowUpRight size={18} />
+                      </StarterActionLabel>
+                      <Muted>
+                        {suggestedUpgrade.listingLimit} listings • {suggestedUpgrade.agentLimit} seats
+                      </Muted>
+                    </UpgradeCard>
+                  ) : null}
 
-                <VendorAction href="/vendor/inquiries">
-                  <VendorActionTitle>Lead Inbox</VendorActionTitle>
-                  <VendorActionCopy>
-                    Handle routed marketplace inquiries, pipeline stages, reminders, and templates.
-                  </VendorActionCopy>
-                </VendorAction>
+                  <StarterActions>
+                    <StarterAction href="/request-sale">
+                      <StarterActionIcon>
+                        <Plus />
+                      </StarterActionIcon>
+                      <StarterActionLabel>
+                        <span>Request Listing</span>
+                        <ArrowUpRight size={18} />
+                      </StarterActionLabel>
+                    </StarterAction>
 
-                <VendorAction href="/vendor/settings">
-                  <VendorActionTitle>Agency Profile</VendorActionTitle>
-                  <VendorActionCopy>
-                    Update public storefront branding, contact points, and agency strengths.
-                  </VendorActionCopy>
-                </VendorAction>
-              </VendorActionGrid>
+                    <StarterAction href="/vendor/settings">
+                      <StarterActionIcon>
+                        <Settings />
+                      </StarterActionIcon>
+                      <StarterActionLabel>
+                        <span>Agency Profile</span>
+                        <ArrowUpRight size={18} />
+                      </StarterActionLabel>
+                    </StarterAction>
+
+                    {vendorWorkspace?.vendor.public_storefront_enabled && vendorWorkspace?.vendor.slug ? (
+                      <StarterAction href={`/agency/${vendorWorkspace.vendor.slug}`}>
+                        <StarterActionIcon>
+                          <Globe2 />
+                        </StarterActionIcon>
+                        <StarterActionLabel>
+                          <span>Public Profile</span>
+                          <ArrowUpRight size={18} />
+                        </StarterActionLabel>
+                      </StarterAction>
+                    ) : null}
+
+                    <StarterAction href="/vendor/verification">
+                      <StarterActionIcon>
+                        <ShieldCheck />
+                      </StarterActionIcon>
+                      <StarterActionLabel>
+                        <span>Verification</span>
+                        <ArrowUpRight size={18} />
+                      </StarterActionLabel>
+                    </StarterAction>
+                  </StarterActions>
+                </>
+              ) : (
+                <>
+                  <VendorSectionTitle>Workspace</VendorSectionTitle>
+                  <VendorActionGrid>
+                  <VendorAction href="/vendor">
+                    <VendorActionTitle>Dashboard</VendorActionTitle>
+                    <VendorActionCopy>
+                      Open your agency dashboard, analytics, listings, and lead operations.
+                    </VendorActionCopy>
+                  </VendorAction>
+
+                    <VendorAction href="/vendor/properties">
+                      <VendorActionTitle>Properties</VendorActionTitle>
+                      <VendorActionCopy>
+                        Review current listings, verification state, and property activity.
+                      </VendorActionCopy>
+                    </VendorAction>
+
+                    <VendorAction href="/vendor/inquiries">
+                      <VendorActionTitle>Lead Inbox</VendorActionTitle>
+                      <VendorActionCopy>
+                        Handle routed marketplace inquiries, pipeline stages, reminders, and templates.
+                      </VendorActionCopy>
+                    </VendorAction>
+
+                    <VendorAction href="/vendor/settings">
+                      <VendorActionTitle>Settings</VendorActionTitle>
+                      <VendorActionCopy>
+                        Manage agency profile, storefront branding, workspace preferences, and plan-facing controls.
+                      </VendorActionCopy>
+                    </VendorAction>
+                  </VendorActionGrid>
+                </>
+              )}
             </VendorCard>
 
             <VendorCard>
-              <VendorSectionTitle>Access by role and plan</VendorSectionTitle>
+              <VendorSectionTitle>{isFreeAgencyPlan ? "Starter plan" : "Access by role and plan"}</VendorSectionTitle>
               <List>
                 <ListItem>
                   <strong>Membership role</strong>
@@ -889,15 +1522,17 @@ export default function AccountPage() {
                 <ListItem>
                   <strong>Listing capacity</strong>
                   <Muted>
-                    {vendorWorkspace?.limits?.listingCount ?? 0} / {vendorWorkspace?.limits?.listingLimit ?? 0} listings
+                    {listingUsage} / {listingLimit} listings
                   </Muted>
                 </ListItem>
-                <ListItem>
-                  <strong>Team capacity</strong>
-                  <Muted>
-                    {vendorWorkspace?.limits?.agentCount ?? 0} / {vendorWorkspace?.limits?.agentLimit ?? 0} seats
-                  </Muted>
-                </ListItem>
+                {!isFreeAgencyPlan ? (
+                  <ListItem>
+                    <strong>Team capacity</strong>
+                    <Muted>
+                      {agentUsage} / {agentLimit} seats
+                    </Muted>
+                  </ListItem>
+                ) : null}
                 <ListItem>
                   <strong>Public storefront</strong>
                   <Muted>
@@ -909,7 +1544,8 @@ export default function AccountPage() {
               </List>
 
               <VendorActionGrid>
-                {(vendorWorkspace?.membership.role === "owner" || vendorWorkspace?.membership.role === "admin") && (
+                {!isFreeAgencyPlan &&
+                  (vendorWorkspace?.membership.role === "owner" || vendorWorkspace?.membership.role === "admin") && (
                   <VendorAction href="/vendor/team">
                     <VendorActionTitle>Team</VendorActionTitle>
                     <VendorActionCopy>
@@ -951,52 +1587,57 @@ export default function AccountPage() {
           <>
             {/* <PageSection> */}
               <HeaderRow>
-                <TabBar>
-                  <TabButton
-                    type="button"
-                    $active={activeTab === "viewing"}
-                    onClick={() => setActiveTab("viewing")}
-                  >
-                    <DesktopOnly>{t("account.viewing")}</DesktopOnly>
-                    <MobileOnly>
-                      <Eye size={16} />
-                      <span>{t("account.view")}</span>
-                    </MobileOnly>
-                  </TabButton>
-                  <TabButton
-                    type="button"
-                    $active={activeTab === "saved"}
-                    onClick={() => setActiveTab("saved")}
-                  >
-                    <DesktopOnly>{t("account.saved")}</DesktopOnly>
-                    <MobileOnly>
-                      <Heart size={16} />
-                      <span>{t("account.savedShort")}</span>
-                    </MobileOnly>
-                  </TabButton>
-                  <TabButton
-                    type="button"
-                    $active={activeTab === "inquiries"}
-                    onClick={() => setActiveTab("inquiries")}
-                  >
-                    <DesktopOnly>{t("account.inquiries")}</DesktopOnly>
-                    <MobileOnly>
-                      <Mail size={16} />
-                      <span>{t("account.inbox")}</span>
-                    </MobileOnly>
-                  </TabButton>
-                  <TabButton
-                    type="button"
-                    $active={activeTab === "sales"}
-                    onClick={() => setActiveTab("sales")}
-                  >
-                    <DesktopOnly>{t("account.sales")}</DesktopOnly>
-                    <MobileOnly>
-                      <TagIcon size={16} />
-                      <span>{t("account.salesShort")}</span>
-                    </MobileOnly>
-                  </TabButton>
-                </TabBar>
+                <ToolbarRow>
+                  <TabBar>
+                    <TabButton
+                      type="button"
+                      $active={activeTab === "viewing"}
+                      onClick={() => setActiveTab("viewing")}
+                    >
+                      <DesktopOnly>{t("account.viewing")}</DesktopOnly>
+                      <MobileOnly>
+                        <Eye size={16} />
+                        <span>{t("account.view")}</span>
+                      </MobileOnly>
+                    </TabButton>
+                    <TabButton
+                      type="button"
+                      $active={activeTab === "saved"}
+                      onClick={() => setActiveTab("saved")}
+                    >
+                      <DesktopOnly>{t("account.saved")}</DesktopOnly>
+                      <MobileOnly>
+                        <Heart size={16} />
+                        <span>{t("account.savedShort")}</span>
+                      </MobileOnly>
+                    </TabButton>
+                    <TabButton
+                      type="button"
+                      $active={activeTab === "inquiries"}
+                      onClick={() => setActiveTab("inquiries")}
+                    >
+                      <DesktopOnly>{t("account.inquiries")}</DesktopOnly>
+                      <MobileOnly>
+                        <Mail size={16} />
+                        <span>{t("account.inbox")}</span>
+                      </MobileOnly>
+                    </TabButton>
+                    <TabButton
+                      type="button"
+                      $active={activeTab === "sales"}
+                      onClick={() => setActiveTab("sales")}
+                    >
+                      <DesktopOnly>{t("account.sales")}</DesktopOnly>
+                      <MobileOnly>
+                        <TagIcon size={16} />
+                        <span>{t("account.salesShort")}</span>
+                      </MobileOnly>
+                    </TabButton>
+                  </TabBar>
+                  <UtilityLink href="/settings" aria-label="Open settings">
+                    <Settings size={16} />
+                  </UtilityLink>
+                </ToolbarRow>
               </HeaderRow>
 
               {loading || dataLoading ? (
@@ -1284,10 +1925,19 @@ export default function AccountPage() {
               ) : (
                 <>
                   <ActionRow>
-                    <TabAction type="button" onClick={() => router.push("/request-sale")}>
+                    <TabAction
+                      type="button"
+                      onClick={() => router.push("/request-sale")}
+                      disabled={salesRequests.length >= 1}
+                    >
                       {t("account.newSale")}
                     </TabAction>
                   </ActionRow>
+                  <InlineNotice $danger={salesRequests.length >= 1}>
+                    {salesRequests.length >= 1
+                      ? "1 / 1 property request used. Your existing request is under review before it can be listed."
+                      : "You can submit 1 property request from this account. Every request is reviewed before it is listed."}
+                  </InlineNotice>
                   {salesRequests.length ? (
                     <List>
                       {salesRequests.map((item) => {
@@ -1316,7 +1966,7 @@ export default function AccountPage() {
                               <StatusRow>
                                 <StatusBadge>
                                   <BadgeCheck size={12} />
-                                  {t("account.submitted")}
+                                  Under review
                                 </StatusBadge>
                                 <span>{createdAt || t("account.requestedTbd")}</span>
                               </StatusRow>
@@ -1482,6 +2132,9 @@ export default function AccountPage() {
               <Muted>{String(activeSale.city)}</Muted>
             ) : null}
             {activeSale.description ? <Muted>{String(activeSale.description)}</Muted> : null}
+            <InlineNotice>
+              This property request is under review. It will only appear as a live listing after the platform review is completed.
+            </InlineNotice>
             <ModalActions>
               <GhostButton type="button" onClick={closeDetails}>
                 {t("account.close")}
@@ -1499,7 +2152,6 @@ export default function AccountPage() {
           </ModalCard>
         </ModalOverlay>
       )}
-      {profileRole !== "vendor_user" ? <BottomNav /> : null}
     </div>
   );
 }

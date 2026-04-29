@@ -1,8 +1,7 @@
 "use client";
 
 import styled from "styled-components";
-import { SiteHeader } from "@/app/living-site/components/SiteHeader";
-import { BottomNav } from "@/app/living-site/components/BottomNav";
+import { MarketplaceHeader } from "@/app/living-site/components/MarketplaceHeader";
 import { PageSection, SectionTitle, Panel } from "@/app/living-site/components/PageSection";
 import { useI18n } from "@/app/living-site/lib/i18n";
 
@@ -59,7 +58,7 @@ export default function TermsPage() {
   ];
   return (
     <div>
-      <SiteHeader />
+      <MarketplaceHeader />
       <PageShell>
         <SectionTitle>{t("terms.title")}</SectionTitle>
         {sections.map((section) => (
@@ -76,7 +75,6 @@ export default function TermsPage() {
           </SectionCard>
         ))}
       </PageShell>
-      <BottomNav />
     </div>
   );
 }

@@ -33,11 +33,73 @@ const AppStateContext = createContext<AppStateValue>({
   logout: async () => {},
 });
 
-async function ensureCustomerProfile(user: User) {
+async function syncProfileOnServer(input: {
+  authToken: string;
+  email?: string | null;
+  name?: string | null;
+  contactNumber?: string | null;
+  role?: ProfileRole;
+}) {
+  const response = await fetch("/api/auth/sync-profile", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${input.authToken}`,
+    },
+    body: JSON.stringify({
+      email: input.email ?? null,
+      full_name: input.name ?? null,
+      phone: input.contactNumber ?? null,
+      role: input.role ?? null,
+    }),
+  });
+
+  const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+
+  if (!response.ok) {
+    return { ok: false, message: payload?.error || "Unable to sync account profile." };
+  }
+
+  return { ok: true };
+}
+
+async function ensureCustomerProfile(user: User, authToken?: string | null) {
   if (!isSupabaseConfigured) return;
+  const metadataName =
+    typeof user.user_metadata?.full_name === "string"
+      ? user.user_metadata.full_name
+      : typeof user.user_metadata?.name === "string"
+        ? user.user_metadata.name
+        : null;
+  const metadataPhone =
+    typeof user.user_metadata?.contact_number === "string"
+      ? user.user_metadata.contact_number
+      : typeof user.user_metadata?.phone === "string"
+        ? user.user_metadata.phone
+        : null;
+  const metadataRole =
+    typeof user.user_metadata?.role === "string" ? (user.user_metadata.role as ProfileRole) : undefined;
+
+  if (authToken) {
+    const syncResult = await syncProfileOnServer({
+      authToken,
+      email: user.email ?? null,
+      name: metadataName,
+      contactNumber: metadataPhone,
+      role: metadataRole,
+    });
+
+    if (syncResult.ok) {
+      return;
+    }
+  }
+
   await upsertCustomerProfile({
     id: user.id,
     email: user.email ?? null,
+    name: metadataName,
+    contactNumber: metadataPhone,
+    role: metadataRole,
   });
 }
 
@@ -84,8 +146,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     const hydrate = async () => {
       const { data: sessionData } = await supabase.auth.getSession();
       const session = sessionData.session ?? null;
-      const { data: userData } = await supabase.auth.getUser();
-      const resolvedUser = userData.user ?? session?.user ?? null;
+      const resolvedUser = session?.user ?? null;
       const resolvedRole = resolvedUser ? await getResolvedProfileRole(resolvedUser.id) : null;
 
       if (!mounted) return;
@@ -97,7 +158,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
 
       if (resolvedUser) {
-        void ensureCustomerProfile(resolvedUser);
+        void ensureCustomerProfile(resolvedUser, session?.access_token ?? null);
       }
     };
 
@@ -111,7 +172,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         setProfileReady(false);
         setLoading(false);
         if (session?.user) {
-          void ensureCustomerProfile(session.user);
+          void ensureCustomerProfile(session.user, session.access_token ?? null);
           const resolvedRole = await getResolvedProfileRole(session.user.id);
           if (!mounted) return;
           setProfileRole(resolvedRole);
@@ -163,18 +224,42 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       return { error: "Supabase is not configured." };
     }
     try {
-      const { data, error } = await supabase.auth.signUp({ email, password });
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: profile?.name?.trim() || null,
+            name: profile?.name?.trim() || null,
+            contact_number: profile?.contactNumber?.trim() || null,
+            phone: profile?.contactNumber?.trim() || null,
+            role: profile?.role ?? "user",
+          },
+        },
+      });
       if (error) {
         return { error: error.message };
       }
       if (data.user) {
-        await upsertCustomerProfile({
-          id: data.user.id,
-          email: data.user.email ?? email,
-          name: profile?.name,
-          contactNumber: profile?.contactNumber,
-          role: profile?.role,
-        });
+        const authToken = data.session?.access_token ?? null;
+        const profileResult = authToken
+          ? await syncProfileOnServer({
+              authToken,
+              email: data.user.email ?? email,
+              name: profile?.name ?? null,
+              contactNumber: profile?.contactNumber ?? null,
+              role: profile?.role,
+            })
+          : await upsertCustomerProfile({
+              id: data.user.id,
+              email: data.user.email ?? email,
+              name: profile?.name,
+              contactNumber: profile?.contactNumber,
+              role: profile?.role,
+            });
+        if (!profileResult.ok) {
+          return { error: profileResult.message || "Unable to save account profile." };
+        }
       }
       return { user: data.user ?? undefined, role: profile?.role ?? null };
     } catch (error) {

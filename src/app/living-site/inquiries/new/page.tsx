@@ -3,8 +3,7 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import styled from "styled-components";
 import { useRouter, useSearchParams } from "next/navigation";
-import { SiteHeader } from "@/app/living-site/components/SiteHeader";
-import { BottomNav } from "@/app/living-site/components/BottomNav";
+import { MarketplaceHeader } from "@/app/living-site/components/MarketplaceHeader";
 import { SectionTitle, Panel } from "@/app/living-site/components/PageSection";
 import { CustomSelect } from "@/app/living-site/components/form-controls/CustomSelect";
 import { CustomInput } from "@/app/living-site/components/form-controls/CustomInput";
@@ -13,6 +12,13 @@ import { useAppState } from "@/app/living-site/lib/app-state";
 import { getInquiryById, updateInquiry } from "@/app/living-site/lib/data";
 import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
 import { useI18n } from "@/app/living-site/lib/i18n";
+import {
+  formatPropertyTypeValue,
+  isBedBathPropertyType,
+  normalizeSelectablePropertyType,
+  propertyTypeDefinitions,
+  type PropertyType,
+} from "@/lib/property-types";
 
 const PageShell = styled.div`
   max-width: 960px;
@@ -163,7 +169,7 @@ function NewInquiryPageContent() {
           return;
         }
         setDealType(String(inquiry.deal_type ?? "buy"));
-        setPropertyType(String(inquiry.property_type ?? "house"));
+        setPropertyType(normalizeSelectablePropertyType(String(inquiry.property_type ?? "house")));
         setStateRegion(String(inquiry.state_region ?? ""));
         setDistrict(String(inquiry.district ?? ""));
         setTownship(String(inquiry.township ?? ""));
@@ -187,10 +193,7 @@ function NewInquiryPageContent() {
   }, [editId, user?.id, t]);
 
   const showBedBathFields = useMemo(
-    () =>
-      ["house", "house_land", "apartment", "condo", "mini_condo", "serviced_apartment"].includes(
-        propertyType
-      ),
+    () => isBedBathPropertyType(propertyType),
     [propertyType]
   );
 
@@ -222,16 +225,7 @@ function NewInquiryPageContent() {
     const payload = {
       userId: user.id,
       dealType: dealType as "buy" | "rent",
-      propertyType: propertyType as
-        | "land"
-        | "house"
-        | "apartment"
-        | "mini_condo"
-        | "condo"
-        | "serviced_apartment"
-        | "shop_office"
-        | "hotel_restaurant"
-        | "warehouse",
+      propertyType: propertyType as PropertyType,
       stateRegion,
       district,
       township,
@@ -279,17 +273,10 @@ function NewInquiryPageContent() {
   const districtOptions = getDistricts(stateRegion);
   const townshipOptions = getTownships(stateRegion, district);
 
-  const propertyTypeOptions = [
-    { value: "land", label: t("property.land") },
-    { value: "house", label: t("property.house") },
-    { value: "apartment", label: t("property.apartment") },
-    { value: "mini_condo", label: t("property.miniCondo") },
-    { value: "condo", label: t("property.condo") },
-    { value: "serviced_apartment", label: t("property.servicedApartment") },
-    { value: "shop_office", label: t("property.commercial") },
-    { value: "hotel_restaurant", label: t("property.commercial") },
-    { value: "warehouse", label: t("property.warehouse") },
-  ];
+  const propertyTypeOptions = propertyTypeDefinitions.map((option) => ({
+    value: option.value,
+    label: formatPropertyTypeValue(option.value, t),
+  }));
 
   const buyBudgetOptions = [
     { value: "0-1000", label: t("inquiry.budget.buy1") },
@@ -312,7 +299,7 @@ function NewInquiryPageContent() {
 
   return (
     <div>
-      <SiteHeader />
+      <MarketplaceHeader />
       <PageShell>
         <TitleRow>
           <SectionTitle>{isEdit ? t("inquiry.editTitle") : t("inquiry.newTitle")}</SectionTitle>
@@ -504,7 +491,6 @@ function NewInquiryPageContent() {
         </Panel>
         )}
       </PageShell>
-      <BottomNav />
       {(submitting || loadingEdit) && (
         <LoadingOverlay
           message={loadingEdit ? t("inquiry.loading") : t("inquiry.submitting")}
@@ -518,7 +504,7 @@ function NewInquiryPageContent() {
               <GhostButton type="button" onClick={() => router.push("/")}>
                 {t("inquiry.browse")}
               </GhostButton>
-              <PrimaryButton type="button" onClick={() => router.push("/activities")}>
+              <PrimaryButton type="button" onClick={() => router.push("/account")}>
                 {t("inquiry.goActivities")}
               </PrimaryButton>
             </ActionRow>

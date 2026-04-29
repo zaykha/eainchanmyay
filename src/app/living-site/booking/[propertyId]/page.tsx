@@ -3,8 +3,7 @@
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import styled from "styled-components";
-import { SiteHeader } from "@/app/living-site/components/SiteHeader";
-import { BottomNav } from "@/app/living-site/components/BottomNav";
+import { MarketplaceHeader } from "@/app/living-site/components/MarketplaceHeader";
 import { SectionTitle } from "@/app/living-site/components/PageSection";
 import { useListingDetail } from "@/app/living-site/hooks/useListingDetail";
 import { createViewingRequest } from "@/app/living-site/lib/data";
@@ -123,7 +122,7 @@ export default function RequestViewingPage() {
   if (loading) {
     return (
       <div>
-        <SiteHeader />
+        <MarketplaceHeader />
         <PageShell>{t("booking.loadingProperty")}</PageShell>
       </div>
     );
@@ -132,7 +131,7 @@ export default function RequestViewingPage() {
   if (!detail || !propertyId) {
     return (
       <div>
-        <SiteHeader />
+        <MarketplaceHeader />
         <PageShell>{t("booking.notFound")}</PageShell>
       </div>
     );
@@ -167,7 +166,7 @@ export default function RequestViewingPage() {
 
   return (
     <div>
-      <SiteHeader />
+      <MarketplaceHeader />
       <PageShell>
         <SectionTitle>{t("booking.requestTitle")}</SectionTitle>
         <Muted>{t("booking.subtitle")}</Muted>
@@ -232,7 +231,6 @@ export default function RequestViewingPage() {
           )}
         </Card>
       </PageShell>
-      <BottomNav />
     </div>
   );
 }

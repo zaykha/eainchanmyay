@@ -5,9 +5,8 @@ import { useEffect, useState } from "react";
 import { Mail, MapPin, Phone, ShieldCheck } from "lucide-react";
 import styled from "styled-components";
 import { useParams } from "next/navigation";
-import { BottomNav } from "@/app/living-site/components/BottomNav";
 import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
-import { SiteHeader } from "@/app/living-site/components/SiteHeader";
+import { MarketplaceHeader } from "@/app/living-site/components/MarketplaceHeader";
 import { SectionTitle } from "@/app/living-site/components/PageSection";
 import { formatCurrency } from "@/app/living-site/lib/format";
 import { resolveImage } from "@/app/living-site/lib/images";
@@ -365,7 +364,7 @@ export default function AgencyStorefrontPage() {
 
   return (
     <Shell>
-      <SiteHeader />
+      <MarketplaceHeader />
       <Page>
         {error || !agency ? (
           <Card>
@@ -493,7 +492,6 @@ export default function AgencyStorefrontPage() {
           </>
         )}
       </Page>
-      <BottomNav />
     </Shell>
   );
 }

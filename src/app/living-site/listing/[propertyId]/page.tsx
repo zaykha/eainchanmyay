@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import {
@@ -14,8 +15,7 @@ import {
   Tag,
 } from "lucide-react";
 import styled, { keyframes } from "styled-components";
-import { SiteHeader } from "@/app/living-site/components/SiteHeader";
-import { BottomNav } from "@/app/living-site/components/BottomNav";
+import { MarketplaceHeader } from "@/app/living-site/components/MarketplaceHeader";
 import { SectionTitle } from "@/app/living-site/components/PageSection";
 import { useListingDetail } from "@/app/living-site/hooks/useListingDetail";
 import {
@@ -35,6 +35,7 @@ import { CustomInput } from "@/app/living-site/components/form-controls/CustomIn
 import { CustomSelect } from "@/app/living-site/components/form-controls/CustomSelect";
 import { CustomTextarea } from "@/app/living-site/components/form-controls/CustomTextarea";
 import { useI18n } from "@/app/living-site/lib/i18n";
+import { formatPropertyTypeValue, isBedBathPropertyType } from "@/lib/property-types";
 
 const PageShell = styled.div`
   max-width: 1140px;
@@ -376,7 +377,7 @@ const AgencyCard = styled(Link)`
   color: inherit;
 `;
 
-const ContactButton = styled.a`
+const ContactButton = styled.button`
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -418,6 +419,21 @@ const SecondaryButton = styled.a<{ $active?: boolean }>`
   border: 1px solid
     ${(props) => (props.$active ? "var(--color-primary)" : "var(--color-outline)")};
   cursor: pointer;
+`;
+
+const ContactChoice = styled.button`
+  width: 100%;
+  border: 1px solid var(--color-outline);
+  border-radius: 14px;
+  padding: 14px 16px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  font-weight: 600;
 `;
 
 const ModalOverlay = styled.div`
@@ -476,7 +492,7 @@ const DateTrigger = styled.button`
   width: 100%;
   border-radius: 12px;
   border: 1px solid var(--color-outline);
-  padding: 0 12px;
+  padding: 12px 12px 0;
   background: var(--color-surface-2);
   color: var(--color-text);
   height: 50px;
@@ -633,20 +649,7 @@ const formatDealType = (value: string | undefined, t: (key: string) => string) =
 };
 
 const formatPropertyType = (value: string | undefined, t: (key: string) => string) => {
-  if (!value) return "";
-  const lowered = value.toLowerCase();
-  if (lowered === "house_land") return t("property.houseLand");
-  if (lowered === "land") return t("property.land");
-  if (lowered === "house") return t("property.house");
-  if (lowered === "apartment") return t("property.apartment");
-  if (lowered === "mini_condo") return t("property.miniCondo");
-  if (lowered === "condo") return t("property.condo");
-  if (lowered === "serviced_apartment") return t("property.servicedApartment");
-  if (lowered === "warehouse") return t("property.warehouse");
-  if (["shop_office", "hotel_restaurant", "commercial"].includes(lowered)) {
-    return t("property.commercial");
-  }
-  return formatLabel(value);
+  return formatPropertyTypeValue(value, t) || formatLabel(value);
 };
 
 const getNumber = (value: unknown) => {
@@ -699,6 +702,8 @@ const toDateString = (value: Date) => {
   const day = `${value.getDate()}`.padStart(2, "0");
   return `${year}-${month}-${day}`;
 };
+
+const VIEWING_CONTACT_CACHE_KEY = "ecm_viewing_contact_cache";
 
 
 type DateTimePickerProps = {
@@ -835,6 +840,12 @@ export default function ListingDetailPage() {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveSubmitting, setSaveSubmitting] = useState(false);
+  const [contactOpen, setContactOpen] = useState(false);
+  const [contactCopied, setContactCopied] = useState(false);
+  const metadataFullName =
+    typeof user?.user_metadata?.full_name === "string" ? user.user_metadata.full_name.trim() : "";
+  const metadataName =
+    typeof user?.user_metadata?.name === "string" ? user.user_metadata.name.trim() : "";
   const locale =
     language === "mm" ? "my-MM" : language === "zh" ? "zh-CN" : language === "th" ? "th-TH" : "en-US";
   const timeWindowOptions = [
@@ -879,17 +890,62 @@ export default function ListingDetailPage() {
 
   useEffect(() => {
     if (!viewingOpen || !user?.id) return;
-    if (viewingName.trim() && viewingPhone.trim()) return;
+    const currentName = viewingName.trim();
+    const currentPhone = viewingPhone.trim();
+
+    if (!currentName) {
+      const resolvedMetadataName = metadataFullName || metadataName;
+      if (resolvedMetadataName) {
+        setViewingName(resolvedMetadataName);
+      }
+    }
+
+    try {
+      const cached = window.localStorage.getItem(VIEWING_CONTACT_CACHE_KEY);
+      if (cached) {
+        const parsed = JSON.parse(cached) as { name?: string; phone?: string } | null;
+        if (!currentName && typeof parsed?.name === "string" && parsed.name.trim()) {
+          setViewingName(parsed.name.trim());
+        }
+        if (!currentPhone && typeof parsed?.phone === "string" && parsed.phone.trim()) {
+          setViewingPhone(parsed.phone.trim());
+        }
+      }
+    } catch {
+      // Ignore broken local cache and continue with profile fetch.
+    }
+
+    const nextName =
+      currentName ||
+      metadataFullName ||
+      metadataName;
+    const nextPhone = currentPhone;
+
+    if (nextName && nextPhone) return;
 
     let active = true;
     getCustomerProfile(user.id)
       .then(({ profile }) => {
         if (!active || !profile) return;
-        if (!viewingName.trim() && profile.name) {
+        const resolvedName = !nextName && profile.name ? profile.name.trim() : nextName;
+        const resolvedPhone = !nextPhone && profile.contact_number ? profile.contact_number.trim() : nextPhone;
+
+        if (!currentName && profile.name) {
           setViewingName(profile.name);
         }
-        if (!viewingPhone.trim() && profile.contact_number) {
+        if (!currentPhone && profile.contact_number) {
           setViewingPhone(profile.contact_number);
+        }
+        try {
+          window.localStorage.setItem(
+            VIEWING_CONTACT_CACHE_KEY,
+            JSON.stringify({
+              name: resolvedName || "",
+              phone: resolvedPhone || "",
+            })
+          );
+        } catch {
+          // Ignore localStorage write failures.
         }
       })
       .finally(() => {
@@ -899,7 +955,22 @@ export default function ListingDetailPage() {
     return () => {
       active = false;
     };
-  }, [user?.id, viewingOpen, viewingName, viewingPhone]);
+  }, [metadataFullName, metadataName, user?.id, viewingOpen, viewingName, viewingPhone]);
+
+  useEffect(() => {
+    if (!viewingOpen) return;
+    try {
+      window.localStorage.setItem(
+        VIEWING_CONTACT_CACHE_KEY,
+        JSON.stringify({
+          name: viewingName.trim(),
+          phone: viewingPhone.trim(),
+        })
+      );
+    } catch {
+      // Ignore localStorage write failures.
+    }
+  }, [viewingName, viewingOpen, viewingPhone]);
 
   const galleryUrls = useMemo(() => {
     const images = detail?.images ?? [];
@@ -956,7 +1027,7 @@ export default function ListingDetailPage() {
   if (loading) {
     return (
       <div>
-        <SiteHeader />
+        <MarketplaceHeader />
         <LoadingOverlay message={t("listing.loadingProperty")} />
       </div>
     );
@@ -965,7 +1036,7 @@ export default function ListingDetailPage() {
   if (!detail) {
     return (
       <div>
-        <SiteHeader />
+        <MarketplaceHeader />
         <PageShell>{t("listing.notFound")}</PageShell>
       </div>
     );
@@ -1017,12 +1088,8 @@ export default function ListingDetailPage() {
   const primaryContact = agencyPhone || EAIN_CONTACT_PHONE;
   const showVerifiedListing = propertyVerificationStatus === "approved";
   const showVerifiedAgency = !showVerifiedListing && agencyVerificationStatus === "approved";
-  const showBeds =
-    ["house", "house_land", "apartment"].includes(propertyTypeRaw) &&
-    bedrooms !== undefined;
-  const showBaths =
-    ["house", "house_land", "apartment"].includes(propertyTypeRaw) &&
-    bathrooms !== undefined;
+  const showBeds = isBedBathPropertyType(propertyTypeRaw) && bedrooms !== undefined;
+  const showBaths = isBedBathPropertyType(propertyTypeRaw) && bathrooms !== undefined;
   const featureItems: Array<{ key: string; label: string; icon: React.ElementType }> = [];
   if (showBeds) {
     featureItems.push({ key: "beds", label: `${bedrooms} ${t("listing.bedrooms")}`, icon: BedDouble });
@@ -1110,9 +1177,18 @@ export default function ListingDetailPage() {
     }
   };
 
+  const handleCopyContact = async () => {
+    try {
+      await navigator.clipboard.writeText(primaryContact);
+      setContactCopied(true);
+    } catch {
+      setContactCopied(false);
+    }
+  };
+
   return (
     <div>
-      <SiteHeader />
+      <MarketplaceHeader />
       <PageShell>
         <HeaderRow>
           <TitleBlock>
@@ -1277,7 +1353,13 @@ export default function ListingDetailPage() {
                 <span>{agencyTagline || "Open the public agency storefront and browse more listings."}</span>
               </AgencyCard>
             ) : null}
-            <ContactButton href={`tel:${primaryContact}`}>
+            <ContactButton
+              type="button"
+              onClick={() => {
+                setContactCopied(false);
+                setContactOpen(true);
+              }}
+            >
               <Phone size={16} style={{ marginRight: 6 }} />
               {t("listing.contactAgent")}
             </ContactButton>
@@ -1340,6 +1422,34 @@ export default function ListingDetailPage() {
           </ModalCard>
         </ModalOverlay>
       )}
+      {contactOpen && (
+        <ModalOverlay onClick={() => setContactOpen(false)}>
+          <ModalCard onClick={(event) => event.stopPropagation()}>
+            <SectionTitle>{t("listing.contactAgent")}</SectionTitle>
+            <strong>{agencyName || "Eain Chan Myay Advisory"}</strong>
+            <MetaText>{primaryContact}</MetaText>
+            {contactCopied ? <SuccessCard><strong>Number copied.</strong></SuccessCard> : null}
+            <ContactChoice
+              type="button"
+              onClick={() => {
+                window.location.href = `tel:${primaryContact}`;
+              }}
+            >
+              <span>Call now</span>
+              <Phone size={18} />
+            </ContactChoice>
+            <ContactChoice type="button" onClick={() => void handleCopyContact()}>
+              <span>Copy number</span>
+              <Tag size={18} />
+            </ContactChoice>
+            <ModalActions>
+              <GhostButton type="button" onClick={() => setContactOpen(false)}>
+                {t("common.close")}
+              </GhostButton>
+            </ModalActions>
+          </ModalCard>
+        </ModalOverlay>
+      )}
       {viewingOpen && (
         <ModalOverlay onClick={() => setViewingOpen(false)}>
           <ModalCard onClick={(event) => event.stopPropagation()}>
@@ -1347,24 +1457,20 @@ export default function ListingDetailPage() {
             {viewingSuccess ? null : (
               <>
                 <strong>{title}</strong>
-                {user ? null : (
-                  <>
-                    <CustomInput
-                      id="viewing-name"
-                      label={t("listing.fullName")}
-                      name="name"
-                      value={viewingName}
-                      onChange={(event) => setViewingName(event.target.value)}
-                    />
-                    <CustomInput
-                      id="viewing-phone"
-                      label={t("listing.phoneNumber")}
-                      name="phone"
-                      value={viewingPhone}
-                      onChange={(event) => setViewingPhone(event.target.value)}
-                    />
-                  </>
-                )}
+                <CustomInput
+                  id="viewing-name"
+                  label={t("listing.fullName")}
+                  name="name"
+                  value={viewingName}
+                  onChange={(event) => setViewingName(event.target.value)}
+                />
+                <CustomInput
+                  id="viewing-phone"
+                  label={t("listing.phoneNumber")}
+                  name="phone"
+                  value={viewingPhone}
+                  onChange={(event) => setViewingPhone(event.target.value)}
+                />
                 <DateTimePicker
                   label={t("listing.preferredDate")}
                   name="preferred_date"
@@ -1403,7 +1509,6 @@ export default function ListingDetailPage() {
                 <BenefitList>
                   <li>{t("listing.saveCompare")}</li>
                   <li>{t("listing.viewStatus")}</li>
-                  <li>{t("listing.priceAlerts")}</li>
                 </BenefitList>
                 <ModalActions>
                   <GhostButton
@@ -1447,7 +1552,6 @@ export default function ListingDetailPage() {
           </ModalCard>
         </ModalOverlay>
       )}
-      <BottomNav />
     </div>
   );
 }

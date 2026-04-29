@@ -1,8 +1,7 @@
 "use client";
 
 import styled from "styled-components";
-import { SiteHeader } from "@/app/living-site/components/SiteHeader";
-import { BottomNav } from "@/app/living-site/components/BottomNav";
+import { MarketplaceHeader } from "@/app/living-site/components/MarketplaceHeader";
 import { PageSection, SectionTitle, Panel } from "@/app/living-site/components/PageSection";
 import { useI18n } from "@/app/living-site/lib/i18n";
 
@@ -38,7 +37,7 @@ export default function FaqPage() {
   const { t } = useI18n();
   return (
     <div>
-      <SiteHeader />
+      <MarketplaceHeader />
       <PageShell>
         <SectionTitle>{t("faq.title")}</SectionTitle>
         <SectionCard>
@@ -72,7 +71,6 @@ export default function FaqPage() {
           </BulletList>
         </SectionCard>
       </PageShell>
-      <BottomNav />
     </div>
   );
 }

@@ -16,6 +16,7 @@ import styled from "styled-components";
 import type { Listing } from "@/app/living-site/lib/data";
 import { formatCurrency } from "@/app/living-site/lib/format";
 import { useI18n } from "@/app/living-site/lib/i18n";
+import { formatPropertyTypeValue } from "@/lib/property-types";
 
 const Card = styled.article`
   background: var(--color-surface);
@@ -177,20 +178,7 @@ const formatDealType = (value: string | undefined, t: (key: string) => string) =
 };
 
 const getPropertyTypeLabel = (value: string | undefined, t: (key: string) => string) => {
-  if (!value) return "";
-  const lowered = value.toLowerCase();
-  if (lowered === "land") return t("property.land");
-  if (lowered === "house") return t("property.house");
-  if (lowered === "house_land") return t("property.houseLand");
-  if (lowered === "apartment") return t("property.apartment");
-  if (lowered === "mini_condo") return t("property.miniCondo");
-  if (lowered === "condo") return t("property.condo");
-  if (lowered === "serviced_apartment") return t("property.servicedApartment");
-  if (["shop_office", "hotel_restaurant", "commercial"].includes(lowered)) {
-    return t("property.commercial");
-  }
-  if (lowered === "warehouse") return t("property.warehouse");
-  return formatLabel(value);
+  return formatPropertyTypeValue(value, t) || formatLabel(value);
 };
 
 const getPropertyTypeIcon = (value?: string, size = 20) => {
@@ -198,9 +186,11 @@ const getPropertyTypeIcon = (value?: string, size = 20) => {
   if (["land"].includes(lowered)) return <LandPlot size={size} />;
   if (["house", "house_land"].includes(lowered)) return <Home size={size} />;
   if (["condo", "mini_condo"].includes(lowered)) return <TowerControl size={size} />;
-  if (["apartment", "serviced_apartment"].includes(lowered)) return <Building2 size={size} />;
-  if (["shop_office", "hotel_restaurant", "commercial"].includes(lowered)) return <Store size={size} />;
-  if (["warehouse"].includes(lowered)) return <Warehouse size={size} />;
+  if (["apartment", "serviced_apartment", "project"].includes(lowered)) return <Building2 size={size} />;
+  if (["shop", "office", "shop_office", "hotel", "restaurant", "marketplace", "hotel_restaurant", "commercial"].includes(lowered)) {
+    return <Store size={size} />;
+  }
+  if (["warehouse", "industrial"].includes(lowered)) return <Warehouse size={size} />;
   return <Home size={size} />;
 };
 

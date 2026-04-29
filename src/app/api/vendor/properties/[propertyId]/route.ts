@@ -1,20 +1,11 @@
 import { NextResponse } from "next/server";
 import { getVendorRequestContext, type VendorRequestContext } from "@/app/api/vendor/_lib/context";
 import { resolveImage, resolveListingImage, resolvePhotoUrl } from "@/app/living-site/lib/images";
+import { propertyTypeValues } from "@/lib/property-types";
 
 const allowedStatuses = new Set(["draft", "published", "sold", "rented", "archived"]);
 const allowedDeals = new Set(["sale", "rent"]);
-const allowedPropertyTypes = new Set([
-  "land",
-  "house",
-  "apartment",
-  "mini_condo",
-  "condo",
-  "serviced_apartment",
-  "shop_office",
-  "hotel_restaurant",
-  "warehouse",
-]);
+const allowedPropertyTypes = new Set(propertyTypeValues);
 const allowedBackupPowerTypes = new Set(["solar", "generator", "solar_generator"]);
 
 function toNullableString(value: unknown) {

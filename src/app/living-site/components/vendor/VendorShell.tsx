@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useAppState } from "@/app/living-site/lib/app-state";
 import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
+import { isVendorStorefrontSetupComplete } from "@/lib/vendor-storefront";
 
 const Frame = styled.div`
   min-height: 100vh;
@@ -243,16 +244,16 @@ export function VendorShell({ children }: { children: React.ReactNode }) {
   const [workspaceError, setWorkspaceError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!profileReady || !authToken || profileRole !== "vendor_user") return;
+    if (!profileReady || !authToken || !user) return;
 
     let cancelled = false;
 
-    const fetchWorkspace = async () => {
-      setWorkspaceLoading(true);
-      setWorkspaceError(null);
+      const fetchWorkspace = async () => {
+        setWorkspaceLoading(true);
+        setWorkspaceError(null);
 
       const runWorkspaceFetch = async () => {
-        const response = await fetch("/api/vendor/workspace", {
+        const response = await fetch("/api/vendor/workspace?includeUsage=false", {
           headers: {
             Authorization: `Bearer ${authToken}`,
           },
@@ -273,6 +274,16 @@ export function VendorShell({ children }: { children: React.ReactNode }) {
           throw new Error(payload?.error ?? "Unable to load the vendor workspace.");
         }
 
+        if (!isVendorStorefrontSetupComplete(payload.vendor)) {
+          router.replace("/agency-setup");
+          return;
+        }
+
+        if (payload.vendor.plan === "free") {
+          router.replace("/hub");
+          return;
+        }
+
         const requiresActiveBilling = payload.vendor.plan && payload.vendor.plan !== "free";
         if (requiresActiveBilling && payload.vendor.billing_status !== "active") {
           router.replace("/vendor-setup");
@@ -284,6 +295,7 @@ export function VendorShell({ children }: { children: React.ReactNode }) {
         }
       } catch (error) {
         if (!cancelled) {
+          setWorkspace(null);
           setWorkspaceError(error instanceof Error ? error.message : "Unable to load the vendor workspace.");
         }
       } finally {
@@ -298,7 +310,7 @@ export function VendorShell({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [authToken, profileReady, profileRole, router]);
+  }, [authToken, profileReady, router, user]);
 
   if (!profileReady) {
     return <LoadingOverlay message="Loading vendor workspace..." />;
@@ -327,7 +339,7 @@ export function VendorShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (profileRole !== "vendor_user") {
+  if (!workspaceLoading && !workspace && profileRole !== "vendor_user") {
     return (
       <Frame>
         <Content>

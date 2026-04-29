@@ -3,8 +3,7 @@
 import styled from "styled-components";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { SiteHeader } from "@/app/living-site/components/SiteHeader";
-import { BottomNav } from "@/app/living-site/components/BottomNav";
+import { MarketplaceHeader } from "@/app/living-site/components/MarketplaceHeader";
 import { useI18n } from "@/app/living-site/lib/i18n";
 import { useLanguage } from "@/app/living-site/components/Providers";
 import { useAppState } from "@/app/living-site/lib/app-state";
@@ -224,7 +223,7 @@ export default function SettingsPage() {
 
   return (
     <div>
-      <SiteHeader />
+      <MarketplaceHeader />
       <PageShell>
         <SettingsTitle>{t("settings.title")}</SettingsTitle>
         <Card>
@@ -355,7 +354,6 @@ export default function SettingsPage() {
           </ModalCard>
         </ModalOverlay>
       )}
-      <BottomNav />
     </div>
   );
 }

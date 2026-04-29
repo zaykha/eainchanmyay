@@ -10,6 +10,8 @@ import { CustomSelect } from "@/app/living-site/components/form-controls/CustomS
 import { useLanguage } from "@/app/living-site/components/Providers";
 import { useInfiniteListings } from "@/app/living-site/hooks/useInfiniteListings";
 import { useAppState } from "@/app/living-site/lib/app-state";
+import { resolveHeaderAccountPresentation } from "@/app/living-site/lib/header-account";
+import { isBedBathPropertyType } from "@/lib/property-types";
 import { useI18n } from "@/app/living-site/lib/i18n";
 import { getDistricts, getStates, getTownships } from "@/app/living-site/lib/myanmar-geo";
 
@@ -1328,10 +1330,7 @@ export function HomePageClient() {
     [locationDistrictDraft, locationStateDraft]
   );
   const showBedBathFilters = useMemo(
-    () =>
-      ["house", "house_land", "apartment", "condo", "mini_condo", "serviced_apartment"].includes(
-        propertyType
-      ),
+    () => isBedBathPropertyType(propertyType),
     [propertyType]
   );
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
@@ -1347,20 +1346,18 @@ export function HomePageClient() {
     languageOptions.find((option) => option.value === language) ?? languageOptions[0];
 
   const locationSummary = [stateRegion, district, township].filter(Boolean).join(" / ");
-  const accountLabel = useMemo(() => {
-    if (profileReady && profileRole === "vendor_user") return "Hub";
-    if (!user) return "Account";
-    const fullName =
-      typeof user.user_metadata?.full_name === "string"
-        ? user.user_metadata.full_name.trim()
-        : typeof user.user_metadata?.name === "string"
-          ? user.user_metadata.name.trim()
-          : "";
-    if (fullName) return fullName;
-    const emailPrefix = user.email?.split("@")[0]?.trim();
-    return emailPrefix || "My Account";
-  }, [profileReady, profileRole, user]);
-  const accountHref = !profileReady || authLoading ? "/account" : profileRole === "vendor_user" ? "/hub" : user ? "/account" : "/auth";
+  const resolvedAccount = useMemo(
+    () =>
+      resolveHeaderAccountPresentation({
+        user,
+        profileRole,
+        profileReady,
+        loading: authLoading,
+      }),
+    [authLoading, profileReady, profileRole, user]
+  );
+  const accountLabel = resolvedAccount.label;
+  const accountHref = resolvedAccount.href;
 
   useEffect(() => {
     if (!showBedBathFilters) {

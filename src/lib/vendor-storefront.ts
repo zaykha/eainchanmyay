@@ -81,3 +81,18 @@ export function getVendorStorefrontBadges(input: {
 
   return badges;
 }
+
+export function isVendorStorefrontSetupComplete(input: {
+  name?: string | null;
+  contact_phone?: string | null;
+  contact_email?: string | null;
+  logo_url?: string | null;
+  description?: string | null;
+}) {
+  const hasName = Boolean(input.name?.trim());
+  const hasContact = Boolean(input.contact_phone?.trim() || input.contact_email?.trim());
+  const hasLogo = Boolean(input.logo_url?.trim());
+  const hasDescription = Boolean(input.description?.trim());
+
+  return hasName && hasContact && hasLogo && hasDescription;
+}

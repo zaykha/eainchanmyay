@@ -1,22 +1,14 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { rateLimit } from "@/app/api/_lib/rate-limit";
+import type { PropertyType } from "@/lib/property-types";
 
 type Payload = {
   user_id?: string | null;
   title: string;
   description?: string | null;
   deal_type: "sale" | "rent";
-  property_type:
-    | "land"
-    | "house"
-    | "apartment"
-    | "mini_condo"
-    | "condo"
-    | "serviced_apartment"
-    | "shop_office"
-    | "hotel_restaurant"
-    | "warehouse";
+  property_type: PropertyType;
   price: number;
   currency: "MMK" | "USD" | "CNY" | "THB";
   state_region: string;
@@ -51,6 +43,12 @@ const toNullableNumber = (value: unknown) => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
+function getBearerToken(request: Request) {
+  const authHeader = request.headers.get("authorization") ?? request.headers.get("Authorization") ?? "";
+  if (!authHeader.startsWith("Bearer ")) return null;
+  return authHeader.slice("Bearer ".length).trim() || null;
+}
+
 export async function POST(req: Request) {
   const limit = rateLimit(req, {
     windowMs: 60_000,
@@ -70,14 +68,19 @@ export async function POST(req: Request) {
       }
     );
   }
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+  const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+  const token = getBearerToken(req);
 
-  if (!supabaseUrl || !supabaseAnon) {
+  if (!supabaseUrl || !supabaseServiceRoleKey) {
     return NextResponse.json(
       { ok: false, message: "Supabase is not configured." },
       { status: 500 }
     );
+  }
+
+  if (!token) {
+    return NextResponse.json({ ok: false, message: "Sign in is required." }, { status: 401 });
   }
 
   let body: Payload;
@@ -102,8 +105,38 @@ export async function POST(req: Request) {
     );
   }
 
+  const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+
+  const { data: userData, error: authError } = await supabase.auth.getUser(token);
+  const user = userData.user;
+
+  if (authError || !user) {
+    return NextResponse.json({ ok: false, message: "Unauthorized." }, { status: 401 });
+  }
+
+  const { count, error: countError } = await supabase
+    .from("sales_requests")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id);
+
+  if (countError) {
+    return NextResponse.json({ ok: false, message: countError.message }, { status: 500 });
+  }
+
+  if ((count ?? 0) >= 1) {
+    return NextResponse.json(
+      { ok: false, message: "Only 1 property request is allowed per account. Edit your existing request instead." },
+      { status: 409 }
+    );
+  }
+
   const payload = {
-    user_id: body.user_id ?? null,
+    user_id: user.id,
     title: body.title.trim(),
     description: toNullableString(body.description),
     deal_type: body.deal_type,
@@ -130,7 +163,6 @@ export async function POST(req: Request) {
     owner_phone_secondary: toNullableString(body.owner_phone_secondary),
   };
 
-  const supabase = createClient(supabaseUrl, supabaseAnon);
   const { error } = await supabase.from("sales_requests").insert(payload);
 
   if (error) {

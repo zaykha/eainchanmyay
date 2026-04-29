@@ -1,21 +1,13 @@
 import { NextResponse } from "next/server";
 import { getVendorRequestContext } from "@/app/api/vendor/_lib/context";
 import { getVendorPlanUsage } from "@/app/api/vendor/_lib/plan-limits";
+import type { PropertyType } from "@/lib/property-types";
 
 type Payload = {
   title?: string;
   description?: string | null;
   deal_type?: "sale" | "rent";
-  property_type?:
-    | "land"
-    | "house"
-    | "apartment"
-    | "mini_condo"
-    | "condo"
-    | "serviced_apartment"
-    | "shop_office"
-    | "hotel_restaurant"
-    | "warehouse";
+  property_type?: PropertyType;
   price?: number;
   currency?: "MMK" | "USD" | "CNY" | "THB";
   state_region?: string;
