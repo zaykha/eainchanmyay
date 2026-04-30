@@ -1137,6 +1137,24 @@ const formatArea = (value: unknown, locale: string, unitLabel: string) => {
   return `${numeric.toLocaleString(locale)} ${unitLabel}`;
 };
 
+function withTimeout<T>(promise: Promise<T>, timeoutMs = 8000): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = window.setTimeout(() => {
+      reject(new Error("Request timed out."));
+    }, timeoutMs);
+
+    promise
+      .then((value) => {
+        window.clearTimeout(timer);
+        resolve(value);
+      })
+      .catch((error) => {
+        window.clearTimeout(timer);
+        reject(error);
+      });
+  });
+}
+
 export default function AccountPage() {
   const { user, loading, profileRole, profileReady, authToken } = useAppState();
   const router = useRouter();
@@ -1212,21 +1230,50 @@ export default function AccountPage() {
     if (profileRole === "vendor_user") return;
     let active = true;
     setDataLoading(true);
-    Promise.all([
-      getViewingRequestsForUser(user.id),
-      getSavedPropertiesForUser(user.id),
-      getInquiriesForUser(user.id),
-      getSalesRequestsForUser(user.id),
+    Promise.allSettled([
+      withTimeout(getViewingRequestsForUser(user.id)),
+      withTimeout(getSavedPropertiesForUser(user.id)),
+      withTimeout(getInquiriesForUser(user.id)),
+      withTimeout(getSalesRequestsForUser(user.id)),
     ])
-      .then(([requests, saved, inquiryRows, salesRows]) => {
+      .then((results) => {
         if (!active) return;
-        setViewingRequests(requests.data);
-        setSavedProperties(saved.data);
-        setInquiries(inquiryRows.data);
-        setSalesRequests(salesRows.data);
-        const errors = [requests.error, saved.error, inquiryRows.error, salesRows.error]
+
+        const [requests, saved, inquiryRows, salesRows] = results;
+
+        if (requests.status === "fulfilled") {
+          setViewingRequests(requests.value.data);
+        } else {
+          setViewingRequests([]);
+        }
+
+        if (saved.status === "fulfilled") {
+          setSavedProperties(saved.value.data);
+        } else {
+          setSavedProperties([]);
+        }
+
+        if (inquiryRows.status === "fulfilled") {
+          setInquiries(inquiryRows.value.data);
+        } else {
+          setInquiries([]);
+        }
+
+        if (salesRows.status === "fulfilled") {
+          setSalesRequests(salesRows.value.data);
+        } else {
+          setSalesRequests([]);
+        }
+
+        const errors = [
+          requests.status === "fulfilled" ? requests.value.error : requests.reason instanceof Error ? requests.reason.message : "Unable to load viewing requests.",
+          saved.status === "fulfilled" ? saved.value.error : saved.reason instanceof Error ? saved.reason.message : "Unable to load saved properties.",
+          inquiryRows.status === "fulfilled" ? inquiryRows.value.error : inquiryRows.reason instanceof Error ? inquiryRows.reason.message : "Unable to load inquiries.",
+          salesRows.status === "fulfilled" ? salesRows.value.error : salesRows.reason instanceof Error ? salesRows.reason.message : "Unable to load property requests.",
+        ]
           .filter(Boolean)
           .join(" • ");
+
         setLoadError(errors || null);
       })
       .finally(() => {

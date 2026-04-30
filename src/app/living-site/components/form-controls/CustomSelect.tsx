@@ -11,6 +11,7 @@ type CustomSelectProps = {
   value: string;
   onChange: (value: string) => void;
   error?: string | null;
+  status?: "default" | "error" | "success";
   disabled?: boolean;
   children: React.ReactNode;
 };
@@ -81,6 +82,7 @@ export function CustomSelect({
   value,
   onChange,
   error,
+  status = "default",
   disabled,
   children,
 }: CustomSelectProps) {
@@ -97,7 +99,7 @@ export function CustomSelect({
   const activeOption = flatOptions.find((option) => option.value === value);
 
   return (
-    <div className="Field" data-filled={filled} data-status={error ? "error" : "default"}>
+    <div className="Field" data-filled={filled} data-status={error ? "error" : status}>
       <label className="Label" htmlFor={id}>
         {label}
       </label>

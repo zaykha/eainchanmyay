@@ -701,7 +701,7 @@ export async function getSalesRequestsForUser(userId: string) {
   const { data, error } = await supabase
     .from("sales_requests")
     .select(
-      "id,title,description,deal_type,property_type,price,currency,state_region,district,township,city,address_text,bedrooms,bathrooms,area_sqft,has_lift,has_backup_power,backup_power_type,has_parking,created_at"
+      "id,title,description,deal_type,property_type,price,currency,state_region,district,township,city,address_text,bedrooms,bathrooms,area_sqft,floor_count,room_count,has_lift,has_backup_power,backup_power_type,has_parking,created_at"
     )
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
@@ -725,7 +725,7 @@ export async function getSalesRequestById(userId: string, requestId: string) {
   const { data, error } = await supabase
     .from("sales_requests")
     .select(
-      "id,title,description,deal_type,property_type,price,currency,state_region,district,city,township,address_text,bedrooms,bathrooms,area_sqft,has_lift,has_backup_power,backup_power_type,has_parking,latitude,longitude,owner_name,owner_phone,owner_phone_secondary,created_at"
+      "id,title,description,deal_type,property_type,price,currency,state_region,district,city,township,address_text,bedrooms,bathrooms,area_sqft,floor_count,room_count,has_lift,has_backup_power,backup_power_type,has_parking,latitude,longitude,owner_name,owner_phone,owner_phone_secondary,created_at"
     )
     .eq("id", requestId)
     .eq("user_id", userId)
@@ -756,6 +756,8 @@ export async function updateSalesRequest(input: {
   bedrooms: number | null;
   bathrooms: number | null;
   areaSqft: number | null;
+  floorCount: number | null;
+  roomCount: number | null;
   hasLift: boolean;
   hasBackupPower: boolean;
   backupPowerType: string | null;
@@ -785,6 +787,8 @@ export async function updateSalesRequest(input: {
     bedrooms: input.bedrooms,
     bathrooms: input.bathrooms,
     area_sqft: input.areaSqft,
+    floor_count: input.floorCount,
+    room_count: input.roomCount,
     has_lift: input.hasLift,
     has_backup_power: input.hasBackupPower,
     backup_power_type: input.backupPowerType,

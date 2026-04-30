@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useId, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useId, useMemo, useRef, useState, type ChangeEvent } from "react";
 import styled, { css, keyframes } from "styled-components";
 import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
@@ -10,6 +10,7 @@ import {
   Building2,
   CheckCircle2,
   ChevronRight,
+  ImagePlus,
   Home,
   Hotel,
   MapPin,
@@ -32,6 +33,7 @@ import { getSalesRequestById, getSalesRequestsForUser, updateSalesRequest } from
 import { useI18n } from "@/app/living-site/lib/i18n";
 import {
   formatPropertyTypeValue,
+  isBedBathPropertyType,
   normalizeSelectablePropertyType,
   propertyTypeDefinitions,
   type PropertyType,
@@ -69,20 +71,30 @@ const Stepper = styled.div`
   flex-wrap: wrap;
 `;
 
-const StepPill = styled.span<{ $active?: boolean; $completed?: boolean }>`
+const StepPill = styled.span<{ $active?: boolean; $completed?: boolean; $status?: "default" | "error" | "success" }>`
   padding: 6px 12px;
   border-radius: 999px;
-  border: 1px solid var(--color-outline);
+  border: 1px solid
+    ${(props) =>
+      props.$status === "success"
+        ? "#1f9d55"
+        : props.$status === "error"
+          ? "var(--color-danger)"
+          : "var(--color-outline)"};
   background: ${(props) => {
     if (props.$completed) {
-      return "color-mix(in srgb, var(--color-primary) 16%, transparent)";
+      return "color-mix(in srgb, #1f9d55 14%, transparent)";
+    }
+    if (props.$status === "error") {
+      return "color-mix(in srgb, var(--color-danger) 10%, transparent)";
     }
     return props.$active
       ? "color-mix(in srgb, var(--color-primary) 12%, transparent)"
       : "var(--color-surface-2)";
   }};
   color: ${(props) => {
-    if (props.$completed) return "var(--color-primary)";
+    if (props.$completed || props.$status === "success") return "#1f9d55";
+    if (props.$status === "error") return "var(--color-danger)";
     return props.$active ? "var(--color-primary)" : "var(--color-muted)";
   }};
   font-weight: 600;
@@ -116,9 +128,86 @@ const TileGrid = styled.div`
   justify-content: start;
 `;
 
-const Tile = styled.button<{ $active?: boolean }>`
+const HiddenFileInput = styled.input`
+  display: none;
+`;
+
+const UploadHint = styled.div`
+  font-size: 0.84rem;
+  color: var(--color-muted);
+`;
+
+const UploadStrip = styled.div`
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  scrollbar-width: thin;
+`;
+
+const UploadSlot = styled.div<{ $filled?: boolean; $image?: string | null }>`
+  border: 1px solid var(--color-outline);
+  border-radius: 14px;
+  background: var(--color-surface);
+  min-width: 120px;
+  width: 120px;
+  aspect-ratio: 4 / 3;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  color: var(--color-text);
+  background-image: ${(props) => (props.$image ? `url(${props.$image})` : "none")};
+  background-size: cover;
+  background-position: center;
+`;
+
+const UploadSlotOverlay = styled.div<{ $filled?: boolean }>`
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: ${(props) => (props.$filled ? "rgba(9, 13, 22, 0.2)" : "transparent")};
+`;
+
+const UploadSlotInner = styled.div`
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 10px;
+  text-align: center;
+  font-size: 0.76rem;
+  color: var(--color-muted);
+`;
+
+const RemoveImageButton = styled.button`
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  background: rgba(9, 13, 22, 0.7);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+  z-index: 2;
+`;
+
+const Tile = styled.button<{ $active?: boolean; $status?: "default" | "error" | "success" }>`
   border: 1px solid
-    ${(props) => (props.$active ? "var(--color-primary)" : "var(--color-outline)")};
+    ${(props) =>
+      props.$active
+        ? "var(--color-primary)"
+        : props.$status === "success"
+          ? "#1f9d55"
+          : props.$status === "error"
+            ? "var(--color-danger)"
+            : "var(--color-outline)"};
   border-radius: 14px;
   padding: 12px;
   background: ${(props) =>
@@ -208,11 +297,12 @@ const ErrorText = styled.p`
   font-weight: 600;
 `;
 
-const FieldHint = styled.div`
-  margin-top: -6px;
-  display: flex;
-  justify-content: flex-end;
-  font-size: 0.8rem;
+const MapInstruction = styled.div`
+  border-radius: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: rgba(255, 255, 255, 0.8);
+  padding: 10px 12px;
+  font-size: 0.82rem;
   color: var(--color-muted);
 `;
 
@@ -252,11 +342,22 @@ const attentionShake = keyframes`
 `;
 
 const REQUEST_DESCRIPTION_MAX_LENGTH = 500;
+const isUsableMapCoordinate = (lat: number, lng: number) =>
+  Number.isFinite(lat) &&
+  Number.isFinite(lng) &&
+  Math.abs(lat) > 1 &&
+  Math.abs(lng) > 1;
 
-const MapFrame = styled.div`
+const MapFrame = styled.div<{ $status?: "default" | "error" | "success" }>`
   position: relative;
   border-radius: 16px;
-  border: 1px solid var(--color-outline);
+  border: 1px solid
+    ${(props) =>
+      props.$status === "success"
+        ? "#1f9d55"
+        : props.$status === "error"
+          ? "var(--color-danger)"
+          : "var(--color-outline)"};
   background: var(--color-surface-2);
   overflow: hidden;
   min-height: 280px;
@@ -326,10 +427,10 @@ const MapHelper = styled.p`
 const SuccessOverlay = styled.div`
   position: fixed;
   inset: 0;
-  background: color-mix(in srgb, var(--color-paper) 55%, transparent);
+  background: color-mix(in srgb, var(--color-paper) 68%, transparent);
   display: grid;
   place-items: center;
-  z-index: 80;
+  z-index: 1200;
   padding: 16px;
 `;
 
@@ -339,6 +440,31 @@ const SuccessModal = styled(Panel)`
   display: grid;
   gap: 14px;
   animation: ${fadeIn} 0.2s ease-out;
+`;
+
+const HelpOverlay = styled(SuccessOverlay)`
+  z-index: 1300;
+`;
+
+const HelpModal = styled(SuccessModal)`
+  max-width: 560px;
+`;
+
+const HelpList = styled.ul`
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 8px;
+  color: var(--color-muted);
+  line-height: 1.55;
+`;
+
+const LatLngButton = styled(MapButton)`
+  width: fit-content;
+`;
+
+const LimitModal = styled(SuccessModal)`
+  max-width: 460px;
 `;
 
 type Option = { value: string; label: string };
@@ -384,7 +510,7 @@ type FormState = {
   title: string;
   description: string;
   deal_type: string;
-  property_type: PropertyType;
+  property_type: PropertyType | "";
   price: string;
   currency: string;
   state_region: string;
@@ -395,6 +521,8 @@ type FormState = {
   bedrooms: string;
   bathrooms: string;
   area_sqft: string;
+  floor_count: string;
+  room_count: string;
   has_lift: boolean;
   has_backup_power: boolean;
   backup_power_type: "solar" | "generator" | "solar_generator" | "";
@@ -426,7 +554,7 @@ const initialState: FormState = {
   title: "",
   description: "",
   deal_type: "sale",
-  property_type: "house",
+  property_type: "",
   price: "",
   currency: "MMK",
   state_region: "",
@@ -437,6 +565,8 @@ const initialState: FormState = {
   bedrooms: "",
   bathrooms: "",
   area_sqft: "",
+  floor_count: "",
+  room_count: "",
   has_lift: false,
   has_backup_power: false,
   backup_power_type: "",
@@ -471,6 +601,153 @@ const toBackupPowerType = (value: unknown): FormState["backup_power_type"] => {
   return "";
 };
 
+const REQUEST_TITLE_MAX_LENGTH = 80;
+const REQUEST_TITLE_MAX_WORDS = 20;
+const REQUEST_ADDRESS_MIN_LENGTH = 8;
+
+const countWords = (value: string) => value.trim().split(/\s+/).filter(Boolean).length;
+
+const validateTitle = (value: string) => {
+  const trimmed = value.trim();
+  if (!trimmed) return "Title is required.";
+  if (trimmed.length > REQUEST_TITLE_MAX_LENGTH) return `Keep the title under ${REQUEST_TITLE_MAX_LENGTH} characters.`;
+  if (countWords(trimmed) > REQUEST_TITLE_MAX_WORDS) return `Keep the title under ${REQUEST_TITLE_MAX_WORDS} words.`;
+  return null;
+};
+
+const validateDescription = (value: string) => {
+  const trimmed = value.trim();
+  if (!trimmed) return "Description is required.";
+  return null;
+};
+
+const validateAddressText = (value: string) => {
+  const trimmed = value.trim();
+  if (!trimmed) return "Address is required.";
+  if (trimmed.length < REQUEST_ADDRESS_MIN_LENGTH) return "Add a clearer address or landmark.";
+  return null;
+};
+
+const validatePrice = (value: string) => {
+  const trimmed = value.trim();
+  if (!trimmed) return "Price is required.";
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed) || parsed <= 0) return "Enter a valid price.";
+  return null;
+};
+
+const validatePhone = (value: string) => {
+  const digits = value.replace(/\D/g, "");
+  if (!digits) return "Phone number is required.";
+  if (digits.length < 7) return "Enter a valid phone number.";
+  return null;
+};
+
+const toStoredPrice = (value: string, currency: string) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return 0;
+  return currency === "MMK" ? parsed * 100000 : parsed;
+};
+
+const fromStoredPrice = (value: unknown, currency: string) => {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "";
+  return currency === "MMK" ? String(value / 100000) : String(value);
+};
+
+const validatePositiveCount = (value: string, label: string) => {
+  const trimmed = value.trim();
+  if (!trimmed) return `${label} is required.`;
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed) || parsed <= 0) return `Enter a valid ${label.toLowerCase()}.`;
+  return null;
+};
+
+const validateOptionalPositiveCount = (value: string, label: string) => {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed) || parsed <= 0) return `Enter a valid ${label.toLowerCase()}.`;
+  return null;
+};
+
+const isValidLatitude = (value: number) => Number.isFinite(value) && value >= -90 && value <= 90;
+const isValidLongitude = (value: number) => Number.isFinite(value) && value >= -180 && value <= 180;
+
+const liftEligiblePropertyTypes = new Set<PropertyType>([
+  "apartment",
+  "mini_condo",
+  "condo",
+  "serviced_apartment",
+  "office",
+  "shop_office",
+  "hotel",
+  "project",
+]);
+
+const bathroomEligiblePropertyTypes = new Set<PropertyType>([
+  "house",
+  "apartment",
+  "mini_condo",
+  "condo",
+  "serviced_apartment",
+  "shop",
+  "office",
+  "shop_office",
+  "hotel",
+  "restaurant",
+]);
+
+const parkingEligiblePropertyTypes = new Set<PropertyType>([
+  "house",
+  "apartment",
+  "mini_condo",
+  "condo",
+  "serviced_apartment",
+  "shop",
+  "office",
+  "shop_office",
+  "hotel",
+  "restaurant",
+  "marketplace",
+  "warehouse",
+  "industrial",
+  "project",
+]);
+
+const backupEligiblePropertyTypes = new Set<PropertyType>([
+  "house",
+  "apartment",
+  "mini_condo",
+  "condo",
+  "serviced_apartment",
+  "shop",
+  "office",
+  "shop_office",
+  "hotel",
+  "restaurant",
+  "marketplace",
+  "warehouse",
+  "industrial",
+  "project",
+]);
+
+const floorCountRequiredPropertyTypes = new Set<PropertyType>(["house", "hotel"]);
+const roomCountRequiredPropertyTypes = new Set<PropertyType>(["hotel"]);
+const bedroomRequiredPropertyTypes = new Set<PropertyType>([
+  "house",
+  "apartment",
+  "mini_condo",
+  "condo",
+  "serviced_apartment",
+]);
+const bathroomRequiredPropertyTypes = new Set<PropertyType>([
+  "house",
+  "apartment",
+  "mini_condo",
+  "condo",
+  "serviced_apartment",
+]);
+
 function RequestSalePageContent() {
   const { user, profileRole, profileReady, authToken } = useAppState();
   const { t } = useI18n();
@@ -479,6 +756,7 @@ function RequestSalePageContent() {
   const editId = searchParams.get("editId");
   const isEdit = Boolean(editId);
   const fieldId = useId();
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<FormState>(initialState);
   const [error, setError] = useState<string | null>(null);
@@ -487,12 +765,19 @@ function RequestSalePageContent() {
   const [loadingEdit, setLoadingEdit] = useState(false);
   const [existingRequestCount, setExistingRequestCount] = useState(0);
   const [workspaceLimits, setWorkspaceLimits] = useState<WorkspaceLimits["limits"] | null>(null);
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [mapActive, setMapActive] = useState(false);
   const [mapLoading, setMapLoading] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
+  const [mapHelpOpen, setMapHelpOpen] = useState(false);
+  const [latLngOpen, setLatLngOpen] = useState(false);
+  const [limitPopup, setLimitPopup] = useState<string | null>(null);
   const [locateAttempted, setLocateAttempted] = useState(false);
   const [mapPosition, setMapPosition] = useState<[number, number] | null>(null);
+  const [mapCenter, setMapCenter] = useState<[number, number]>(MYANMAR_CENTER);
+  const [mapZoom, setMapZoom] = useState(DEFAULT_ZOOM);
   const [attention, setAttention] = useState(false);
+  const [stepAttempted, setStepAttempted] = useState<Record<number, boolean>>({});
   const stepItems = useMemo(
     () => [
       { key: stepKeys[0], label: t(stepKeys[0]), icon: Home },
@@ -547,6 +832,7 @@ function RequestSalePageContent() {
   const vendorReturnPath = isEdit && editId ? `/vendor/sales-requests` : "/vendor";
   const isVendorFlow =
     profileRole === "vendor_user" || profileRole === "staff" || profileRole === "admin" || profileRole === "master_admin";
+  const maxImageCount = isVendorFlow ? 12 : 5;
   const customerLimitReached = !isVendorFlow && !isEdit && existingRequestCount >= 1;
 
   useEffect(() => {
@@ -586,14 +872,14 @@ function RequestSalePageContent() {
           setError(t("requestSale.error.load"));
           return;
         }
-        const rawPrice = typeof request.price === "number" ? request.price / 100000 : null;
+        const requestCurrency = String(request.currency ?? "MMK");
         setForm({
           title: String(request.title ?? ""),
           description: String(request.description ?? ""),
           deal_type: String(request.deal_type ?? "sale"),
           property_type: normalizeSelectablePropertyType(String(request.property_type ?? "house")),
-          price: rawPrice ? String(rawPrice) : "",
-          currency: String(request.currency ?? "MMK"),
+          price: fromStoredPrice(request.price, requestCurrency),
+          currency: requestCurrency,
           state_region: String(request.state_region ?? ""),
           district: String(request.district ?? ""),
           city: String(request.city ?? ""),
@@ -602,6 +888,8 @@ function RequestSalePageContent() {
           bedrooms: toFormNumber(request.bedrooms),
           bathrooms: toFormNumber(request.bathrooms),
           area_sqft: toFormNumber(request.area_sqft),
+          floor_count: toFormNumber(request.floor_count),
+          room_count: toFormNumber(request.room_count),
           has_lift: Boolean(request.has_lift),
           has_backup_power: Boolean(request.has_backup_power),
           backup_power_type: toBackupPowerType(request.backup_power_type),
@@ -639,8 +927,93 @@ function RequestSalePageContent() {
     };
   }, [isVendorFlow, user?.id]);
 
-  const isLand = form.property_type === "land";
+  const selectedPropertyType = form.property_type || null;
+  const showBedrooms = isBedBathPropertyType(selectedPropertyType);
+  const showBathrooms =
+    Boolean(selectedPropertyType) && bathroomEligiblePropertyTypes.has(selectedPropertyType as PropertyType);
+  const showFloorCount =
+    Boolean(selectedPropertyType) && floorCountRequiredPropertyTypes.has(selectedPropertyType as PropertyType);
+  const showRoomCount =
+    Boolean(selectedPropertyType) && roomCountRequiredPropertyTypes.has(selectedPropertyType as PropertyType);
+  const showLift =
+    Boolean(selectedPropertyType) && liftEligiblePropertyTypes.has(selectedPropertyType as PropertyType);
+  const showParking =
+    Boolean(selectedPropertyType) && parkingEligiblePropertyTypes.has(selectedPropertyType as PropertyType);
+  const showBackupPower =
+    Boolean(selectedPropertyType) && backupEligiblePropertyTypes.has(selectedPropertyType as PropertyType);
   const locationReady = Boolean(form.state_region && form.district && form.township);
+  const titleError = validateTitle(form.title);
+  const descriptionError = validateDescription(form.description);
+  const propertyTypeError = form.property_type ? null : "Property type is required.";
+  const imageError = !isEdit && imageFiles.length === 0 ? "At least 1 property image is required." : null;
+  const addressTextError = validateAddressText(form.address_text);
+  const mapPinError = isUsableMapCoordinate(Number(form.latitude), Number(form.longitude))
+    ? null
+    : "Place a pin on the map or use lat/lng.";
+  const areaError = form.area_sqft.trim() ? null : "Area is required.";
+  const bedroomsError = showBedrooms
+    ? bedroomRequiredPropertyTypes.has(selectedPropertyType as PropertyType)
+      ? validatePositiveCount(form.bedrooms, "Bedroom count")
+      : validateOptionalPositiveCount(form.bedrooms, "Bedroom count")
+    : null;
+  const bathroomsError = showBathrooms
+    ? bathroomRequiredPropertyTypes.has(selectedPropertyType as PropertyType)
+      ? validatePositiveCount(form.bathrooms, "Bathroom count")
+      : validateOptionalPositiveCount(form.bathrooms, "Bathroom count")
+    : null;
+  const floorCountError = showFloorCount ? validatePositiveCount(form.floor_count, "Floor count") : null;
+  const roomCountError = showRoomCount ? validatePositiveCount(form.room_count, "Room count") : null;
+  const priceError = validatePrice(form.price);
+  const ownerNameError = form.owner_name.trim() ? null : "Contact person is required.";
+  const ownerPhoneError = validatePhone(form.owner_phone);
+  const priceLabel = form.currency === "MMK" ? t("requestSale.priceLabel") : `Price (${form.currency})`;
+  const imagePreviews = useMemo(() => imageFiles.map((file) => URL.createObjectURL(file)), [imageFiles]);
+  useEffect(
+    () => () => {
+      imagePreviews.forEach((url) => URL.revokeObjectURL(url));
+    },
+    [imagePreviews]
+  );
+  const stepValidity = useMemo(
+    () => [
+      !titleError && !descriptionError && !propertyTypeError && !imageError && Boolean(form.deal_type),
+      Boolean(form.state_region.trim()) &&
+        Boolean(form.district.trim()) &&
+        Boolean(form.township.trim()) &&
+        !addressTextError &&
+        !mapPinError,
+      !areaError && !bedroomsError && !bathroomsError && !floorCountError && !roomCountError,
+      !priceError && Boolean(form.currency),
+      !ownerNameError && !ownerPhoneError,
+    ],
+    [
+      addressTextError,
+      areaError,
+      bathroomsError,
+      bedroomsError,
+      descriptionError,
+      floorCountError,
+      form.currency,
+      form.deal_type,
+      form.district,
+      form.state_region,
+      form.township,
+      mapPinError,
+      ownerNameError,
+      ownerPhoneError,
+      priceError,
+      propertyTypeError,
+      imageError,
+      roomCountError,
+      titleError,
+    ]
+  );
+
+  const getStepStatus = (index: number): "default" | "error" | "success" => {
+    if (stepValidity[index]) return "success";
+    if (stepAttempted[index] || index === step) return "error";
+    return "default";
+  };
 
   const backupTiles = useMemo(
     () => [
@@ -668,6 +1041,30 @@ function RequestSalePageContent() {
   }, [locationReady]);
 
   useEffect(() => {
+    if (!selectedPropertyType) return;
+    setForm((current) => ({
+      ...current,
+      bedrooms: showBedrooms ? current.bedrooms : "",
+      bathrooms: showBathrooms ? current.bathrooms : "",
+      floor_count: showFloorCount ? current.floor_count : "",
+      room_count: showRoomCount ? current.room_count : "",
+      has_lift: showLift ? current.has_lift : false,
+      has_parking: showParking ? current.has_parking : false,
+      has_backup_power: showBackupPower ? current.has_backup_power : false,
+      backup_power_type: showBackupPower ? current.backup_power_type : "",
+    }));
+  }, [
+    selectedPropertyType,
+    showBackupPower,
+    showBathrooms,
+    showBedrooms,
+    showFloorCount,
+    showLift,
+    showParking,
+    showRoomCount,
+  ]);
+
+  useEffect(() => {
     const prev = prevLocationRef.current;
     const hasChanged =
       prev.state_region &&
@@ -680,6 +1077,8 @@ function RequestSalePageContent() {
       setMapLoading(false);
       setLocateAttempted(false);
       setMapPosition(null);
+      setMapCenter(MYANMAR_CENTER);
+      setMapZoom(DEFAULT_ZOOM);
       setForm((current) => ({ ...current, latitude: "", longitude: "" }));
     }
 
@@ -693,8 +1092,10 @@ function RequestSalePageContent() {
   useEffect(() => {
     const lat = Number(form.latitude);
     const lng = Number(form.longitude);
-    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+    if (isUsableMapCoordinate(lat, lng)) {
       setMapPosition([lat, lng]);
+      setMapCenter([lat, lng]);
+      setMapZoom(14);
       return;
     }
     if (!mapActive) {
@@ -705,6 +1106,7 @@ function RequestSalePageContent() {
   const handleLocateOnMap = async () => {
     if (!locationReady) return;
     setMapError(null);
+    setMapHelpOpen(false);
     setMapLoading(true);
     setMapActive(false);
     setLocateAttempted(true);
@@ -720,16 +1122,21 @@ function RequestSalePageContent() {
       const first = result?.[0];
       if (!first) {
         setMapError(t("requestSale.error.locationNotFound"));
+        setMapHelpOpen(true);
         return;
       }
       const lat = Number(first.lat);
       const lng = Number(first.lon);
       if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
         setMapError(t("requestSale.error.locationNotFound"));
+        setMapHelpOpen(true);
         return;
       }
       setMapPosition([lat, lng]);
+      setMapCenter([lat, lng]);
+      setMapZoom(14);
       setMapActive(true);
+      setMapHelpOpen(false);
       setForm((current) => ({
         ...current,
         latitude: lat.toFixed(6),
@@ -737,8 +1144,70 @@ function RequestSalePageContent() {
       }));
     } catch {
       setMapError(t("requestSale.error.locate"));
+      setMapHelpOpen(true);
     } finally {
       setMapLoading(false);
+    }
+  };
+
+  const geocodeLocation = async (queries: Array<{ query: string; zoom: number }>) => {
+    for (const entry of queries) {
+      const trimmed = entry.query.trim();
+      if (!trimmed) continue;
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(trimmed)}`
+      );
+      const result = await response.json();
+      const first = result?.[0];
+      const lat = Number(first?.lat);
+      const lng = Number(first?.lon);
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        return { center: [lat, lng] as [number, number], zoom: entry.zoom };
+      }
+    }
+    return null;
+  };
+
+  const handleOpenMapManual = async () => {
+    setMapError(null);
+    setMapHelpOpen(false);
+    setMapLoading(false);
+    setLocateAttempted(true);
+    setMapActive(true);
+
+    const lat = Number(form.latitude);
+    const lng = Number(form.longitude);
+    if (isUsableMapCoordinate(lat, lng)) {
+      setMapPosition([lat, lng]);
+      setMapCenter([lat, lng]);
+      setMapZoom(14);
+      return;
+    }
+
+    if (form.latitude || form.longitude) {
+      setForm((current) => ({
+        ...current,
+        latitude: "",
+        longitude: "",
+      }));
+      setMapPosition(null);
+    }
+
+    const areaCenter = await geocodeLocation([
+      { query: `${form.state_region}, Myanmar`, zoom: 8 },
+      { query: "Yangon, Myanmar", zoom: 11 },
+    ]);
+
+    if (areaCenter) {
+      setMapCenter(areaCenter.center);
+      setMapZoom(areaCenter.zoom);
+      return;
+    }
+
+    if (!mapPosition) {
+      setMapCenter(MYANMAR_CENTER);
+      setMapZoom(DEFAULT_ZOOM);
+      setMapError("Map opened in Myanmar default view. Move the map and place the pin manually.");
     }
   };
 
@@ -746,51 +1215,21 @@ function RequestSalePageContent() {
     setMapError(null);
     const lat = Number(form.latitude);
     const lng = Number(form.longitude);
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    if (!isValidLatitude(lat) || !isValidLongitude(lng)) {
       setMapError(t("requestSale.error.latLng"));
       return;
     }
 
-    setMapLoading(true);
-    setMapActive(false);
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`
-      );
-      const result = await response.json();
-      const address = result?.address;
-      const state =
-        address?.state || address?.region || address?.state_district || address?.province;
-      const district =
-        address?.county || address?.district || address?.city_district || address?.region;
-      const township =
-        address?.township || address?.suburb || address?.neighbourhood || address?.city;
-
-      if (!state || !district || !township) {
-        setMapError(t("requestSale.error.latLngNoMatch"));
-        return;
-      }
-
-      prevLocationRef.current = {
-        state_region: state,
-        district,
-        township,
-      };
-      setForm((current) => ({
-        ...current,
-        state_region: state,
-        district,
-        township,
-        latitude: lat.toFixed(6),
-        longitude: lng.toFixed(6),
-      }));
-      setMapPosition([lat, lng]);
-      setMapActive(true);
-    } catch {
-      setMapError(t("requestSale.error.latLngNoMatch"));
-    } finally {
-      setMapLoading(false);
-    }
+    setMapPosition([lat, lng]);
+    setMapCenter([lat, lng]);
+    setMapZoom(14);
+    setMapActive(true);
+    setForm((current) => ({
+      ...current,
+      latitude: lat.toFixed(6),
+      longitude: lng.toFixed(6),
+    }));
+    setLatLngOpen(false);
   };
 
   const handleMapSelect = (lat: number, lng: number) => {
@@ -803,23 +1242,68 @@ function RequestSalePageContent() {
       longitude: lng.toFixed(6),
     }));
     setMapPosition([lat, lng]);
+    setMapCenter([lat, lng]);
+    setMapZoom(14);
+    setLatLngOpen(false);
+  };
+
+  const handleImagePick = (event: ChangeEvent<HTMLInputElement>) => {
+    const nextFiles = Array.from(event.target.files ?? []).filter((file) => file.type.startsWith("image/"));
+    if (!nextFiles.length) return;
+    setImageFiles((current) => [...current, ...nextFiles].slice(0, maxImageCount));
+    event.target.value = "";
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setImageFiles((current) => current.filter((_, currentIndex) => currentIndex !== index));
+  };
+
+  const handleTitleChange = (rawValue: string) => {
+    const words = rawValue.trim().split(/\s+/).filter(Boolean);
+    if (words.length > REQUEST_TITLE_MAX_WORDS) {
+      const trimmedValue = words.slice(0, REQUEST_TITLE_MAX_WORDS).join(" ");
+      setField("title", trimmedValue);
+      setLimitPopup(`Title is limited to ${REQUEST_TITLE_MAX_WORDS} words.`);
+      return;
+    }
+    setField("title", rawValue);
+  };
+
+  const handleDescriptionChange = (rawValue: string) => {
+    if (rawValue.length > REQUEST_DESCRIPTION_MAX_LENGTH) {
+      setField("description", rawValue.slice(0, REQUEST_DESCRIPTION_MAX_LENGTH));
+      setLimitPopup(`Description is limited to ${REQUEST_DESCRIPTION_MAX_LENGTH} characters.`);
+      return;
+    }
+    setField("description", rawValue);
   };
 
   const handleNext = () => {
     setError(null);
-    if (step === 0 && !form.title.trim()) {
-      setError(t("requestSale.error.titleRequired"));
-      return;
-    }
-    if (
-      step === 1 &&
-      (!form.state_region.trim() || !form.district.trim() || !form.township.trim())
-    ) {
-      setError(t("requestSale.error.locationRequired"));
-      return;
-    }
-    if (step === 3 && !form.price.trim()) {
-      setError(t("requestSale.error.priceRequired"));
+    setStepAttempted((current) => ({ ...current, [step]: true }));
+    if (!stepValidity[step]) {
+      if (step === 0) {
+        setError(titleError || descriptionError || propertyTypeError || imageError || "Complete the basics before continuing.");
+      } else if (step === 1) {
+        setError(
+          !form.state_region.trim() || !form.district.trim() || !form.township.trim()
+            ? t("requestSale.error.locationRequired")
+          : addressTextError || mapPinError || "Complete the address and map pin before continuing."
+        );
+      } else if (step === 2) {
+        setError(
+          areaError ||
+            bedroomsError ||
+            bathroomsError ||
+            floorCountError ||
+            roomCountError ||
+            "Complete the required details before continuing."
+        );
+      } else if (step === 3) {
+        setError(priceError || t("requestSale.error.priceRequired"));
+      } else if (step === 4) {
+        setError(ownerNameError || ownerPhoneError || "Add the contact person details.");
+      }
       return;
     }
     setStep((prev) => Math.min(stepKeys.length - 1, prev + 1));
@@ -827,17 +1311,24 @@ function RequestSalePageContent() {
 
   const handleSubmit = async () => {
     setError(null);
-    if (
-      !form.title.trim() ||
-      !form.state_region.trim() ||
-      !form.district.trim() ||
-      !form.township.trim()
-    ) {
-      setError(t("requestSale.error.completeRequired"));
-      return;
-    }
-    if (!form.price.trim()) {
-      setError(t("requestSale.error.priceRequired"));
+    setStepAttempted({ 0: true, 1: true, 2: true, 3: true, 4: true });
+    if (!stepValidity.every(Boolean)) {
+      setError(
+        titleError ||
+          descriptionError ||
+          propertyTypeError ||
+          addressTextError ||
+          mapPinError ||
+          areaError ||
+          bedroomsError ||
+          bathroomsError ||
+          floorCountError ||
+          priceError ||
+          roomCountError ||
+          ownerNameError ||
+          ownerPhoneError ||
+          t("requestSale.error.completeRequired")
+      );
       return;
     }
     if (form.has_backup_power && !form.backup_power_type) {
@@ -850,22 +1341,24 @@ function RequestSalePageContent() {
       title: form.title.trim(),
       description: toNullableString(form.description),
       deal_type: form.deal_type,
-      property_type: form.property_type,
-      price: Number(form.price) * 100000,
+      property_type: form.property_type as PropertyType,
+      price: toStoredPrice(form.price, form.currency),
       currency: form.currency,
       state_region: form.state_region.trim(),
       district: toNullableString(form.district),
       city: toNullableString(form.city),
       township: form.township.trim(),
       address_text: toNullableString(form.address_text),
-      bedrooms: isLand ? null : toNullableNumber(form.bedrooms),
-      bathrooms: isLand ? null : toNullableNumber(form.bathrooms),
+      bedrooms: showBedrooms ? toNullableNumber(form.bedrooms) : null,
+      bathrooms: showBathrooms ? toNullableNumber(form.bathrooms) : null,
       area_sqft: toNullableNumber(form.area_sqft),
+      floor_count: showFloorCount ? toNullableNumber(form.floor_count) : null,
+      room_count: showRoomCount ? toNullableNumber(form.room_count) : null,
       commission_percent: null,
-      has_lift: isLand ? false : form.has_lift,
-      has_backup_power: isLand ? false : form.has_backup_power,
-      backup_power_type: isLand ? null : form.backup_power_type || null,
-      has_parking: isLand ? false : form.has_parking,
+      has_lift: showLift ? form.has_lift : false,
+      has_backup_power: showBackupPower ? form.has_backup_power : false,
+      backup_power_type: showBackupPower ? form.backup_power_type || null : null,
+      has_parking: showParking ? form.has_parking : false,
       latitude: toNullableNumber(form.latitude),
       longitude: toNullableNumber(form.longitude),
       owner_name: toNullableString(form.owner_name),
@@ -886,21 +1379,23 @@ function RequestSalePageContent() {
         title: form.title.trim(),
         description: toNullableString(form.description),
         dealType: form.deal_type,
-        propertyType: form.property_type,
-        price: Number(form.price) * 100000,
+        propertyType: form.property_type as PropertyType,
+        price: toStoredPrice(form.price, form.currency),
         currency: form.currency,
         stateRegion: form.state_region.trim(),
         district: toNullableString(form.district),
         city: toNullableString(form.city),
         township: form.township.trim(),
         addressText: toNullableString(form.address_text),
-        bedrooms: isLand ? null : toNullableNumber(form.bedrooms),
-        bathrooms: isLand ? null : toNullableNumber(form.bathrooms),
+        bedrooms: showBedrooms ? toNullableNumber(form.bedrooms) : null,
+        bathrooms: showBathrooms ? toNullableNumber(form.bathrooms) : null,
         areaSqft: toNullableNumber(form.area_sqft),
-        hasLift: isLand ? false : form.has_lift,
-        hasBackupPower: isLand ? false : form.has_backup_power,
-        backupPowerType: isLand ? null : form.backup_power_type || null,
-        hasParking: isLand ? false : form.has_parking,
+        floorCount: showFloorCount ? toNullableNumber(form.floor_count) : null,
+        roomCount: showRoomCount ? toNullableNumber(form.room_count) : null,
+        hasLift: showLift ? form.has_lift : false,
+        hasBackupPower: showBackupPower ? form.has_backup_power : false,
+        backupPowerType: showBackupPower ? form.backup_power_type || null : null,
+        hasParking: showParking ? form.has_parking : false,
         latitude: toNullableNumber(form.latitude),
         longitude: toNullableNumber(form.longitude),
         ownerName: toNullableString(form.owner_name),
@@ -914,17 +1409,20 @@ function RequestSalePageContent() {
       }
     } else {
       const endpoint = profileRole === "vendor_user" ? "/api/vendor/sales-requests" : "/api/public/sales-requests";
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-      };
+      const headers: Record<string, string> = {};
       if (authToken) {
         headers.Authorization = `Bearer ${authToken}`;
+      }
+      const requestBody = new FormData();
+      requestBody.set("payload", JSON.stringify(payload));
+      for (const file of imageFiles) {
+        requestBody.append("images", file);
       }
 
       const response = await fetch(endpoint, {
         method: "POST",
         headers,
-        body: JSON.stringify(payload),
+        body: requestBody,
       });
       setSubmitting(false);
 
@@ -937,7 +1435,9 @@ function RequestSalePageContent() {
 
     setSuccess(true);
     setForm(initialState);
+    setImageFiles([]);
     setStep(0);
+    setStepAttempted({});
   };
 
   const setField = (key: keyof FormState, value: string | boolean) => {
@@ -1011,7 +1511,12 @@ function RequestSalePageContent() {
         ) : null}
         <Stepper>
           {stepItems.map((item, index) => (
-            <StepPill key={item.key} $active={index === step} $completed={index < step}>
+            <StepPill
+              key={item.key}
+              $active={index === step}
+              $completed={stepValidity[index]}
+              $status={getStepStatus(index)}
+            >
               {index < step ? (
                 <CheckCircle2 size={14} />
               ) : (
@@ -1027,28 +1532,98 @@ function RequestSalePageContent() {
         <FormCard>
           {step === 0 && (
             <>
+              {!isEdit ? (
+                <>
+                  <HiddenFileInput
+                    ref={imageInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleImagePick}
+                  />
+                  <UploadHint>
+                    Add at least 1 photo. Up to {maxImageCount} image{maxImageCount > 1 ? "s" : ""}. The first image is the cover.
+                  </UploadHint>
+                  {stepAttempted[0] && imageError ? <ErrorText>{imageError}</ErrorText> : null}
+                  <UploadStrip>
+                    {Array.from({ length: maxImageCount }, (_, index) => {
+                      const file = imageFiles[index] ?? null;
+                      const preview = imagePreviews[index] ?? null;
+                      return (
+                        <UploadSlot
+                          key={`image-slot-${index}`}
+                          role="button"
+                          tabIndex={0}
+                          $filled={Boolean(file)}
+                          $image={preview}
+                          onClick={() => {
+                            if (!file) imageInputRef.current?.click();
+                          }}
+                          onKeyDown={(event) => {
+                            if (file) return;
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              imageInputRef.current?.click();
+                            }
+                          }}
+                        >
+                          {file ? (
+                            <>
+                              <RemoveImageButton
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  handleRemoveImage(index);
+                                }}
+                              >
+                                x
+                              </RemoveImageButton>
+                              <UploadSlotOverlay $filled>
+                                <UploadSlotInner>
+                                  <strong style={{ color: "#fff" }}>{index === 0 ? "Cover" : `Photo ${index + 1}`}</strong>
+                                </UploadSlotInner>
+                              </UploadSlotOverlay>
+                            </>
+                          ) : (
+                            <UploadSlotInner>
+                              <ImagePlus size={18} />
+                              <strong>Add photo</strong>
+                              <span>Slot {index + 1}</span>
+                            </UploadSlotInner>
+                          )}
+                        </UploadSlot>
+                      );
+                    })}
+                  </UploadStrip>
+                </>
+              ) : null}
               <CustomInput
                 id={`${fieldId}-title`}
                 label={t("requestSale.titleLabel")}
                 name="title"
                 value={form.title}
-                onChange={(event) => setField("title", event.target.value)}
+                onChange={(event) => handleTitleChange(event.target.value)}
+                maxLength={REQUEST_TITLE_MAX_LENGTH}
+                error={stepAttempted[0] ? titleError : null}
+                status={form.title.trim() && !titleError ? "success" : "default"}
               />
               <CustomTextarea
                 id={`${fieldId}-description`}
                 label={t("requestSale.descriptionLabel")}
                 name="description"
                 value={form.description}
-                onChange={(event) => setField("description", event.target.value)}
+                onChange={(event) => handleDescriptionChange(event.target.value)}
                 maxLength={REQUEST_DESCRIPTION_MAX_LENGTH}
+                error={stepAttempted[0] ? descriptionError : null}
+                status={form.description.trim() && !descriptionError ? "success" : "default"}
               />
-              <FieldHint>{form.description.length}/{REQUEST_DESCRIPTION_MAX_LENGTH}</FieldHint>
               <CustomSelect
                 id={`${fieldId}-deal-type`}
                 label={t("requestSale.dealTypeLabel")}
                 name="deal_type"
                 value={form.deal_type}
                 onChange={(value) => setField("deal_type", value)}
+                status={form.deal_type ? "success" : "default"}
               >
                 {localizedDealTypeOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -1066,6 +1641,15 @@ function RequestSalePageContent() {
                           key={tile.key}
                           type="button"
                           $active={form.property_type === tile.key}
+                          $status={
+                            form.property_type
+                              ? form.property_type === tile.key
+                                ? "success"
+                                : "default"
+                              : stepAttempted[0]
+                                ? "error"
+                                : "default"
+                          }
                           onClick={() => setField("property_type", tile.key)}
                         >
                           <tile.icon size={16} />
@@ -1076,6 +1660,7 @@ function RequestSalePageContent() {
                   </PropertyGroup>
                 ))}
               </PropertyGroups>
+              {stepAttempted[0] && propertyTypeError ? <ErrorText>{propertyTypeError}</ErrorText> : null}
             </>
           )}
 
@@ -1086,6 +1671,7 @@ function RequestSalePageContent() {
                 label={t("requestSale.stateRegionLabel")}
                 name="state_region"
                 value={form.state_region}
+                status={form.state_region ? "success" : "default"}
                 onChange={(value) =>
                   setForm((current) => ({
                     ...current,
@@ -1107,6 +1693,7 @@ function RequestSalePageContent() {
                 name="district"
                 value={form.district}
                 disabled={!form.state_region}
+                status={form.district ? "success" : "default"}
                 onChange={(value) =>
                   setForm((current) => ({
                     ...current,
@@ -1127,6 +1714,7 @@ function RequestSalePageContent() {
                 name="township"
                 value={form.township}
                 disabled={!form.district}
+                status={form.township ? "success" : "default"}
                 onChange={(value) => setField("township", value)}
               >
                 {townships.map((township) => (
@@ -1141,6 +1729,8 @@ function RequestSalePageContent() {
                 name="address_text"
                 value={form.address_text}
                 onChange={(event) => setField("address_text", event.target.value)}
+                error={stepAttempted[1] ? addressTextError : null}
+                status={form.address_text.trim() && !addressTextError ? "success" : "default"}
               />
               <MapActions>
                 <MapButton
@@ -1151,18 +1741,24 @@ function RequestSalePageContent() {
                 >
                   {t("requestSale.locateOnMap")}
                 </MapButton>
-                {locateAttempted && (
-                  <MapButton type="button" onClick={handleUseLatLng} disabled={mapLoading}>
-                    {t("requestSale.useLatLng")}
-                  </MapButton>
-                )}
+                <MapButton type="button" onClick={handleOpenMapManual} disabled={mapLoading}>
+                  View on map and select
+                </MapButton>
+                <LatLngButton type="button" onClick={() => setLatLngOpen(true)} disabled={mapLoading}>
+                  {t("requestSale.useLatLng")}
+                </LatLngButton>
               </MapActions>
               <MapHelper>{t("requestSale.mapHelper")}</MapHelper>
-              <MapFrame>
+              {mapActive ? (
+                <MapInstruction>
+                  Drag the map to your property area, then click the map or drag the marker to place the exact location.
+                </MapInstruction>
+              ) : null}
+              <MapFrame $status={mapPinError ? (stepAttempted[1] ? "error" : "default") : "success"}>
                 <MapCanvas $inactive={!mapActive || mapLoading}>
                   <RequestSaleMap
-                    center={MYANMAR_CENTER}
-                    defaultZoom={DEFAULT_ZOOM}
+                    center={mapCenter}
+                    defaultZoom={mapZoom}
                     active={mapActive}
                     position={mapPosition}
                     onSelect={handleMapSelect}
@@ -1172,21 +1768,9 @@ function RequestSalePageContent() {
                   <MapOverlay>{mapLoading ? t("common.loading") : "?"}</MapOverlay>
                 )}
               </MapFrame>
-              <CustomInput
-                id={`${fieldId}-latitude`}
-                label={t("requestSale.latitudeLabel")}
-                name="latitude"
-                value={form.latitude}
-                onChange={(event) => setField("latitude", event.target.value)}
-              />
-              <CustomInput
-                id={`${fieldId}-longitude`}
-                label={t("requestSale.longitudeLabel")}
-                name="longitude"
-                value={form.longitude}
-                onChange={(event) => setField("longitude", event.target.value)}
-              />
+              {!mapPinError ? <Muted>Map pin added.</Muted> : null}
               {mapError && <ErrorText>{mapError}</ErrorText>}
+              {stepAttempted[1] && mapPinError ? <ErrorText>{mapPinError}</ErrorText> : null}
             </>
           )}
 
@@ -1198,45 +1782,93 @@ function RequestSalePageContent() {
                 name="area_sqft"
                 value={form.area_sqft}
                 onChange={(event) => setField("area_sqft", event.target.value)}
+                error={stepAttempted[2] ? areaError : null}
+                status={form.area_sqft.trim() && !areaError ? "success" : "default"}
               />
-              {!isLand && (
+                  {showFloorCount ? (
+                    <CustomInput
+                      id={`${fieldId}-floor-count`}
+                      label={t("requestSale.floorCountLabel")}
+                      name="floor_count"
+                      type="number"
+                      inputMode="numeric"
+                      value={form.floor_count}
+                      onChange={(event) => setField("floor_count", event.target.value)}
+                      error={stepAttempted[2] ? floorCountError : null}
+                      status={form.floor_count.trim() && !floorCountError ? "success" : "default"}
+                    />
+              ) : null}
+                  {showRoomCount ? (
+                    <CustomInput
+                      id={`${fieldId}-room-count`}
+                      label={t("requestSale.roomCountLabel")}
+                      name="room_count"
+                      type="number"
+                      inputMode="numeric"
+                      value={form.room_count}
+                      onChange={(event) => setField("room_count", event.target.value)}
+                      error={stepAttempted[2] ? roomCountError : null}
+                      status={form.room_count.trim() && !roomCountError ? "success" : "default"}
+                    />
+              ) : null}
+              {showBedrooms || showBathrooms ? (
                 <>
-                  <CustomInput
-                    id={`${fieldId}-bedrooms`}
-                    label={t("requestSale.bedroomsLabel")}
-                    name="bedrooms"
-                    value={form.bedrooms}
-                    onChange={(event) => setField("bedrooms", event.target.value)}
-                  />
-                  <CustomInput
-                    id={`${fieldId}-bathrooms`}
-                    label={t("requestSale.bathroomsLabel")}
-                    name="bathrooms"
-                    value={form.bathrooms}
-                    onChange={(event) => setField("bathrooms", event.target.value)}
-                  />
+                  {showBedrooms ? (
+                    <CustomInput
+                      id={`${fieldId}-bedrooms`}
+                      label={t("requestSale.bedroomsLabel")}
+                      name="bedrooms"
+                      type="number"
+                      inputMode="numeric"
+                      value={form.bedrooms}
+                      onChange={(event) => setField("bedrooms", event.target.value)}
+                      error={stepAttempted[2] ? bedroomsError : null}
+                      status={form.bedrooms.trim() && !bedroomsError ? "success" : "default"}
+                    />
+                  ) : null}
+                  {showBathrooms ? (
+                    <CustomInput
+                      id={`${fieldId}-bathrooms`}
+                      label={t("requestSale.bathroomsLabel")}
+                      name="bathrooms"
+                      type="number"
+                      inputMode="numeric"
+                      value={form.bathrooms}
+                      onChange={(event) => setField("bathrooms", event.target.value)}
+                      error={stepAttempted[2] ? bathroomsError : null}
+                      status={form.bathrooms.trim() && !bathroomsError ? "success" : "default"}
+                    />
+                  ) : null}
                 </>
-              )}
-              {!isLand && (
+              ) : null}
+              {showLift || showParking ? (
                 <>
                   <TileGrid>
-                    <Tile
-                      type="button"
-                      $active={form.has_lift}
-                      onClick={() => setField("has_lift", !form.has_lift)}
-                    >
-                      <TowerControl size={18} />
-                      {t("requestSale.lift")}
-                    </Tile>
-                    <Tile
-                      type="button"
-                      $active={form.has_parking}
-                      onClick={() => setField("has_parking", !form.has_parking)}
-                    >
-                      <ParkingSquare size={18} />
-                      {t("requestSale.parking")}
-                    </Tile>
+                    {showLift ? (
+                      <Tile
+                        type="button"
+                        $active={form.has_lift}
+                        onClick={() => setField("has_lift", !form.has_lift)}
+                      >
+                        <TowerControl size={18} />
+                        {t("requestSale.lift")}
+                      </Tile>
+                    ) : null}
+                    {showParking ? (
+                      <Tile
+                        type="button"
+                        $active={form.has_parking}
+                        onClick={() => setField("has_parking", !form.has_parking)}
+                      >
+                        <ParkingSquare size={18} />
+                        {t("requestSale.parking")}
+                      </Tile>
+                    ) : null}
                   </TileGrid>
+                </>
+              ) : null}
+              {showBackupPower ? (
+                <>
                   <Muted>{t("requestSale.backupPower")}</Muted>
                   <TileGrid>
                     {backupTiles.map((tile) => {
@@ -1274,7 +1906,7 @@ function RequestSalePageContent() {
                     })}
                   </TileGrid>
                 </>
-              )}
+              ) : null}
             </>
           )}
 
@@ -1282,10 +1914,14 @@ function RequestSalePageContent() {
             <>
               <CustomInput
                 id={`${fieldId}-price`}
-                label={t("requestSale.priceLabel")}
+                label={priceLabel}
                 name="price"
+                type="number"
+                inputMode="decimal"
                 value={form.price}
                 onChange={(event) => setField("price", event.target.value)}
+                error={stepAttempted[3] ? priceError : null}
+                status={form.price.trim() && !priceError ? "success" : "default"}
               />
               <CustomSelect
                 id={`${fieldId}-currency`}
@@ -1293,6 +1929,7 @@ function RequestSalePageContent() {
                 name="currency"
                 value={form.currency}
                 onChange={(value) => setField("currency", value)}
+                status={form.currency ? "success" : "default"}
               >
                 {currencyOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -1311,18 +1948,26 @@ function RequestSalePageContent() {
                 name="owner_name"
                 value={form.owner_name}
                 onChange={(event) => setField("owner_name", event.target.value)}
+                error={stepAttempted[4] ? ownerNameError : null}
+                status={form.owner_name.trim() && !ownerNameError ? "success" : "default"}
               />
               <CustomInput
                 id={`${fieldId}-owner-phone`}
                 label={t("requestSale.contactPhoneLabel")}
                 name="owner_phone"
+                type="number"
+                inputMode="numeric"
                 value={form.owner_phone}
                 onChange={(event) => setField("owner_phone", event.target.value)}
+                error={stepAttempted[4] ? ownerPhoneError : null}
+                status={form.owner_phone.trim() && !ownerPhoneError ? "success" : "default"}
               />
               <CustomInput
                 id={`${fieldId}-owner-phone-secondary`}
                 label={t("requestSale.contactPhoneSecondaryLabel")}
                 name="owner_phone_secondary"
+                type="number"
+                inputMode="numeric"
                 value={form.owner_phone_secondary}
                 onChange={(event) => setField("owner_phone_secondary", event.target.value)}
               />
@@ -1395,6 +2040,81 @@ function RequestSalePageContent() {
             </Actions>
           </SuccessModal>
         </SuccessOverlay>
+      )}
+      {mapHelpOpen && (
+        <HelpOverlay>
+          <HelpModal>
+            <strong>We couldn&apos;t place this location automatically.</strong>
+            <Muted>
+              You can still continue by entering coordinates or placing the pin yourself.
+            </Muted>
+            <HelpList>
+              <li>Use the latitude and longitude fields if you already know the location coordinates.</li>
+              <li>Use "View on map and select" to open the map and place the pin manually.</li>
+            </HelpList>
+            <Actions>
+              <SecondaryButton type="button" onClick={() => setMapHelpOpen(false)}>
+                I&apos;ll use lat/lng
+              </SecondaryButton>
+              <PrimaryButton type="button" onClick={handleOpenMapManual}>
+                View on map and select
+              </PrimaryButton>
+            </Actions>
+          </HelpModal>
+        </HelpOverlay>
+      )}
+      {latLngOpen && (
+        <HelpOverlay>
+          <HelpModal>
+            <strong>Use latitude and longitude</strong>
+            <Muted>Enter decimal coordinates if you already know the exact location.</Muted>
+            <HelpList>
+              <li>Use decimal format, for example latitude `16.8661` and longitude `96.1951`.</li>
+              <li>Latitude should be between `-90` and `90`. Longitude should be between `-180` and `180`.</li>
+              <li>This only places the map pin. Your State/Region, District, and Township stay as you selected them.</li>
+            </HelpList>
+            <CustomInput
+              id={`${fieldId}-latitude-modal`}
+              label={t("requestSale.latitudeLabel")}
+              name="latitude"
+              value={form.latitude}
+              onChange={(event) => setField("latitude", event.target.value)}
+            />
+            <CustomInput
+              id={`${fieldId}-longitude-modal`}
+              label={t("requestSale.longitudeLabel")}
+              name="longitude"
+              value={form.longitude}
+              onChange={(event) => setField("longitude", event.target.value)}
+            />
+            {mapError ? <ErrorText>{mapError}</ErrorText> : null}
+            <Actions>
+              <SecondaryButton type="button" onClick={() => setLatLngOpen(false)}>
+                Cancel
+              </SecondaryButton>
+              <PrimaryButton type="button" onClick={handleUseLatLng}>
+                Apply coordinates
+              </PrimaryButton>
+            </Actions>
+          </HelpModal>
+        </HelpOverlay>
+      )}
+      {limitPopup && (
+        <HelpOverlay>
+          <LimitModal>
+            <strong>Input limit reached</strong>
+            <Muted>{limitPopup}</Muted>
+            <HelpList>
+              <li>Title can use up to {REQUEST_TITLE_MAX_WORDS} words.</li>
+              <li>Description can use up to {REQUEST_DESCRIPTION_MAX_LENGTH} characters.</li>
+            </HelpList>
+            <Actions>
+              <PrimaryButton type="button" onClick={() => setLimitPopup(null)}>
+                OK
+              </PrimaryButton>
+            </Actions>
+          </LimitModal>
+        </HelpOverlay>
       )}
     </div>
   );

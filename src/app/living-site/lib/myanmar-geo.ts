@@ -18,7 +18,24 @@ type MyanmarStructured = {
 
 const structuredData = data as MyanmarStructured;
 
-export const getStates = () => structuredData.states || [];
+const pinnedStateOrder = ["Yangon", "Mandalay", "Nay Pyi Taw"] as const;
+
+export const getStates = () =>
+  [...(structuredData.states || [])].sort((left, right) => {
+    const leftPinnedIndex = pinnedStateOrder.indexOf(left.name_en as (typeof pinnedStateOrder)[number]);
+    const rightPinnedIndex = pinnedStateOrder.indexOf(right.name_en as (typeof pinnedStateOrder)[number]);
+
+    const leftPinned = leftPinnedIndex !== -1;
+    const rightPinned = rightPinnedIndex !== -1;
+
+    if (leftPinned && rightPinned) {
+      return leftPinnedIndex - rightPinnedIndex;
+    }
+    if (leftPinned) return -1;
+    if (rightPinned) return 1;
+
+    return left.name_en.localeCompare(right.name_en);
+  });
 
 export const getDistricts = (stateNameEn: string) => {
   const state = structuredData.states?.find((item) => item.name_en === stateNameEn);

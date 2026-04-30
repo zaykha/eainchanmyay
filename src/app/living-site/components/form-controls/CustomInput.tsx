@@ -7,6 +7,7 @@ type CustomInputProps = React.InputHTMLAttributes<HTMLInputElement> & {
   name: string;
   label: string;
   error?: string | null;
+  status?: "default" | "error" | "success";
 };
 
 export function CustomInput({
@@ -17,11 +18,12 @@ export function CustomInput({
   onChange,
   type = "text",
   error,
+  status = "default",
   ...rest
 }: CustomInputProps) {
   const filled = value !== undefined && value !== null && String(value) !== "";
   return (
-    <div className="Field" data-filled={filled} data-status={error ? "error" : "default"}>
+    <div className="Field" data-filled={filled} data-status={error ? "error" : status}>
       <label className="Label" htmlFor={id}>
         {label}
       </label>

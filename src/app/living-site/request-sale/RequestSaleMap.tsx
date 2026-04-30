@@ -29,12 +29,10 @@ function MapClickHandler({
 
 function MapUpdater({
   position,
-  active,
   center,
   defaultZoom,
 }: {
   position: [number, number] | null;
-  active: boolean;
   center: [number, number];
   defaultZoom: number;
 }) {
@@ -43,10 +41,10 @@ function MapUpdater({
   useEffect(() => {
     if (position) {
       map.setView(position, Math.max(map.getZoom(), 14));
-    } else if (!active) {
+    } else {
       map.setView(center, defaultZoom);
     }
-  }, [map, position, active, center, defaultZoom]);
+  }, [map, position, center, defaultZoom]);
 
   return null;
 }
@@ -81,13 +79,13 @@ export default function RequestSaleMap({
       key={mapKey}
       center={position ?? center}
       zoom={position ? 14 : defaultZoom}
-      scrollWheelZoom={active}
-      doubleClickZoom={active}
-      dragging={active}
-      touchZoom={active}
-      boxZoom={active}
-      keyboard={active}
-      zoomControl={active}
+      scrollWheelZoom
+      doubleClickZoom
+      dragging
+      touchZoom
+      boxZoom
+      keyboard
+      zoomControl
     >
       <TileLayer
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -109,7 +107,7 @@ export default function RequestSaleMap({
         />
       )}
       <MapClickHandler active={active} onSelect={onSelect} />
-      <MapUpdater position={position} active={active} center={center} defaultZoom={defaultZoom} />
+      <MapUpdater position={position} center={center} defaultZoom={defaultZoom} />
     </MapContainer>
   );
 }

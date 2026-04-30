@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getVendorRequestContext } from "@/app/api/vendor/_lib/context";
 import { getVendorPlanUsage } from "@/app/api/vendor/_lib/plan-limits";
+import { uploadRequestImages } from "@/app/api/_lib/r2-upload";
 import type { PropertyType } from "@/lib/property-types";
 
 type Payload = {
@@ -18,6 +19,8 @@ type Payload = {
   bedrooms?: number | null;
   bathrooms?: number | null;
   area_sqft?: number | null;
+  floor_count?: number | null;
+  room_count?: number | null;
   commission_percent?: number | null;
   has_lift?: boolean;
   has_backup_power?: boolean;
@@ -88,11 +91,22 @@ export async function POST(request: Request) {
     );
   }
 
+  const contentType = request.headers.get("content-type") ?? "";
   let body: Payload = {};
+  let imageFiles: File[] = [];
   try {
-    body = (await request.json()) as Payload;
+    if (contentType.includes("multipart/form-data")) {
+      const formData = await request.formData();
+      const payloadRaw = formData.get("payload");
+      body = JSON.parse(typeof payloadRaw === "string" ? payloadRaw : "{}") as Payload;
+      imageFiles = formData
+        .getAll("images")
+        .filter((entry): entry is File => entry instanceof File && entry.size > 0);
+    } else {
+      body = (await request.json()) as Payload;
+    }
   } catch {
-    return NextResponse.json({ error: "Invalid JSON." }, { status: 400 });
+    return NextResponse.json({ error: "Invalid request payload." }, { status: 400 });
   }
 
   if (!body.title || !body.deal_type || !body.property_type || !body.price || !body.state_region || !body.township) {
@@ -105,6 +119,14 @@ export async function POST(request: Request) {
 
   if (hasBackupPower && !backupType) {
     return NextResponse.json({ error: "Backup power type is required." }, { status: 400 });
+  }
+
+  if (imageFiles.length === 0) {
+    return NextResponse.json({ error: "At least 1 property image is required." }, { status: 400 });
+  }
+
+  if (imageFiles.length > 12) {
+    return NextResponse.json({ error: "You can upload up to 12 property images." }, { status: 400 });
   }
 
   const payload = {
@@ -123,6 +145,8 @@ export async function POST(request: Request) {
     bedrooms: isLand ? null : toNullableNumber(body.bedrooms),
     bathrooms: isLand ? null : toNullableNumber(body.bathrooms),
     area_sqft: toNullableNumber(body.area_sqft),
+    floor_count: toNullableNumber(body.floor_count),
+    room_count: toNullableNumber(body.room_count),
     commission_percent: toNullableNumber(body.commission_percent),
     has_lift: isLand ? false : Boolean(body.has_lift),
     has_backup_power: isLand ? false : hasBackupPower,
@@ -135,10 +159,36 @@ export async function POST(request: Request) {
     owner_phone_secondary: toNullableString(body.owner_phone_secondary),
   };
 
-  const { error } = await supabase.from("sales_requests").insert(payload);
+  const { data: requestRow, error } = await supabase
+    .from("sales_requests")
+    .insert(payload)
+    .select("id")
+    .maybeSingle();
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error || !requestRow?.id) {
+    return NextResponse.json({ error: error?.message ?? "Unable to create request." }, { status: 500 });
+  }
+
+  try {
+    const imageRows = await uploadRequestImages({
+      scope: "vendor",
+      requestId: String(requestRow.id),
+      ownerId: user.id,
+      files: imageFiles,
+    });
+    if (imageRows.length) {
+      const { error: imageInsertError } = await supabase.from("sales_request_images").insert(imageRows);
+      if (imageInsertError) {
+        throw imageInsertError;
+      }
+    }
+  } catch (uploadError) {
+    await supabase.from("sales_request_images").delete().eq("sales_request_id", requestRow.id);
+    await supabase.from("sales_requests").delete().eq("id", requestRow.id);
+    return NextResponse.json(
+      { error: uploadError instanceof Error ? uploadError.message : "Unable to upload request images." },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json({ ok: true });

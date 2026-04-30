@@ -7,6 +7,7 @@ type CustomTextareaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement> & {
   name: string;
   label: string;
   error?: string | null;
+  status?: "default" | "error" | "success";
 };
 
 export function CustomTextarea({
@@ -17,11 +18,12 @@ export function CustomTextarea({
   onChange,
   rows = 4,
   error,
+  status = "default",
   ...rest
 }: CustomTextareaProps) {
   const filled = value !== undefined && value !== null && String(value) !== "";
   return (
-    <div className="Field" data-filled={filled} data-status={error ? "error" : "default"}>
+    <div className="Field" data-filled={filled} data-status={error ? "error" : status}>
       <label className="Label" htmlFor={id}>
         {label}
       </label>
