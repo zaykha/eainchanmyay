@@ -19,6 +19,7 @@ import {
   X,
 } from "lucide-react";
 import { useAppState } from "@/app/living-site/lib/app-state";
+import { readWorkspaceCache, writeWorkspaceCache } from "@/app/living-site/lib/vendor-workspace-cache";
 import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
 import { isVendorStorefrontSetupComplete } from "@/lib/vendor-storefront";
 
@@ -247,9 +248,17 @@ export function VendorShell({ children }: { children: React.ReactNode }) {
     if (!profileReady || !authToken || !user) return;
 
     let cancelled = false;
+    const cachedWorkspace = readWorkspaceCache<WorkspaceSummary>(user.id, "summary");
+    if (cachedWorkspace) {
+      setWorkspace(cachedWorkspace);
+      setWorkspaceLoading(false);
+      setWorkspaceError(null);
+    }
 
       const fetchWorkspace = async () => {
-        setWorkspaceLoading(true);
+        if (!cachedWorkspace) {
+          setWorkspaceLoading(true);
+        }
         setWorkspaceError(null);
 
       const runWorkspaceFetch = async () => {
@@ -292,10 +301,13 @@ export function VendorShell({ children }: { children: React.ReactNode }) {
 
         if (!cancelled) {
           setWorkspace(payload);
+          writeWorkspaceCache(user.id, "summary", payload);
         }
       } catch (error) {
         if (!cancelled) {
-          setWorkspace(null);
+          if (!cachedWorkspace) {
+            setWorkspace(null);
+          }
           setWorkspaceError(error instanceof Error ? error.message : "Unable to load the vendor workspace.");
         }
       } finally {

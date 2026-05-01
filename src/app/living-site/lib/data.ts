@@ -191,6 +191,8 @@ function getNumber(value: unknown) {
   return undefined;
 }
 
+const propertyImageSelect = "property_id,public_url,r2_key,is_cover,sort_order";
+
 function getListingTitle(property: Record<string, unknown>) {
   return getString(property.title) || "";
 }
@@ -316,7 +318,7 @@ export async function getListings(filters?: string | ListingFilters) {
   if (ids.length) {
     const { data: photos, error: photoError } = await supabase
       .from("property_images")
-      .select("*")
+      .select(propertyImageSelect)
       .in("property_id", ids)
       .order("is_cover", { ascending: false })
       .order("sort_order", { ascending: true });
@@ -365,7 +367,7 @@ export async function getListingDetail(propertyId: string) {
   const { data: property, error } = await supabase
     .from("properties")
     .select(
-      "id,title,description,deal_type,property_type,price,currency,state_region,district,township,city,address_text,bedrooms,bathrooms,area_sqft,latitude,longitude,created_by,verification_status"
+      "id,title,description,deal_type,property_type,price,currency,state_region,district,township,city,address_text,bedrooms,bathrooms,area_sqft,latitude,longitude,created_by,verification_status,owner_name,owner_phone,owner_phone_secondary"
     )
     .eq("id", propertyId)
     .eq("status", "published")
@@ -381,7 +383,7 @@ export async function getListingDetail(propertyId: string) {
   const [imagesResult, membershipResult] = await Promise.all([
     supabase
       .from("property_images")
-      .select("*")
+      .select(propertyImageSelect)
       .eq("property_id", propertyId)
       .order("sort_order", { ascending: true }),
     createdBy
@@ -475,7 +477,7 @@ export async function getViewingRequestsForUser(userId: string) {
   if (propertyIds.length) {
     const { data: photos, error: photoError } = await supabase
       .from("property_images")
-      .select("*")
+      .select(propertyImageSelect)
       .in("property_id", propertyIds)
       .order("is_cover", { ascending: false })
       .order("sort_order", { ascending: true });
@@ -579,7 +581,7 @@ export async function getSavedPropertiesForUser(userId: string) {
   if (propertyIds.length) {
     const { data: photos, error: photoError } = await supabase
       .from("property_images")
-      .select("*")
+      .select(propertyImageSelect)
       .in("property_id", propertyIds)
       .order("is_cover", { ascending: false })
       .order("sort_order", { ascending: true });
@@ -701,7 +703,7 @@ export async function getSalesRequestsForUser(userId: string) {
   const { data, error } = await supabase
     .from("sales_requests")
     .select(
-      "id,title,description,deal_type,property_type,price,currency,state_region,district,township,city,address_text,bedrooms,bathrooms,area_sqft,floor_count,room_count,has_lift,has_backup_power,backup_power_type,has_parking,created_at"
+      "id,title,description,deal_type,property_type,price,currency,state_region,district,township,city,address_text,bedrooms,bathrooms,area_sqft,floor_count,room_count,has_lift,has_backup_power,backup_power_type,has_parking,review_status,created_at"
     )
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
@@ -717,6 +719,62 @@ export async function getSalesRequestsForUser(userId: string) {
   return { data: data as Array<Record<string, unknown>>, error: null };
 }
 
+export async function getOwnedPropertiesForUser(userId: string) {
+  if (!isSupabaseConfigured) {
+    return { data: [] as Array<Record<string, unknown>>, error: "Supabase is not configured." };
+  }
+
+  const { data, error } = await supabase
+    .from("properties")
+    .select(
+      "id,title,description,deal_type,property_type,status,price,currency,state_region,district,township,city,address_text,bedrooms,bathrooms,area_sqft,floor_count,room_count,has_lift,has_backup_power,backup_power_type,has_parking,created_at"
+    )
+    .eq("created_by", userId)
+    .eq("is_deleted", false)
+    .order("created_at", { ascending: false });
+
+  if (error || !data) {
+    console.warn("Failed to load owned properties", error);
+    return {
+      data: [] as Array<Record<string, unknown>>,
+      error: error?.message ?? "Failed to load owned properties.",
+    };
+  }
+
+  const ids = data.map((item) => item.id).filter(Boolean);
+  let photosByProperty = new Map<string, Record<string, unknown>[]>();
+
+  if (ids.length) {
+    const { data: photos, error: photoError } = await supabase
+      .from("property_images")
+      .select(propertyImageSelect)
+      .in("property_id", ids)
+      .order("is_cover", { ascending: false })
+      .order("sort_order", { ascending: true });
+
+    if (photoError) {
+      console.warn("Failed to load owned property images", photoError);
+    } else if (photos) {
+      photosByProperty = photos.reduce((map, photo) => {
+        const propertyId = String(photo.property_id ?? "");
+        if (!propertyId) return map;
+        const bucket = map.get(propertyId) ?? [];
+        bucket.push(photo);
+        map.set(propertyId, bucket);
+        return map;
+      }, new Map<string, Record<string, unknown>[]>());
+    }
+  }
+
+  return {
+    data: data.map((item) => ({
+      ...(item as Record<string, unknown>),
+      imageUrl: resolveListingImage(item as Record<string, unknown>, photosByProperty.get(String(item.id ?? "")) ?? []),
+    })) as Array<Record<string, unknown>>,
+    error: null,
+  };
+}
+
 export async function getSalesRequestById(userId: string, requestId: string) {
   if (!isSupabaseConfigured) {
     return { request: null as Record<string, unknown> | null, error: "Supabase is not configured." };
@@ -725,7 +783,7 @@ export async function getSalesRequestById(userId: string, requestId: string) {
   const { data, error } = await supabase
     .from("sales_requests")
     .select(
-      "id,title,description,deal_type,property_type,price,currency,state_region,district,city,township,address_text,bedrooms,bathrooms,area_sqft,floor_count,room_count,has_lift,has_backup_power,backup_power_type,has_parking,latitude,longitude,owner_name,owner_phone,owner_phone_secondary,created_at"
+      "id,title,description,deal_type,property_type,price,currency,state_region,district,city,township,address_text,bedrooms,bathrooms,area_sqft,floor_count,room_count,has_lift,has_backup_power,backup_power_type,has_parking,latitude,longitude,owner_name,owner_phone,owner_phone_secondary,review_status,created_at"
     )
     .eq("id", requestId)
     .eq("user_id", userId)
@@ -739,7 +797,100 @@ export async function getSalesRequestById(userId: string, requestId: string) {
   return { request: (data as Record<string, unknown> | null) ?? null, error: null };
 }
 
+export async function getOwnedPropertyById(userId: string, propertyId: string) {
+  if (!isSupabaseConfigured) {
+    return { property: null as Record<string, unknown> | null, error: "Supabase is not configured." };
+  }
+
+  const { data, error } = await supabase
+    .from("properties")
+    .select(
+      "id,title,description,deal_type,property_type,status,price,currency,state_region,district,city,township,address_text,bedrooms,bathrooms,area_sqft,floor_count,room_count,has_lift,has_backup_power,backup_power_type,has_parking,latitude,longitude,owner_name,owner_phone,owner_phone_secondary,created_at"
+    )
+    .eq("id", propertyId)
+    .eq("created_by", userId)
+    .eq("is_deleted", false)
+    .maybeSingle();
+
+  if (error) {
+    console.warn("Failed to load owned property", error);
+    return { property: null, error: error.message };
+  }
+
+  return { property: (data as Record<string, unknown> | null) ?? null, error: null };
+}
+
 export async function updateSalesRequest(input: {
+  id: string;
+  userId: string;
+  title: string;
+  description: string | null;
+  dealType: string;
+  propertyType: string;
+  price: number;
+  currency: string;
+  stateRegion: string;
+  district: string | null;
+  city: string | null;
+  township: string;
+  addressText: string | null;
+  bedrooms: number | null;
+  bathrooms: number | null;
+  areaSqft: number | null;
+  floorCount: number | null;
+  roomCount: number | null;
+  hasLift: boolean;
+  hasBackupPower: boolean;
+  backupPowerType: string | null;
+  hasParking: boolean;
+  latitude: number | null;
+  longitude: number | null;
+  ownerName: string | null;
+  ownerPhone: string | null;
+  ownerPhoneSecondary: string | null;
+}) {
+  if (!isSupabaseConfigured) {
+    return { ok: false, message: "Supabase is not configured." };
+  }
+
+  const payload = {
+    title: input.title,
+    description: input.description,
+    deal_type: input.dealType,
+    property_type: input.propertyType,
+    price: input.price,
+    currency: input.currency,
+    state_region: input.stateRegion,
+    district: input.district,
+    city: input.city ?? input.district ?? input.township ?? input.stateRegion,
+    township: input.township,
+    address_text: input.addressText,
+    bedrooms: input.bedrooms,
+    bathrooms: input.bathrooms,
+    area_sqft: input.areaSqft,
+    floor_count: input.floorCount,
+    room_count: input.roomCount,
+    has_lift: input.hasLift,
+    has_backup_power: input.hasBackupPower,
+    backup_power_type: input.backupPowerType,
+    has_parking: input.hasParking,
+    latitude: input.latitude,
+    longitude: input.longitude,
+    owner_name: input.ownerName,
+    owner_phone: input.ownerPhone,
+    owner_phone_secondary: input.ownerPhoneSecondary,
+  };
+
+  const { error } = await supabase
+    .from("sales_requests")
+    .update(payload)
+    .eq("id", input.id)
+    .eq("user_id", input.userId);
+
+  return error ? { ok: false, message: error.message } : { ok: true };
+}
+
+export async function updateOwnedProperty(input: {
   id: string;
   userId: string;
   title: string;
@@ -801,10 +952,11 @@ export async function updateSalesRequest(input: {
   };
 
   const { error } = await supabase
-    .from("sales_requests")
+    .from("properties")
     .update(payload)
     .eq("id", input.id)
-    .eq("user_id", input.userId);
+    .eq("created_by", input.userId)
+    .eq("is_deleted", false);
 
   return error ? { ok: false, message: error.message } : { ok: true };
 }

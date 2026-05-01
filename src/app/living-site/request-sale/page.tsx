@@ -29,7 +29,14 @@ import { CustomInput } from "@/app/living-site/components/form-controls/CustomIn
 import { CustomSelect } from "@/app/living-site/components/form-controls/CustomSelect";
 import { CustomTextarea } from "@/app/living-site/components/form-controls/CustomTextarea";
 import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
-import { getSalesRequestById, getSalesRequestsForUser, updateSalesRequest } from "@/app/living-site/lib/data";
+import {
+  getOwnedPropertiesForUser,
+  getOwnedPropertyById,
+  getSalesRequestById,
+  getSalesRequestsForUser,
+  updateOwnedProperty,
+  updateSalesRequest,
+} from "@/app/living-site/lib/data";
 import { useI18n } from "@/app/living-site/lib/i18n";
 import {
   formatPropertyTypeValue,
@@ -38,6 +45,7 @@ import {
   propertyTypeDefinitions,
   type PropertyType,
 } from "@/lib/property-types";
+import { moderateListingText } from "@/lib/moderation-rules";
 
 const PageShell = styled.div`
   max-width: 960px;
@@ -347,6 +355,7 @@ const isUsableMapCoordinate = (lat: number, lng: number) =>
   Number.isFinite(lng) &&
   Math.abs(lat) > 1 &&
   Math.abs(lng) > 1;
+const isReviewLocked = (value: unknown) => String(value ?? "").toLowerCase() === "pending";
 
 const MapFrame = styled.div<{ $status?: "default" | "error" | "success" }>`
   position: relative;
@@ -762,7 +771,9 @@ function RequestSalePageContent() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [successListingId, setSuccessListingId] = useState<string | null>(null);
   const [loadingEdit, setLoadingEdit] = useState(false);
+  const [editLockedMessage, setEditLockedMessage] = useState<string | null>(null);
   const [existingRequestCount, setExistingRequestCount] = useState(0);
   const [workspaceLimits, setWorkspaceLimits] = useState<WorkspaceLimits["limits"] | null>(null);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
@@ -772,6 +783,7 @@ function RequestSalePageContent() {
   const [mapHelpOpen, setMapHelpOpen] = useState(false);
   const [latLngOpen, setLatLngOpen] = useState(false);
   const [limitPopup, setLimitPopup] = useState<string | null>(null);
+  const [moderationPopup, setModerationPopup] = useState<string | null>(null);
   const [locateAttempted, setLocateAttempted] = useState(false);
   const [mapPosition, setMapPosition] = useState<[number, number] | null>(null);
   const [mapCenter, setMapCenter] = useState<[number, number]>(MYANMAR_CENTER);
@@ -861,44 +873,52 @@ function RequestSalePageContent() {
     if (!editId || !user?.id) return;
     let active = true;
     setLoadingEdit(true);
-    getSalesRequestById(user.id, editId)
-      .then(({ request, error: loadError }) => {
+    setEditLockedMessage(null);
+    const loader = isVendorFlow
+      ? getSalesRequestById(user.id, editId).then(({ request, error }) => ({ record: request, error }))
+      : getOwnedPropertyById(user.id, editId).then(({ property, error }) => ({ record: property, error }));
+    loader.then(({ record, error: loadError }) => {
         if (!active) return;
         if (loadError) {
           setError(loadError);
           return;
         }
-        if (!request) {
+        if (!record) {
           setError(t("requestSale.error.load"));
           return;
         }
-        const requestCurrency = String(request.currency ?? "MMK");
+        if (isVendorFlow && isReviewLocked(record.review_status)) {
+          setEditLockedMessage("This property request is under review and cannot be edited right now.");
+          router.replace("/account");
+          return;
+        }
+        const requestCurrency = String(record.currency ?? "MMK");
         setForm({
-          title: String(request.title ?? ""),
-          description: String(request.description ?? ""),
-          deal_type: String(request.deal_type ?? "sale"),
-          property_type: normalizeSelectablePropertyType(String(request.property_type ?? "house")),
-          price: fromStoredPrice(request.price, requestCurrency),
+          title: String(record.title ?? ""),
+          description: String(record.description ?? ""),
+          deal_type: String(record.deal_type ?? "sale"),
+          property_type: normalizeSelectablePropertyType(String(record.property_type ?? "house")),
+          price: fromStoredPrice(record.price, requestCurrency),
           currency: requestCurrency,
-          state_region: String(request.state_region ?? ""),
-          district: String(request.district ?? ""),
-          city: String(request.city ?? ""),
-          township: String(request.township ?? ""),
-          address_text: String(request.address_text ?? ""),
-          bedrooms: toFormNumber(request.bedrooms),
-          bathrooms: toFormNumber(request.bathrooms),
-          area_sqft: toFormNumber(request.area_sqft),
-          floor_count: toFormNumber(request.floor_count),
-          room_count: toFormNumber(request.room_count),
-          has_lift: Boolean(request.has_lift),
-          has_backup_power: Boolean(request.has_backup_power),
-          backup_power_type: toBackupPowerType(request.backup_power_type),
-          has_parking: Boolean(request.has_parking),
-          latitude: toFormNumber(request.latitude),
-          longitude: toFormNumber(request.longitude),
-          owner_name: String(request.owner_name ?? ""),
-          owner_phone: String(request.owner_phone ?? ""),
-          owner_phone_secondary: String(request.owner_phone_secondary ?? ""),
+          state_region: String(record.state_region ?? ""),
+          district: String(record.district ?? ""),
+          city: String(record.city ?? ""),
+          township: String(record.township ?? ""),
+          address_text: String(record.address_text ?? ""),
+          bedrooms: toFormNumber(record.bedrooms),
+          bathrooms: toFormNumber(record.bathrooms),
+          area_sqft: toFormNumber(record.area_sqft),
+          floor_count: toFormNumber(record.floor_count),
+          room_count: toFormNumber(record.room_count),
+          has_lift: Boolean(record.has_lift),
+          has_backup_power: Boolean(record.has_backup_power),
+          backup_power_type: toBackupPowerType(record.backup_power_type),
+          has_parking: Boolean(record.has_parking),
+          latitude: toFormNumber(record.latitude),
+          longitude: toFormNumber(record.longitude),
+          owner_name: String(record.owner_name ?? ""),
+          owner_phone: String(record.owner_phone ?? ""),
+          owner_phone_secondary: String(record.owner_phone_secondary ?? ""),
         });
       })
       .finally(() => {
@@ -908,7 +928,7 @@ function RequestSalePageContent() {
     return () => {
       active = false;
     };
-  }, [editId, user?.id, t]);
+  }, [editId, isVendorFlow, router, user?.id, t]);
 
   useEffect(() => {
     if (!user?.id || isVendorFlow) {
@@ -917,7 +937,7 @@ function RequestSalePageContent() {
     }
 
     let active = true;
-    getSalesRequestsForUser(user.id).then(({ data }) => {
+    getOwnedPropertiesForUser(user.id).then(({ data }) => {
       if (!active) return;
       setExistingRequestCount(data.length);
     });
@@ -1336,6 +1356,19 @@ function RequestSalePageContent() {
       return;
     }
 
+    const moderationResult = moderateListingText({
+      title: form.title,
+      description: form.description,
+    });
+    if (moderationResult.blocked) {
+      setModerationPopup(
+        moderationResult.message ||
+          "Your title or description contains prohibited or suspicious wording. Remove profanity, drug-sale language, or spam/contact promotion and try again."
+      );
+      setStep(0);
+      return;
+    }
+
     const payload = {
       user_id: user?.id ?? null,
       title: form.title.trim(),
@@ -1373,7 +1406,7 @@ function RequestSalePageContent() {
         setError(t("requestSale.error.signIn"));
         return;
       }
-      const result = await updateSalesRequest({
+      const updateInput = {
         id: editId,
         userId: user.id,
         title: form.title.trim(),
@@ -1401,12 +1434,14 @@ function RequestSalePageContent() {
         ownerName: toNullableString(form.owner_name),
         ownerPhone: toNullableString(form.owner_phone),
         ownerPhoneSecondary: toNullableString(form.owner_phone_secondary),
-      });
+      };
+      const result = await (isVendorFlow ? updateSalesRequest(updateInput) : updateOwnedProperty(updateInput));
       setSubmitting(false);
       if (!result.ok) {
         setError(result.message ?? t("requestSale.error.updateFailed"));
         return;
       }
+      setSuccessListingId(editId);
     } else {
       const endpoint = profileRole === "vendor_user" ? "/api/vendor/sales-requests" : "/api/public/sales-requests";
       const headers: Record<string, string> = {};
@@ -1431,6 +1466,8 @@ function RequestSalePageContent() {
         setError(result.message ?? result.error ?? t("requestSale.error.submitFailed"));
         return;
       }
+      const result = (await response.json().catch(() => null)) as { propertyId?: string } | null;
+      setSuccessListingId(result?.propertyId ?? null);
     }
 
     setSuccess(true);
@@ -1480,7 +1517,13 @@ function RequestSalePageContent() {
       <PageShell>
         <TitleRow>
           <SectionTitle>
-            {isEdit ? t("requestSale.titleEdit") : t("requestSale.titleNew")}
+            {isEdit
+              ? profileRole === "vendor_user"
+                ? t("requestSale.titleEdit")
+                : "Edit listing"
+              : profileRole === "vendor_user"
+                ? t("requestSale.titleNew")
+                : "Create a listing"}
           </SectionTitle>
           <BackButton type="button" onClick={() => router.back()}>
             {t("common.back")}
@@ -1488,14 +1531,18 @@ function RequestSalePageContent() {
         </TitleRow>
         <Muted>
           {isEdit
-            ? t("requestSale.subtitleEdit")
-            : t("requestSale.subtitleNew")}
+            ? profileRole === "vendor_user"
+              ? t("requestSale.subtitleEdit")
+              : "Update your property listing details."
+            : profileRole === "vendor_user"
+              ? t("requestSale.subtitleNew")
+              : "Publish your property directly to the marketplace."}
         </Muted>
         {!isVendorFlow ? (
           <LimitNotice $danger={customerLimitReached}>
             {customerLimitReached
-              ? "You already used your 1 property request for this account. Edit the existing request from Account instead of creating another one."
-              : `1 property request per account. Current usage: ${existingRequestCount}/1. Every request is reviewed before it is listed.`}
+              ? "You already used your 1 published listing for this account."
+              : `1 published listing per account. Current usage: ${existingRequestCount}/1.`}
           </LimitNotice>
         ) : null}
         {workspaceLimits?.listingNearLimit ? (
@@ -1975,6 +2022,7 @@ function RequestSalePageContent() {
           )}
 
           {error && <ErrorText>{error}</ErrorText>}
+          {editLockedMessage && <ErrorText>{editLockedMessage}</ErrorText>}
 
           <Actions>
             <SecondaryButton
@@ -1997,7 +2045,9 @@ function RequestSalePageContent() {
                     ? t("common.submitting")
                     : isEdit
                       ? t("common.saveChanges")
-                      : t("listing.submitRequest")}
+                      : profileRole === "vendor_user"
+                        ? t("listing.submitRequest")
+                        : "Publish listing"}
               </PrimaryButton>
             )}
           </Actions>
@@ -2014,8 +2064,12 @@ function RequestSalePageContent() {
             <strong>{isEdit ? t("requestSale.successUpdated") : t("requestSale.successThanks")}</strong>
             <Muted>
               {isEdit
-                ? t("requestSale.successReviewUpdate")
-                : t("requestSale.successReviewNew")}
+                ? profileRole === "vendor_user"
+                  ? t("requestSale.successReviewUpdate")
+                  : "Your listing has been updated."
+                : profileRole === "vendor_user"
+                  ? t("requestSale.successReviewNew")
+                  : "Your listing is now live on the marketplace."}
             </Muted>
             <Actions>
               {profileRole === "vendor_user" ? (
@@ -2032,9 +2086,14 @@ function RequestSalePageContent() {
                   <SecondaryButton type="button" onClick={() => router.push("/")}>
                     {t("requestSale.browseListings")}
                   </SecondaryButton>
-                  <PrimaryButton type="button" onClick={() => router.push("/account")}>
+                  <SecondaryButton type="button" onClick={() => router.push("/account")}>
                     {t("requestSale.goActivities")}
-                  </PrimaryButton>
+                  </SecondaryButton>
+                  {successListingId ? (
+                    <PrimaryButton type="button" onClick={() => router.push(`/listing/${successListingId}`)}>
+                      View listing
+                    </PrimaryButton>
+                  ) : null}
                 </>
               )}
             </Actions>
@@ -2111,6 +2170,30 @@ function RequestSalePageContent() {
             <Actions>
               <PrimaryButton type="button" onClick={() => setLimitPopup(null)}>
                 OK
+              </PrimaryButton>
+            </Actions>
+          </LimitModal>
+        </HelpOverlay>
+      )}
+      {moderationPopup && (
+        <HelpOverlay>
+          <LimitModal>
+            <strong>Update your title or description</strong>
+            <Muted>{moderationPopup}</Muted>
+            <HelpList>
+              <li>Remove profanity or abusive wording.</li>
+              <li>Do not include drug-sale or illegal service language.</li>
+              <li>Do not add spammy contact-promotion text.</li>
+            </HelpList>
+            <Actions>
+              <PrimaryButton
+                type="button"
+                onClick={() => {
+                  setModerationPopup(null);
+                  setStep(0);
+                }}
+              >
+                Back to basics
               </PrimaryButton>
             </Actions>
           </LimitModal>

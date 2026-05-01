@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { getVendorRequestContext } from "@/app/api/vendor/_lib/context";
 import { getVendorPlanUsage } from "@/app/api/vendor/_lib/plan-limits";
-import { uploadRequestImages } from "@/app/api/_lib/r2-upload";
+import { deleteRequestImages, uploadRequestImages } from "@/app/api/_lib/request-image-upload";
 import type { PropertyType } from "@/lib/property-types";
+import { moderateListingText } from "@/lib/moderation-rules";
+
+export const runtime = "nodejs";
 
 type Payload = {
   title?: string;
@@ -44,6 +47,14 @@ const toNullableNumber = (value: unknown) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
 };
+
+function getUnknownErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === "object" && "message" in error && typeof error.message === "string") {
+    return error.message;
+  }
+  return fallback;
+}
 
 export async function GET(request: Request) {
   const result = await getVendorRequestContext(request);
@@ -121,6 +132,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Backup power type is required." }, { status: 400 });
   }
 
+  const moderationResult = moderateListingText({
+    title: body.title,
+    description: body.description,
+  });
+  if (moderationResult.blocked) {
+    return NextResponse.json(
+      { error: moderationResult.message, reasons: moderationResult.reasons },
+      { status: 400 }
+    );
+  }
+
   if (imageFiles.length === 0) {
     return NextResponse.json({ error: "At least 1 property image is required." }, { status: 400 });
   }
@@ -130,7 +152,9 @@ export async function POST(request: Request) {
   }
 
   const payload = {
+    vendor_id: result.context.vendor.id,
     user_id: user.id,
+    review_status: "pending",
     title: body.title.trim(),
     description: toNullableString(body.description),
     deal_type: body.deal_type,
@@ -170,7 +194,8 @@ export async function POST(request: Request) {
   }
 
   try {
-    const imageRows = await uploadRequestImages({
+    const { rows: imageRows, storagePaths } = await uploadRequestImages({
+      supabase,
       scope: "vendor",
       requestId: String(requestRow.id),
       ownerId: user.id,
@@ -179,6 +204,7 @@ export async function POST(request: Request) {
     if (imageRows.length) {
       const { error: imageInsertError } = await supabase.from("sales_request_images").insert(imageRows);
       if (imageInsertError) {
+        await deleteRequestImages({ supabase, storagePaths });
         throw imageInsertError;
       }
     }
@@ -186,7 +212,7 @@ export async function POST(request: Request) {
     await supabase.from("sales_request_images").delete().eq("sales_request_id", requestRow.id);
     await supabase.from("sales_requests").delete().eq("id", requestRow.id);
     return NextResponse.json(
-      { error: uploadError instanceof Error ? uploadError.message : "Unable to upload request images." },
+      { error: getUnknownErrorMessage(uploadError, "Unable to upload request images.") },
       { status: 500 }
     );
   }

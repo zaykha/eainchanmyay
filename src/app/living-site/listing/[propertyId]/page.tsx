@@ -8,6 +8,7 @@ import {
   BedDouble,
   ChevronLeft,
   ChevronRight,
+  Flag,
   Home,
   MapPin,
   Phone,
@@ -436,6 +437,20 @@ const ContactChoice = styled.button`
   font-weight: 600;
 `;
 
+const ReportButton = styled.button`
+  border: 1px solid var(--color-outline);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  background: transparent;
+  color: var(--color-muted);
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+`;
+
 const ModalOverlay = styled.div`
   position: fixed;
   inset: 0;
@@ -842,6 +857,12 @@ export default function ListingDetailPage() {
   const [saveSubmitting, setSaveSubmitting] = useState(false);
   const [contactOpen, setContactOpen] = useState(false);
   const [contactCopied, setContactCopied] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState("spam");
+  const [reportDetails, setReportDetails] = useState("");
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
+  const [reportSuccess, setReportSuccess] = useState(false);
   const metadataFullName =
     typeof user?.user_metadata?.full_name === "string" ? user.user_metadata.full_name.trim() : "";
   const metadataName =
@@ -1085,7 +1106,11 @@ export default function ListingDetailPage() {
   const agencyName = agency && typeof agency.name === "string" ? agency.name : null;
   const agencyTagline = agency && typeof agency.tagline === "string" ? agency.tagline : null;
   const agencyPhone = agency && typeof agency.contact_phone === "string" ? agency.contact_phone : null;
-  const primaryContact = agencyPhone || EAIN_CONTACT_PHONE;
+  const ownerName = typeof property.owner_name === "string" ? property.owner_name : null;
+  const ownerPhone = typeof property.owner_phone === "string" ? property.owner_phone : null;
+  const primaryContact = agencyPhone || ownerPhone || EAIN_CONTACT_PHONE;
+  const contactName = agencyName || ownerName || "Eain Chan Myay Advisory";
+  const canRequestViewing = Boolean(agencyName);
   const showVerifiedListing = propertyVerificationStatus === "approved";
   const showVerifiedAgency = !showVerifiedListing && agencyVerificationStatus === "approved";
   const showBeds = isBedBathPropertyType(propertyTypeRaw) && bedrooms !== undefined;
@@ -1184,6 +1209,34 @@ export default function ListingDetailPage() {
     } catch {
       setContactCopied(false);
     }
+  };
+
+  const handleReportSubmit = async () => {
+    if (!propertyId) return;
+    setReportError(null);
+    setReportSubmitting(true);
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (authToken) {
+      headers.Authorization = `Bearer ${authToken}`;
+    }
+    const response = await fetch("/api/public/listing-reports", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        propertyId,
+        reason: reportReason,
+        details: reportDetails.trim() || null,
+      }),
+    });
+    setReportSubmitting(false);
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => null)) as { message?: string } | null;
+      setReportError(payload?.message ?? "Unable to submit your report right now.");
+      return;
+    }
+    setReportSuccess(true);
   };
 
   return (
@@ -1337,11 +1390,11 @@ export default function ListingDetailPage() {
             </SectionBlock>
           </div>
           <ContactCard>
-            <ContactTitle>{t("listing.contactAgent")}</ContactTitle>
+            <ContactTitle>{agencyName ? t("listing.contactAgent") : "Contact seller"}</ContactTitle>
             {showVerifiedListing ? <TrustPill>Verified listing</TrustPill> : null}
             {showVerifiedAgency ? <TrustPill>{t("listing.verifiedAgent")}</TrustPill> : null}
             <ContactRow>
-              <strong>{agencyName || "Eain Chan Myay Advisory"}</strong>
+                <strong>{contactName}</strong>
               <span>{t("listing.contactSubtitle")}</span>
               <span>
                 {t("listing.hotline")}: <a href={`tel:${primaryContact}`}>{primaryContact}</a>
@@ -1366,22 +1419,37 @@ export default function ListingDetailPage() {
             <SaveButton type="button" onClick={handleSave} disabled={saveSubmitting} $active={saved}>
               {saved ? t("listing.saved") : t("listing.saveProperty")}
             </SaveButton>
-            <SecondaryButton
-              as="button"
+            {canRequestViewing ? (
+              <SecondaryButton
+                as="button"
+                type="button"
+                onClick={() => {
+                  if (existingViewingRequest) {
+                    setViewingInfoOpen(true);
+                  } else {
+                    setViewingOpen(true);
+                    setViewingSuccess(false);
+                    setViewingError(null);
+                  }
+                }}
+                $active={Boolean(existingViewingRequest)}
+              >
+                {existingViewingRequest ? t("listing.viewingRequested") : t("listing.requestViewing")}
+              </SecondaryButton>
+            ) : null}
+            <ReportButton
               type="button"
               onClick={() => {
-                if (existingViewingRequest) {
-                  setViewingInfoOpen(true);
-                } else {
-                  setViewingOpen(true);
-                  setViewingSuccess(false);
-                  setViewingError(null);
-                }
+                setReportError(null);
+                setReportSuccess(false);
+                setReportDetails("");
+                setReportReason("spam");
+                setReportOpen(true);
               }}
-              $active={Boolean(existingViewingRequest)}
             >
-              {existingViewingRequest ? t("listing.viewingRequested") : t("listing.requestViewing")}
-            </SecondaryButton>
+              <Flag size={16} />
+              Report listing
+            </ReportButton>
           </ContactCard>
         </ContentLayout>
       </PageShell>
@@ -1426,7 +1494,7 @@ export default function ListingDetailPage() {
         <ModalOverlay onClick={() => setContactOpen(false)}>
           <ModalCard onClick={(event) => event.stopPropagation()}>
             <SectionTitle>{t("listing.contactAgent")}</SectionTitle>
-            <strong>{agencyName || "Eain Chan Myay Advisory"}</strong>
+            <strong>{contactName}</strong>
             <MetaText>{primaryContact}</MetaText>
             {contactCopied ? <SuccessCard><strong>Number copied.</strong></SuccessCard> : null}
             <ContactChoice
@@ -1548,6 +1616,53 @@ export default function ListingDetailPage() {
                   {viewingSubmitting ? t("common.submitting") : t("listing.submitRequest")}
                 </SubmitButton>
               )}
+            </ModalActions>
+          </ModalCard>
+        </ModalOverlay>
+      )}
+      {reportOpen && (
+        <ModalOverlay onClick={() => setReportOpen(false)}>
+          <ModalCard onClick={(event) => event.stopPropagation()}>
+            <SectionTitle>Report listing</SectionTitle>
+            {reportSuccess ? (
+              <SuccessCard>
+                <strong>Thanks for the report.</strong>
+                <p>We received it and will review this listing.</p>
+              </SuccessCard>
+            ) : (
+              <>
+                <CustomSelect
+                  id="report-reason"
+                  label="Reason"
+                  name="reason"
+                  value={reportReason}
+                  onChange={setReportReason}
+                >
+                  <option value="spam">Spam or misleading</option>
+                  <option value="inappropriate">Inappropriate content</option>
+                  <option value="illegal">Illegal goods or services</option>
+                  <option value="duplicate">Duplicate listing</option>
+                  <option value="other">Other</option>
+                </CustomSelect>
+                <CustomTextarea
+                  id="report-details"
+                  label="Details (optional)"
+                  name="details"
+                  value={reportDetails}
+                  onChange={(event) => setReportDetails(event.target.value)}
+                />
+                {reportError ? <ErrorText>{reportError}</ErrorText> : null}
+              </>
+            )}
+            <ModalActions>
+              <GhostButton type="button" onClick={() => setReportOpen(false)}>
+                {reportSuccess ? t("common.close") : "Cancel"}
+              </GhostButton>
+              {!reportSuccess ? (
+                <SubmitButton type="button" onClick={handleReportSubmit} disabled={reportSubmitting}>
+                  {reportSubmitting ? t("common.submitting") : "Submit report"}
+                </SubmitButton>
+              ) : null}
             </ModalActions>
           </ModalCard>
         </ModalOverlay>

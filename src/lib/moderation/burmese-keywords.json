@@ -1,0 +1,182 @@
+{
+  "version": 1,
+  "locale": "my-MM",
+  "categories": {
+    "drugs": {
+      "blocked_terms": [
+        "မူးယစ်ဆေး",
+        "မူးယစ်ဆေးဝါး",
+        "စိတ်ကြွဆေး",
+        "ဘိန်း",
+        "ဆေးခြောက်",
+        "ကန်နဘစ်",
+        "ganja",
+        "cannabis",
+        "marijuana",
+        "weed",
+        "yaba",
+        "meth",
+        "ketamine",
+        "cocaine",
+        "heroin",
+        "mdma"
+      ],
+      "blocked_phrases": [
+        "မူးယစ်ဆေး ရောင်း",
+        "မူးယစ်ဆေးဝါး ရောင်း",
+        "ဆေးခြောက် ရောင်း",
+        "ဆေး ရောင်းပါတယ်",
+        "ဆေး ဝယ်ချင်ရင် ဆက်သွယ်ပါ",
+        "weed for sale",
+        "marijuana for sale",
+        "cannabis for sale",
+        "yaba for sale",
+        "meth for sale",
+        "ketamine for sale",
+        "cocaine for sale",
+        "heroin for sale",
+        "drug delivery",
+        "drugs available",
+        "telegram weed",
+        "whatsapp weed",
+        "viber weed"
+      ],
+      "suspicious_terms": [
+        "မူးယစ်",
+        "ရေခဲ",
+        "ice available",
+        "ice for sale",
+        "ဆေးပြား",
+        "party pills",
+        "high grade weed",
+        "ဂန်ဂျာ"
+      ]
+    },
+    "sex_services": {
+      "blocked_terms": [
+        "ပြည့်တန်ဆာ",
+        "လိင်ဝန်ဆောင်မှု",
+        "လိင်လုပ်ငန်း",
+        "အဖော်မိန်းကလေး",
+        "ဖာခန်း",
+        "call girl",
+        "callgirl",
+        "escort service",
+        "adult service",
+        "prostitution",
+        "sex service",
+        "sexual service"
+      ],
+      "blocked_phrases": [
+        "call girl available",
+        "escort available",
+        "adult service available",
+        "sex service available",
+        "girls service contact",
+        "night girl service",
+        "massage special service",
+        "အနှိပ် special service",
+        "အထူးဝန်ဆောင်မှု ရှိသည်",
+        "အဖော်မိန်းကလေး ရနိုင်သည်",
+        "မိန်းကလေး ဝန်ဆောင်မှု ရနိုင်သည်"
+      ],
+      "suspicious_terms": [
+        "special massage",
+        "အထူးအနှိပ်",
+        "adult massage",
+        "vip girl",
+        "night service",
+        "private girl",
+        "companion service",
+        "အဖော်ဝန်ဆောင်မှု"
+      ]
+    },
+    "gambling": {
+      "blocked_terms": [
+        "လောင်းကစား",
+        "ဘောလုံးလောင်း",
+        "ကာစီနို",
+        "လောင်းကြေး",
+        "casino",
+        "sports betting",
+        "betting",
+        "bookie",
+        "online casino"
+      ],
+      "blocked_phrases": [
+        "online betting",
+        "football betting",
+        "ဘောလုံး လောင်းကစား",
+        "အွန်လိုင်း လောင်းကစား",
+        "အွန်လိုင်းကာစီနို",
+        "join betting group",
+        "telegram betting",
+        "bet now win money",
+        "လောင်းကစား site"
+      ],
+      "suspicious_terms": [
+        "2d betting",
+        "3d betting",
+        "2d 3d",
+        "၂လုံးထိုး",
+        "၃လုံးထိုး",
+        "2d ထိုး",
+        "3d ထိုး",
+        "၂ဒီ",
+        "၃ဒီ",
+        "jackpot",
+        "slots",
+        "roulette"
+      ]
+    },
+    "scam_spam": {
+      "blocked_terms": [
+        "get rich quick",
+        "quick money",
+        "easy money",
+        "guaranteed profit",
+        "investment scam",
+        "crypto giveaway",
+        "fake document",
+        "စာရွက်စာတမ်းအတု",
+        "အတုပြုလုပ်ပေး",
+        "phishing"
+      ],
+      "blocked_phrases": [
+        "ငွေမြန်မြန်ရှာ",
+        "လွယ်လွယ် ငွေရှာ",
+        "အမြတ်သေချာ",
+        "အမြတ် 100%",
+        "အရင်းမလို ငွေရှာ",
+        "အိမ်မှာနေပြီး ငွေရှာ",
+        "work from home earn money fast",
+        "earn money fast",
+        "guaranteed daily income",
+        "send money first",
+        "pay first to receive",
+        "advance fee required",
+        "no risk high profit",
+        "limited offer send deposit",
+        "whatsapp only for payment",
+        "viber only payment",
+        "bank transfer first",
+        "prepay to unlock",
+        "verify your account link"
+      ],
+      "suspicious_terms": [
+        "နေ့စဉ်ဝင်ငွေ",
+        "no risk",
+        "100% profit",
+        "double your money",
+        "deposit first",
+        "prepayment only",
+        "telegram only",
+        "whatsapp only",
+        "viber only",
+        "urgent payment",
+        "verify link",
+        "free money"
+      ]
+    }
+  }
+}

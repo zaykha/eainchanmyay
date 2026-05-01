@@ -595,7 +595,7 @@ export default function AuthPage() {
     };
 
     if (effectiveRole === "vendor_user") {
-      redirectToTarget("/hub");
+      redirectToTarget("/vendor-setup");
       return;
     }
 
@@ -654,7 +654,16 @@ export default function AuthPage() {
     <Page $stageLocked={stageLocked}>
       <Shell $stageLocked={stageLocked}>
         <TopBar>
-          <BackButton type="button" onClick={() => (role ? setRole(null) : router.back())}>
+          <BackButton
+            type="button"
+            onClick={() => {
+              if (role) {
+                setRole(null);
+                return;
+              }
+              router.back();
+            }}
+          >
             <ArrowLeft size={16} />
             {role ? "Back to account types" : t("auth.back")}
           </BackButton>

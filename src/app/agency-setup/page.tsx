@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
-import { Building2, ArrowRight, Image as ImageIcon, Mail, Phone, FileText } from "lucide-react";
+import { Building2, ArrowRight, Image as ImageIcon, Mail, Phone, FileText, Upload } from "lucide-react";
 import { useAppState } from "@/app/living-site/lib/app-state";
 import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
 import { isVendorStorefrontSetupComplete, slugifyVendorSlug } from "@/lib/vendor-storefront";
@@ -60,6 +60,7 @@ const Copy = styled.p`
 const Grid = styled.div`
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
+  align-items: start;
   gap: 18px;
 
   @media (max-width: 900px) {
@@ -142,6 +143,57 @@ const Textarea = styled.textarea`
   resize: vertical;
 `;
 
+const HiddenFileInput = styled.input`
+  display: none;
+`;
+
+const LogoUploadButton = styled.button<{ $filled?: boolean }>`
+  min-height: 72px;
+  width: 100%;
+  border-radius: 18px;
+  border: 1px dashed ${(props) => (props.$filled ? "var(--color-primary)" : "var(--color-outline)")};
+  background: ${(props) =>
+    props.$filled
+      ? "color-mix(in srgb, var(--color-primary) 6%, var(--color-surface-2))"
+      : "var(--color-surface-2)"};
+  color: var(--color-text);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  cursor: pointer;
+`;
+
+const LogoUploadCopy = styled.div`
+  display: grid;
+  gap: 4px;
+  text-align: left;
+`;
+
+const LogoUploadTitle = styled.span`
+  font-weight: 700;
+`;
+
+const LogoUploadHint = styled.span`
+  font-size: 0.88rem;
+  color: var(--color-muted);
+`;
+
+const LogoThumb = styled.div<{ $image?: string }>`
+  width: 46px;
+  height: 46px;
+  flex: 0 0 46px;
+  border-radius: 14px;
+  border: 1px solid var(--color-outline);
+  background: ${(props) =>
+    props.$image ? `center / cover no-repeat url(${props.$image})` : "var(--color-surface)"};
+  display: grid;
+  place-items: center;
+  color: var(--color-muted);
+  overflow: hidden;
+`;
+
 const ActionRow = styled.div`
   display: flex;
   justify-content: space-between;
@@ -186,15 +238,29 @@ const Notice = styled.p`
   line-height: 1.6;
 `;
 
-const Preview = styled.div`
+const Summary = styled.div`
   display: grid;
   gap: 14px;
 `;
 
-const PreviewLogo = styled.div<{ $image?: string }>`
-  width: 72px;
-  height: 72px;
-  border-radius: 20px;
+const SummaryEyebrow = styled.span`
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+`;
+
+const SummaryHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 14px;
+`;
+
+const SummaryLogo = styled.div<{ $image?: string }>`
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
   background: ${(props) =>
     props.$image ? `center / cover no-repeat url(${props.$image})` : "var(--color-surface-2)"};
   border: 1px solid var(--color-outline);
@@ -203,15 +269,49 @@ const PreviewLogo = styled.div<{ $image?: string }>`
   color: var(--color-muted);
 `;
 
-const PreviewTitle = styled.h2`
+const SummaryTitle = styled.h2`
   margin: 0;
-  font-size: 1.4rem;
+  font-size: 1.2rem;
 `;
 
-const PreviewMeta = styled.div`
+const SummaryMeta = styled.div`
   display: grid;
-  gap: 8px;
+  gap: 10px;
   color: var(--color-muted);
+`;
+
+const SummaryLine = styled.div`
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: 10px;
+  align-items: start;
+  padding-top: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--color-outline) 72%, transparent);
+`;
+
+const SummaryLineIcon = styled.div`
+  color: var(--color-muted);
+  display: grid;
+  place-items: center;
+  padding-top: 1px;
+`;
+
+const SummaryLineBody = styled.div`
+  display: grid;
+  gap: 4px;
+`;
+
+const SummaryLabel = styled.span`
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+`;
+
+const SummaryValue = styled.span`
+  line-height: 1.6;
+  color: var(--color-text);
 `;
 
 type WorkspacePayload = {
@@ -233,8 +333,10 @@ export default function AgencySetupPage() {
   const { authToken, user, profileReady } = useAppState();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [workspace, setWorkspace] = useState<WorkspacePayload | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [form, setForm] = useState({
     name: "",
     contact_phone: "",
@@ -305,6 +407,37 @@ export default function AgencySetupPage() {
   );
 
   const nextHref = workspace?.vendor.plan === "free" ? "/hub" : "/vendor";
+
+  const handleLogoPick = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !authToken || !workspace) return;
+
+    setUploadingLogo(true);
+    setError(null);
+    try {
+      const uploadBody = new FormData();
+      uploadBody.append("file", file);
+      const response = await fetch("/api/vendor/logo-upload", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: uploadBody,
+      });
+      const payload = (await response.json().catch(() => null)) as { publicUrl?: string; error?: string } | null;
+      if (!response.ok || !payload?.publicUrl) {
+        throw new Error(payload?.error || "Unable to upload logo.");
+      }
+      setForm((current) => ({ ...current, logo_url: payload.publicUrl ?? current.logo_url }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to upload logo.");
+    } finally {
+      if (event.target) {
+        event.target.value = "";
+      }
+      setUploadingLogo(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!authToken || !workspace) return;
@@ -393,15 +526,27 @@ export default function AgencySetupPage() {
               </Field>
 
               <Field>
-                <Label>Logo image URL</Label>
-                <InputWrap>
-                  <ImageIcon size={18} />
-                  <Input
-                    value={form.logo_url}
-                    onChange={(event) => setForm((current) => ({ ...current, logo_url: event.target.value }))}
-                    placeholder="https://..."
-                  />
-                </InputWrap>
+                <Label>Agency logo</Label>
+                <HiddenFileInput ref={fileInputRef} type="file" accept="image/*" onChange={handleLogoPick} />
+                <LogoUploadButton
+                  type="button"
+                  $filled={Boolean(form.logo_url)}
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingLogo}
+                >
+                  <SummaryHeader>
+                    <LogoThumb $image={form.logo_url || undefined}>
+                      {!form.logo_url ? <ImageIcon size={18} /> : null}
+                    </LogoThumb>
+                    <LogoUploadCopy>
+                      <LogoUploadTitle>{uploadingLogo ? "Uploading logo..." : "Upload logo image"}</LogoUploadTitle>
+                      <LogoUploadHint>
+                        {form.logo_url ? "Logo uploaded. Click to replace it." : "PNG, JPG, or WebP"}
+                      </LogoUploadHint>
+                    </LogoUploadCopy>
+                  </SummaryHeader>
+                  <Upload size={18} />
+                </LogoUploadButton>
               </Field>
 
               <Field>
@@ -429,17 +574,48 @@ export default function AgencySetupPage() {
           </Card>
 
           <Card>
-            <Preview>
-              <PreviewLogo $image={form.logo_url || undefined}>{!form.logo_url ? <ImageIcon size={22} /> : null}</PreviewLogo>
-              <PreviewTitle>{form.name || "Agency name"}</PreviewTitle>
-              <PreviewMeta>
-                <span>{form.contact_phone || form.contact_email || "Contact details"}</span>
-                <span>{form.description || "Short bio preview"}</span>
-              </PreviewMeta>
+            <Summary>
+              <SummaryEyebrow>Public profile snapshot</SummaryEyebrow>
+              <SummaryHeader>
+                <SummaryLogo $image={form.logo_url || undefined}>{!form.logo_url ? <ImageIcon size={20} /> : null}</SummaryLogo>
+                <div>
+                  <SummaryTitle>{form.name || "Agency name"}</SummaryTitle>
+                  <SummaryMeta>
+                    <span>What buyers will see first</span>
+                  </SummaryMeta>
+                </div>
+              </SummaryHeader>
+              <SummaryLine>
+                <SummaryLineIcon>
+                  <Phone size={16} />
+                </SummaryLineIcon>
+                <SummaryLineBody>
+                  <SummaryLabel>Phone</SummaryLabel>
+                  <SummaryValue>{form.contact_phone || "Phone number"}</SummaryValue>
+                </SummaryLineBody>
+              </SummaryLine>
+              <SummaryLine>
+                <SummaryLineIcon>
+                  <Mail size={16} />
+                </SummaryLineIcon>
+                <SummaryLineBody>
+                  <SummaryLabel>Email</SummaryLabel>
+                  <SummaryValue>{form.contact_email || "Contact email"}</SummaryValue>
+                </SummaryLineBody>
+              </SummaryLine>
+              <SummaryLine>
+                <SummaryLineIcon>
+                  <FileText size={16} />
+                </SummaryLineIcon>
+                <SummaryLineBody>
+                  <SummaryLabel>Bio</SummaryLabel>
+                  <SummaryValue>{form.description || "Short bio preview"}</SummaryValue>
+                </SummaryLineBody>
+              </SummaryLine>
               {!isComplete ? (
-                <Notice>Fill name, one contact method, logo URL, and short bio to continue.</Notice>
+                <Notice>Fill name, one contact method, upload a logo, and add a short bio to continue.</Notice>
               ) : null}
-            </Preview>
+            </Summary>
           </Card>
         </Grid>
       </Shell>

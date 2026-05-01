@@ -33,6 +33,72 @@ const AppStateContext = createContext<AppStateValue>({
   logout: async () => {},
 });
 
+type CachedProfileSummary = {
+  role: ProfileRole | null;
+  cachedAt: number;
+};
+
+const PROFILE_CACHE_PREFIX = "ecm_profile_summary_v1";
+const PROFILE_CACHE_TTL_MS = 10 * 60 * 1000;
+
+function getProfileCacheKey(userId: string) {
+  return `${PROFILE_CACHE_PREFIX}:${userId}`;
+}
+
+function readCachedProfileSummary(userId: string): CachedProfileSummary | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(getProfileCacheKey(userId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as CachedProfileSummary;
+    if (typeof parsed?.cachedAt !== "number") return null;
+    if (Date.now() - parsed.cachedAt > PROFILE_CACHE_TTL_MS) return null;
+    return {
+      role: parsed.role ?? null,
+      cachedAt: parsed.cachedAt,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedProfileSummary(userId: string, role: ProfileRole | null) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(
+      getProfileCacheKey(userId),
+      JSON.stringify({ role, cachedAt: Date.now() } satisfies CachedProfileSummary)
+    );
+  } catch {
+    // Ignore localStorage failures.
+  }
+}
+
+function clearClientAuthCaches() {
+  if (typeof window === "undefined") return;
+  try {
+    const keysToRemove: string[] = [];
+    for (let index = 0; index < window.localStorage.length; index += 1) {
+      const key = window.localStorage.key(index);
+      if (!key) continue;
+      if (
+        key.startsWith("ecm_profile_summary_v1:") ||
+        key.startsWith("ecm_account_tab_cache_") ||
+        key.startsWith("ecm_account_tab_cache_v2:") ||
+        key.startsWith("ecm_vendor_workspace_cache:") ||
+        key === "kaiten_vendor_onboarding_pending" ||
+        key === "kaiten_living_auth_resume" ||
+        key === "kaiten_agent_registering"
+      ) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach((key) => window.localStorage.removeItem(key));
+  } catch {
+    // Ignore localStorage failures during logout cleanup.
+  }
+}
+
 async function syncProfileOnServer(input: {
   authToken: string;
   email?: string | null;
@@ -103,9 +169,40 @@ async function ensureCustomerProfile(user: User, authToken?: string | null) {
   });
 }
 
-async function getResolvedProfileRole(userId: string) {
+async function getResolvedProfileRole(
+  userId: string,
+  email?: string | null,
+  metadataRole?: ProfileRole | null
+) {
+  if (metadataRole === "vendor_user") {
+    return "vendor_user";
+  }
+
+  if (email) {
+    try {
+      const response = await fetch("/api/auth/check-role", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email }),
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | {
+            role?: ProfileRole | null;
+            found?: boolean;
+          }
+        | null;
+      if (response.ok && payload?.found) {
+        return payload.role ?? metadataRole ?? null;
+      }
+    } catch {
+      // Fall back to client profile lookup below.
+    }
+  }
+
   const { profile } = await getProfileSummary(userId);
-  return profile?.role ?? null;
+  return metadataRole ?? profile?.role ?? null;
 }
 
 function isRoleAllowed(expectedRole: AuthIntentRole | undefined, actualRole: ProfileRole | null) {
@@ -147,15 +244,36 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       const { data: sessionData } = await supabase.auth.getSession();
       const session = sessionData.session ?? null;
       const resolvedUser = session?.user ?? null;
-      const resolvedRole = resolvedUser ? await getResolvedProfileRole(resolvedUser.id) : null;
 
       if (!mounted) return;
 
       setUser(resolvedUser);
       setAuthToken(session?.access_token ?? null);
-      setProfileRole(resolvedRole);
-      setProfileReady(true);
+      const metadataRole =
+        typeof resolvedUser?.user_metadata?.role === "string"
+          ? (resolvedUser.user_metadata.role as ProfileRole)
+          : null;
+      const cachedSummary = resolvedUser ? readCachedProfileSummary(resolvedUser.id) : null;
+      const optimisticRole = cachedSummary?.role ?? metadataRole ?? null;
+
+      setProfileRole(optimisticRole);
+      setProfileReady(Boolean(!resolvedUser || cachedSummary || metadataRole));
       setLoading(false);
+
+      if (resolvedUser) {
+        void getResolvedProfileRole(
+          resolvedUser.id,
+          resolvedUser.email ?? null,
+          metadataRole
+        ).then((resolvedRole) => {
+          if (!mounted) return;
+          setProfileRole(resolvedRole);
+          setProfileReady(true);
+          writeCachedProfileSummary(resolvedUser.id, resolvedRole);
+        });
+      } else {
+        setProfileReady(true);
+      }
 
       if (resolvedUser) {
         void ensureCustomerProfile(resolvedUser, session?.access_token ?? null);
@@ -169,14 +287,25 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         if (!mounted) return;
         setUser(session?.user ?? null);
         setAuthToken(session?.access_token ?? null);
-        setProfileReady(false);
         setLoading(false);
         if (session?.user) {
+          const metadataRole =
+            typeof session.user.user_metadata?.role === "string"
+              ? (session.user.user_metadata.role as ProfileRole)
+              : null;
+          const cachedSummary = readCachedProfileSummary(session.user.id);
+          setProfileRole(cachedSummary?.role ?? metadataRole ?? null);
+          setProfileReady(Boolean(cachedSummary || metadataRole));
           void ensureCustomerProfile(session.user, session.access_token ?? null);
-          const resolvedRole = await getResolvedProfileRole(session.user.id);
+          const resolvedRole = await getResolvedProfileRole(
+            session.user.id,
+            session.user.email ?? null,
+            metadataRole
+          );
           if (!mounted) return;
           setProfileRole(resolvedRole);
           setProfileReady(true);
+          writeCachedProfileSummary(session.user.id, resolvedRole);
         } else {
           setProfileRole(null);
           setProfileReady(true);
@@ -201,7 +330,13 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       }
 
       const signedInUser = data.user;
-      const resolvedRole = signedInUser ? await getResolvedProfileRole(signedInUser.id) : null;
+      const metadataRole =
+        typeof signedInUser?.user_metadata?.role === "string"
+          ? (signedInUser.user_metadata.role as ProfileRole)
+          : null;
+      const resolvedRole = signedInUser
+        ? await getResolvedProfileRole(signedInUser.id, signedInUser.email ?? null, metadataRole)
+        : null;
 
       if (!isRoleAllowed(expectedRole, resolvedRole)) {
         await supabase.auth.signOut();
@@ -228,6 +363,10 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         email,
         password,
         options: {
+          emailRedirectTo:
+            typeof window !== "undefined"
+              ? `${window.location.origin}/auth/confirm?role=${profile?.role === "vendor_user" ? "agent" : "customer"}`
+              : undefined,
           data: {
             full_name: profile?.name?.trim() || null,
             name: profile?.name?.trim() || null,
@@ -270,6 +409,12 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     if (!isSupabaseConfigured) return;
+    setUser(null);
+    setAuthToken(null);
+    setProfileRole(null);
+    setProfileReady(true);
+    setLoading(false);
+    clearClientAuthCaches();
     try {
       await supabase.auth.signOut();
     } catch {

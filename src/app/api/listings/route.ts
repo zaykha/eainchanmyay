@@ -18,6 +18,8 @@ const getNumber = (value: unknown) => {
   return undefined;
 };
 
+const propertyImageSelect = "property_id,public_url,r2_key,is_cover,sort_order";
+
 export async function GET(request: Request) {
   const limit = rateLimit(request, {
     windowMs: 60_000,
@@ -134,7 +136,7 @@ export async function GET(request: Request) {
   if (ids.length) {
     const { data: photos, error: photoError } = await supabase
       .from("property_images")
-      .select("*")
+      .select(propertyImageSelect)
       .in("property_id", ids)
       .order("is_cover", { ascending: false })
       .order("sort_order", { ascending: true });

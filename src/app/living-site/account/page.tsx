@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import styled from "styled-components";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -31,10 +31,11 @@ import {
 import { useLanguage } from "@/app/living-site/components/Providers";
 import { Panel } from "@/app/living-site/components/PageSection";
 import { useAppState } from "@/app/living-site/lib/app-state";
+import { readWorkspaceCache, writeWorkspaceCache } from "@/app/living-site/lib/vendor-workspace-cache";
 import { formatCurrency } from "@/app/living-site/lib/format";
 import {
   getInquiriesForUser,
-  getSalesRequestsForUser,
+  getOwnedPropertiesForUser,
   getSavedPropertiesForUser,
   getViewingRequestsForUser,
 } from "@/app/living-site/lib/data";
@@ -49,6 +50,28 @@ const Header = styled.header`
   @media (max-width: 720px) {
     padding: 0;
   }
+`;
+
+const VendorIdentity = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+`;
+
+const VendorLogoBadge = styled.div<{ $image?: string }>`
+  width: 56px;
+  height: 56px;
+  flex: 0 0 56px;
+  border-radius: 18px;
+  border: 1px solid var(--color-outline);
+  background: ${(props) =>
+    props.$image ? `center / cover no-repeat url(${props.$image})` : "var(--color-surface-2)"};
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  display: grid;
+  place-items: center;
+  color: var(--color-muted);
+  overflow: hidden;
 `;
 
 const HeaderInner = styled.div`
@@ -765,10 +788,10 @@ const StarterGrid = styled.div`
 const StarterStat = styled.div`
   border: 1px solid var(--color-outline);
   border-radius: 18px;
-  padding: 14px 16px;
+  padding: 12px 14px;
   background: var(--color-surface-2);
   display: grid;
-  gap: 8px;
+  gap: 6px;
 `;
 
 const StarterStatTop = styled.div`
@@ -779,18 +802,18 @@ const StarterStatTop = styled.div`
   color: var(--color-muted);
 
   svg {
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
   }
 `;
 
 const StarterStatValue = styled.div`
-  font-size: 1.35rem;
+  font-size: 1.2rem;
   font-weight: 800;
   color: var(--color-text);
 `;
 
-const StarterActions = styled.div`
+const StarterPrimaryGrid = styled.div`
   display: grid;
   gap: 12px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -800,30 +823,30 @@ const StarterActions = styled.div`
   }
 `;
 
-const StarterAction = styled(Link)`
+const StarterPrimaryAction = styled(Link)`
   border: 1px solid var(--color-outline);
-  border-radius: 20px;
-  padding: 16px;
+  border-radius: 18px;
+  padding: 14px 16px;
   background: var(--color-surface);
   display: grid;
-  gap: 14px;
+  gap: 10px;
   color: inherit;
   text-decoration: none;
   box-shadow: var(--shadow-soft);
 `;
 
 const StarterActionIcon = styled.div`
-  width: 42px;
-  height: 42px;
-  border-radius: 14px;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
   background: color-mix(in srgb, var(--color-primary) 10%, transparent);
   color: var(--color-primary);
   display: grid;
   place-items: center;
 
   svg {
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
   }
 `;
 
@@ -836,10 +859,49 @@ const StarterActionLabel = styled.div`
   color: var(--color-text);
 `;
 
+const StarterSecondaryRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+`;
+
+const StarterSecondaryAction = styled(Link)`
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--color-outline);
+  background: var(--color-surface);
+  color: var(--color-text);
+  text-decoration: none;
+  font-weight: 600;
+  box-shadow: var(--shadow-soft);
+`;
+
+const StarterFooterRow = styled.div`
+  display: flex;
+  justify-content: flex-end;
+`;
+
+const StarterSignOut = styled.button`
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 4px;
+  border: none;
+  background: transparent;
+  color: var(--color-muted);
+  font-weight: 600;
+  cursor: pointer;
+`;
+
 const UpgradeCard = styled(Link)`
   border: 1px solid color-mix(in srgb, var(--color-primary) 26%, var(--color-outline));
-  border-radius: 24px;
-  padding: 18px;
+  border-radius: 18px;
+  padding: 14px 16px;
   background: linear-gradient(
     180deg,
     color-mix(in srgb, var(--color-primary) 10%, var(--color-surface)) 0%,
@@ -847,9 +909,25 @@ const UpgradeCard = styled(Link)`
   );
   color: inherit;
   text-decoration: none;
-  display: grid;
-  gap: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
   box-shadow: var(--shadow-soft);
+`;
+
+const UpgradeCardMain = styled.div`
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+`;
+
+const UpgradeCardTitle = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 800;
+  color: var(--color-text);
 `;
 
 const FloatingAction = styled.button`
@@ -1137,7 +1215,17 @@ const formatArea = (value: unknown, locale: string, unitLabel: string) => {
   return `${numeric.toLocaleString(locale)} ${unitLabel}`;
 };
 
-function withTimeout<T>(promise: Promise<T>, timeoutMs = 8000): Promise<T> {
+const getListingStatusLabel = (value: unknown) => {
+  const normalized = String(value ?? "").toLowerCase();
+  if (normalized === "published") return "Live";
+  if (!normalized) return "Listing";
+  return normalized
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+};
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs = 12000): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer = window.setTimeout(() => {
       reject(new Error("Request timed out."));
@@ -1155,8 +1243,52 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs = 8000): Promise<T> {
   });
 }
 
+type AccountTabKey = "viewing" | "saved" | "inquiries" | "sales";
+
+type AccountCachePayload = {
+  items: Array<Record<string, unknown>>;
+  cachedAt: number;
+};
+
+const ACCOUNT_CACHE_PREFIX = "ecm_account_tab_cache_v2";
+const ACCOUNT_CACHE_TTL_MS = 5 * 60 * 1000;
+
+function getAccountCacheKey(userId: string, tab: AccountTabKey) {
+  return `${ACCOUNT_CACHE_PREFIX}:${userId}:${tab}`;
+}
+
+function readAccountTabCache(userId: string, tab: AccountTabKey): AccountCachePayload | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(getAccountCacheKey(userId, tab));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as AccountCachePayload;
+    if (!Array.isArray(parsed.items) || typeof parsed.cachedAt !== "number") return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeAccountTabCache(userId: string, tab: AccountTabKey, items: Array<Record<string, unknown>>) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(
+      getAccountCacheKey(userId, tab),
+      JSON.stringify({ items, cachedAt: Date.now() } satisfies AccountCachePayload)
+    );
+  } catch {
+    // Ignore localStorage quota or privacy-mode failures.
+  }
+}
+
+function isFreshAccountCache(payload: AccountCachePayload | null) {
+  return Boolean(payload && Date.now() - payload.cachedAt < ACCOUNT_CACHE_TTL_MS);
+}
+
 export default function AccountPage() {
-  const { user, loading, profileRole, profileReady, authToken } = useAppState();
+  const { user, loading, profileRole, profileReady, authToken, logout } = useAppState();
+  const userId = user?.id ?? null;
   const router = useRouter();
   const pathname = usePathname();
   const { t, language } = useI18n();
@@ -1166,11 +1298,31 @@ export default function AccountPage() {
   const [savedProperties, setSavedProperties] = useState<Array<Record<string, unknown>>>([]);
   const [inquiries, setInquiries] = useState<Array<Record<string, unknown>>>([]);
   const [salesRequests, setSalesRequests] = useState<Array<Record<string, unknown>>>([]);
-  const [dataLoading, setDataLoading] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"viewing" | "saved" | "inquiries" | "sales">(
-    "viewing"
-  );
+  const [activeTab, setActiveTab] = useState<AccountTabKey>("viewing");
+  const [loadedTabs, setLoadedTabs] = useState<Record<AccountTabKey, boolean>>({
+    viewing: false,
+    saved: false,
+    inquiries: false,
+    sales: false,
+  });
+  const [tabLoading, setTabLoading] = useState<Record<AccountTabKey, boolean>>({
+    viewing: false,
+    saved: false,
+    inquiries: false,
+    sales: false,
+  });
+  const [tabError, setTabError] = useState<Record<AccountTabKey, string | null>>({
+    viewing: null,
+    saved: null,
+    inquiries: null,
+    sales: null,
+  });
+  const [refreshedTabs, setRefreshedTabs] = useState<Record<AccountTabKey, boolean>>({
+    viewing: false,
+    saved: false,
+    inquiries: false,
+    sales: false,
+  });
   const [activeInquiry, setActiveInquiry] = useState<Record<string, unknown> | null>(null);
   const [activeSale, setActiveSale] = useState<Record<string, unknown> | null>(null);
   const [onboardingPending, setOnboardingPending] = useState(false);
@@ -1201,6 +1353,39 @@ export default function AccountPage() {
   const [vendorWorkspaceError, setVendorWorkspaceError] = useState<string | null>(null);
 
   useEffect(() => {
+    setViewingRequests([]);
+    setSavedProperties([]);
+    setInquiries([]);
+    setSalesRequests([]);
+    setActiveInquiry(null);
+    setActiveSale(null);
+    setLoadedTabs({
+      viewing: false,
+      saved: false,
+      inquiries: false,
+      sales: false,
+    });
+    setTabLoading({
+      viewing: false,
+      saved: false,
+      inquiries: false,
+      sales: false,
+    });
+    setTabError({
+      viewing: null,
+      saved: null,
+      inquiries: null,
+      sales: null,
+    });
+    setRefreshedTabs({
+      viewing: false,
+      saved: false,
+      inquiries: false,
+      sales: false,
+    });
+  }, [userId]);
+
+  useEffect(() => {
     if (typeof window === "undefined") return;
     setOnboardingPending(window.localStorage.getItem("kaiten_vendor_onboarding_pending") === "1");
   }, []);
@@ -1226,70 +1411,175 @@ export default function AccountPage() {
   }, [loading, onboardingPending, pathname, profileReady, profileRole, router, user, vendorWorkspace]);
 
   useEffect(() => {
-    if (!user?.id) return;
+    if (!userId || profileRole === "vendor_user") return;
+
+    const nextLoaded: Record<AccountTabKey, boolean> = {
+      viewing: false,
+      saved: false,
+      inquiries: false,
+      sales: false,
+    };
+    const nextRefreshed: Record<AccountTabKey, boolean> = {
+      viewing: false,
+      saved: false,
+      inquiries: false,
+      sales: false,
+    };
+    const nextErrors: Record<AccountTabKey, string | null> = {
+      viewing: null,
+      saved: null,
+      inquiries: null,
+      sales: null,
+    };
+
+    const viewingCache = readAccountTabCache(userId, "viewing");
+    if (viewingCache) {
+      setViewingRequests(viewingCache.items);
+      nextLoaded.viewing = true;
+      nextRefreshed.viewing = isFreshAccountCache(viewingCache);
+    } else {
+      setViewingRequests([]);
+    }
+
+    const savedCache = readAccountTabCache(userId, "saved");
+    if (savedCache) {
+      setSavedProperties(savedCache.items);
+      nextLoaded.saved = true;
+      nextRefreshed.saved = isFreshAccountCache(savedCache);
+    } else {
+      setSavedProperties([]);
+    }
+
+    const inquiriesCache = readAccountTabCache(userId, "inquiries");
+    if (inquiriesCache) {
+      setInquiries(inquiriesCache.items);
+      nextLoaded.inquiries = true;
+      nextRefreshed.inquiries = isFreshAccountCache(inquiriesCache);
+    } else {
+      setInquiries([]);
+    }
+
+    const salesCache = readAccountTabCache(userId, "sales");
+    if (salesCache) {
+      setSalesRequests(salesCache.items);
+      nextLoaded.sales = true;
+      nextRefreshed.sales = isFreshAccountCache(salesCache);
+    } else {
+      setSalesRequests([]);
+    }
+
+    setLoadedTabs(nextLoaded);
+    setRefreshedTabs(nextRefreshed);
+    setTabError(nextErrors);
+    setTabLoading({
+      viewing: false,
+      saved: false,
+      inquiries: false,
+      sales: false,
+    });
+  }, [profileRole, userId]);
+
+  const applyTabData = (tab: AccountTabKey, items: Array<Record<string, unknown>>) => {
+    if (tab === "viewing") {
+      setViewingRequests(items);
+      return;
+    }
+    if (tab === "saved") {
+      setSavedProperties(items);
+      return;
+    }
+    if (tab === "inquiries") {
+      setInquiries(items);
+      return;
+    }
+    setSalesRequests(items);
+  };
+
+  useEffect(() => {
+    if (!userId) return;
     if (profileRole === "vendor_user") return;
+    if (refreshedTabs[activeTab]) return;
+
     let active = true;
-    setDataLoading(true);
-    Promise.allSettled([
-      withTimeout(getViewingRequestsForUser(user.id)),
-      withTimeout(getSavedPropertiesForUser(user.id)),
-      withTimeout(getInquiriesForUser(user.id)),
-      withTimeout(getSalesRequestsForUser(user.id)),
-    ])
-      .then((results) => {
+    const hasCachedData = loadedTabs[activeTab];
+    if (!hasCachedData) {
+      setTabLoading((current) => ({ ...current, [activeTab]: true }));
+    }
+    setTabError((current) => ({ ...current, [activeTab]: null }));
+
+    const loaders = {
+      viewing: () => withTimeout(getViewingRequestsForUser(userId), 15000),
+      saved: () => withTimeout(getSavedPropertiesForUser(userId), 15000),
+      inquiries: () => withTimeout(getInquiriesForUser(userId), 15000),
+      sales: () => withTimeout(getOwnedPropertiesForUser(userId), 15000),
+    } as const;
+
+    loaders[activeTab]()
+      .then((result) => {
         if (!active) return;
+        applyTabData(activeTab, result.data);
+        writeAccountTabCache(userId, activeTab, result.data);
 
-        const [requests, saved, inquiryRows, salesRows] = results;
-
-        if (requests.status === "fulfilled") {
-          setViewingRequests(requests.value.data);
-        } else {
-          setViewingRequests([]);
+        const message = result.error ?? null;
+        setTabError((current) => ({ ...current, [activeTab]: message }));
+        setLoadedTabs((current) => ({ ...current, [activeTab]: true }));
+        setRefreshedTabs((current) => ({ ...current, [activeTab]: true }));
+      })
+      .catch((error) => {
+        if (!active) return;
+        if (!hasCachedData) {
+          const message =
+            error instanceof Error && error.message === "Request timed out."
+              ? "Unable to refresh this section right now."
+              : error instanceof Error
+                ? error.message
+                : "Unable to load this section.";
+          applyTabData(activeTab, []);
+          setTabError((current) => ({ ...current, [activeTab]: message }));
         }
-
-        if (saved.status === "fulfilled") {
-          setSavedProperties(saved.value.data);
-        } else {
-          setSavedProperties([]);
-        }
-
-        if (inquiryRows.status === "fulfilled") {
-          setInquiries(inquiryRows.value.data);
-        } else {
-          setInquiries([]);
-        }
-
-        if (salesRows.status === "fulfilled") {
-          setSalesRequests(salesRows.value.data);
-        } else {
-          setSalesRequests([]);
-        }
-
-        const errors = [
-          requests.status === "fulfilled" ? requests.value.error : requests.reason instanceof Error ? requests.reason.message : "Unable to load viewing requests.",
-          saved.status === "fulfilled" ? saved.value.error : saved.reason instanceof Error ? saved.reason.message : "Unable to load saved properties.",
-          inquiryRows.status === "fulfilled" ? inquiryRows.value.error : inquiryRows.reason instanceof Error ? inquiryRows.reason.message : "Unable to load inquiries.",
-          salesRows.status === "fulfilled" ? salesRows.value.error : salesRows.reason instanceof Error ? salesRows.reason.message : "Unable to load property requests.",
-        ]
-          .filter(Boolean)
-          .join(" • ");
-
-        setLoadError(errors || null);
       })
       .finally(() => {
-        if (active) setDataLoading(false);
+        if (active) {
+          setTabLoading((current) => ({ ...current, [activeTab]: false }));
+        }
       });
 
     return () => {
       active = false;
     };
-  }, [profileRole, user?.id]);
+  }, [activeTab, loadedTabs, profileRole, refreshedTabs, userId]);
 
   useEffect(() => {
     if (!authToken || (!onboardingPending && profileRole !== "vendor_user" && pathname !== "/hub")) return;
 
     let active = true;
+    const cachedWorkspace = userId
+      ? readWorkspaceCache<{
+          vendor: {
+            id: string;
+            name: string;
+            vendor_type: string;
+            plan: string | null;
+            logo_url?: string | null;
+            billing_status?: string | null;
+            public_storefront_enabled?: boolean;
+            slug?: string | null;
+            verified_status?: string | null;
+          };
+          membership: { role: string };
+          limits?: {
+            currentPlan?: { name: string };
+            listingCount?: number;
+            listingLimit?: number;
+            agentCount?: number;
+            agentLimit?: number;
+          };
+        }>(userId, "full")
+      : null;
     setVendorWorkspaceError(null);
+    if (cachedWorkspace) {
+      setVendorWorkspace(cachedWorkspace);
+    }
 
     fetch("/api/vendor/workspace", {
       headers: {
@@ -1304,6 +1594,7 @@ export default function AccountPage() {
                 name: string;
                 vendor_type: string;
                 plan: string | null;
+                logo_url?: string | null;
                 billing_status?: string | null;
                 public_storefront_enabled?: boolean;
                 slug?: string | null;
@@ -1337,6 +1628,13 @@ export default function AccountPage() {
                 }
               : null
           );
+          if (userId && payload?.vendor && payload?.membership) {
+            writeWorkspaceCache(userId, "full", {
+              vendor: payload.vendor,
+              membership: payload.membership,
+              limits: payload.limits,
+            });
+          }
         }
       })
       .catch((error) => {
@@ -1348,7 +1646,7 @@ export default function AccountPage() {
     return () => {
       active = false;
     };
-  }, [authToken, onboardingPending, pathname, profileRole]);
+  }, [authToken, onboardingPending, pathname, profileRole, userId]);
 
   const closeDetails = () => {
     setActiveInquiry(null);
@@ -1363,7 +1661,14 @@ export default function AccountPage() {
   const listingUsage = vendorWorkspace?.limits?.listingCount ?? 0;
   const agentLimit = vendorWorkspace?.limits?.agentLimit ?? currentVendorPlan.agentLimit;
   const agentUsage = vendorWorkspace?.limits?.agentCount ?? 1;
-
+  const activeTabLoading = tabLoading[activeTab];
+  const activeTabError = tabError[activeTab];
+  const activeTabHasItems = useMemo(() => {
+    if (activeTab === "viewing") return viewingRequests.length > 0;
+    if (activeTab === "saved") return savedProperties.length > 0;
+    if (activeTab === "inquiries") return inquiries.length > 0;
+    return salesRequests.length > 0;
+  }, [activeTab, inquiries.length, salesRequests.length, savedProperties.length, viewingRequests.length]);
   const labelize = (value: string | null | undefined) =>
     value
       ? value
@@ -1408,7 +1713,12 @@ export default function AccountPage() {
           <VendorGrid>
             <VendorCard>
               <StarterHeader>
-                <VendorTitle>{vendorWorkspace?.vendor.name || "Agency account"}</VendorTitle>
+                <VendorIdentity>
+                  <VendorLogoBadge $image={vendorWorkspace?.vendor.logo_url || undefined}>
+                    {!vendorWorkspace?.vendor.logo_url ? <Building2 size={22} /> : null}
+                  </VendorLogoBadge>
+                  <VendorTitle>{vendorWorkspace?.vendor.name || "Agency account"}</VendorTitle>
+                </VendorIdentity>
                 <VendorMeta>
                   <VendorPill>{vendorWorkspace?.limits?.currentPlan?.name || currentVendorPlan.name}</VendorPill>
                   <VendorPill>{labelize(vendorWorkspace?.membership.role)}</VendorPill>
@@ -1463,24 +1773,24 @@ export default function AccountPage() {
 
                   {suggestedUpgrade ? (
                     <UpgradeCard href="/vendor-setup">
-                      <VendorMeta>
-                        <VendorPill $tone="warning">
-                          <Sparkles size={14} />
-                          Upgrade
-                        </VendorPill>
-                      </VendorMeta>
-                      <StarterActionLabel>
-                        <span>{suggestedUpgrade.name}</span>
-                        <ArrowUpRight size={18} />
-                      </StarterActionLabel>
-                      <Muted>
-                        {suggestedUpgrade.listingLimit} listings • {suggestedUpgrade.agentLimit} seats
-                      </Muted>
+                      <UpgradeCardMain>
+                        <UpgradeCardTitle>
+                          <VendorPill $tone="warning">
+                            <Sparkles size={14} />
+                            Upgrade
+                          </VendorPill>
+                          <span>{suggestedUpgrade.name}</span>
+                        </UpgradeCardTitle>
+                        <Muted>
+                          {suggestedUpgrade.listingLimit} listings • {suggestedUpgrade.agentLimit} seats
+                        </Muted>
+                      </UpgradeCardMain>
+                      <ArrowUpRight size={18} />
                     </UpgradeCard>
                   ) : null}
 
-                  <StarterActions>
-                    <StarterAction href="/request-sale">
+                  <StarterPrimaryGrid>
+                    <StarterPrimaryAction href="/request-sale">
                       <StarterActionIcon>
                         <Plus />
                       </StarterActionIcon>
@@ -1488,9 +1798,9 @@ export default function AccountPage() {
                         <span>Request Listing</span>
                         <ArrowUpRight size={18} />
                       </StarterActionLabel>
-                    </StarterAction>
+                    </StarterPrimaryAction>
 
-                    <StarterAction href="/vendor/settings">
+                    <StarterPrimaryAction href="/vendor/settings">
                       <StarterActionIcon>
                         <Settings />
                       </StarterActionIcon>
@@ -1498,30 +1808,35 @@ export default function AccountPage() {
                         <span>Agency Profile</span>
                         <ArrowUpRight size={18} />
                       </StarterActionLabel>
-                    </StarterAction>
+                    </StarterPrimaryAction>
+                  </StarterPrimaryGrid>
 
+                  <StarterSecondaryRow>
                     {vendorWorkspace?.vendor.public_storefront_enabled && vendorWorkspace?.vendor.slug ? (
-                      <StarterAction href={`/agency/${vendorWorkspace.vendor.slug}`}>
-                        <StarterActionIcon>
-                          <Globe2 />
-                        </StarterActionIcon>
-                        <StarterActionLabel>
-                          <span>Public Profile</span>
-                          <ArrowUpRight size={18} />
-                        </StarterActionLabel>
-                      </StarterAction>
+                      <StarterSecondaryAction href={`/agency/${vendorWorkspace.vendor.slug}`}>
+                        <Globe2 size={16} />
+                        <span>Public Profile</span>
+                      </StarterSecondaryAction>
                     ) : null}
 
-                    <StarterAction href="/vendor/verification">
-                      <StarterActionIcon>
-                        <ShieldCheck />
-                      </StarterActionIcon>
-                      <StarterActionLabel>
-                        <span>Verification</span>
-                        <ArrowUpRight size={18} />
-                      </StarterActionLabel>
-                    </StarterAction>
-                  </StarterActions>
+                    <StarterSecondaryAction href="/vendor/verification">
+                      <ShieldCheck size={16} />
+                      <span>Verification</span>
+                    </StarterSecondaryAction>
+                  </StarterSecondaryRow>
+
+                  <StarterFooterRow>
+                    <StarterSignOut
+                      type="button"
+                      onClick={async () => {
+                        await logout();
+                        router.push("/");
+                      }}
+                    >
+                      <X size={16} />
+                      <span>Sign out</span>
+                    </StarterSignOut>
+                  </StarterFooterRow>
                 </>
               ) : (
                 <>
@@ -1552,6 +1867,20 @@ export default function AccountPage() {
                       <VendorActionTitle>Settings</VendorActionTitle>
                       <VendorActionCopy>
                         Manage agency profile, storefront branding, workspace preferences, and plan-facing controls.
+                      </VendorActionCopy>
+                    </VendorAction>
+
+                    <VendorAction
+                      as="button"
+                      type="button"
+                      onClick={async () => {
+                        await logout();
+                        router.push("/");
+                      }}
+                    >
+                      <VendorActionTitle>Sign out</VendorActionTitle>
+                      <VendorActionCopy>
+                        Exit this agency session on this device.
                       </VendorActionCopy>
                     </VendorAction>
                   </VendorActionGrid>
@@ -1590,42 +1919,43 @@ export default function AccountPage() {
                 </ListItem>
               </List>
 
-              <VendorActionGrid>
-                {!isFreeAgencyPlan &&
-                  (vendorWorkspace?.membership.role === "owner" || vendorWorkspace?.membership.role === "admin") && (
+              {!isFreeAgencyPlan ? (
+                <VendorActionGrid>
+                  {(vendorWorkspace?.membership.role === "owner" || vendorWorkspace?.membership.role === "admin") && (
                   <VendorAction href="/vendor/team">
                     <VendorActionTitle>Team</VendorActionTitle>
                     <VendorActionCopy>
                       Manage agents, assignments, and operational seats in this workspace.
                     </VendorActionCopy>
                   </VendorAction>
-                )}
+                  )}
 
-                {(vendorWorkspace?.membership.role === "owner" || vendorWorkspace?.membership.role === "admin") && (
+                  {(vendorWorkspace?.membership.role === "owner" || vendorWorkspace?.membership.role === "admin") && (
                   <VendorAction href="/vendor/verification">
                     <VendorActionTitle>Verification</VendorActionTitle>
                     <VendorActionCopy>
                       Submit or review manual agency verification requirements for this workspace.
                     </VendorActionCopy>
                   </VendorAction>
-                )}
+                  )}
 
-                {vendorWorkspace?.vendor.public_storefront_enabled && vendorWorkspace?.vendor.slug ? (
-                  <VendorAction href={`/agency/${vendorWorkspace.vendor.slug}`}>
-                    <VendorActionTitle>Public Profile</VendorActionTitle>
+                  {vendorWorkspace?.vendor.public_storefront_enabled && vendorWorkspace?.vendor.slug ? (
+                    <VendorAction href={`/agency/${vendorWorkspace.vendor.slug}`}>
+                      <VendorActionTitle>Public Profile</VendorActionTitle>
+                      <VendorActionCopy>
+                        Open the live storefront buyers see for this agency.
+                      </VendorActionCopy>
+                    </VendorAction>
+                  ) : null}
+
+                  <VendorAction href="/request-sale">
+                    <VendorActionTitle>Request Listing</VendorActionTitle>
                     <VendorActionCopy>
-                      Open the live storefront buyers see for this agency.
+                      Add a new property submission within your current plan limits.
                     </VendorActionCopy>
                   </VendorAction>
-                ) : null}
-
-                <VendorAction href="/request-sale">
-                  <VendorActionTitle>Request Listing</VendorActionTitle>
-                  <VendorActionCopy>
-                    Add a new property submission within your current plan limits.
-                  </VendorActionCopy>
-                </VendorAction>
-              </VendorActionGrid>
+                </VendorActionGrid>
+              ) : null}
             </VendorCard>
           </VendorGrid>
         )}
@@ -1687,10 +2017,10 @@ export default function AccountPage() {
                 </ToolbarRow>
               </HeaderRow>
 
-              {loading || dataLoading ? (
+              {loading || (!activeTabHasItems && activeTabLoading) ? (
                 <Muted>{t("account.loading")}</Muted>
-              ) : loadError ? (
-                <Muted style={{ color: "var(--color-danger)" }}>{loadError}</Muted>
+              ) : activeTabError && !activeTabHasItems ? (
+                <Muted style={{ color: "var(--color-danger)" }}>{activeTabError}</Muted>
               ) : activeTab === "viewing" ? (
                 viewingRequests.length ? (
                   <List>
@@ -1982,8 +2312,8 @@ export default function AccountPage() {
                   </ActionRow>
                   <InlineNotice $danger={salesRequests.length >= 1}>
                     {salesRequests.length >= 1
-                      ? "1 / 1 property request used. Your existing request is under review before it can be listed."
-                      : "You can submit 1 property request from this account. Every request is reviewed before it is listed."}
+                      ? "1 / 1 listing used. Your current listing is already live."
+                      : "You can publish 1 listing directly from this account."}
                   </InlineNotice>
                   {salesRequests.length ? (
                     <List>
@@ -2007,13 +2337,13 @@ export default function AccountPage() {
                           >
                             <TitleRow>
                               <TitleGroup>
-                            <strong>{String(item.title ?? t("account.saleRequest"))}</strong>
+                                <strong>{String(item.title ?? t("account.saleRequest"))}</strong>
                                 {dealLabel ? <DealPill>{dealLabel}</DealPill> : null}
                               </TitleGroup>
                               <StatusRow>
                                 <StatusBadge>
                                   <BadgeCheck size={12} />
-                                  Under review
+                                  {getListingStatusLabel(item.status)}
                                 </StatusBadge>
                                 <span>{createdAt || t("account.requestedTbd")}</span>
                               </StatusRow>
@@ -2179,22 +2509,22 @@ export default function AccountPage() {
               <Muted>{String(activeSale.city)}</Muted>
             ) : null}
             {activeSale.description ? <Muted>{String(activeSale.description)}</Muted> : null}
-            <InlineNotice>
-              This property request is under review. It will only appear as a live listing after the platform review is completed.
-            </InlineNotice>
             <ModalActions>
               <GhostButton type="button" onClick={closeDetails}>
                 {t("account.close")}
               </GhostButton>
-              <CTAButton
-                type="button"
-                onClick={() => {
-                  closeDetails();
-                  router.push(`/request-sale?editId=${String(activeSale.id ?? "")}`);
-                }}
-              >
-                {t("account.editListing")}
-              </CTAButton>
+              {activeSale.id ? (
+                <CTAButton
+                  type="button"
+                  onClick={() => {
+                    const propertyId = String(activeSale.id ?? "");
+                    closeDetails();
+                    if (propertyId) router.push(`/listing/${propertyId}`);
+                  }}
+                >
+                  View live listing
+                </CTAButton>
+              ) : null}
             </ModalActions>
           </ModalCard>
         </ModalOverlay>

@@ -1,36 +1,12 @@
 import { NextResponse } from "next/server";
 import JSZip from "jszip";
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import * as XLSX from "xlsx";
+import { deletePropertyImages, uploadImportedPropertyImages } from "@/app/api/_lib/property-image-upload";
 import { getVendorRequestContext } from "@/app/api/vendor/_lib/context";
 import { getVendorPlanUsage } from "@/app/api/vendor/_lib/plan-limits";
 import { normalizeImportFilename, toVendorImportRecords } from "@/lib/vendor-import";
 
-const accountId = process.env.R2_ACCOUNT_ID;
-const accessKeyId = process.env.R2_ACCESS_KEY_ID;
-const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
-const bucket = process.env.R2_BUCKET;
-
-const isR2Configured = Boolean(accountId && accessKeyId && secretAccessKey && bucket);
-
-const client = isR2Configured
-  ? new S3Client({
-      region: "auto",
-      endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
-      credentials: {
-        accessKeyId: accessKeyId as string,
-        secretAccessKey: secretAccessKey as string,
-      },
-      forcePathStyle: true,
-    })
-  : null;
-
-const imageContentTypeByExtension: Record<string, string> = {
-  jpg: "image/jpeg",
-  jpeg: "image/jpeg",
-  png: "image/png",
-  webp: "image/webp",
-};
+export const runtime = "nodejs";
 
 function parseSpreadsheetRows(filename: string, buffer: Buffer) {
   if (filename.endsWith(".csv")) {
@@ -54,18 +30,10 @@ function parseSpreadsheetRows(filename: string, buffer: Buffer) {
   }) as unknown[][];
 }
 
-function sanitizeFilename(value: string) {
-  return value.replace(/[^a-zA-Z0-9._-]/g, "-");
-}
-
 export async function POST(request: Request) {
   const result = await getVendorRequestContext(request);
   if (!result.ok) {
     return result.response;
-  }
-
-  if (!isR2Configured || !client || !bucket) {
-    return NextResponse.json({ error: "R2 is not configured for image imports." }, { status: 500 });
   }
 
   const formData = await request.formData().catch(() => null);
@@ -145,6 +113,7 @@ export async function POST(request: Request) {
 
   for (const record of records) {
     const propertyPayload = {
+      vendor_id: result.context.vendor.id,
       title: record.title,
       description: record.description,
       deal_type: record.dealType,
@@ -186,42 +155,28 @@ export async function POST(request: Request) {
     const propertyId = String(propertyRow.id);
 
     try {
-      const imageRows: Array<{
-        property_id: string;
-        r2_key: string;
-        public_url: null;
-        is_cover: boolean;
-        sort_order: number;
-      }> = [];
+      const propertyImageFiles: Array<{ filename: string; buffer: Buffer }> = [];
 
-      for (const [index, filename] of record.imageFilenames.entries()) {
+      for (const filename of record.imageFilenames) {
         const zipEntry = zipMap.get(filename);
         if (!zipEntry) continue;
-        const fileBuffer = await zipEntry.async("nodebuffer");
-        const extension = filename.split(".").pop()?.toLowerCase() ?? "jpg";
-        const objectKey = `vendor-imports/${result.context.vendor.id}/${propertyId}/${String(index + 1).padStart(2, "0")}-${sanitizeFilename(filename)}`;
-
-        await client.send(
-          new PutObjectCommand({
-            Bucket: bucket,
-            Key: objectKey,
-            Body: fileBuffer,
-            ContentType: imageContentTypeByExtension[extension] ?? "application/octet-stream",
-          })
-        );
-
-        imageRows.push({
-          property_id: propertyId,
-          r2_key: objectKey,
-          public_url: null,
-          is_cover: index === 0,
-          sort_order: index,
+        propertyImageFiles.push({
+          filename,
+          buffer: await zipEntry.async("nodebuffer"),
         });
       }
+
+      const { rows: imageRows, storagePaths } = await uploadImportedPropertyImages({
+        supabase: result.context.supabase,
+        vendorId: result.context.vendor.id,
+        propertyId,
+        files: propertyImageFiles,
+      });
 
       if (imageRows.length) {
         const { error: imageInsertError } = await result.context.supabase.from("property_images").insert(imageRows);
         if (imageInsertError) {
+          await deletePropertyImages({ supabase: result.context.supabase, storagePaths });
           throw imageInsertError;
         }
       }

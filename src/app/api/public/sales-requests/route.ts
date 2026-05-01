@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { rateLimit } from "@/app/api/_lib/rate-limit";
-import { uploadRequestImages } from "@/app/api/_lib/r2-upload";
+import { deletePropertyImages, uploadPropertyImages } from "@/app/api/_lib/property-image-upload";
 import type { PropertyType } from "@/lib/property-types";
+import { moderateListingText } from "@/lib/moderation-rules";
+
+export const runtime = "nodejs";
 
 type Payload = {
   user_id?: string | null;
@@ -50,6 +53,14 @@ function getBearerToken(request: Request) {
   const authHeader = request.headers.get("authorization") ?? request.headers.get("Authorization") ?? "";
   if (!authHeader.startsWith("Bearer ")) return null;
   return authHeader.slice("Bearer ".length).trim() || null;
+}
+
+function getUnknownErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === "object" && "message" in error && typeof error.message === "string") {
+    return error.message;
+  }
+  return fallback;
 }
 
 export async function POST(req: Request) {
@@ -119,6 +130,17 @@ export async function POST(req: Request) {
     );
   }
 
+  const moderationResult = moderateListingText({
+    title: body.title,
+    description: body.description,
+  });
+  if (moderationResult.blocked) {
+    return NextResponse.json(
+      { ok: false, message: moderationResult.message, reasons: moderationResult.reasons },
+      { status: 400 }
+    );
+  }
+
   const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
     auth: {
       autoRefreshToken: false,
@@ -134,9 +156,10 @@ export async function POST(req: Request) {
   }
 
   const { count, error: countError } = await supabase
-    .from("sales_requests")
+    .from("properties")
     .select("id", { count: "exact", head: true })
-    .eq("user_id", user.id);
+    .eq("created_by", user.id)
+    .eq("is_deleted", false);
 
   if (countError) {
     return NextResponse.json({ ok: false, message: countError.message }, { status: 500 });
@@ -144,7 +167,7 @@ export async function POST(req: Request) {
 
   if ((count ?? 0) >= 1) {
     return NextResponse.json(
-      { ok: false, message: "Only 1 property request is allowed per account. Edit your existing request instead." },
+      { ok: false, message: "Only 1 published property listing is allowed per account." },
       { status: 409 }
     );
   }
@@ -158,16 +181,16 @@ export async function POST(req: Request) {
   }
 
   const payload = {
-    user_id: user.id,
+    city: body.district?.trim() || body.township?.trim() || body.state_region?.trim() || "Myanmar",
     title: body.title.trim(),
     description: toNullableString(body.description),
     deal_type: body.deal_type,
     property_type: body.property_type,
+    status: "published",
     price: Number(body.price),
     currency: body.currency ?? "MMK",
     state_region: body.state_region?.trim(),
     district: body.district?.trim(),
-    city: toNullableString(body.city),
     township: body.township?.trim(),
     address_text: toNullableString(body.address_text),
     bedrooms: isLand ? null : toNullableNumber(body.bedrooms),
@@ -185,42 +208,50 @@ export async function POST(req: Request) {
     owner_name: toNullableString(body.owner_name),
     owner_phone: toNullableString(body.owner_phone),
     owner_phone_secondary: toNullableString(body.owner_phone_secondary),
+    created_by: user.id,
+    is_deleted: false,
   };
 
-  const { data: requestRow, error } = await supabase
-    .from("sales_requests")
+  const { data: propertyRow, error } = await supabase
+    .from("properties")
     .insert(payload)
     .select("id")
     .maybeSingle();
 
-  if (error || !requestRow?.id) {
-    return NextResponse.json({ ok: false, message: error?.message ?? "Unable to create request." }, { status: 500 });
+  if (error || !propertyRow?.id) {
+    return NextResponse.json({ ok: false, message: error?.message ?? "Unable to create listing." }, { status: 500 });
   }
 
   try {
-    const imageRows = await uploadRequestImages({
-      scope: "public",
-      requestId: String(requestRow.id),
-      ownerId: user.id,
-      files: imageFiles,
+    const { rows: imageRows, storagePaths } = await uploadPropertyImages({
+      supabase,
+      folder: `public-listings/${user.id}`,
+      propertyId: String(propertyRow.id),
+      files: await Promise.all(
+        imageFiles.map(async (file) => ({
+          filename: file.name,
+          buffer: Buffer.from(await file.arrayBuffer()),
+        }))
+      ),
     });
     if (imageRows.length) {
-      const { error: imageInsertError } = await supabase.from("sales_request_images").insert(imageRows);
+      const { error: imageInsertError } = await supabase.from("property_images").insert(imageRows);
       if (imageInsertError) {
+        await deletePropertyImages({ supabase, storagePaths });
         throw imageInsertError;
       }
     }
   } catch (uploadError) {
-    await supabase.from("sales_request_images").delete().eq("sales_request_id", requestRow.id);
-    await supabase.from("sales_requests").delete().eq("id", requestRow.id);
+    await supabase.from("property_images").delete().eq("property_id", propertyRow.id);
+    await supabase.from("properties").delete().eq("id", propertyRow.id);
     return NextResponse.json(
       {
         ok: false,
-        message: uploadError instanceof Error ? uploadError.message : "Unable to upload request images.",
+        message: getUnknownErrorMessage(uploadError, "Unable to upload request images."),
       },
       { status: 500 }
     );
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, propertyId: String(propertyRow.id) });
 }

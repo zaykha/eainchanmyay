@@ -50,8 +50,56 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  let effectiveRole = (profile?.role as string | null) ?? null;
+  let hasActiveVendorMembership = false;
+
+  if (profile?.id && effectiveRole !== "vendor_user") {
+    const { data: membership, error: membershipError } = await supabase
+      .from("vendor_members")
+      .select("vendor_id")
+      .eq("user_id", profile.id)
+      .eq("status", "active")
+      .limit(1)
+      .maybeSingle();
+
+    if (membershipError) {
+      return NextResponse.json({ error: membershipError.message }, { status: 500 });
+    }
+
+    if (membership?.vendor_id) {
+      hasActiveVendorMembership = true;
+      effectiveRole = "vendor_user";
+    }
+  }
+
+  if (profile?.id && effectiveRole === "vendor_user" && !hasActiveVendorMembership) {
+    const { data: membership, error: membershipError } = await supabase
+      .from("vendor_members")
+      .select("vendor_id")
+      .eq("user_id", profile.id)
+      .eq("status", "active")
+      .limit(1)
+      .maybeSingle();
+
+    if (membershipError) {
+      return NextResponse.json({ error: membershipError.message }, { status: 500 });
+    }
+
+    hasActiveVendorMembership = Boolean(membership?.vendor_id);
+  }
+
   return NextResponse.json({
-    role: (profile?.role as string | null) ?? null,
+    role: effectiveRole,
     found: Boolean(profile?.id),
+    ...(process.env.NODE_ENV !== "production"
+      ? {
+          debug: {
+            profileId: profile?.id ?? null,
+            profileRole: (profile?.role as string | null) ?? null,
+            effectiveRole,
+            hasActiveVendorMembership,
+          },
+        }
+      : {}),
   });
 }

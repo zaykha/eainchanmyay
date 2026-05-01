@@ -100,8 +100,8 @@ export async function POST(request: Request) {
       null,
     role:
       requestedRole ??
-      normalizeRole(existingProfile?.role) ??
       metadataRole ??
+      normalizeRole(existingProfile?.role) ??
       "user",
   };
 

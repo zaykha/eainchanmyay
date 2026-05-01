@@ -5,31 +5,28 @@ type PropertyLike = Record<string, unknown>;
 export const resolveImage = (url?: string | null) => {
   if (!url) return null;
   const trimmed = url.trim().replace(/^['"]|['"]$/g, "");
-  const r2Base = process.env.NEXT_PUBLIC_R2_PUBLIC_BASE?.replace(/\/+$/, "");
   const supaBase = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/, "");
+  const propertyBucket = process.env.NEXT_PUBLIC_SUPABASE_PROPERTY_IMAGE_BUCKET?.trim() || "item-images";
+  const requestBucket = process.env.NEXT_PUBLIC_SUPABASE_REQUEST_IMAGE_BUCKET?.trim() || "sales-request-images";
 
   if (/^https?:\/\//i.test(trimmed)) {
-    if (r2Base && /r2\.cloudflarestorage\.com/i.test(trimmed)) {
-      try {
-        const parsed = new URL(trimmed);
-        return `${r2Base}/${parsed.pathname.replace(/^\/+/, "")}`;
-      } catch {
-        return trimmed;
-      }
-    }
     return trimmed;
-  }
-
-  if (r2Base) {
-    return `${r2Base}/${trimmed.replace(/^\/+/, "")}`;
   }
 
   if (supaBase && trimmed.startsWith("/storage")) {
     return `${supaBase}${trimmed}`;
   }
 
+  if (supaBase && trimmed.startsWith("sales-requests/")) {
+    return `${supaBase}/storage/v1/object/public/${requestBucket}/${trimmed}`;
+  }
+
+  if (supaBase && trimmed.startsWith("vendor-imports/")) {
+    return `${supaBase}/storage/v1/object/public/${propertyBucket}/${trimmed}`;
+  }
+
   if (supaBase && trimmed.startsWith("items/")) {
-    return `${supaBase}/storage/v1/object/public/item-images/${trimmed}`;
+    return `${supaBase}/storage/v1/object/public/${propertyBucket}/${trimmed}`;
   }
 
   return trimmed;

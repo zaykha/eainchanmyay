@@ -255,6 +255,12 @@ async function precheckPortalRole(email: string) {
     | {
         role?: ProfileRole | null;
         found?: boolean;
+        debug?: {
+          profileId?: string | null;
+          profileRole?: string | null;
+          effectiveRole?: string | null;
+          hasActiveVendorMembership?: boolean;
+        } | null;
         error?: string;
       }
     | null;
@@ -266,6 +272,7 @@ async function precheckPortalRole(email: string) {
   return {
     role: payload?.role ?? null,
     found: Boolean(payload?.found),
+    debug: payload?.debug ?? null,
   };
 }
 
@@ -280,6 +287,7 @@ export function AuthScreen({ role, onSuccess, onChangeRole }: AuthScreenProps) {
   const [message, setMessage] = useState<string | null>(null);
   const [popupMessage, setPopupMessage] = useState<string | null>(null);
   const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
+  const [devAgentDebug, setDevAgentDebug] = useState<string | null>(null);
 
   const passwordChecks = [
     { label: t("auth.passwordCheck.length"), ok: password.length >= 8 },
@@ -314,6 +322,7 @@ export function AuthScreen({ role, onSuccess, onChangeRole }: AuthScreenProps) {
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setMessage(null);
+    setDevAgentDebug(null);
     if (!isSupabaseConfigured) {
       setMessage(t("auth.supabaseMissing"));
       return;
@@ -335,15 +344,21 @@ export function AuthScreen({ role, onSuccess, onChangeRole }: AuthScreenProps) {
       setLoadingMessage(t("auth.signingInShort"));
       try {
         const roleCheck = await precheckPortalRole(normalizedEmail);
-        const selectedAgentPortal = role === "agent";
+        if (process.env.NODE_ENV !== "production" && role === "agent") {
+          setDevAgentDebug(
+            [
+              `precheck found=${String(roleCheck.found)}`,
+              `profileRole=${roleCheck.debug?.profileRole ?? "null"}`,
+              `effectiveRole=${roleCheck.debug?.effectiveRole ?? String(roleCheck.role ?? "null")}`,
+              `member=${String(roleCheck.debug?.hasActiveVendorMembership ?? false)}`,
+            ].join(" | ")
+          );
+        }
         const selectedCustomerPortal = role === "customer";
-        const wrongForAgent = selectedAgentPortal && roleCheck.found && roleCheck.role !== "vendor_user";
         const wrongForCustomer = selectedCustomerPortal && roleCheck.found && roleCheck.role === "vendor_user";
 
-        if (wrongForAgent || wrongForCustomer) {
-          const portalMessage = wrongForAgent
-            ? "This account is not registered as an agency account. Use customer sign in instead."
-            : "This account is registered as an agency account. Use agency sign in instead.";
+        if (wrongForCustomer) {
+          const portalMessage = "This account is registered as an agency account. Use agency sign in instead.";
           setLoadingMessage(null);
           setMessage(portalMessage);
           setPopupMessage(portalMessage);
@@ -372,6 +387,9 @@ export function AuthScreen({ role, onSuccess, onChangeRole }: AuthScreenProps) {
       }
       setMessage(result.error);
       setPopupMessage(result.error);
+      if (process.env.NODE_ENV !== "production" && role === "agent") {
+        setDevAgentDebug((current) => current ?? `login error=${result.error}`);
+      }
       return;
     }
     if (typeof window !== "undefined" && isAgentRegistration) {
@@ -507,6 +525,9 @@ export function AuthScreen({ role, onSuccess, onChangeRole }: AuthScreenProps) {
       </Form>
 
       {message && <Message>{message}</Message>}
+      {process.env.NODE_ENV !== "production" && role === "agent" && devAgentDebug ? (
+        <Message>DEV: {devAgentDebug}</Message>
+      ) : null}
       {popupMessage ? (
         <PopupOverlay onClick={() => setPopupMessage(null)}>
           <PopupCard
