@@ -25,6 +25,11 @@ type AgencyPayload = {
     contact_phone: string | null;
     contact_email: string | null;
     logo_url: string | null;
+    facebook_url: string | null;
+    telegram_url: string | null;
+    viber_phone: string | null;
+    tiktok_url: string | null;
+    website_url: string | null;
     cover_image_url: string | null;
     strengths: string[];
     badges: string[];
@@ -471,6 +476,44 @@ export default function AgencyStorefrontPage() {
                         <a href={`mailto:${agency.contact_email}`}>
                           <Mail size={15} style={{ marginRight: 6, verticalAlign: "text-bottom" }} />
                           {agency.contact_email}
+                        </a>
+                      </ContactItem>
+                    ) : null}
+                    {agency.facebook_url ? (
+                      <ContactItem>
+                        <strong>Facebook</strong>
+                        <a href={agency.facebook_url} target="_blank" rel="noreferrer">
+                          {agency.facebook_url}
+                        </a>
+                      </ContactItem>
+                    ) : null}
+                    {agency.telegram_url ? (
+                      <ContactItem>
+                        <strong>Telegram</strong>
+                        <a href={agency.telegram_url} target="_blank" rel="noreferrer">
+                          {agency.telegram_url}
+                        </a>
+                      </ContactItem>
+                    ) : null}
+                    {agency.viber_phone ? (
+                      <ContactItem>
+                        <strong>Viber</strong>
+                        <a href={`tel:${agency.viber_phone}`}>{agency.viber_phone}</a>
+                      </ContactItem>
+                    ) : null}
+                    {agency.tiktok_url ? (
+                      <ContactItem>
+                        <strong>TikTok</strong>
+                        <a href={agency.tiktok_url} target="_blank" rel="noreferrer">
+                          {agency.tiktok_url}
+                        </a>
+                      </ContactItem>
+                    ) : null}
+                    {agency.website_url ? (
+                      <ContactItem>
+                        <strong>Website</strong>
+                        <a href={agency.website_url} target="_blank" rel="noreferrer">
+                          {agency.website_url}
                         </a>
                       </ContactItem>
                     ) : null}

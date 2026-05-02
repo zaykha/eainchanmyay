@@ -91,12 +91,23 @@ export async function PATCH(request: Request) {
 
   const { data: existingVendor, error: existingError } = await result.context.supabase
     .from("vendors")
-    .select("id")
+    .select("id,name,slug,verification_status")
     .eq("id", result.context.vendor.id)
     .maybeSingle();
 
   if (existingError || !existingVendor?.id) {
     return NextResponse.json({ error: existingError?.message ?? "Vendor not found." }, { status: 404 });
+  }
+
+  const identityLocked = existingVendor.verification_status === "approved";
+  if (identityLocked) {
+    if (typeof updates.slug === "string" && updates.slug !== (existingVendor.slug ?? null)) {
+      return NextResponse.json({ error: "Verified agencies cannot change their public slug." }, { status: 403 });
+    }
+
+    if (typeof updates.name === "string" && updates.name !== (existingVendor.name ?? null)) {
+      return NextResponse.json({ error: "Verified agencies cannot change their agency name." }, { status: 403 });
+    }
   }
 
   if (typeof updates.slug === "string") {

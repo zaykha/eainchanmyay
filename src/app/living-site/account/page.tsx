@@ -1,24 +1,29 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import styled from "styled-components";
+import styled, { keyframes } from "styled-components";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   ArrowUpRight,
+  BarChart3,
   BadgeCheck,
   Bath,
   BedDouble,
   Building2,
   Calendar,
   Clock,
+  CheckCircle2,
+  Circle,
   Eye,
   Globe2,
   Heart,
   Home,
+  Lock,
   Mail,
   Menu,
   MapPin,
+  MessageSquareText,
   Plus,
   Ruler,
   Settings,
@@ -43,6 +48,15 @@ import { useI18n } from "@/app/living-site/lib/i18n";
 import { getUpgradePlan, getVendorPlan } from "@/lib/vendor-plans";
 import { isVendorStorefrontSetupComplete } from "@/lib/vendor-storefront";
 import { formatPropertyTypeValue } from "@/lib/property-types";
+
+const shimmer = keyframes`
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+`;
 
 const Header = styled.header`
   padding-bottom: 14px;
@@ -679,6 +693,7 @@ const CTAButton = styled.button`
 
 const VendorGrid = styled.div`
   display: grid;
+  align-items: stretch;
   gap: 16px;
   grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
 
@@ -687,9 +702,68 @@ const VendorGrid = styled.div`
   }
 `;
 
+const VendorColumn = styled.div`
+  display: grid;
+  gap: 16px;
+  align-content: start;
+  align-self: stretch;
+  grid-template-rows: auto minmax(0, 1fr);
+`;
+
+const VendorSkeleton = styled.div`
+  display: grid;
+  gap: 16px;
+`;
+
+const SkeletonBlock = styled.div<{ $height?: number; $radius?: number }>`
+  width: 100%;
+  height: ${(props) => `${props.$height ?? 16}px`};
+  border-radius: ${(props) => `${props.$radius ?? 14}px`};
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--color-surface-2) 92%, transparent) 0%,
+    color-mix(in srgb, var(--color-outline) 38%, white) 50%,
+    color-mix(in srgb, var(--color-surface-2) 92%, transparent) 100%
+  );
+  background-size: 200% 100%;
+  animation: ${shimmer} 1.4s linear infinite;
+`;
+
+const VendorSkeletonHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 14px;
+`;
+
+const VendorSkeletonStats = styled.div`
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+
+  @media (max-width: 720px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const VendorSkeletonActions = styled.div`
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+
+  @media (max-width: 720px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
 const VendorCard = styled(Panel)`
   display: grid;
   gap: 14px;
+  align-self: start;
+`;
+
+const VendorCardFill = styled(VendorCard)`
+  align-self: stretch;
+  align-content: start;
 `;
 
 const VendorHero = styled.div`
@@ -706,6 +780,7 @@ const VendorMeta = styled.div`
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  align-items: center;
 `;
 
 const VendorPill = styled.span<{ $tone?: "success" | "warning" | "neutral" }>`
@@ -731,6 +806,32 @@ const VendorPill = styled.span<{ $tone?: "success" | "warning" | "neutral" }>`
     props.$tone === "success" ? "#0f766e" : props.$tone === "warning" ? "#b45309" : "var(--color-text)"};
   font-size: 0.82rem;
   font-weight: 700;
+`;
+
+const VendorPillLink = styled(Link)<{ $tone?: "success" | "warning" | "neutral" }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid
+    ${(props) =>
+      props.$tone === "success"
+        ? "rgba(16, 185, 129, 0.28)"
+        : props.$tone === "warning"
+        ? "rgba(245, 158, 11, 0.28)"
+        : "var(--color-outline)"};
+  background: ${(props) =>
+    props.$tone === "success"
+      ? "rgba(16, 185, 129, 0.12)"
+      : props.$tone === "warning"
+      ? "rgba(245, 158, 11, 0.12)"
+      : "var(--color-surface-2)"};
+  color: ${(props) =>
+    props.$tone === "success" ? "#0f766e" : props.$tone === "warning" ? "#b45309" : "var(--color-text)"};
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-decoration: none;
 `;
 
 const VendorActionGrid = styled.div`
@@ -813,26 +914,178 @@ const StarterStatValue = styled.div`
   color: var(--color-text);
 `;
 
-const StarterPrimaryGrid = styled.div`
+const HubFeatureCard = styled.div`
+  position: relative;
   display: grid;
-  gap: 12px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  min-height: 100%;
+  overflow: hidden;
+`;
 
-  @media (max-width: 720px) {
-    grid-template-columns: 1fr;
+const HubFeatureHeader = styled.div`
+  display: grid;
+  gap: 4px;
+`;
+
+const HubFeatureTop = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+`;
+
+const HubFeatureTitle = styled.h3`
+  margin: 0;
+  font-size: 1rem;
+`;
+
+const HubFeatureCopy = styled.p`
+  margin: 0;
+  color: var(--color-muted);
+  line-height: 1.55;
+`;
+
+const HubProgressPill = styled.span`
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-outline);
+  color: var(--color-text);
+  font-size: 0.82rem;
+  font-weight: 700;
+`;
+
+const HubChecklist = styled.div`
+  display: grid;
+  gap: 10px;
+`;
+
+const HubChecklistRow = styled(Link)<{ $done?: boolean }>`
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid
+    ${(props) => (props.$done ? "rgba(16, 185, 129, 0.28)" : "var(--color-outline)")};
+  background: ${(props) =>
+    props.$done ? "rgba(16, 185, 129, 0.08)" : "color-mix(in srgb, var(--color-surface-2) 62%, white)"};
+  color: inherit;
+  text-decoration: none;
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+
+  &:hover {
+    transform: translateY(-1px);
+    border-color: ${(props) => (props.$done ? "rgba(16, 185, 129, 0.38)" : "color-mix(in srgb, var(--color-primary) 24%, var(--color-outline))")};
+    box-shadow: var(--shadow-soft);
   }
 `;
 
-const StarterPrimaryAction = styled(Link)`
-  border: 1px solid var(--color-outline);
-  border-radius: 18px;
-  padding: 14px 16px;
-  background: var(--color-surface);
+const HubChecklistText = styled.div`
   display: grid;
-  gap: 10px;
-  color: inherit;
-  text-decoration: none;
-  box-shadow: var(--shadow-soft);
+  gap: 3px;
+`;
+
+const HubChecklistTitle = styled.span`
+  font-weight: 700;
+  color: var(--color-text);
+`;
+
+const HubChecklistHint = styled.span`
+  font-size: 0.88rem;
+  color: var(--color-muted);
+  line-height: 1.45;
+`;
+
+const HubChecklistAction = styled.span`
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--color-outline);
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  font-size: 0.84rem;
+  font-weight: 700;
+  white-space: nowrap;
+`;
+
+const HubFeaturePreview = styled.div`
+  position: relative;
+  display: grid;
+  gap: 12px;
+`;
+
+const HubFeaturePreviewGrid = styled.div`
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+`;
+
+const HubFeaturePreviewItem = styled.div`
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--color-outline) 85%, transparent);
+  background: color-mix(in srgb, var(--color-surface-2) 78%, white);
+  filter: blur(1.5px);
+  opacity: 0.72;
+`;
+
+const HubFeaturePreviewTop = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--color-muted);
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+`;
+
+const HubFeaturePreviewValue = styled.div`
+  font-size: 1.12rem;
+  font-weight: 800;
+  color: var(--color-text);
+`;
+
+const HubFeatureOverlay = styled.div`
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-surface) 30%, transparent) 0%,
+    color-mix(in srgb, var(--color-surface) 88%, white) 100%
+  );
+`;
+
+const HubFeatureOverlayCard = styled.div`
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  text-align: center;
+  max-width: 320px;
+`;
+
+const HubFeatureLock = styled.div`
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  color: var(--color-primary);
 `;
 
 const StarterActionIcon = styled.div`
@@ -859,75 +1112,84 @@ const StarterActionLabel = styled.div`
   color: var(--color-text);
 `;
 
-const StarterSecondaryRow = styled.div`
-  display: flex;
-  flex-wrap: wrap;
+const HubNavList = styled.div`
+  display: grid;
   gap: 10px;
 `;
 
-const StarterSecondaryAction = styled(Link)`
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 40px;
-  padding: 0 14px;
-  border-radius: 999px;
+const HubNavItem = styled(Link)<{ $disabled?: boolean }>`
   border: 1px solid var(--color-outline);
-  background: var(--color-surface);
-  color: var(--color-text);
-  text-decoration: none;
-  font-weight: 600;
-  box-shadow: var(--shadow-soft);
-`;
-
-const StarterFooterRow = styled.div`
-  display: flex;
-  justify-content: flex-end;
-`;
-
-const StarterSignOut = styled.button`
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 38px;
-  padding: 0 4px;
-  border: none;
-  background: transparent;
-  color: var(--color-muted);
-  font-weight: 600;
-  cursor: pointer;
-`;
-
-const UpgradeCard = styled(Link)`
-  border: 1px solid color-mix(in srgb, var(--color-primary) 26%, var(--color-outline));
-  border-radius: 18px;
+  border-radius: 16px;
   padding: 14px 16px;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--color-primary) 10%, var(--color-surface)) 0%,
-    var(--color-surface) 100%
-  );
+  background: var(--color-surface);
+  display: grid;
+  grid-template-columns: 36px 1fr 18px;
+  align-items: center;
+  gap: 12px;
   color: inherit;
   text-decoration: none;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
   box-shadow: var(--shadow-soft);
+  opacity: ${(props) => (props.$disabled ? 0.55 : 1)};
+  pointer-events: ${(props) => (props.$disabled ? "none" : "auto")};
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+
+  &:hover {
+    transform: translateY(-1px);
+    border-color: color-mix(in srgb, var(--color-primary) 24%, var(--color-outline));
+    box-shadow: var(--frame-shadow);
+  }
 `;
 
-const UpgradeCardMain = styled.div`
+const HubNavButton = styled.button`
+  border: 1px solid var(--color-outline);
+  border-radius: 16px;
+  padding: 14px 16px;
+  background: var(--color-surface);
   display: grid;
-  gap: 6px;
-  min-width: 0;
+  grid-template-columns: 36px 1fr 18px;
+  align-items: center;
+  gap: 12px;
+  color: inherit;
+  box-shadow: var(--shadow-soft);
+  cursor: pointer;
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+
+  &:hover {
+    transform: translateY(-1px);
+    border-color: color-mix(in srgb, var(--color-primary) 24%, var(--color-outline));
+    box-shadow: var(--frame-shadow);
+  }
 `;
 
-const UpgradeCardTitle = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-weight: 800;
+const HubNavIcon = styled.div`
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  color: var(--color-primary);
+  display: grid;
+  place-items: center;
+
+  svg {
+    width: 18px;
+    height: 18px;
+  }
+`;
+
+const HubNavBody = styled.div`
+  display: grid;
+  gap: 3px;
+  text-align: left;
+`;
+
+const HubNavTitle = styled.strong`
   color: var(--color-text);
+`;
+
+const HubNavCopy = styled.span`
+  color: var(--color-muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
 `;
 
 const FloatingAction = styled.button`
@@ -1332,6 +1594,15 @@ export default function AccountPage() {
       name: string;
       vendor_type: string;
       plan: string | null;
+      description?: string | null;
+      logo_url?: string | null;
+      contact_phone?: string | null;
+      contact_email?: string | null;
+      facebook_url?: string | null;
+      telegram_url?: string | null;
+      viber_phone?: string | null;
+      tiktok_url?: string | null;
+      website_url?: string | null;
       billing_status?: string | null;
       public_storefront_enabled?: boolean;
       slug?: string | null;
@@ -1346,11 +1617,13 @@ export default function AccountPage() {
       };
       listingCount?: number;
       listingLimit?: number;
+      livePropertyCount?: number;
       agentCount?: number;
       agentLimit?: number;
     };
   } | null>(null);
   const [vendorWorkspaceError, setVendorWorkspaceError] = useState<string | null>(null);
+  const [vendorWorkspaceLoading, setVendorWorkspaceLoading] = useState(false);
 
   useEffect(() => {
     setViewingRequests([]);
@@ -1560,7 +1833,15 @@ export default function AccountPage() {
             name: string;
             vendor_type: string;
             plan: string | null;
+            description?: string | null;
             logo_url?: string | null;
+            contact_phone?: string | null;
+            contact_email?: string | null;
+            facebook_url?: string | null;
+            telegram_url?: string | null;
+            viber_phone?: string | null;
+            tiktok_url?: string | null;
+            website_url?: string | null;
             billing_status?: string | null;
             public_storefront_enabled?: boolean;
             slug?: string | null;
@@ -1571,12 +1852,14 @@ export default function AccountPage() {
             currentPlan?: { name: string };
             listingCount?: number;
             listingLimit?: number;
+            livePropertyCount?: number;
             agentCount?: number;
             agentLimit?: number;
           };
         }>(userId, "full")
       : null;
     setVendorWorkspaceError(null);
+    setVendorWorkspaceLoading(!cachedWorkspace);
     if (cachedWorkspace) {
       setVendorWorkspace(cachedWorkspace);
     }
@@ -1594,7 +1877,15 @@ export default function AccountPage() {
                 name: string;
                 vendor_type: string;
                 plan: string | null;
+                description?: string | null;
                 logo_url?: string | null;
+                contact_phone?: string | null;
+                contact_email?: string | null;
+                facebook_url?: string | null;
+                telegram_url?: string | null;
+                viber_phone?: string | null;
+                tiktok_url?: string | null;
+                website_url?: string | null;
                 billing_status?: string | null;
                 public_storefront_enabled?: boolean;
                 slug?: string | null;
@@ -1605,6 +1896,7 @@ export default function AccountPage() {
                 currentPlan?: { name: string };
                 listingCount?: number;
                 listingLimit?: number;
+                livePropertyCount?: number;
                 agentCount?: number;
                 agentLimit?: number;
               };
@@ -1635,11 +1927,13 @@ export default function AccountPage() {
               limits: payload.limits,
             });
           }
+          setVendorWorkspaceLoading(false);
         }
       })
       .catch((error) => {
         if (active) {
           setVendorWorkspaceError(error instanceof Error ? error.message : "Unable to load vendor workspace.");
+          setVendorWorkspaceLoading(false);
         }
       });
 
@@ -1657,10 +1951,68 @@ export default function AccountPage() {
   const suggestedUpgrade = getUpgradePlan(vendorWorkspace?.vendor.plan);
   const isFreeAgencyPlan = vendorWorkspace?.vendor.plan === "free";
   const storefrontReady = vendorWorkspace ? isVendorStorefrontSetupComplete(vendorWorkspace.vendor) : false;
+  const hasAgencyBio = Boolean(vendorWorkspace?.vendor.description?.trim());
+  const hasAgencyLogo = Boolean(vendorWorkspace?.vendor.logo_url?.trim());
+  const hasAgencyContact = Boolean(
+    vendorWorkspace?.vendor.contact_phone?.trim() || vendorWorkspace?.vendor.contact_email?.trim()
+  );
+  const hasSocialChannel = Boolean(
+    vendorWorkspace?.vendor.facebook_url?.trim() ||
+      vendorWorkspace?.vendor.telegram_url?.trim() ||
+      vendorWorkspace?.vendor.viber_phone?.trim() ||
+      vendorWorkspace?.vendor.tiktok_url?.trim() ||
+      vendorWorkspace?.vendor.website_url?.trim()
+  );
   const listingLimit = vendorWorkspace?.limits?.listingLimit ?? currentVendorPlan.listingLimit;
   const listingUsage = vendorWorkspace?.limits?.listingCount ?? 0;
+  const liveListingCount = vendorWorkspace?.limits?.livePropertyCount ?? 0;
   const agentLimit = vendorWorkspace?.limits?.agentLimit ?? currentVendorPlan.agentLimit;
   const agentUsage = vendorWorkspace?.limits?.agentCount ?? 1;
+  const profileReadinessItems = [
+    { done: hasAgencyLogo, label: "Logo" },
+    { done: hasAgencyContact, label: "Contact" },
+    { done: hasAgencyBio, label: "Bio" },
+    { done: storefrontReady, label: "Storefront" },
+  ];
+  const profileReadinessDoneCount = profileReadinessItems.filter((item) => item.done).length;
+  const freeSettingsHref = "/hub/settings";
+  const profileReadinessHref =
+    profileReadinessDoneCount === profileReadinessItems.length ? freeSettingsHref : "/agency-setup";
+  const hubChecklist = [
+    {
+      done: profileReadinessDoneCount === profileReadinessItems.length,
+      title: "Profile readiness",
+      hint:
+        profileReadinessDoneCount === profileReadinessItems.length
+          ? "Logo, contact, bio, and storefront are all ready."
+          : `${profileReadinessDoneCount}/${profileReadinessItems.length} complete: ${profileReadinessItems
+              .map((item) => `${item.done ? "✓" : "○"} ${item.label}`)
+              .join("  •  ")}`,
+      href: profileReadinessHref,
+      actionLabel: profileReadinessDoneCount === profileReadinessItems.length ? "Review" : "Complete",
+    },
+    {
+      done: hasSocialChannel,
+      title: "Channel readiness",
+      hint: hasSocialChannel
+        ? "At least one buyer channel is connected."
+        : "Add Facebook, Telegram, Viber, TikTok, or a website so buyers have another way to reach you.",
+      href: freeSettingsHref,
+      actionLabel: hasSocialChannel ? "Manage" : "Add channel",
+    },
+    {
+      done: liveListingCount > 0,
+      title: "First live listing published",
+      hint:
+        liveListingCount > 0
+          ? `${liveListingCount} live listing${liveListingCount > 1 ? "s are" : " is"} already visible to buyers.`
+          : "Publish your first live listing to start receiving buyer attention.",
+      href: "/request-sale",
+      actionLabel: liveListingCount > 0 ? "Manage" : "Publish first",
+    },
+  ];
+  const starterChecklistComplete = hubChecklist.every((item) => item.done);
+  const starterChecklistDoneCount = hubChecklist.filter((item) => item.done).length;
   const activeTabLoading = tabLoading[activeTab];
   const activeTabError = tabError[activeTab];
   const activeTabHasItems = useMemo(() => {
@@ -1705,12 +2057,62 @@ export default function AccountPage() {
     );
   }
 
+  const showVendorShellSkeleton =
+    Boolean(user) &&
+    pathname === "/hub" &&
+    (profileRole === "vendor_user" || onboardingPending) &&
+    vendorWorkspaceLoading &&
+    !vendorWorkspace;
+
   return (
     <div>
       <AccountHeader isVendor={profileRole === "vendor_user"} />
       <PageShell>
-        {user && (profileRole === "vendor_user" || onboardingPending || Boolean(vendorWorkspace?.vendor.id)) && (
+        {showVendorShellSkeleton ? (
           <VendorGrid>
+            <VendorCard>
+              <VendorSkeleton>
+                <VendorSkeletonHeader>
+                  <SkeletonBlock $height={56} $radius={18} style={{ width: 56, flex: "0 0 56px" }} />
+                  <div style={{ display: "grid", gap: 10, flex: 1 }}>
+                    <SkeletonBlock $height={24} style={{ width: "42%" }} />
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <SkeletonBlock $height={30} $radius={999} style={{ width: 72 }} />
+                      <SkeletonBlock $height={30} $radius={999} style={{ width: 84 }} />
+                    </div>
+                  </div>
+                </VendorSkeletonHeader>
+                <VendorSkeletonStats>
+                  <SkeletonBlock $height={92} $radius={18} />
+                  <SkeletonBlock $height={92} $radius={18} />
+                  <SkeletonBlock $height={92} $radius={18} />
+                </VendorSkeletonStats>
+                <SkeletonBlock $height={82} $radius={18} />
+                <VendorSkeletonActions>
+                  <SkeletonBlock $height={94} $radius={18} />
+                  <SkeletonBlock $height={94} $radius={18} />
+                </VendorSkeletonActions>
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  <SkeletonBlock $height={40} $radius={999} style={{ width: 132 }} />
+                  <SkeletonBlock $height={40} $radius={999} style={{ width: 126 }} />
+                </div>
+              </VendorSkeleton>
+            </VendorCard>
+            <VendorCard>
+              <VendorSkeleton>
+                <SkeletonBlock $height={24} style={{ width: "38%" }} />
+                <SkeletonBlock $height={96} $radius={18} />
+                <SkeletonBlock $height={96} $radius={18} />
+                <SkeletonBlock $height={96} $radius={18} />
+              </VendorSkeleton>
+            </VendorCard>
+          </VendorGrid>
+        ) : null}
+        {!showVendorShellSkeleton &&
+          user &&
+          (profileRole === "vendor_user" || onboardingPending || Boolean(vendorWorkspace?.vendor.id)) && (
+          <VendorGrid>
+            <VendorColumn>
             <VendorCard>
               <StarterHeader>
                 <VendorIdentity>
@@ -1720,8 +2122,23 @@ export default function AccountPage() {
                   <VendorTitle>{vendorWorkspace?.vendor.name || "Agency account"}</VendorTitle>
                 </VendorIdentity>
                 <VendorMeta>
-                  <VendorPill>{vendorWorkspace?.limits?.currentPlan?.name || currentVendorPlan.name}</VendorPill>
+                  <VendorPillLink href="/vendor-setup" $tone="warning">
+                    <Sparkles size={14} />
+                    {vendorWorkspace?.limits?.currentPlan?.name || currentVendorPlan.name}
+                  </VendorPillLink>
                   <VendorPill>{labelize(vendorWorkspace?.membership.role)}</VendorPill>
+                  {isFreeAgencyPlan ? (
+                    <VendorPillLink href="/vendor-setup" $tone="warning">
+                      Upgrade
+                    </VendorPillLink>
+                  ) : null}
+                  <VendorPillLink
+                    href={isFreeAgencyPlan ? "/vendor-setup" : "/vendor/verification"}
+                    $tone={vendorWorkspace?.vendor.verified_status === "approved" ? "success" : "warning"}
+                  >
+                    {vendorWorkspace?.vendor.verified_status === "approved" ? <BadgeCheck size={14} /> : <ShieldCheck size={14} />}
+                    {vendorWorkspace?.vendor.verified_status === "approved" ? "Verified" : "Unverified"}
+                  </VendorPillLink>
                   {vendorWorkspace?.vendor.verified_status === "approved" ? (
                     <VendorPill $tone="success">
                       <BadgeCheck size={14} />
@@ -1770,73 +2187,6 @@ export default function AccountPage() {
                       </StarterStatValue>
                     </StarterStat>
                   </StarterGrid>
-
-                  {suggestedUpgrade ? (
-                    <UpgradeCard href="/vendor-setup">
-                      <UpgradeCardMain>
-                        <UpgradeCardTitle>
-                          <VendorPill $tone="warning">
-                            <Sparkles size={14} />
-                            Upgrade
-                          </VendorPill>
-                          <span>{suggestedUpgrade.name}</span>
-                        </UpgradeCardTitle>
-                        <Muted>
-                          {suggestedUpgrade.listingLimit} listings • {suggestedUpgrade.agentLimit} seats
-                        </Muted>
-                      </UpgradeCardMain>
-                      <ArrowUpRight size={18} />
-                    </UpgradeCard>
-                  ) : null}
-
-                  <StarterPrimaryGrid>
-                    <StarterPrimaryAction href="/request-sale">
-                      <StarterActionIcon>
-                        <Plus />
-                      </StarterActionIcon>
-                      <StarterActionLabel>
-                        <span>Request Listing</span>
-                        <ArrowUpRight size={18} />
-                      </StarterActionLabel>
-                    </StarterPrimaryAction>
-
-                    <StarterPrimaryAction href="/vendor/settings">
-                      <StarterActionIcon>
-                        <Settings />
-                      </StarterActionIcon>
-                      <StarterActionLabel>
-                        <span>Agency Profile</span>
-                        <ArrowUpRight size={18} />
-                      </StarterActionLabel>
-                    </StarterPrimaryAction>
-                  </StarterPrimaryGrid>
-
-                  <StarterSecondaryRow>
-                    {vendorWorkspace?.vendor.public_storefront_enabled && vendorWorkspace?.vendor.slug ? (
-                      <StarterSecondaryAction href={`/agency/${vendorWorkspace.vendor.slug}`}>
-                        <Globe2 size={16} />
-                        <span>Public Profile</span>
-                      </StarterSecondaryAction>
-                    ) : null}
-
-                    <StarterSecondaryAction href="/vendor/verification">
-                      <ShieldCheck size={16} />
-                      <span>Verification</span>
-                    </StarterSecondaryAction>
-                  </StarterSecondaryRow>
-
-                  <StarterFooterRow>
-                    <StarterSignOut
-                      type="button"
-                      onClick={async () => {
-                        await logout();
-                        router.push("/");
-                      }}
-                    >
-                      <X size={16} />
-                      <span>Sign out</span>
-                    </StarterSignOut>
-                  </StarterFooterRow>
                 </>
               ) : (
                 <>
@@ -1887,56 +2237,205 @@ export default function AccountPage() {
                 </>
               )}
             </VendorCard>
+            {isFreeAgencyPlan ? (
+              <VendorCardFill>
+                <HubFeatureCard>
+                  {!starterChecklistComplete ? (
+                    <>
+                      <HubFeatureHeader>
+                        <HubFeatureTop>
+                          <HubFeatureTitle>Next steps</HubFeatureTitle>
+                          <HubProgressPill>
+                            {starterChecklistDoneCount}/{hubChecklist.length} complete
+                          </HubProgressPill>
+                        </HubFeatureTop>
+                        <HubFeatureCopy>Finish these basics to make your agency profile ready for buyers.</HubFeatureCopy>
+                      </HubFeatureHeader>
+                      <HubChecklist>
+                        {hubChecklist.map((item) => (
+                          <HubChecklistRow key={item.title} href={item.href} $done={item.done}>
+                            <div style={{ color: item.done ? "#0f766e" : "var(--color-muted)" }}>
+                              {item.done ? <CheckCircle2 size={18} /> : <Circle size={18} />}
+                            </div>
+                            <HubChecklistText>
+                              <HubChecklistTitle>{item.title}</HubChecklistTitle>
+                              <HubChecklistHint>{item.hint}</HubChecklistHint>
+                            </HubChecklistText>
+                            <HubChecklistAction>{item.actionLabel}</HubChecklistAction>
+                          </HubChecklistRow>
+                        ))}
+                      </HubChecklist>
+                    </>
+                  ) : (
+                    <>
+                      <HubFeatureHeader>
+                        <HubFeatureTitle>Premium workspace preview</HubFeatureTitle>
+                        <HubFeatureCopy>Upgrade to unlock live sales and lead overview inside your hub.</HubFeatureCopy>
+                      </HubFeatureHeader>
+                      <HubFeaturePreview>
+                        <HubFeaturePreviewGrid>
+                          <HubFeaturePreviewItem>
+                            <HubFeaturePreviewTop>
+                              <span>Lead overview</span>
+                              <MessageSquareText />
+                            </HubFeaturePreviewTop>
+                            <HubFeaturePreviewValue>24 active conversations</HubFeaturePreviewValue>
+                          </HubFeaturePreviewItem>
+                          <HubFeaturePreviewItem>
+                            <HubFeaturePreviewTop>
+                              <span>Sales performance</span>
+                              <BarChart3 />
+                            </HubFeaturePreviewTop>
+                            <HubFeaturePreviewValue>MMK 180L pipeline</HubFeaturePreviewValue>
+                          </HubFeaturePreviewItem>
+                        </HubFeaturePreviewGrid>
+                        <HubFeatureOverlay>
+                          <HubFeatureOverlayCard>
+                            <HubFeatureLock>
+                              <Lock size={18} />
+                            </HubFeatureLock>
+                            <HubChecklistTitle>Upgrade to reveal premium insights</HubChecklistTitle>
+                            <HubChecklistHint>
+                              Sales stats, lead summaries, and team overview appear here once your plan is upgraded.
+                            </HubChecklistHint>
+                          </HubFeatureOverlayCard>
+                        </HubFeatureOverlay>
+                      </HubFeaturePreview>
+                    </>
+                  )}
+                </HubFeatureCard>
+              </VendorCardFill>
+            ) : null}
+            </VendorColumn>
 
             <VendorCard>
-              <VendorSectionTitle>{isFreeAgencyPlan ? "Starter plan" : "Access by role and plan"}</VendorSectionTitle>
-              <List>
-                <ListItem>
-                  <strong>Membership role</strong>
-                  <Muted>{labelize(vendorWorkspace?.membership.role)}</Muted>
-                </ListItem>
-                <ListItem>
-                  <strong>Listing capacity</strong>
-                  <Muted>
-                    {listingUsage} / {listingLimit} listings
-                  </Muted>
-                </ListItem>
-                {!isFreeAgencyPlan ? (
-                  <ListItem>
-                    <strong>Team capacity</strong>
-                    <Muted>
-                      {agentUsage} / {agentLimit} seats
-                    </Muted>
-                  </ListItem>
-                ) : null}
-                <ListItem>
-                  <strong>Public storefront</strong>
-                  <Muted>
-                    {vendorWorkspace?.vendor.public_storefront_enabled && vendorWorkspace?.vendor.slug
-                      ? `Live at /agency/${vendorWorkspace.vendor.slug}`
-                      : "Not published yet"}
-                  </Muted>
-                </ListItem>
-              </List>
+              <VendorSectionTitle>{isFreeAgencyPlan ? "Workspace actions" : "Access by role and plan"}</VendorSectionTitle>
 
-              {!isFreeAgencyPlan ? (
-                <VendorActionGrid>
+              {isFreeAgencyPlan ? (
+                <HubNavList>
+                  <HubNavItem href="/request-sale">
+                    <HubNavIcon>
+                      <Plus />
+                    </HubNavIcon>
+                    <HubNavBody>
+                      <HubNavTitle>Manage listings</HubNavTitle>
+                      <HubNavCopy>Create or review your agency property submissions.</HubNavCopy>
+                    </HubNavBody>
+                    <ArrowUpRight size={18} />
+                  </HubNavItem>
+
+                  <HubNavItem href={freeSettingsHref}>
+                    <HubNavIcon>
+                      <Settings />
+                    </HubNavIcon>
+                    <HubNavBody>
+                      <HubNavTitle>Organization settings</HubNavTitle>
+                      <HubNavCopy>Update branding, contact details, and storefront configuration.</HubNavCopy>
+                    </HubNavBody>
+                    <ArrowUpRight size={18} />
+                  </HubNavItem>
+
+                  <HubNavItem href="/vendor-setup">
+                    <HubNavIcon>
+                      <Sparkles />
+                    </HubNavIcon>
+                    <HubNavBody>
+                      <HubNavTitle>Upgrade plan</HubNavTitle>
+                      <HubNavCopy>
+                        {suggestedUpgrade
+                          ? `${suggestedUpgrade.name} unlocks ${suggestedUpgrade.listingLimit} listings and ${suggestedUpgrade.agentLimit} seats.`
+                          : "Explore higher plans for more capacity."}
+                      </HubNavCopy>
+                    </HubNavBody>
+                    <ArrowUpRight size={18} />
+                  </HubNavItem>
+
+                  <HubNavItem href="/vendor-setup" $disabled>
+                    <HubNavIcon>
+                      <Users2 />
+                    </HubNavIcon>
+                    <HubNavBody>
+                      <HubNavTitle>Add members</HubNavTitle>
+                      <HubNavCopy>Available after upgrading from the starter plan.</HubNavCopy>
+                    </HubNavBody>
+                    <ArrowUpRight size={18} />
+                  </HubNavItem>
+
+                  {vendorWorkspace?.vendor.public_storefront_enabled && vendorWorkspace?.vendor.slug ? (
+                    <HubNavItem href={`/agency/${vendorWorkspace.vendor.slug}`}>
+                      <HubNavIcon>
+                        <Globe2 />
+                      </HubNavIcon>
+                      <HubNavBody>
+                        <HubNavTitle>View public profile</HubNavTitle>
+                        <HubNavCopy>Open the live storefront buyers see for this agency.</HubNavCopy>
+                      </HubNavBody>
+                      <ArrowUpRight size={18} />
+                    </HubNavItem>
+                  ) : null}
+
+                  <HubNavButton
+                    type="button"
+                    onClick={async () => {
+                      await logout();
+                      router.push("/");
+                    }}
+                  >
+                    <HubNavIcon>
+                      <X />
+                    </HubNavIcon>
+                    <HubNavBody>
+                      <HubNavTitle>Sign out</HubNavTitle>
+                      <HubNavCopy>Exit this organization session on this device.</HubNavCopy>
+                    </HubNavBody>
+                    <ArrowUpRight size={18} />
+                  </HubNavButton>
+                </HubNavList>
+              ) : (
+                <>
+                  <List>
+                    <ListItem>
+                      <strong>Membership role</strong>
+                      <Muted>{labelize(vendorWorkspace?.membership.role)}</Muted>
+                    </ListItem>
+                    <ListItem>
+                      <strong>Listing capacity</strong>
+                      <Muted>
+                        {listingUsage} / {listingLimit} listings
+                      </Muted>
+                    </ListItem>
+                    <ListItem>
+                      <strong>Team capacity</strong>
+                      <Muted>
+                        {agentUsage} / {agentLimit} seats
+                      </Muted>
+                    </ListItem>
+                    <ListItem>
+                      <strong>Public storefront</strong>
+                      <Muted>
+                        {vendorWorkspace?.vendor.public_storefront_enabled && vendorWorkspace?.vendor.slug
+                          ? `Live at /agency/${vendorWorkspace.vendor.slug}`
+                          : "Not published yet"}
+                      </Muted>
+                    </ListItem>
+                  </List>
+                  <VendorActionGrid>
                   {(vendorWorkspace?.membership.role === "owner" || vendorWorkspace?.membership.role === "admin") && (
-                  <VendorAction href="/vendor/team">
-                    <VendorActionTitle>Team</VendorActionTitle>
-                    <VendorActionCopy>
-                      Manage agents, assignments, and operational seats in this workspace.
-                    </VendorActionCopy>
-                  </VendorAction>
+                    <VendorAction href="/vendor/team">
+                      <VendorActionTitle>Team</VendorActionTitle>
+                      <VendorActionCopy>
+                        Manage agents, assignments, and operational seats in this workspace.
+                      </VendorActionCopy>
+                    </VendorAction>
                   )}
 
                   {(vendorWorkspace?.membership.role === "owner" || vendorWorkspace?.membership.role === "admin") && (
-                  <VendorAction href="/vendor/verification">
-                    <VendorActionTitle>Verification</VendorActionTitle>
-                    <VendorActionCopy>
-                      Submit or review manual agency verification requirements for this workspace.
-                    </VendorActionCopy>
-                  </VendorAction>
+                    <VendorAction href="/vendor/verification">
+                      <VendorActionTitle>Verification</VendorActionTitle>
+                      <VendorActionCopy>
+                        Submit or review manual agency verification requirements for this workspace.
+                      </VendorActionCopy>
+                    </VendorAction>
                   )}
 
                   {vendorWorkspace?.vendor.public_storefront_enabled && vendorWorkspace?.vendor.slug ? (
@@ -1954,8 +2453,9 @@ export default function AccountPage() {
                       Add a new property submission within your current plan limits.
                     </VendorActionCopy>
                   </VendorAction>
-                </VendorActionGrid>
-              ) : null}
+                  </VendorActionGrid>
+                </>
+              )}
             </VendorCard>
           </VendorGrid>
         )}

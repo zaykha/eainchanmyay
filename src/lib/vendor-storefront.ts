@@ -5,6 +5,11 @@ export type VendorStorefrontFields = {
   contact_phone: string | null;
   contact_email: string | null;
   logo_url: string | null;
+  facebook_url: string | null;
+  telegram_url: string | null;
+  viber_phone: string | null;
+  tiktok_url: string | null;
+  website_url: string | null;
   cover_image_url: string | null;
   strengths: string[];
   public_storefront_enabled: boolean;
@@ -53,6 +58,11 @@ export function normalizeStorefrontPayload(payload: Record<string, unknown>) {
     contact_phone: payload.contact_phone === undefined ? undefined : toOptionalString(payload.contact_phone),
     contact_email: payload.contact_email === undefined ? undefined : toOptionalString(payload.contact_email),
     logo_url: payload.logo_url === undefined ? undefined : toOptionalString(payload.logo_url),
+    facebook_url: payload.facebook_url === undefined ? undefined : toOptionalString(payload.facebook_url),
+    telegram_url: payload.telegram_url === undefined ? undefined : toOptionalString(payload.telegram_url),
+    viber_phone: payload.viber_phone === undefined ? undefined : toOptionalString(payload.viber_phone),
+    tiktok_url: payload.tiktok_url === undefined ? undefined : toOptionalString(payload.tiktok_url),
+    website_url: payload.website_url === undefined ? undefined : toOptionalString(payload.website_url),
     cover_image_url: payload.cover_image_url === undefined ? undefined : toOptionalString(payload.cover_image_url),
     strengths: payload.strengths === undefined ? undefined : normalizeStorefrontStrengths(payload.strengths),
     public_storefront_enabled:

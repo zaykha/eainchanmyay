@@ -187,6 +187,11 @@ type WorkspaceSummary = {
     contact_phone: string | null;
     contact_email: string | null;
     logo_url: string | null;
+    facebook_url: string | null;
+    telegram_url: string | null;
+    viber_phone: string | null;
+    tiktok_url: string | null;
+    website_url: string | null;
     cover_image_url: string | null;
     strengths: string[];
     public_storefront_enabled: boolean;
@@ -225,6 +230,11 @@ type StorefrontFormState = {
   contact_phone: string;
   contact_email: string;
   logo_url: string;
+  facebook_url: string;
+  telegram_url: string;
+  viber_phone: string;
+  tiktok_url: string;
+  website_url: string;
   cover_image_url: string;
   strengths: string;
   public_storefront_enabled: boolean;
@@ -238,6 +248,11 @@ function createStorefrontState(vendor: WorkspaceSummary["vendor"]): StorefrontFo
     contact_phone: vendor.contact_phone || "",
     contact_email: vendor.contact_email || "",
     logo_url: vendor.logo_url || "",
+    facebook_url: vendor.facebook_url || "",
+    telegram_url: vendor.telegram_url || "",
+    viber_phone: vendor.viber_phone || "",
+    tiktok_url: vendor.tiktok_url || "",
+    website_url: vendor.website_url || "",
     cover_image_url: vendor.cover_image_url || "",
     strengths: vendor.strengths.join("\n"),
     public_storefront_enabled: vendor.public_storefront_enabled,
@@ -304,6 +319,7 @@ export function VendorSettingsView() {
   }
 
   const canEditStorefront = workspace?.membership.role === "owner" || workspace?.membership.role === "admin";
+  const identityLocked = workspace?.vendor.verified_status === "approved";
   const storefrontUrl =
     workspace?.vendor.slug && storefront?.public_storefront_enabled !== false ? `/agency/${workspace.vendor.slug}` : null;
 
@@ -410,6 +426,9 @@ export function VendorSettingsView() {
           <Copy>
             This is the public agency profile page buyers can use to understand your brand, browse your listings, and contact the team.
           </Copy>
+          {identityLocked ? (
+            <Notice>Name and slug are locked after verification approval. Contact details, branding, and channels can still be updated.</Notice>
+          ) : null}
           {saveMessage ? <Success>{saveMessage}</Success> : null}
           <FormGrid>
             <FormField>
@@ -418,7 +437,7 @@ export function VendorSettingsView() {
                 value={storefront.slug}
                 onChange={(event) => handleStorefrontChange("slug", slugifyVendorSlug(event.target.value))}
                 placeholder="eain-chan-myay"
-                disabled={!canEditStorefront || saving}
+                disabled={!canEditStorefront || saving || identityLocked}
               />
             </FormField>
             <FormField>
@@ -454,6 +473,51 @@ export function VendorSettingsView() {
                 value={storefront.logo_url}
                 onChange={(event) => handleStorefrontChange("logo_url", event.target.value)}
                 placeholder="https://..."
+                disabled={!canEditStorefront || saving}
+              />
+            </FormField>
+            <FormField>
+              <Label>Facebook URL</Label>
+              <Input
+                value={storefront.facebook_url}
+                onChange={(event) => handleStorefrontChange("facebook_url", event.target.value)}
+                placeholder="https://facebook.com/youragency"
+                disabled={!canEditStorefront || saving}
+              />
+            </FormField>
+            <FormField>
+              <Label>Telegram URL</Label>
+              <Input
+                value={storefront.telegram_url}
+                onChange={(event) => handleStorefrontChange("telegram_url", event.target.value)}
+                placeholder="https://t.me/youragency"
+                disabled={!canEditStorefront || saving}
+              />
+            </FormField>
+            <FormField>
+              <Label>Viber phone</Label>
+              <Input
+                value={storefront.viber_phone}
+                onChange={(event) => handleStorefrontChange("viber_phone", event.target.value)}
+                placeholder="+95..."
+                disabled={!canEditStorefront || saving}
+              />
+            </FormField>
+            <FormField>
+              <Label>TikTok URL</Label>
+              <Input
+                value={storefront.tiktok_url}
+                onChange={(event) => handleStorefrontChange("tiktok_url", event.target.value)}
+                placeholder="https://www.tiktok.com/@youragency"
+                disabled={!canEditStorefront || saving}
+              />
+            </FormField>
+            <FormField>
+              <Label>Website URL</Label>
+              <Input
+                value={storefront.website_url}
+                onChange={(event) => handleStorefrontChange("website_url", event.target.value)}
+                placeholder="https://youragency.com"
                 disabled={!canEditStorefront || saving}
               />
             </FormField>

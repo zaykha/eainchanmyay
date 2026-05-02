@@ -34,6 +34,11 @@ export type VendorRequestContext = {
     contact_phone: string | null;
     contact_email: string | null;
     logo_url: string | null;
+    facebook_url: string | null;
+    telegram_url: string | null;
+    viber_phone: string | null;
+    tiktok_url: string | null;
+    website_url: string | null;
     cover_image_url: string | null;
     strengths: string[];
     public_storefront_enabled: boolean;
@@ -123,7 +128,7 @@ export async function getVendorRequestContext(
   const { data: membershipRows, error: membershipError } = await supabase
     .from("vendor_members")
     .select(
-      "role,status,vendor:vendors(id,name,vendor_type,plan,billing_status,billing_provider,slug,tagline,description,contact_phone,contact_email,logo_url,cover_image_url,strengths,public_storefront_enabled,verified_status:verification_status),created_at"
+      "role,status,vendor:vendors(id,name,vendor_type,plan,billing_status,billing_provider,slug,tagline,description,contact_phone,contact_email,logo_url,facebook_url,telegram_url,viber_phone,tiktok_url,website_url,cover_image_url,strengths,public_storefront_enabled,verified_status:verification_status),created_at"
     )
     .eq("user_id", user.id)
     .eq("status", "active")
@@ -155,6 +160,11 @@ export async function getVendorRequestContext(
               contact_phone?: string | null;
               contact_email?: string | null;
               logo_url?: string | null;
+              facebook_url?: string | null;
+              telegram_url?: string | null;
+              viber_phone?: string | null;
+              tiktok_url?: string | null;
+              website_url?: string | null;
               cover_image_url?: string | null;
               strengths?: unknown;
               public_storefront_enabled?: boolean | null;
@@ -173,6 +183,11 @@ export async function getVendorRequestContext(
               contact_phone?: string | null;
               contact_email?: string | null;
               logo_url?: string | null;
+              facebook_url?: string | null;
+              telegram_url?: string | null;
+              viber_phone?: string | null;
+              tiktok_url?: string | null;
+              website_url?: string | null;
               cover_image_url?: string | null;
               strengths?: unknown;
               public_storefront_enabled?: boolean | null;
@@ -246,6 +261,11 @@ export async function getVendorRequestContext(
         contact_phone: (vendorRaw.contact_phone as string | null) ?? null,
         contact_email: (vendorRaw.contact_email as string | null) ?? null,
         logo_url: (vendorRaw.logo_url as string | null) ?? null,
+        facebook_url: (vendorRaw.facebook_url as string | null) ?? null,
+        telegram_url: (vendorRaw.telegram_url as string | null) ?? null,
+        viber_phone: (vendorRaw.viber_phone as string | null) ?? null,
+        tiktok_url: (vendorRaw.tiktok_url as string | null) ?? null,
+        website_url: (vendorRaw.website_url as string | null) ?? null,
         cover_image_url: (vendorRaw.cover_image_url as string | null) ?? null,
         strengths: Array.isArray(vendorRaw.strengths)
           ? vendorRaw.strengths.map((item) => String(item)).filter(Boolean)

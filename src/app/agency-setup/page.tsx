@@ -325,6 +325,7 @@ type WorkspacePayload = {
     contact_phone: string | null;
     contact_email: string | null;
     logo_url: string | null;
+    verified_status: string | null;
   };
 };
 
@@ -407,6 +408,7 @@ export default function AgencySetupPage() {
   );
 
   const nextHref = workspace?.vendor.plan === "free" ? "/hub" : "/vendor";
+  const identityLocked = workspace?.vendor.verified_status === "approved";
 
   const handleLogoPick = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -492,12 +494,19 @@ export default function AgencySetupPage() {
 
         <Grid>
           <Card>
+            {identityLocked ? (
+              <Notice>Verified agencies cannot change their public name anymore. Logo, contact, and bio can still be updated.</Notice>
+            ) : null}
             <FieldGrid>
               <Field>
                 <Label>Agency name</Label>
                 <InputWrap>
                   <Building2 size={18} />
-                  <Input value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} />
+                  <Input
+                    value={form.name}
+                    onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
+                    disabled={identityLocked}
+                  />
                 </InputWrap>
               </Field>
 
