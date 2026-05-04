@@ -1,38 +1,53 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 import styled from "styled-components";
+import { usePathname, useRouter } from "next/navigation";
+import { ImageIcon, Upload } from "lucide-react";
 import { useAppState } from "@/app/living-site/lib/app-state";
 import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
+import { MarketplaceHeader } from "@/app/living-site/components/MarketplaceHeader";
 import { slugifyVendorSlug } from "@/lib/vendor-storefront";
+
+const Shell = styled.div`
+  min-height: 100vh;
+`;
+
+const PageShell = styled.div`
+  max-width: 1140px;
+  margin: 0 auto;
+  padding: 18px 16px 72px;
+  display: grid;
+  gap: 18px;
+`;
 
 const Page = styled.div`
   display: grid;
   gap: 18px;
 `;
 
+const HeroCard = styled.div`
+  border-radius: 28px;
+  border: 1px solid var(--color-outline);
+  background:
+    radial-gradient(circle at top right, rgba(239, 35, 64, 0.08), transparent 34%),
+    linear-gradient(180deg, color-mix(in srgb, var(--color-surface) 90%, white) 0%, var(--color-surface) 100%);
+  padding: 24px;
+  display: grid;
+  gap: 12px;
+`;
+
 const Title = styled.h1`
   margin: 0;
   font-size: clamp(1.8rem, 3vw, 2.4rem);
-  color: #f8fafc;
+  color: var(--color-text);
 `;
 
 const Copy = styled.p`
   margin: 0;
-  color: #98a2b3;
+  color: var(--color-muted);
   line-height: 1.6;
   max-width: 760px;
-`;
-
-const Grid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-
-  @media (max-width: 980px) {
-    grid-template-columns: 1fr;
-  }
 `;
 
 const FormGrid = styled.div`
@@ -47,20 +62,119 @@ const FormGrid = styled.div`
 
 const Card = styled.div`
   border-radius: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: #151b29;
+  border: 1px solid var(--color-outline);
+  background: var(--color-surface);
   padding: 20px;
   display: grid;
   gap: 12px;
 `;
 
+const SectionBlock = styled.div`
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid var(--color-outline);
+  background: color-mix(in srgb, var(--color-surface-2) 58%, white);
+`;
+
+const SectionHeader = styled.div`
+  display: grid;
+  gap: 4px;
+`;
+
+const SectionTitle = styled.h2`
+  margin: 0;
+  font-size: 1.02rem;
+  color: var(--color-text);
+`;
+
+const SectionCopy = styled.p`
+  margin: 0;
+  color: var(--color-muted);
+  line-height: 1.5;
+  font-size: 0.92rem;
+`;
+
+const HiddenFileInput = styled.input`
+  display: none;
+`;
+
+const BrandAssetGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+
+  @media (max-width: 820px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const AssetCard = styled.div`
+  display: grid;
+  gap: 10px;
+`;
+
+const AssetUploadButton = styled.button<{ $wide?: boolean }>`
+  width: 100%;
+  border-radius: 18px;
+  border: 1px solid var(--color-outline);
+  background: var(--color-surface);
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+  cursor: pointer;
+  text-align: left;
+
+  &:hover {
+    border-color: color-mix(in srgb, var(--color-primary) 24%, var(--color-outline));
+    box-shadow: var(--shadow-soft);
+  }
+`;
+
+const AssetThumb = styled.div<{ $image?: string; $wide?: boolean }>`
+  width: 100%;
+  aspect-ratio: ${(props) => (props.$wide ? "16 / 6" : "1 / 0.78")};
+  border-radius: 16px;
+  border: 1px solid var(--color-outline);
+  background:
+    ${(props) => (props.$image ? `url(${props.$image}) center/cover no-repeat` : "var(--color-surface-2)")};
+  display: grid;
+  place-items: center;
+  color: var(--color-muted);
+  overflow: hidden;
+`;
+
+const AssetUploadRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+`;
+
+const AssetUploadText = styled.div`
+  display: grid;
+  gap: 4px;
+`;
+
+const AssetUploadTitle = styled.div`
+  color: var(--color-text);
+  font-weight: 700;
+`;
+
+const AssetUploadHint = styled.div`
+  color: var(--color-muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+`;
+
 const Label = styled.div`
-  color: #98a2b3;
+  color: var(--color-muted);
   font-size: 0.9rem;
 `;
 
 const Value = styled.div`
-  color: #f8fafc;
+  color: var(--color-text);
   font-weight: 700;
   line-height: 1.45;
 `;
@@ -73,29 +187,29 @@ const FormField = styled.label`
 const Input = styled.input`
   min-height: 46px;
   border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: #0f1623;
-  color: #f8fafc;
+  border: 1px solid var(--color-outline);
+  background: var(--color-surface);
+  color: var(--color-text);
   padding: 0 14px;
   outline: none;
 
   &:focus {
-    border-color: rgba(255, 255, 255, 0.22);
+    border-color: color-mix(in srgb, var(--color-primary) 30%, var(--color-outline));
   }
 `;
 
 const Textarea = styled.textarea`
   min-height: 132px;
   border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: #0f1623;
-  color: #f8fafc;
+  border: 1px solid var(--color-outline);
+  background: var(--color-surface);
+  color: var(--color-text);
   padding: 12px 14px;
   outline: none;
   resize: vertical;
 
   &:focus {
-    border-color: rgba(255, 255, 255, 0.22);
+    border-color: color-mix(in srgb, var(--color-primary) 30%, var(--color-outline));
   }
 `;
 
@@ -103,7 +217,7 @@ const Toggle = styled.label`
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  color: #f8fafc;
+  color: var(--color-text);
   font-weight: 600;
 
   input {
@@ -134,44 +248,21 @@ const Button = styled.button`
   }
 `;
 
-const SecondaryButton = styled(Link)`
-  min-height: 44px;
-  padding: 0 16px;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #f8fafc;
-  font-weight: 700;
-`;
-
 const Success = styled.div`
   border-radius: 18px;
   border: 1px solid rgba(111, 232, 192, 0.22);
   background: rgba(111, 232, 192, 0.08);
   padding: 14px 16px;
-  color: #d4ffe8;
+  color: #0f766e;
   line-height: 1.6;
-`;
-
-const Action = styled(Link)`
-  width: fit-content;
-  min-height: 44px;
-  padding: 0 16px;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  color: white;
-  background: linear-gradient(135deg, #ff3d5d 0%, #e91b42 100%);
-  font-weight: 700;
 `;
 
 const Notice = styled.div<{ $danger?: boolean }>`
   border-radius: 20px;
-  border: 1px solid ${(props) => (props.$danger ? "rgba(255, 148, 148, 0.22)" : "rgba(255, 210, 92, 0.22)")};
-  background: ${(props) => (props.$danger ? "rgba(255, 148, 148, 0.08)" : "rgba(255, 210, 92, 0.08)")};
+  border: 1px solid ${(props) => (props.$danger ? "rgba(255, 148, 148, 0.22)" : "rgba(255, 210, 92, 0.32)")};
+  background: ${(props) => (props.$danger ? "rgba(255, 148, 148, 0.08)" : "rgba(255, 210, 92, 0.1)")};
   padding: 16px 18px;
-  color: ${(props) => (props.$danger ? "#ffd9df" : "#f2dfab")};
+  color: ${(props) => (props.$danger ? "#b42318" : "#9a6700")};
   line-height: 1.6;
 `;
 
@@ -259,15 +350,9 @@ function createStorefrontState(vendor: WorkspaceSummary["vendor"]): StorefrontFo
   };
 }
 
-function labelize(value: string | null | undefined) {
-  if (!value) return "Unknown";
-  return value
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
 export function VendorSettingsView() {
+  const pathname = usePathname();
+  const router = useRouter();
   const { authToken } = useAppState();
   const [workspace, setWorkspace] = useState<WorkspaceSummary | null>(null);
   const [storefront, setStorefront] = useState<StorefrontFormState | null>(null);
@@ -275,6 +360,10 @@ export function VendorSettingsView() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement | null>(null);
+  const coverInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (!authToken) return;
@@ -314,17 +403,70 @@ export function VendorSettingsView() {
     };
   }, [authToken]);
 
+  const isHubSettings = pathname === "/hub/settings";
+
   if (loading) {
-    return <LoadingOverlay message="Loading settings..." />;
+    return isHubSettings ? (
+      <Shell>
+        <MarketplaceHeader />
+        <PageShell>
+          <LoadingOverlay message="Loading settings..." />
+        </PageShell>
+      </Shell>
+    ) : (
+      <LoadingOverlay message="Loading settings..." />
+    );
+  }
+
+  if (saving) {
+    return isHubSettings ? (
+      <Shell>
+        <MarketplaceHeader />
+        <PageShell>
+          <LoadingOverlay message="Saving storefront..." />
+        </PageShell>
+      </Shell>
+    ) : (
+      <LoadingOverlay message="Saving storefront..." />
+    );
   }
 
   const canEditStorefront = workspace?.membership.role === "owner" || workspace?.membership.role === "admin";
   const identityLocked = workspace?.vendor.verified_status === "approved";
-  const storefrontUrl =
-    workspace?.vendor.slug && storefront?.public_storefront_enabled !== false ? `/agency/${workspace.vendor.slug}` : null;
-
   const handleStorefrontChange = <K extends keyof StorefrontFormState>(key: K, value: StorefrontFormState[K]) => {
     setStorefront((current) => (current ? { ...current, [key]: value } : current));
+  };
+
+  const handleBrandUpload = async (kind: "logo" | "cover", file: File | null) => {
+    if (!authToken || !file) return;
+
+    const setUploading = kind === "logo" ? setUploadingLogo : setUploadingCover;
+    const field = kind === "logo" ? "logo_url" : "cover_image_url";
+    const endpoint = kind === "logo" ? "/api/vendor/logo-upload" : "/api/vendor/cover-upload";
+
+    setUploading(true);
+    setError(null);
+    setSaveMessage(null);
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+        body,
+      });
+      const payload = (await response.json().catch(() => null)) as { publicUrl?: string; error?: string } | null;
+      if (!response.ok || !payload?.publicUrl) {
+        throw new Error(payload?.error || `Unable to upload ${kind}.`);
+      }
+      handleStorefrontChange(field, payload.publicUrl);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : `Unable to upload ${kind}.`);
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleSaveStorefront = async () => {
@@ -353,6 +495,10 @@ export function VendorSettingsView() {
 
       setWorkspace(payload);
       setStorefront(createStorefrontState(payload.vendor));
+      if (isHubSettings) {
+        router.replace("/hub");
+        return;
+      }
       setSaveMessage("Agency storefront saved.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to save storefront settings.");
@@ -361,204 +507,228 @@ export function VendorSettingsView() {
     }
   };
 
-  return (
+  const content = (
     <Page>
-      <Title>Settings</Title>
-      <Copy>
-        Workspace settings now include the public agency storefront. Owners and admins can publish branding, contact points, and agency strengths for buyers to see.
-      </Copy>
+      <HeroCard>
+        <Title>Organization settings</Title>
+        <Copy>
+          Manage the public agency page buyers see first. Keep your identity, contact channels, and storefront details clean and consistent here.
+        </Copy>
+      </HeroCard>
 
       {error ? <Copy>{error}</Copy> : null}
 
-      {workspace?.limits && (workspace.limits.listingNearLimit || workspace.limits.agentNearLimit) ? (
-        <Notice $danger={workspace.limits.listingOverLimit || workspace.limits.agentOverLimit}>
-          {workspace.limits.listingOverLimit || workspace.limits.agentOverLimit
-            ? "This workspace is already above the current plan soft limit. Billing enforcement is still pending, but the next phase should convert this into an upgrade path."
-            : `This workspace is close to its current plan limit. ${
-                workspace.limits.suggestedUpgrade
-                  ? `Recommended next step: ${workspace.limits.suggestedUpgrade.name} (${workspace.limits.suggestedUpgrade.priceLabel}).`
-                  : "No higher upgrade plan is configured."
-              }`}
-        </Notice>
-      ) : null}
-
-      {workspace ? (
-        <Grid>
-          <Card>
-            <Label>Workspace name</Label>
-            <Value>{workspace.vendor.name}</Value>
-            <Label>Vendor type</Label>
-            <Value>{labelize(workspace.vendor.vendor_type)}</Value>
-            <Label>Current plan</Label>
-            <Value>{workspace.limits?.currentPlan?.name || workspace.vendor.plan || "Not assigned yet"}</Value>
-            <Label>Listing usage</Label>
-            <Value>
-              {workspace.limits?.listingCount ?? 0} / {workspace.limits?.listingLimit ?? 0}
-            </Value>
-            <Label>Seat usage</Label>
-            <Value>
-              {workspace.limits?.agentCount ?? 0} / {workspace.limits?.agentLimit ?? 0}
-            </Value>
-          </Card>
-
-          <Card>
-            <Label>Signed-in member</Label>
-            <Value>{workspace.profile.full_name || workspace.profile.email || "Vendor user"}</Value>
-            <Label>Membership role</Label>
-            <Value>{labelize(workspace.membership.role)}</Value>
-            <Label>Email</Label>
-            <Value>{workspace.profile.email || "No email"}</Value>
-            <Label>Upgrade recommendation</Label>
-            <Value>
-              {workspace.limits?.suggestedUpgrade
-                ? `${workspace.limits.suggestedUpgrade.name} (${workspace.limits.suggestedUpgrade.priceLabel})`
-                : "Top plan reached"}
-            </Value>
-            <Label>Storefront status</Label>
-            <Value>{workspace.vendor.public_storefront_enabled ? "Public" : "Hidden"}</Value>
-          </Card>
-        </Grid>
-      ) : null}
-
       {workspace && storefront ? (
         <Card>
-          <Label>Agency storefront</Label>
-          <Copy>
-            This is the public agency profile page buyers can use to understand your brand, browse your listings, and contact the team.
-          </Copy>
+          <SectionHeader>
+            <SectionTitle>Agency storefront</SectionTitle>
+            <SectionCopy>
+              This is the public agency profile page buyers use to understand your brand, browse listings, and contact the team.
+            </SectionCopy>
+          </SectionHeader>
           {identityLocked ? (
             <Notice>Name and slug are locked after verification approval. Contact details, branding, and channels can still be updated.</Notice>
           ) : null}
           {saveMessage ? <Success>{saveMessage}</Success> : null}
-          <FormGrid>
-            <FormField>
-              <Label>Agency slug</Label>
-              <Input
-                value={storefront.slug}
-                onChange={(event) => handleStorefrontChange("slug", slugifyVendorSlug(event.target.value))}
-                placeholder="eain-chan-myay"
-                disabled={!canEditStorefront || saving || identityLocked}
-              />
-            </FormField>
-            <FormField>
-              <Label>Contact phone</Label>
-              <Input
-                value={storefront.contact_phone}
-                onChange={(event) => handleStorefrontChange("contact_phone", event.target.value)}
-                placeholder="+95..."
-                disabled={!canEditStorefront || saving}
-              />
-            </FormField>
-            <FormField>
-              <Label>Tagline</Label>
-              <Input
-                value={storefront.tagline}
-                onChange={(event) => handleStorefrontChange("tagline", event.target.value)}
-                placeholder="Trusted Yangon residential specialists"
-                disabled={!canEditStorefront || saving}
-              />
-            </FormField>
-            <FormField>
-              <Label>Contact email</Label>
-              <Input
-                value={storefront.contact_email}
-                onChange={(event) => handleStorefrontChange("contact_email", event.target.value)}
-                placeholder="agency@example.com"
-                disabled={!canEditStorefront || saving}
-              />
-            </FormField>
-            <FormField>
-              <Label>Logo image URL</Label>
-              <Input
-                value={storefront.logo_url}
-                onChange={(event) => handleStorefrontChange("logo_url", event.target.value)}
-                placeholder="https://..."
-                disabled={!canEditStorefront || saving}
-              />
-            </FormField>
-            <FormField>
-              <Label>Facebook URL</Label>
-              <Input
-                value={storefront.facebook_url}
-                onChange={(event) => handleStorefrontChange("facebook_url", event.target.value)}
-                placeholder="https://facebook.com/youragency"
-                disabled={!canEditStorefront || saving}
-              />
-            </FormField>
-            <FormField>
-              <Label>Telegram URL</Label>
-              <Input
-                value={storefront.telegram_url}
-                onChange={(event) => handleStorefrontChange("telegram_url", event.target.value)}
-                placeholder="https://t.me/youragency"
-                disabled={!canEditStorefront || saving}
-              />
-            </FormField>
-            <FormField>
-              <Label>Viber phone</Label>
-              <Input
-                value={storefront.viber_phone}
-                onChange={(event) => handleStorefrontChange("viber_phone", event.target.value)}
-                placeholder="+95..."
-                disabled={!canEditStorefront || saving}
-              />
-            </FormField>
-            <FormField>
-              <Label>TikTok URL</Label>
-              <Input
-                value={storefront.tiktok_url}
-                onChange={(event) => handleStorefrontChange("tiktok_url", event.target.value)}
-                placeholder="https://www.tiktok.com/@youragency"
-                disabled={!canEditStorefront || saving}
-              />
-            </FormField>
-            <FormField>
-              <Label>Website URL</Label>
-              <Input
-                value={storefront.website_url}
-                onChange={(event) => handleStorefrontChange("website_url", event.target.value)}
-                placeholder="https://youragency.com"
-                disabled={!canEditStorefront || saving}
-              />
-            </FormField>
-            <FormField>
-              <Label>Cover image URL</Label>
-              <Input
-                value={storefront.cover_image_url}
-                onChange={(event) => handleStorefrontChange("cover_image_url", event.target.value)}
-                placeholder="https://..."
-                disabled={!canEditStorefront || saving}
-              />
-            </FormField>
-            <FormField style={{ gridColumn: "1 / -1" }}>
-              <Label>Agency description</Label>
-              <Textarea
-                value={storefront.description}
-                onChange={(event) => handleStorefrontChange("description", event.target.value)}
-                placeholder="What makes your agency strong, trusted, and useful for buyers."
-                disabled={!canEditStorefront || saving}
-              />
-            </FormField>
-            <FormField style={{ gridColumn: "1 / -1" }}>
-              <Label>Strengths</Label>
-              <Textarea
-                value={storefront.strengths}
-                onChange={(event) => handleStorefrontChange("strengths", event.target.value)}
-                placeholder={"One strength per line\nFast viewing coordination\nStrong condo inventory"}
-                disabled={!canEditStorefront || saving}
-              />
-            </FormField>
-          </FormGrid>
-
-          <Toggle>
-            <input
-              type="checkbox"
-              checked={storefront.public_storefront_enabled}
-              onChange={(event) => handleStorefrontChange("public_storefront_enabled", event.target.checked)}
-              disabled={!canEditStorefront || saving}
+          <SectionBlock>
+            <SectionHeader>
+              <SectionTitle>Identity</SectionTitle>
+              <SectionCopy>These are the first storefront details buyers will scan.</SectionCopy>
+            </SectionHeader>
+            <HiddenFileInput
+              ref={logoInputRef}
+              type="file"
+              accept="image/*"
+              onChange={(event) => {
+                const file = event.target.files?.[0] ?? null;
+                void handleBrandUpload("logo", file);
+                event.target.value = "";
+              }}
             />
-            Public storefront enabled
-          </Toggle>
+            <HiddenFileInput
+              ref={coverInputRef}
+              type="file"
+              accept="image/*"
+              onChange={(event) => {
+                const file = event.target.files?.[0] ?? null;
+                void handleBrandUpload("cover", file);
+                event.target.value = "";
+              }}
+            />
+            <BrandAssetGrid>
+              <AssetCard>
+                <Label>Agency logo</Label>
+                <AssetUploadButton
+                  type="button"
+                  onClick={() => logoInputRef.current?.click()}
+                  disabled={!canEditStorefront || saving || uploadingLogo}
+                >
+                  <AssetThumb $image={storefront.logo_url || undefined}>
+                    {!storefront.logo_url ? <ImageIcon size={22} /> : null}
+                  </AssetThumb>
+                  <AssetUploadRow>
+                    <AssetUploadText>
+                      <AssetUploadTitle>{uploadingLogo ? "Uploading logo..." : "Upload logo image"}</AssetUploadTitle>
+                      <AssetUploadHint>
+                        {storefront.logo_url ? "Click image to replace." : "PNG, JPG, or WebP"}
+                      </AssetUploadHint>
+                    </AssetUploadText>
+                    <Upload size={18} />
+                  </AssetUploadRow>
+                </AssetUploadButton>
+              </AssetCard>
+
+              <AssetCard>
+                <Label>Cover image</Label>
+                <AssetUploadButton
+                  type="button"
+                  $wide
+                  onClick={() => coverInputRef.current?.click()}
+                  disabled={!canEditStorefront || saving || uploadingCover}
+                >
+                  <AssetThumb $image={storefront.cover_image_url || undefined} $wide>
+                    {!storefront.cover_image_url ? <ImageIcon size={22} /> : null}
+                  </AssetThumb>
+                  <AssetUploadRow>
+                    <AssetUploadText>
+                      <AssetUploadTitle>{uploadingCover ? "Uploading cover..." : "Upload cover image"}</AssetUploadTitle>
+                      <AssetUploadHint>
+                        {storefront.cover_image_url ? "Click image to replace." : "Wide image recommended"}
+                      </AssetUploadHint>
+                    </AssetUploadText>
+                    <Upload size={18} />
+                  </AssetUploadRow>
+                </AssetUploadButton>
+              </AssetCard>
+            </BrandAssetGrid>
+            <FormGrid>
+              <FormField>
+                <Label>Agency slug</Label>
+                <Input
+                  value={storefront.slug}
+                  onChange={(event) => handleStorefrontChange("slug", slugifyVendorSlug(event.target.value))}
+                  placeholder="eain-chan-myay"
+                  disabled={!canEditStorefront || saving || identityLocked}
+                />
+              </FormField>
+              <FormField>
+                <Label>Tagline</Label>
+                <Input
+                  value={storefront.tagline}
+                  onChange={(event) => handleStorefrontChange("tagline", event.target.value)}
+                  placeholder="Trusted Yangon residential specialists"
+                  disabled={!canEditStorefront || saving}
+                />
+              </FormField>
+              <FormField style={{ gridColumn: "1 / -1" }}>
+                <Label>Agency description</Label>
+                <Textarea
+                  value={storefront.description}
+                  onChange={(event) => handleStorefrontChange("description", event.target.value)}
+                  placeholder="What makes your agency strong, trusted, and useful for buyers."
+                  disabled={!canEditStorefront || saving}
+                />
+              </FormField>
+              <FormField style={{ gridColumn: "1 / -1" }}>
+                <Label>Strengths</Label>
+                <Textarea
+                  value={storefront.strengths}
+                  onChange={(event) => handleStorefrontChange("strengths", event.target.value)}
+                  placeholder={"One strength per line\nFast viewing coordination\nStrong condo inventory"}
+                  disabled={!canEditStorefront || saving}
+                />
+              </FormField>
+            </FormGrid>
+          </SectionBlock>
+
+          <SectionBlock>
+            <SectionHeader>
+              <SectionTitle>Contact and channels</SectionTitle>
+              <SectionCopy>Add at least one strong buyer contact path. Facebook and Viber are especially useful for Myanmar users.</SectionCopy>
+            </SectionHeader>
+            <FormGrid>
+              <FormField>
+                <Label>Contact phone</Label>
+                <Input
+                  value={storefront.contact_phone}
+                  onChange={(event) => handleStorefrontChange("contact_phone", event.target.value)}
+                  placeholder="+95..."
+                  disabled={!canEditStorefront || saving}
+                />
+              </FormField>
+              <FormField>
+                <Label>Contact email</Label>
+                <Input
+                  value={storefront.contact_email}
+                  onChange={(event) => handleStorefrontChange("contact_email", event.target.value)}
+                  placeholder="agency@example.com"
+                  disabled={!canEditStorefront || saving}
+                />
+              </FormField>
+              <FormField>
+                <Label>Facebook URL</Label>
+                <Input
+                  value={storefront.facebook_url}
+                  onChange={(event) => handleStorefrontChange("facebook_url", event.target.value)}
+                  placeholder="https://facebook.com/youragency"
+                  disabled={!canEditStorefront || saving}
+                />
+              </FormField>
+              <FormField>
+                <Label>Telegram URL</Label>
+                <Input
+                  value={storefront.telegram_url}
+                  onChange={(event) => handleStorefrontChange("telegram_url", event.target.value)}
+                  placeholder="https://t.me/youragency"
+                  disabled={!canEditStorefront || saving}
+                />
+              </FormField>
+              <FormField>
+                <Label>Viber phone</Label>
+                <Input
+                  value={storefront.viber_phone}
+                  onChange={(event) => handleStorefrontChange("viber_phone", event.target.value)}
+                  placeholder="+95..."
+                  disabled={!canEditStorefront || saving}
+                />
+              </FormField>
+              <FormField>
+                <Label>TikTok URL</Label>
+                <Input
+                  value={storefront.tiktok_url}
+                  onChange={(event) => handleStorefrontChange("tiktok_url", event.target.value)}
+                  placeholder="https://www.tiktok.com/@youragency"
+                  disabled={!canEditStorefront || saving}
+                />
+              </FormField>
+              <FormField style={{ gridColumn: "1 / -1" }}>
+                <Label>Website URL</Label>
+                <Input
+                  value={storefront.website_url}
+                  onChange={(event) => handleStorefrontChange("website_url", event.target.value)}
+                  placeholder="https://youragency.com"
+                  disabled={!canEditStorefront || saving}
+                />
+              </FormField>
+            </FormGrid>
+          </SectionBlock>
+
+          <SectionBlock>
+            <SectionHeader>
+              <SectionTitle>Visibility</SectionTitle>
+              <SectionCopy>Control whether this storefront is publicly visible and jump to your live page when ready.</SectionCopy>
+            </SectionHeader>
+
+            <Toggle>
+              <input
+                type="checkbox"
+                checked={storefront.public_storefront_enabled}
+                onChange={(event) => handleStorefrontChange("public_storefront_enabled", event.target.checked)}
+                disabled={!canEditStorefront || saving}
+              />
+              Public storefront enabled
+            </Toggle>
+          </SectionBlock>
 
           <InlineActions>
             {canEditStorefront ? (
@@ -566,11 +736,20 @@ export function VendorSettingsView() {
                 {saving ? "Saving..." : "Save storefront"}
               </Button>
             ) : null}
-            {storefrontUrl ? <SecondaryButton href={storefrontUrl}>View public profile</SecondaryButton> : null}
-            <Action href="/request-sale">Open listing request flow</Action>
           </InlineActions>
         </Card>
       ) : null}
     </Page>
   );
+
+  if (isHubSettings) {
+    return (
+      <Shell>
+        <MarketplaceHeader />
+        <PageShell>{content}</PageShell>
+      </Shell>
+    );
+  }
+
+  return content;
 }

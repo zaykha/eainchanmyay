@@ -11,13 +11,15 @@ function sanitizeFilename(value: string) {
   return value.replace(/[^a-zA-Z0-9._-]/g, "-");
 }
 
-export async function uploadVendorLogo(input: {
+async function uploadVendorBrandAsset(input: {
   supabase: SupabaseClient;
   vendorId: string;
+  asset: "logo" | "cover";
   file: { filename: string; buffer: Buffer };
 }) {
   const optimizedFilename = getOptimizedImageFilename(input.file.filename);
-  const storagePath = `logos/${input.vendorId}/${sanitizeFilename(optimizedFilename)}`;
+  const assetFolder = input.asset === "cover" ? "covers" : "logos";
+  const storagePath = `${assetFolder}/${input.vendorId}/${sanitizeFilename(optimizedFilename)}`;
   const optimizedBuffer = await optimizeImageBuffer({ buffer: input.file.buffer });
 
   const { error: uploadError } = await input.supabase.storage
@@ -37,4 +39,26 @@ export async function uploadVendorLogo(input: {
     storagePath,
     publicUrl: publicUrlData.publicUrl,
   };
+}
+
+export async function uploadVendorLogo(input: {
+  supabase: SupabaseClient;
+  vendorId: string;
+  file: { filename: string; buffer: Buffer };
+}) {
+  return uploadVendorBrandAsset({
+    ...input,
+    asset: "logo",
+  });
+}
+
+export async function uploadVendorCover(input: {
+  supabase: SupabaseClient;
+  vendorId: string;
+  file: { filename: string; buffer: Buffer };
+}) {
+  return uploadVendorBrandAsset({
+    ...input,
+    asset: "cover",
+  });
 }

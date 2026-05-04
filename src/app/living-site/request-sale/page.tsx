@@ -38,6 +38,7 @@ import {
   updateSalesRequest,
 } from "@/app/living-site/lib/data";
 import { useI18n } from "@/app/living-site/lib/i18n";
+import { getVendorPlan } from "@/lib/vendor-plans";
 import {
   formatPropertyTypeValue,
   isBedBathPropertyType,
@@ -544,6 +545,9 @@ type FormState = {
 };
 
 type WorkspaceLimits = {
+  vendor?: {
+    plan?: string | null;
+  };
   limits?: {
     currentPlan?: {
       name: string;
@@ -844,7 +848,8 @@ function RequestSalePageContent() {
   const vendorReturnPath = isEdit && editId ? `/vendor/sales-requests` : "/vendor";
   const isVendorFlow =
     profileRole === "vendor_user" || profileRole === "staff" || profileRole === "admin" || profileRole === "master_admin";
-  const maxImageCount = isVendorFlow ? 12 : 5;
+  const vendorImageLimit = getVendorPlan(workspaceLimits?.vendor?.plan).imageLimit;
+  const maxImageCount = isVendorFlow ? vendorImageLimit : 5;
   const customerLimitReached = !isVendorFlow && !isEdit && existingRequestCount >= 1;
 
   useEffect(() => {

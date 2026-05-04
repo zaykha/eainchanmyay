@@ -7,6 +7,7 @@ export type VendorPlanDefinition = {
   monthlyPriceMmk: number;
   listingLimit: number;
   agentLimit: number;
+  imageLimit: number;
   listingLimitLabel: string;
   agentLimitLabel: string;
   description: string;
@@ -23,6 +24,7 @@ export const VENDOR_PLANS: VendorPlanDefinition[] = [
     monthlyPriceMmk: 0,
     listingLimit: 5,
     agentLimit: 1,
+    imageLimit: 5,
     listingLimitLabel: "Up to 5 listings",
     agentLimitLabel: "1 agent",
     description: "For onboarding, testing, and early supply generation.",
@@ -37,6 +39,7 @@ export const VENDOR_PLANS: VendorPlanDefinition[] = [
     monthlyPriceMmk: 120000,
     listingLimit: 30,
     agentLimit: 5,
+    imageLimit: 12,
     listingLimitLabel: "Up to 30 listings",
     agentLimitLabel: "Up to 5 agents",
     description: "For agencies that need lead handling and core operations.",
@@ -51,6 +54,7 @@ export const VENDOR_PLANS: VendorPlanDefinition[] = [
     monthlyPriceMmk: 300000,
     listingLimit: 100,
     agentLimit: 15,
+    imageLimit: 12,
     listingLimitLabel: "Up to 100 listings",
     agentLimitLabel: "Up to 15 agents",
     description: "For agencies that need workflow control and CRM.",
@@ -65,6 +69,7 @@ export const VENDOR_PLANS: VendorPlanDefinition[] = [
     monthlyPriceMmk: 500000,
     listingLimit: 300,
     agentLimit: 20,
+    imageLimit: 12,
     listingLimitLabel: "Up to 300 listings",
     agentLimitLabel: "20+ agents",
     description: "For premium agencies that need trust, branding, and scale.",

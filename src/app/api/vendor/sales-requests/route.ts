@@ -4,6 +4,7 @@ import { getVendorPlanUsage } from "@/app/api/vendor/_lib/plan-limits";
 import { deleteRequestImages, uploadRequestImages } from "@/app/api/_lib/request-image-upload";
 import type { PropertyType } from "@/lib/property-types";
 import { moderateListingText } from "@/lib/moderation-rules";
+import { getVendorPlan } from "@/lib/vendor-plans";
 
 export const runtime = "nodejs";
 
@@ -147,8 +148,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "At least 1 property image is required." }, { status: 400 });
   }
 
-  if (imageFiles.length > 12) {
-    return NextResponse.json({ error: "You can upload up to 12 property images." }, { status: 400 });
+  const imageLimit = getVendorPlan(result.context.vendor.plan).imageLimit;
+  if (imageFiles.length > imageLimit) {
+    return NextResponse.json(
+      { error: `You can upload up to ${imageLimit} property image${imageLimit > 1 ? "s" : ""}.` },
+      { status: 400 }
+    );
   }
 
   const payload = {

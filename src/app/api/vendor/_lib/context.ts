@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
@@ -13,7 +13,7 @@ function getBearerToken(request: Request) {
 }
 
 export type VendorRequestContext = {
-  supabase: ReturnType<typeof createClient>;
+  supabase: SupabaseClient;
   user: { id: string; email?: string | null };
   profile: {
     id: string;
