@@ -15,6 +15,7 @@ import {
   Hotel,
   MapPin,
   ParkingSquare,
+  Sparkles,
   Store,
   Sun,
   TowerControl,
@@ -37,8 +38,7 @@ import {
   updateOwnedProperty,
   updateSalesRequest,
 } from "@/app/living-site/lib/data";
-import { useI18n } from "@/app/living-site/lib/i18n";
-import { getVendorPlan } from "@/lib/vendor-plans";
+import { getVendorPlan, getUpgradePlan } from "@/lib/vendor-plans";
 import {
   formatPropertyTypeValue,
   isBedBathPropertyType,
@@ -273,6 +273,11 @@ const PrimaryButton = styled.button`
   font-weight: 600;
   cursor: pointer;
   box-shadow: var(--frame-shadow);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  line-height: 1;
 
   &:disabled {
     opacity: 0.6;
@@ -324,6 +329,40 @@ const LimitNotice = styled.div<{ $danger?: boolean }>`
   line-height: 1.6;
 `;
 
+const PaidUpgradeSlot = styled.a`
+  border: 2px dashed var(--color-primary);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+  min-width: 120px;
+  width: 120px;
+  aspect-ratio: 4 / 3;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  color: var(--color-primary);
+  text-decoration: none;
+`;
+
+const UpgradeSlotInner = styled.div`
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 10px;
+  text-align: center;
+  font-size: 0.76rem;
+`;
+
+const UpgradeLink = styled.span`
+  color: var(--color-primary);
+  font-weight: 700;
+  text-decoration: underline;
+  font-size: 0.75rem;
+`;
+
 const fadeIn = keyframes`
   from {
     opacity: 0;
@@ -351,6 +390,110 @@ const attentionShake = keyframes`
 `;
 
 const REQUEST_DESCRIPTION_MAX_LENGTH = 500;
+const REQUEST_SALE_ENGLISH: Record<string, string> = {
+  "common.back": "Back",
+  "common.next": "Next",
+  "common.loading": "Loading",
+  "common.submitting": "Submitting",
+  "common.saveChanges": "Save changes",
+  "listing.submitRequest": "Publish listing",
+  "requestSale.titleNew": "Request a sale listing",
+  "requestSale.titleEdit": "Edit property request",
+  "requestSale.subtitleNew": "Share your property details and publish to the marketplace.",
+  "requestSale.subtitleEdit": "Update your property listing details.",
+  "requestSale.signInPrompt": "Sign in to continue with your property submission.",
+  "requestSale.signInContinue": "Sign in to continue",
+  "requestSale.steps.basics": "Basics",
+  "requestSale.steps.location": "Location",
+  "requestSale.steps.details": "Details",
+  "requestSale.steps.pricing": "Pricing",
+  "requestSale.steps.contact": "Contact person",
+  "requestSale.titleLabel": "Title",
+  "requestSale.descriptionLabel": "Description",
+  "requestSale.dealTypeLabel": "Deal type",
+  "requestSale.dealType.sale": "For sale",
+  "requestSale.dealType.rent": "For rent",
+  "requestSale.stateRegionLabel": "State / Region",
+  "requestSale.cityLabel": "District / City",
+  "requestSale.townshipLabel": "Township",
+  "requestSale.addressLabel": "Address text",
+  "requestSale.locateOnMap": "Locate on map",
+  "requestSale.useLatLng": "Use latitude and longitude",
+  "requestSale.mapHelper": "Select your area, then place the exact pin on the map.",
+  "requestSale.areaLabel": "Area (sq ft)",
+  "requestSale.floorCountLabel": "Floors",
+  "requestSale.roomCountLabel": "Rooms",
+  "requestSale.bedroomsLabel": "Bedrooms",
+  "requestSale.bathroomsLabel": "Bathrooms",
+  "requestSale.lift": "Lift",
+  "requestSale.parking": "Parking",
+  "requestSale.backupPower": "Backup power",
+  "requestSale.backupPower.solar": "Solar",
+  "requestSale.backupPower.generator": "Generator",
+  "requestSale.priceLabel": "Price (Lakh)",
+  "requestSale.currencyLabel": "Currency",
+  "requestSale.buyerFacingContact": "Buyer-facing contact",
+  "requestSale.publicBadge": "Public",
+  "requestSale.chooseContactDescription": "Choose the contact buyers should see on this listing.",
+  "requestSale.agencyProfileContact": "Use agency profile contact",
+  "requestSale.recommendedBadge": "Recommended",
+  "requestSale.agencyProfileDescription": "Buyers will see your agency storefront contact details.",
+  "requestSale.customListingContact": "Use custom contact for this listing",
+  "requestSale.customListingDescription": "Show a different contact person for this listing only.",
+  "requestSale.directOwnerContact": "This listing will use the contact person details below.",
+  "requestSale.listingContactName": "Listing contact name",
+  "requestSale.listingContactPrimaryPhone": "Primary phone",
+  "requestSale.listingContactSecondaryPhone": "Secondary phone",
+  "requestSale.agencyPreview": "This listing will use your agency profile contact details.",
+  "requestSale.internalBadge": "Internal",
+  "requestSale.privateOwnerDetails": "Private owner details",
+  "requestSale.privateOwnerDescription": "These details stay internal and help your team manage the listing.",
+  "requestSale.ownerName": "Owner name",
+  "requestSale.ownerPhone": "Owner phone",
+  "requestSale.ownerPhoneSecondary": "Owner secondary phone",
+  "requestSale.ownerNote": "Owner note",
+  "requestSale.loadingRequest": "Loading request...",
+  "requestSale.submittingRequest": "Submitting request...",
+  "requestSale.successUpdated": "Your listing was updated.",
+  "requestSale.successThanks": "Thanks for your submission.",
+  "requestSale.successReviewUpdate": "Your listing has been updated.",
+  "requestSale.successReviewNew": "Your listing is now live on the marketplace.",
+  "requestSale.browseListings": "Browse listings",
+  "requestSale.goActivities": "Go to Account",
+  "requestSale.latitudeLabel": "Latitude",
+  "requestSale.longitudeLabel": "Longitude",
+  "requestSale.contactNameLabel": "Contact person name",
+  "requestSale.listingContactNameError": "Listing contact name is required.",
+  "requestSale.primaryPhoneError": "Primary phone number is required.",
+  "requestSale.error.load": "Could not load this request.",
+  "requestSale.error.locationNotFound": "Location not found. Try a nearby area.",
+  "requestSale.error.locate": "Could not locate this area automatically.",
+  "requestSale.error.latLng": "Enter a valid latitude and longitude.",
+  "requestSale.error.locationRequired": "Complete the location fields before continuing.",
+  "requestSale.error.priceRequired": "Price is required.",
+  "requestSale.error.completeRequired": "Complete all required fields before continuing.",
+  "requestSale.error.backupRequired": "Choose at least one backup power type.",
+  "requestSale.error.signIn": "Sign in to continue.",
+  "requestSale.error.updateFailed": "Could not update this request.",
+  "requestSale.error.submitFailed": "Could not submit this request.",
+  "property.land": "Land",
+  "property.house": "House",
+  "property.apartment": "Apartment",
+  "property.miniCondo": "Mini condo",
+  "property.condo": "Condo",
+  "property.servicedApartment": "Serviced apartment",
+  "property.shop": "Shop",
+  "property.office": "Office",
+  "property.shopOffice": "Shop / Office",
+  "property.hotel": "Hotel",
+  "property.restaurant": "Restaurant",
+  "property.marketplace": "Marketplace",
+  "property.warehouse": "Warehouse",
+  "property.industrial": "Industrial",
+  "property.project": "Project",
+};
+
+const requestSaleText = (key: string) => REQUEST_SALE_ENGLISH[key] ?? key;
 const isUsableMapCoordinate = (lat: number, lng: number) =>
   Number.isFinite(lat) &&
   Number.isFinite(lng) &&
@@ -473,6 +616,217 @@ const LatLngButton = styled(MapButton)`
   width: fit-content;
 `;
 
+const ToggleContainer = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--color-surface-2);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-outline);
+`;
+
+const ToggleLabel = styled.label`
+  font-weight: 600;
+  color: var(--color-text);
+  font-size: 0.9rem;
+`;
+
+const Toggle = styled.button<{ $checked: boolean }>`
+  position: relative;
+  width: 44px;
+  height: 24px;
+  border-radius: 12px;
+  background: var(--color-outline);
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
+
+  ${({ $checked }) => $checked && css`
+    background: var(--color-primary);
+  `}
+
+  &:hover {
+    background: color-mix(in srgb, var(--color-primary) 8%, var(--color-outline));
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+`;
+
+const ToggleTrack = styled.div`
+  position: absolute;
+  inset: 2px;
+  border-radius: 10px;
+  background: var(--color-surface);
+`;
+
+const ToggleThumb = styled.div<{ $checked: boolean }>`
+  position: absolute;
+  top: 2px;
+  left: ${({ $checked }) => ($checked ? "calc(100% - 20px)" : "2px")};
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--color-paper);
+  box-shadow: var(--frame-shadow);
+  transition: left 0.2s ease;
+`;
+
+// NEW CONTACT STEP COMPONENTS
+const Badge = styled.span<{ $variant?: "public" | "internal" | "recommended" | "optional" }>`
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  
+  ${({ $variant }) => $variant === "public" && css`
+    background: color-mix(in srgb, #10b981 20%, transparent);
+    color: #059669;
+    border: 1px solid #34d399;
+  `}
+  
+  ${({ $variant }) => $variant === "internal" && css`
+    background: color-mix(in srgb, #6b7280 20%, transparent);
+    color: #4b5563;
+    border: 1px solid #9ca3af;
+  `}
+  
+  ${({ $variant }) => $variant === "recommended" && css`
+    background: color-mix(in srgb, #f59e0b 20%, transparent);
+    color: #d97706;
+    border: 1px solid #fbbf24;
+  `}
+
+  ${({ $variant }) => $variant === "optional" && css`
+    background: color-mix(in srgb, #64748b 14%, transparent);
+    color: #475569;
+    border: 1px solid color-mix(in srgb, #64748b 28%, transparent);
+  `}
+`;
+
+const RadioCardGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 16px 0;
+`;
+
+const RadioCard = styled.button<{ $active: boolean }>`
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+  border: 2px solid var(--color-outline);
+  border-radius: 12px;
+  background: var(--color-surface);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  ${({ $active }) => $active && css`
+    border-color: var(--color-primary);
+    background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+    box-shadow: var(--frame-shadow);
+  `}
+  
+  &:hover {
+    border-color: color-mix(in srgb, var(--color-primary) 50%, transparent);
+  }
+`;
+
+const RadioCardContent = styled.div`
+  display: grid;
+  gap: 8px;
+  text-align: left;
+  flex: 1;
+`;
+
+const RadioCardHeading = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+`;
+
+const RadioCardTitle = styled.strong`
+  font-size: 1rem;
+  line-height: 1.3;
+`;
+
+const RadioCardDescription = styled.p`
+  margin: 0;
+  color: var(--color-muted);
+  line-height: 1.5;
+`;
+
+const RadioIndicator = styled.div<{ $active: boolean }>`
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--color-outline);
+  border-radius: 50%;
+  flex-shrink: 0;
+  position: relative;
+  
+  ${({ $active }) => $active && css`
+    border-color: var(--color-primary);
+    background: var(--color-primary);
+    
+    &::after {
+      content: "";
+      position: absolute;
+      inset: 4px;
+      border-radius: 50%;
+      background: var(--color-paper);
+    }
+  `}
+`;
+
+const CollapsibleSection = styled.div`
+  margin-top: 24px;
+  border: 1px solid var(--color-outline);
+  border-radius: 12px;
+  overflow: hidden;
+`;
+
+const CollapsibleTrigger = styled.button<{ $expanded: boolean }>`
+  width: 100%;
+  padding: 16px 20px;
+  background: var(--color-surface);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  
+  ${({ $expanded }) => $expanded && css`
+    background: color-mix(in srgb, var(--color-primary) 8%, var(--color-surface));
+  `}
+`;
+
+const CollapsibleText = styled.div`
+  display: grid;
+  gap: 8px;
+  text-align: left;
+`;
+
+const CollapsibleChevron = styled(ChevronRight)<{ $expanded: boolean }>`
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+  transform: rotate(${(props) => (props.$expanded ? "90deg" : "0deg")});
+  color: var(--color-muted);
+`;
+
+const CollapsibleBody = styled.div`
+  display: grid;
+  gap: 12px;
+  padding: 0 20px 20px;
+`;
+
 const LimitModal = styled(SuccessModal)`
   max-width: 460px;
 `;
@@ -539,9 +893,19 @@ type FormState = {
   has_parking: boolean;
   latitude: string;
   longitude: string;
+  
+  // New contact fields
+  contact_source: "agency_profile" | "custom_contact" | "direct_owner";
+  listing_contact_name: string;
+  listing_contact_phone: string;
+  listing_contact_phone_secondary: string;
   owner_name: string;
   owner_phone: string;
   owner_phone_secondary: string;
+  owner_note: string;
+  
+  // Legacy toggle (for backward compatibility)
+  useAgencyContact: boolean;
 };
 
 type WorkspaceLimits = {
@@ -586,9 +950,19 @@ const initialState: FormState = {
   has_parking: false,
   latitude: "",
   longitude: "",
+  
+  // New contact fields
+  contact_source: "agency_profile",
+  listing_contact_name: "",
+  listing_contact_phone: "",
+  listing_contact_phone_secondary: "",
   owner_name: "",
   owner_phone: "",
   owner_phone_secondary: "",
+  owner_note: "",
+  
+  // Legacy toggle
+  useAgencyContact: false,
 };
 
 const toNullableNumber = (value: string) => {
@@ -763,7 +1137,7 @@ const bathroomRequiredPropertyTypes = new Set<PropertyType>([
 
 function RequestSalePageContent() {
   const { user, profileRole, profileReady, authToken } = useAppState();
-  const { t } = useI18n();
+  const t = requestSaleText;
   const router = useRouter();
   const searchParams = useSearchParams();
   const editId = searchParams.get("editId");
@@ -792,6 +1166,8 @@ function RequestSalePageContent() {
   const [mapPosition, setMapPosition] = useState<[number, number] | null>(null);
   const [mapCenter, setMapCenter] = useState<[number, number]>(MYANMAR_CENTER);
   const [mapZoom, setMapZoom] = useState(DEFAULT_ZOOM);
+  const [showPrivateOwner, setShowPrivateOwner] = useState(false);
+  const [useAgencyContact, setUseAgencyContact] = useState(false);
   const [attention, setAttention] = useState(false);
   const [stepAttempted, setStepAttempted] = useState<Record<number, boolean>>({});
   const stepItems = useMemo(
@@ -848,7 +1224,9 @@ function RequestSalePageContent() {
   const vendorReturnPath = isEdit && editId ? `/vendor/sales-requests` : "/vendor";
   const isVendorFlow =
     profileRole === "vendor_user" || profileRole === "staff" || profileRole === "admin" || profileRole === "master_admin";
-  const vendorImageLimit = getVendorPlan(workspaceLimits?.vendor?.plan).imageLimit;
+const currentPlan = getVendorPlan(workspaceLimits?.currentPlan?.name ?? 'free');
+  const vendorImageLimit = currentPlan.imageLimit;
+  const upgradePlan = getUpgradePlan(currentPlan.key);
   const maxImageCount = isVendorFlow ? vendorImageLimit : 5;
   const customerLimitReached = !isVendorFlow && !isEdit && existingRequestCount >= 1;
 
@@ -921,9 +1299,17 @@ function RequestSalePageContent() {
           has_parking: Boolean(record.has_parking),
           latitude: toFormNumber(record.latitude),
           longitude: toFormNumber(record.longitude),
+          
+          // Backward compatibility - map old data
+          contact_source: record.owner_name ? "direct_owner" : "agency_profile",
+          listing_contact_name: String(record.owner_name ?? ""),
+          listing_contact_phone: String(record.owner_phone ?? ""),
+          listing_contact_phone_secondary: String(record.owner_phone_secondary ?? ""),
           owner_name: String(record.owner_name ?? ""),
           owner_phone: String(record.owner_phone ?? ""),
           owner_phone_secondary: String(record.owner_phone_secondary ?? ""),
+          owner_note: "",
+          useAgencyContact: false,
         });
       })
       .finally(() => {
@@ -989,8 +1375,17 @@ function RequestSalePageContent() {
   const floorCountError = showFloorCount ? validatePositiveCount(form.floor_count, "Floor count") : null;
   const roomCountError = showRoomCount ? validatePositiveCount(form.room_count, "Room count") : null;
   const priceError = validatePrice(form.price);
-  const ownerNameError = form.owner_name.trim() ? null : "Contact person is required.";
-  const ownerPhoneError = validatePhone(form.owner_phone);
+  const isAgencyContact = isVendorFlow && useAgencyContact;
+  const ownerNameError = isAgencyContact || form.owner_name.trim() ? null : t("requestSale.contactNameLabel") + " is required.";
+  const ownerPhoneError = isAgencyContact ? null : validatePhone(form.owner_phone);
+  // Contact validation (must be before stepValidity)
+  const listingContactNameError = (form.contact_source === "custom_contact" || !isVendorFlow) && !form.listing_contact_name.trim() 
+    ? t("requestSale.listingContactNameError") : null;
+  const listingContactPhoneError = (form.contact_source === "custom_contact" || !isVendorFlow) && !form.listing_contact_phone.trim()
+    ? t("requestSale.primaryPhoneError") : null;
+  
+  const contactError = listingContactNameError || listingContactPhoneError;
+  
   const priceLabel = form.currency === "MMK" ? t("requestSale.priceLabel") : `Price (${form.currency})`;
   const imagePreviews = useMemo(() => imageFiles.map((file) => URL.createObjectURL(file)), [imageFiles]);
   useEffect(
@@ -1009,13 +1404,14 @@ function RequestSalePageContent() {
         !mapPinError,
       !areaError && !bedroomsError && !bathroomsError && !floorCountError && !roomCountError,
       !priceError && Boolean(form.currency),
-      !ownerNameError && !ownerPhoneError,
+      !contactError,
     ],
     [
       addressTextError,
       areaError,
       bathroomsError,
       bedroomsError,
+      contactError,
       descriptionError,
       floorCountError,
       form.currency,
@@ -1024,8 +1420,6 @@ function RequestSalePageContent() {
       form.state_region,
       form.township,
       mapPinError,
-      ownerNameError,
-      ownerPhoneError,
       priceError,
       propertyTypeError,
       imageError,
@@ -1035,7 +1429,7 @@ function RequestSalePageContent() {
   );
 
   const getStepStatus = (index: number): "default" | "error" | "success" => {
-    if (stepValidity[index]) return "success";
+    if (index <= step && stepValidity[index]) return "success";
     if (stepAttempted[index] || index === step) return "error";
     return "default";
   };
@@ -1399,9 +1793,16 @@ function RequestSalePageContent() {
       has_parking: showParking ? form.has_parking : false,
       latitude: toNullableNumber(form.latitude),
       longitude: toNullableNumber(form.longitude),
+      
+      // New contact fields (public first, private second)
+      contact_source: form.contact_source,
+      listing_contact_name: toNullableString(form.listing_contact_name),
+      listing_contact_phone: toNullableString(form.listing_contact_phone),
+      listing_contact_phone_secondary: toNullableString(form.listing_contact_phone_secondary),
       owner_name: toNullableString(form.owner_name),
       owner_phone: toNullableString(form.owner_phone),
       owner_phone_secondary: toNullableString(form.owner_phone_secondary),
+      owner_note: toNullableString(form.owner_note),
     };
 
     setSubmitting(true);
@@ -1566,7 +1967,7 @@ function RequestSalePageContent() {
             <StepPill
               key={item.key}
               $active={index === step}
-              $completed={stepValidity[index]}
+              $completed={index <= step && stepValidity[index]}
               $status={getStepStatus(index)}
             >
               {index < step ? (
@@ -1596,57 +1997,71 @@ function RequestSalePageContent() {
                   <UploadHint>
                     Add at least 1 photo. Up to {maxImageCount} image{maxImageCount > 1 ? "s" : ""}. The first image is the cover.
                   </UploadHint>
+{isVendorFlow && vendorImageLimit === 5 && upgradePlan && imageFiles.length >= vendorImageLimit && (
+                    <UpgradeImageSlotNotice>
+                      +{upgradePlan.imageLimit - vendorImageLimit} more slots with <UpgradeLink href="/vendor-setup">Pro upgrade</UpgradeLink>
+                    </UpgradeImageSlotNotice>
+                  )}
                   {stepAttempted[0] && imageError ? <ErrorText>{imageError}</ErrorText> : null}
-                  <UploadStrip>
-                    {Array.from({ length: maxImageCount }, (_, index) => {
-                      const file = imageFiles[index] ?? null;
-                      const preview = imagePreviews[index] ?? null;
-                      return (
-                        <UploadSlot
-                          key={`image-slot-${index}`}
-                          role="button"
-                          tabIndex={0}
-                          $filled={Boolean(file)}
-                          $image={preview}
-                          onClick={() => {
-                            if (!file) imageInputRef.current?.click();
-                          }}
-                          onKeyDown={(event) => {
-                            if (file) return;
-                            if (event.key === "Enter" || event.key === " ") {
-                              event.preventDefault();
-                              imageInputRef.current?.click();
-                            }
-                          }}
-                        >
-                          {file ? (
-                            <>
-                              <RemoveImageButton
-                                type="button"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  handleRemoveImage(index);
-                                }}
-                              >
-                                x
-                              </RemoveImageButton>
-                              <UploadSlotOverlay $filled>
-                                <UploadSlotInner>
-                                  <strong style={{ color: "#fff" }}>{index === 0 ? "Cover" : `Photo ${index + 1}`}</strong>
-                                </UploadSlotInner>
-                              </UploadSlotOverlay>
-                            </>
-                          ) : (
-                            <UploadSlotInner>
-                              <ImagePlus size={18} />
-                              <strong>Add photo</strong>
-                              <span>Slot {index + 1}</span>
-                            </UploadSlotInner>
-                          )}
-                        </UploadSlot>
-                      );
-                    })}
-                  </UploadStrip>
+  <UploadStrip>
+    {Array.from({ length: maxImageCount }, (_, index) => {
+      const file = imageFiles[index] ?? null;
+      const preview = imagePreviews[index] ?? null;
+      return (
+        <UploadSlot
+          key={`image-slot-${index}`}
+          role="button"
+          tabIndex={0}
+          $filled={Boolean(file)}
+          $image={preview}
+          onClick={() => {
+            if (!file) imageInputRef.current?.click();
+          }}
+          onKeyDown={(event) => {
+            if (file) return;
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              imageInputRef.current?.click();
+            }
+          }}
+        >
+          {file ? (
+            <>
+              <RemoveImageButton
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleRemoveImage(index);
+                }}
+              >
+                x
+              </RemoveImageButton>
+              <UploadSlotOverlay $filled>
+                <UploadSlotInner>
+                  <strong style={{ color: "#fff" }}>{index === 0 ? "Cover" : `Photo ${index + 1}`}</strong>
+                </UploadSlotInner>
+              </UploadSlotOverlay>
+            </>
+          ) : (
+            <UploadSlotInner>
+              <ImagePlus size={18} />
+              <strong>Add photo</strong>
+              <span>Slot {index + 1}</span>
+            </UploadSlotInner>
+          )}
+        </UploadSlot>
+      );
+    })}
+    {isVendorFlow && vendorImageLimit === 5 && upgradePlan && (
+        <PaidUpgradeSlot href="/vendor-setup">
+          <UpgradeSlotInner>
+            <Sparkles size={18} style={{ color: 'var(--color-primary)' }} />
+            <span>More slots</span>
+            <UpgradeLink>Upgrade →</UpgradeLink>
+          </UpgradeSlotInner>
+        </PaidUpgradeSlot>
+    )}
+  </UploadStrip>
                 </>
               ) : null}
               <CustomInput
@@ -1992,39 +2407,132 @@ function RequestSalePageContent() {
             </>
           )}
 
-          {step === 4 && (
-            <>
+{step === 4 && (
+  <>
+    {/* NEW CONTACT STEP UI - Buyer-facing contact (Section 1) */}
+    <SectionTitle>{t("requestSale.buyerFacingContact")}</SectionTitle>
+    <Badge $variant="public">{t("requestSale.publicBadge")}</Badge>
+    <Muted>{t("requestSale.chooseContactDescription")}</Muted>
+    
+    {isVendorFlow ? (
+      // Vendor: Radio cards
+      <RadioCardGroup>
+        <RadioCard
+          $active={form.contact_source === "agency_profile"}
+          onClick={() => setField("contact_source", "agency_profile")}
+        >
+          <RadioIndicator $active={form.contact_source === "agency_profile"} />
+          <RadioCardContent>
+            <RadioCardHeading>
+              <RadioCardTitle>{t("requestSale.agencyProfileContact")}</RadioCardTitle>
+              <Badge $variant="recommended">{t("requestSale.recommendedBadge")}</Badge>
+            </RadioCardHeading>
+            <RadioCardDescription>{t("requestSale.agencyProfileDescription")}</RadioCardDescription>
+          </RadioCardContent>
+        </RadioCard>
+        <RadioCard
+          $active={form.contact_source === "custom_contact"}
+          onClick={() => setField("contact_source", "custom_contact")}
+        >
+          <RadioIndicator $active={form.contact_source === "custom_contact"} />
+          <RadioCardContent>
+            <RadioCardHeading>
+              <RadioCardTitle>{t("requestSale.customListingContact")}</RadioCardTitle>
+            </RadioCardHeading>
+            <RadioCardDescription>{t("requestSale.customListingDescription")}</RadioCardDescription>
+          </RadioCardContent>
+        </RadioCard>
+      </RadioCardGroup>
+    ) : (
+      // Non-vendor: Direct owner (no radio choice)
+      <Muted>{t("requestSale.directOwnerContact")}</Muted>
+    )}
+    
+    {/* Conditional buyer-facing fields */}
+    {(form.contact_source === "custom_contact" || !isVendorFlow) && (
+      <>
+        <CustomInput
+          id={`${fieldId}-listing-contact-name`}
+          name="listing_contact_name"
+          label={t("requestSale.listingContactName")}
+          value={form.listing_contact_name}
+          onChange={(e) => setField("listing_contact_name", e.target.value)}
+          error={stepAttempted[4] ? listingContactNameError : null}
+        />
+        <CustomInput
+          id={`${fieldId}-listing-contact-phone`}
+          label={t("requestSale.listingContactPrimaryPhone")}
+          type="tel"
+          value={form.listing_contact_phone}
+          onChange={(e) => setField("listing_contact_phone", e.target.value)}
+          error={stepAttempted[4] ? listingContactPhoneError : null}
+        />
+        <CustomInput
+          id={`${fieldId}-listing-contact-phone-secondary`}
+          label={t("requestSale.listingContactSecondaryPhone")}
+          type="tel"
+          value={form.listing_contact_phone_secondary}
+          onChange={(e) => setField("listing_contact_phone_secondary", e.target.value)}
+        />
+      </>
+    )}
+    
+    {/* Section 2: Private owner details (vendor-only, collapsed) */}
+    {isVendorFlow && (
+      <>
+        <CollapsibleSection>
+          <CollapsibleTrigger
+            type="button"
+            $expanded={showPrivateOwner}
+            onClick={() => setShowPrivateOwner((current) => !current)}
+          >
+            <CollapsibleText>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                <Badge $variant="internal">{t("requestSale.internalBadge")}</Badge>
+                <Badge $variant="optional">Optional</Badge>
+              </div>
+              <strong>{t("requestSale.privateOwnerDetails")}</strong>
+              <Muted>{t("requestSale.privateOwnerDescription")}</Muted>
+            </CollapsibleText>
+            <CollapsibleChevron $expanded={showPrivateOwner} />
+          </CollapsibleTrigger>
+          {showPrivateOwner && (
+            <CollapsibleBody>
               <CustomInput
                 id={`${fieldId}-owner-name`}
-                label={t("requestSale.contactNameLabel")}
-                name="owner_name"
+                label={t("requestSale.ownerName")}
                 value={form.owner_name}
-                onChange={(event) => setField("owner_name", event.target.value)}
-                error={stepAttempted[4] ? ownerNameError : null}
-                status={form.owner_name.trim() && !ownerNameError ? "success" : "default"}
+                onChange={(e) => setField("owner_name", e.target.value)}
               />
               <CustomInput
                 id={`${fieldId}-owner-phone`}
-                label={t("requestSale.contactPhoneLabel")}
+                label={t("requestSale.ownerPhone")}
+                type="tel"
                 name="owner_phone"
-                type="number"
-                inputMode="numeric"
                 value={form.owner_phone}
-                onChange={(event) => setField("owner_phone", event.target.value)}
-                error={stepAttempted[4] ? ownerPhoneError : null}
-                status={form.owner_phone.trim() && !ownerPhoneError ? "success" : "default"}
+                onChange={(e) => setField("owner_phone", e.target.value)}
               />
               <CustomInput
                 id={`${fieldId}-owner-phone-secondary`}
-                label={t("requestSale.contactPhoneSecondaryLabel")}
+                label={t("requestSale.ownerPhoneSecondary")}
+                type="tel"
                 name="owner_phone_secondary"
-                type="number"
-                inputMode="numeric"
                 value={form.owner_phone_secondary}
-                onChange={(event) => setField("owner_phone_secondary", event.target.value)}
+                onChange={(e) => setField("owner_phone_secondary", e.target.value)}
               />
-            </>
+              <CustomTextarea
+                id={`${fieldId}-owner-note`}
+                label={t("requestSale.ownerNote")}
+                value={form.owner_note}
+                onChange={(e) => setField("owner_note", e.target.value)}
+              />
+            </CollapsibleBody>
           )}
+        </CollapsibleSection>
+      </>
+    )}
+  </>
+)}
 
           {error && <ErrorText>{error}</ErrorText>}
           {editLockedMessage && <ErrorText>{editLockedMessage}</ErrorText>}

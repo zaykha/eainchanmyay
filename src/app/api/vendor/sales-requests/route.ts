@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getVendorRequestContext } from "@/app/api/vendor/_lib/context";
 import { getVendorPlanUsage } from "@/app/api/vendor/_lib/plan-limits";
-import { deleteRequestImages, uploadRequestImages } from "@/app/api/_lib/request-image-upload";
+import { deletePropertyImages, uploadPropertyImages } from "@/app/api/_lib/property-image-upload";
 import type { PropertyType } from "@/lib/property-types";
 import { moderateListingText } from "@/lib/moderation-rules";
 import { getVendorPlan } from "@/lib/vendor-plans";
@@ -158,8 +158,10 @@ export async function POST(request: Request) {
 
   const payload = {
     vendor_id: result.context.vendor.id,
-    user_id: user.id,
-    review_status: "pending",
+    created_by: user.id,
+    is_deleted: false,
+    status: "published",
+    city: body.district?.trim() || body.township?.trim() || body.state_region?.trim() || "Myanmar",
     title: body.title.trim(),
     description: toNullableString(body.description),
     deal_type: body.deal_type,
@@ -188,39 +190,43 @@ export async function POST(request: Request) {
     owner_phone_secondary: toNullableString(body.owner_phone_secondary),
   };
 
-  const { data: requestRow, error } = await supabase
-    .from("sales_requests")
+  const { data: propertyRow, error } = await supabase
+    .from("properties")
     .insert(payload)
     .select("id")
     .maybeSingle();
 
-  if (error || !requestRow?.id) {
-    return NextResponse.json({ error: error?.message ?? "Unable to create request." }, { status: 500 });
+  if (error || !propertyRow?.id) {
+    return NextResponse.json({ error: error?.message ?? "Unable to create listing." }, { status: 500 });
   }
 
   try {
-    const { rows: imageRows, storagePaths } = await uploadRequestImages({
+    const { rows: imageRows, storagePaths } = await uploadPropertyImages({
       supabase,
-      scope: "vendor",
-      requestId: String(requestRow.id),
-      ownerId: user.id,
-      files: imageFiles,
+      folder: `vendor-listings/${result.context.vendor.id}`,
+      propertyId: String(propertyRow.id),
+      files: await Promise.all(
+        imageFiles.map(async (file) => ({
+          filename: file.name,
+          buffer: Buffer.from(await file.arrayBuffer()),
+        }))
+      ),
     });
     if (imageRows.length) {
-      const { error: imageInsertError } = await supabase.from("sales_request_images").insert(imageRows);
+      const { error: imageInsertError } = await supabase.from("property_images").insert(imageRows);
       if (imageInsertError) {
-        await deleteRequestImages({ supabase, storagePaths });
+        await deletePropertyImages({ supabase, storagePaths });
         throw imageInsertError;
       }
     }
   } catch (uploadError) {
-    await supabase.from("sales_request_images").delete().eq("sales_request_id", requestRow.id);
-    await supabase.from("sales_requests").delete().eq("id", requestRow.id);
+    await supabase.from("property_images").delete().eq("property_id", propertyRow.id);
+    await supabase.from("properties").delete().eq("id", propertyRow.id);
     return NextResponse.json(
-      { error: getUnknownErrorMessage(uploadError, "Unable to upload request images.") },
+      { error: getUnknownErrorMessage(uploadError, "Unable to upload property images.") },
       { status: 500 }
     );
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, propertyId: String(propertyRow.id) });
 }

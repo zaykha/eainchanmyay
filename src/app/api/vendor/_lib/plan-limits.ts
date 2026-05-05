@@ -5,26 +5,18 @@ export async function getVendorPlanUsage(context: VendorRequestContext) {
   const { supabase, memberIds, vendor } = context;
 
   let propertyCount = 0;
-  let salesRequestCount = 0;
 
   if (memberIds.length) {
-    const [{ count: propertyCountRaw }, { count: salesRequestCountRaw }] = await Promise.all([
-      supabase
-        .from("properties")
-        .select("id", { count: "exact", head: true })
-        .in("created_by", memberIds)
-        .eq("is_deleted", false),
-      supabase
-        .from("sales_requests")
-        .select("id", { count: "exact", head: true })
-        .in("user_id", memberIds),
-    ]);
-
+    const { count: propertyCountRaw } = await supabase
+      .from("properties")
+      .select("id", { count: "exact", head: true })
+      .in("created_by", memberIds)
+      .eq("is_deleted", false);
     propertyCount = propertyCountRaw ?? 0;
-    salesRequestCount = salesRequestCountRaw ?? 0;
   }
 
-  const listingCount = propertyCount + salesRequestCount;
+  const salesRequestCount = 0;
+  const listingCount = propertyCount;
   const agentCount = memberIds.length;
   const planUsage = getPlanUsageSummary(vendor.plan, {
     listingCount,
