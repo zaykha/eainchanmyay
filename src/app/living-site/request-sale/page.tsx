@@ -1999,7 +1999,7 @@ const currentPlan = getVendorPlan(workspaceLimits?.currentPlan?.name ?? 'free');
                   </UploadHint>
 {isVendorFlow && vendorImageLimit === 5 && upgradePlan && imageFiles.length >= vendorImageLimit && (
                     <UpgradeImageSlotNotice>
-                      +{upgradePlan.imageLimit - vendorImageLimit} more slots with <UpgradeLink href="/vendor-setup">Pro upgrade</UpgradeLink>
+                      +{upgradePlan.imageLimit - vendorImageLimit} more slots with <UpgradeLink href="/hub/upgrade">Pro upgrade</UpgradeLink>
                     </UpgradeImageSlotNotice>
                   )}
                   {stepAttempted[0] && imageError ? <ErrorText>{imageError}</ErrorText> : null}
@@ -2053,7 +2053,7 @@ const currentPlan = getVendorPlan(workspaceLimits?.currentPlan?.name ?? 'free');
       );
     })}
     {isVendorFlow && vendorImageLimit === 5 && upgradePlan && (
-        <PaidUpgradeSlot href="/vendor-setup">
+        <PaidUpgradeSlot href="/hub/upgrade">
           <UpgradeSlotInner>
             <Sparkles size={18} style={{ color: 'var(--color-primary)' }} />
             <span>More slots</span>

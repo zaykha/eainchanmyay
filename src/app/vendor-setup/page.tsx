@@ -4,9 +4,10 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
 import { useAppState } from "@/app/living-site/lib/app-state";
+import { VendorPlanSelection } from "@/app/living-site/components/vendor/VendorPlanSelection";
 import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
 import { isVendorStorefrontSetupComplete } from "@/lib/vendor-storefront";
-import { VENDOR_PLANS, type VendorPlanKey } from "@/lib/vendor-plans";
+import type { VendorPlanKey } from "@/lib/vendor-plans";
 
 const AGENT_ONBOARDING_STORAGE_KEY = "kaiten_vendor_onboarding_pending";
 
@@ -17,18 +18,6 @@ const Page = styled.main`
     linear-gradient(180deg, color-mix(in srgb, var(--color-surface) 96%, white) 0%, var(--color-paper) 100%);
   color: var(--color-text);
   padding: 28px 18px 40px;
-`;
-
-const Shell = styled.div`
-  width: min(1120px, 100%);
-  margin: 0 auto;
-  display: grid;
-  gap: 20px;
-`;
-
-const Header = styled.div`
-  display: grid;
-  gap: 10px;
 `;
 
 const Eyebrow = styled.span`
@@ -58,160 +47,6 @@ const Copy = styled.p`
   max-width: 760px;
   color: var(--color-muted);
   line-height: 1.65;
-`;
-
-const Grid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
-
-  @media (max-width: 1180px) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  @media (max-width: 720px) {
-    grid-template-columns: 1fr;
-  }
-`;
-
-const Card = styled.button<{ $featured?: boolean }>`
-  position: relative;
-  border-radius: 28px;
-  border: 1px solid
-    ${(props) =>
-      props.$featured ? "color-mix(in srgb, var(--color-primary) 34%, var(--color-outline))" : "var(--color-outline)"};
-  background: ${(props) =>
-    props.$featured
-      ? "linear-gradient(180deg, color-mix(in srgb, var(--color-primary) 10%, var(--color-surface)) 0%, var(--color-surface) 100%)"
-      : "var(--color-surface)"};
-  padding: 22px;
-  display: grid;
-  gap: 14px;
-  box-shadow: var(--shadow-soft);
-  width: 100%;
-  text-align: left;
-  cursor: pointer;
-  transition:
-    transform 180ms ease,
-    box-shadow 180ms ease,
-    border-color 180ms ease,
-    background 180ms ease;
-
-  &:hover:not(:disabled) {
-    transform: translateY(-3px);
-    box-shadow: 0 22px 44px rgba(15, 23, 42, 0.12);
-    border-color: color-mix(in srgb, var(--color-primary) 28%, var(--color-outline));
-  }
-
-  &:focus-visible {
-    outline: 2px solid color-mix(in srgb, var(--color-primary) 32%, transparent);
-    outline-offset: 3px;
-  }
-
-  &:disabled {
-    cursor: wait;
-    opacity: 0.78;
-  }
-`;
-
-const CornerBadge = styled.span`
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 30px;
-  padding: 0 12px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, #ff3d5d 0%, #e91b42 100%);
-  color: #fff;
-  font-size: 0.76rem;
-  font-weight: 800;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-`;
-
-const PlanName = styled.h2`
-  margin: 0;
-  font-size: 1.35rem;
-  color: var(--color-text);
-`;
-
-const Price = styled.div`
-  color: var(--color-text);
-  font-size: 1.8rem;
-  font-weight: 800;
-`;
-
-const Meta = styled.div`
-  display: grid;
-  gap: 6px;
-  color: var(--color-text);
-`;
-
-const MetaItem = styled.div`
-  color: var(--color-text);
-  font-weight: 600;
-`;
-
-const Subtle = styled.div`
-  color: var(--color-muted);
-  line-height: 1.55;
-  min-height: 48px;
-`;
-
-const List = styled.div`
-  display: grid;
-  gap: 8px;
-  color: var(--color-text);
-  font-size: 0.92rem;
-`;
-
-const Item = styled.div`
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
-`;
-
-const Dot = styled.span`
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: #ff5d78;
-  margin-top: 6px;
-  flex: 0 0 auto;
-`;
-
-const CardFooter = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-top: auto;
-`;
-
-const CardActionText = styled.span`
-  color: var(--color-primary);
-  font-weight: 800;
-`;
-
-const SecondaryAction = styled.button`
-  min-height: 44px;
-  width: fit-content;
-  padding: 0 16px;
-  border-radius: 999px;
-  border: 1px solid var(--color-outline);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-weight: 700;
-  cursor: pointer;
-`;
-
-const Message = styled.p`
-  margin: 0;
-  color: var(--color-primary);
-  line-height: 1.55;
 `;
 
 type WorkspacePayload = {
@@ -305,7 +140,7 @@ export default function VendorSetupPage() {
           if (typeof window !== "undefined") {
             window.localStorage.removeItem(AGENT_ONBOARDING_STORAGE_KEY);
           }
-          router.replace(storefrontReady ? "/vendor" : "/agency-setup");
+          router.replace(storefrontReady ? "/hub" : "/agency-setup");
           return;
         }
 
@@ -425,73 +260,14 @@ export default function VendorSetupPage() {
 
   return (
     <Page>
-      <Shell>
-        <Header>
-          <Eyebrow>Vendor setup</Eyebrow>
-          <Title>Choose how your agency starts</Title>
-          <Copy>
-            Free agencies can start immediately. Paid plans will require successful payment before the workspace is
-            unlocked. If a paid checkout is canceled later, the account stays on Free until upgraded again.
-          </Copy>
-        </Header>
-
-        {message ? <Message>{message}</Message> : null}
-
-        <Grid>
-          {VENDOR_PLANS.map((plan) => {
-            const isFree = plan.key === "free";
-            const isLoading = creatingPlan === plan.key;
-            const isMostPopular = plan.key === "growth";
-            const actionLabel = isFree ? "Continue with Free" : `Pay and start ${plan.name}`;
-            const loadingLabel = isFree ? "Creating workspace..." : "Redirecting to Dinger...";
-
-            return (
-              <Card
-                key={plan.key}
-                type="button"
-                $featured={plan.key === "verified"}
-                disabled={Boolean(creatingPlan)}
-                onClick={() =>
-                  isFree ? void handleCreateFreeWorkspace() : void handleStartPaidCheckout(plan.key)
-                }
-              >
-                {isMostPopular ? <CornerBadge>Most Popular</CornerBadge> : null}
-                <div>
-                  <PlanName>{plan.name}</PlanName>
-                  <Price>{plan.priceLabel}</Price>
-                </div>
-
-                <Meta>
-                  <MetaItem>{plan.listingLimitLabel}</MetaItem>
-                  <MetaItem>{plan.agentLimitLabel}</MetaItem>
-                  <MetaItem>
-                    {plan.includedVerification ? "Verification included, still manually approved" : "Verification separate"}
-                  </MetaItem>
-                </Meta>
-
-                <Subtle>{plan.description}</Subtle>
-
-                <List>
-                  {plan.highlights.map((item) => (
-                    <Item key={item}>
-                      <Dot />
-                      <span>{item}</span>
-                    </Item>
-                  ))}
-                </List>
-
-                <CardFooter>
-                  <CardActionText>{isLoading ? loadingLabel : actionLabel}</CardActionText>
-                </CardFooter>
-              </Card>
-            );
-          })}
-        </Grid>
-
-        <SecondaryAction type="button" onClick={() => router.push("/")}>
-          Back to home
-        </SecondaryAction>
-      </Shell>
+      <VendorPlanSelection
+        mode="setup"
+        creatingPlan={creatingPlan}
+        message={message}
+        onSelectFree={() => void handleCreateFreeWorkspace()}
+        onSelectPaid={(planKey) => void handleStartPaidCheckout(planKey)}
+        onBack={() => router.push("/")}
+      />
     </Page>
   );
 }

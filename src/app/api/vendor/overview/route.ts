@@ -12,6 +12,7 @@ type PropertyRow = {
   deal_type: string | null;
   created_at: string | null;
   created_by: string | null;
+  township: string | null;
 };
 
 type AppointmentRow = {
@@ -64,7 +65,7 @@ export async function GET(request: Request) {
   if (memberIds.length) {
     const { data, error } = await supabase
       .from("properties")
-      .select("id,title,price,currency,status,property_type,deal_type,created_at,created_by")
+      .select("id,title,price,currency,status,property_type,deal_type,created_at,created_by,township")
       .in("created_by", memberIds)
       .eq("is_deleted", false)
       .order("created_at", { ascending: false });
@@ -257,6 +258,44 @@ export async function GET(request: Request) {
     .sort((left, right) => right.views - left.views)
     .slice(0, 5);
 
+  const salesByTypeCounts = properties.reduce<Record<string, number>>((acc, property) => {
+    if (property.status !== "sold" && property.status !== "rented") return acc;
+    const key = String(property.property_type ?? "unknown");
+    acc[key] = (acc[key] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  const priceBucketsByType = properties.reduce<
+    Record<string, { min: number; max: number; count: number; currency: string }>
+  >((acc, property) => {
+    const typeKey = String(property.property_type ?? "unknown");
+    const price = Number(property.price ?? 0);
+    if (!price) return acc;
+    const existing = acc[typeKey];
+    if (!existing) {
+      acc[typeKey] = {
+        min: price,
+        max: price,
+        count: 1,
+        currency: String(property.currency ?? "MMK"),
+      };
+      return acc;
+    }
+    existing.min = Math.min(existing.min, price);
+    existing.max = Math.max(existing.max, price);
+    existing.count += 1;
+    return acc;
+  }, {});
+
+  const propertyTypeById = new Map(properties.map((property) => [property.id, String(property.property_type ?? "unknown")]));
+  const appointmentsByTypeCounts = appointments.reduce<Record<string, number>>((acc, appointment) => {
+    const propertyId = String(appointment.property_id ?? "");
+    if (!propertyId) return acc;
+    const typeKey = propertyTypeById.get(propertyId) ?? "unknown";
+    acc[typeKey] = (acc[typeKey] ?? 0) + 1;
+    return acc;
+  }, {});
+
   return NextResponse.json({
     workspace: {
       vendor,
@@ -298,6 +337,21 @@ export async function GET(request: Request) {
     nextAppointment,
     statusMix: Object.entries(statusCounts).map(([key, count]) => ({ key, count })),
     listingTypes: Object.entries(typeCounts)
+      .map(([key, count]) => ({ key, count }))
+      .sort((a, b) => b.count - a.count),
+    salesByType: Object.entries(salesByTypeCounts)
+      .map(([key, count]) => ({ key, count }))
+      .sort((a, b) => b.count - a.count),
+    priceRangesByType: Object.entries(priceBucketsByType)
+      .map(([key, bucket]) => ({
+        key,
+        min: bucket.min,
+        max: bucket.max,
+        count: bucket.count,
+        currency: bucket.currency,
+      }))
+      .sort((a, b) => b.count - a.count),
+    appointmentsByType: Object.entries(appointmentsByTypeCounts)
       .map(([key, count]) => ({ key, count }))
       .sort((a, b) => b.count - a.count),
     agentPerformance: agentPerformance.sort((left, right) => right.closed_leads - left.closed_leads || right.total_views - left.total_views),

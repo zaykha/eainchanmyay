@@ -58,6 +58,83 @@ const shimmer = keyframes`
   }
 `;
 
+type VendorOverviewPayload = {
+  metrics: {
+    totalProperties: number;
+    publishedProperties: number;
+    draftProperties: number;
+    soldProperties: number;
+    rentedProperties: number;
+    archivedProperties: number;
+    totalValue: number;
+    publishedValue: number;
+    appointmentsCount: number;
+    listingViewsCount: number;
+    inquiryLeadCount: number;
+  };
+  nextAppointment:
+    | {
+        title: string | null;
+        client_name: string | null;
+        start_at: string | null;
+      }
+    | null;
+  statusMix: Array<{ key: string; count: number }>;
+  listingTypes: Array<{ key: string; count: number }>;
+  salesByType: Array<{ key: string; count: number }>;
+  priceRangesByType: Array<{ key: string; min: number; max: number; count: number; currency: string }>;
+  appointmentsByType: Array<{ key: string; count: number }>;
+};
+
+const HUB_SNAPSHOT_TEMPLATE: VendorOverviewPayload = {
+  metrics: {
+    totalProperties: 18,
+    publishedProperties: 12,
+    draftProperties: 4,
+    soldProperties: 2,
+    rentedProperties: 1,
+    archivedProperties: 0,
+    totalValue: 400000000,
+    publishedValue: 320000000,
+    appointmentsCount: 14,
+    listingViewsCount: 328,
+    inquiryLeadCount: 42,
+  },
+  nextAppointment: {
+    title: "Condo viewing with buyer",
+    client_name: "Ko Aung",
+    start_at: "2026-05-09T10:30:00+09:00",
+  },
+  statusMix: [
+    { key: "published", count: 12 },
+    { key: "draft", count: 4 },
+    { key: "sold", count: 2 },
+  ],
+  listingTypes: [
+    { key: "condo", count: 6 },
+    { key: "house", count: 5 },
+    { key: "land", count: 4 },
+    { key: "shop_office", count: 3 },
+  ],
+  salesByType: [
+    { key: "condo", count: 3 },
+    { key: "house", count: 2 },
+    { key: "land", count: 1 },
+  ],
+  priceRangesByType: [
+    { key: "condo", min: 180000000, max: 420000000, count: 4, currency: "MMK" },
+    { key: "house", min: 250000000, max: 950000000, count: 3, currency: "MMK" },
+    { key: "land", min: 120000000, max: 600000000, count: 3, currency: "MMK" },
+    { key: "shop_office", min: 300000000, max: 800000000, count: 2, currency: "MMK" },
+  ],
+  appointmentsByType: [
+    { key: "condo", count: 6 },
+    { key: "house", count: 4 },
+    { key: "land", count: 3 },
+    { key: "shop_office", count: 1 },
+  ],
+};
+
 const Header = styled.header`
   padding-bottom: 14px;
 
@@ -695,7 +772,7 @@ const VendorGrid = styled.div`
   display: grid;
   align-items: stretch;
   gap: 16px;
-  grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+  grid-template-columns: 84px minmax(0, 1fr);
 
   @media (max-width: 960px) {
     grid-template-columns: 1fr;
@@ -762,8 +839,69 @@ const VendorCard = styled(Panel)`
 `;
 
 const VendorCardFill = styled(VendorCard)`
+  align-self: start;
+`;
+
+const VendorActionRail = styled(VendorCard)<{ $expanded?: boolean }>`
+  position: relative;
   align-self: stretch;
-  align-content: start;
+  overflow: visible;
+  padding: 0;
+  gap: 0;
+  min-width: 84px;
+  width: 84px;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+
+  @media (max-width: 960px) {
+    padding: 14px;
+    width: auto;
+    min-width: 0;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    background: var(--color-surface);
+    box-shadow: var(--frame-shadow);
+  }
+`;
+
+const HubRailSurface = styled.div<{ $expanded?: boolean }>`
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 5;
+  width: ${(props) => (props.$expanded ? "248px" : "84px")};
+  min-height: 100%;
+  padding: 12px;
+  border-radius: 28px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: ${(props) => (props.$expanded ? "0 18px 44px rgba(15, 23, 42, 0.12)" : "var(--frame-shadow)")};
+  overflow: hidden;
+  transition:
+    width 180ms ease,
+    box-shadow 180ms ease,
+    background 180ms ease;
+  will-change: width;
+
+  @media (max-width: 960px) {
+    position: relative;
+    width: 100%;
+    min-height: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    overflow: visible;
+  }
+`;
+
+const HubRailSpacer = styled.div`
+  width: 84px;
+  min-height: 100%;
+
+  @media (max-width: 960px) {
+    display: none;
+  }
 `;
 
 const VendorHero = styled.div`
@@ -918,7 +1056,6 @@ const HubFeatureCard = styled.div`
   position: relative;
   display: grid;
   gap: 14px;
-  min-height: 100%;
   overflow: hidden;
 `;
 
@@ -1017,7 +1154,6 @@ const HubChecklistAction = styled.span`
 `;
 
 const HubFeaturePreview = styled.div`
-  position: relative;
   display: grid;
   gap: 12px;
 `;
@@ -1026,10 +1162,15 @@ const HubFeaturePreviewGrid = styled.div`
   display: grid;
   gap: 12px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+
+  @media (max-width: 720px) {
+    grid-template-columns: 1fr;
+  }
 `;
 
 const HubFeaturePreviewItem = styled.div`
   display: grid;
+  align-content: start;
   gap: 8px;
   padding: 14px;
   border-radius: 16px;
@@ -1057,25 +1198,249 @@ const HubFeaturePreviewValue = styled.div`
   color: var(--color-text);
 `;
 
-const HubFeatureOverlay = styled.div`
-  position: absolute;
-  inset: 0;
+const HubFeatureUpsellCard = styled(Link)`
   display: grid;
-  place-items: center;
-  padding: 18px;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--color-surface) 30%, transparent) 0%,
-    color-mix(in srgb, var(--color-surface) 88%, white) 100%
-  );
+  gap: 10px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 18%, var(--color-outline));
+  background: color-mix(in srgb, var(--color-primary) 6%, white);
+  color: inherit;
+  text-decoration: none;
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+
+  &:hover {
+    transform: translateY(-1px);
+    border-color: color-mix(in srgb, var(--color-primary) 30%, var(--color-outline));
+    box-shadow: var(--frame-shadow);
+    background: color-mix(in srgb, var(--color-primary) 9%, white);
+  }
 `;
 
-const HubFeatureOverlayCard = styled.div`
+const HubFeatureUpsellHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+`;
+
+const HubInsightGrid = styled.div`
+  display: grid;
+  gap: 22px 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+
+  @media (max-width: 960px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const HubInsightCard = styled.div`
+  position: relative;
+  min-height: 142px;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--color-outline) 85%, transparent);
+  background: color-mix(in srgb, var(--color-surface-2) 78%, white);
+  overflow: visible;
+  padding: 24px 14px 18px;
+`;
+
+const HubInsightBody = styled.div`
+  position: relative;
+  min-height: 98px;
+  border-radius: 14px;
+  overflow: hidden;
+`;
+
+const HubInsightCardInner = styled.div<{ $blurred?: boolean }>`
   display: grid;
   gap: 8px;
-  justify-items: center;
+  min-height: 72px;
+  height: 100%;
+  filter: ${(props) => (props.$blurred ? "blur(2px)" : "none")};
+  opacity: ${(props) => (props.$blurred ? 0.52 : 1)};
+  transition: filter 160ms ease, opacity 160ms ease;
+`;
+
+const HubInsightCardTop = styled.div`
+  position: absolute;
+  top: 0;
+  left: 14px;
+  transform: translateY(-50%);
+`;
+
+const HubInsightCardTitle = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--color-outline);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+
+  svg {
+    width: 15px;
+    height: 15px;
+    color: var(--color-text);
+  }
+`;
+
+const HubInsightCardValue = styled.div`
+  font-size: 1.18rem;
+  font-weight: 800;
+  color: var(--color-text);
+  line-height: 1.2;
+`;
+
+const HubInsightCardValueCentered = styled(HubInsightCardValue)`
+  min-height: 100%;
+  display: grid;
+  place-items: center;
   text-align: center;
-  max-width: 320px;
+`;
+
+const HubInsightCardCopy = styled.div`
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: var(--color-muted);
+`;
+
+const HubInsightMiniList = styled.div`
+  display: grid;
+  gap: 8px;
+`;
+
+const HubInsightMiniRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.9rem;
+  color: var(--color-text);
+`;
+
+const HubInsightMiniCount = styled.span`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-surface) 90%, white);
+  border: 1px solid var(--color-outline);
+  color: var(--color-text);
+  font-size: 0.82rem;
+  font-weight: 700;
+`;
+
+const HubInsightBlurBadge = styled.div`
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.46));
+  pointer-events: none;
+`;
+
+const HubInsightBlurText = styled.span`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 22%, var(--color-outline));
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--color-primary);
+  font-size: 0.88rem;
+  font-weight: 700;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+  text-align: center;
+`;
+
+const HUB_INSIGHT_COLORS = ["#f43f5e", "#fb7185", "#f97316", "#22c55e", "#3b82f6", "#8b5cf6"];
+
+const HubInsightHero = styled.div`
+  display: grid;
+  gap: 6px;
+`;
+
+const HubInsightHeroValue = styled.div`
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--color-text);
+  line-height: 1.15;
+`;
+
+const HubInsightHeroLabel = styled.div`
+  font-size: 0.84rem;
+  color: var(--color-muted);
+`;
+
+const HubInsightStack = styled.div`
+  position: relative;
+  display: grid;
+  gap: 8px;
+`;
+
+const HubInsightStackTrack = styled.div`
+  display: flex;
+  height: 14px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--color-surface) 92%, white);
+  border: 1px solid var(--color-outline);
+`;
+
+const HubInsightStackSegment = styled.div<{ $width: number; $color: string }>`
+  width: ${(props) => props.$width}%;
+  background: ${(props) => props.$color};
+  min-width: ${(props) => (props.$width > 0 ? "6px" : "0")};
+`;
+
+const HubInsightLegend = styled.div`
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  z-index: 3;
+  min-width: 220px;
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--color-outline);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.12);
+  opacity: 0;
+  transform: translateY(6px);
+  pointer-events: none;
+  transition: opacity 160ms ease, transform 160ms ease;
+
+  ${HubInsightCard}:hover & {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
+const HubInsightLegendRow = styled.div`
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.85rem;
+  color: var(--color-text);
+`;
+
+const HubInsightLegendDot = styled.span<{ $color: string }>`
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: ${(props) => props.$color};
 `;
 
 const HubFeatureLock = styled.div`
@@ -1117,47 +1482,75 @@ const HubNavList = styled.div`
   gap: 10px;
 `;
 
-const HubNavItem = styled(Link)<{ $disabled?: boolean }>`
+const HubNavItem = styled(Link)<{ $disabled?: boolean; $expanded?: boolean }>`
   border: 1px solid var(--color-outline);
   border-radius: 16px;
-  padding: 14px 16px;
+  padding: 10px 12px;
   background: var(--color-surface);
   display: grid;
-  grid-template-columns: 36px 1fr 18px;
+  grid-template-columns: 36px ${(props) => (props.$expanded ? "minmax(0,1fr) 18px" : "0px 0px")};
   align-items: center;
-  gap: 12px;
+  justify-content: ${(props) => (props.$expanded ? "stretch" : "center")};
+  gap: ${(props) => (props.$expanded ? "12px" : "0")};
   color: inherit;
   text-decoration: none;
   box-shadow: var(--shadow-soft);
   opacity: ${(props) => (props.$disabled ? 0.55 : 1)};
   pointer-events: ${(props) => (props.$disabled ? "none" : "auto")};
-  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+  overflow: hidden;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background 160ms ease,
+    grid-template-columns 180ms ease,
+    gap 180ms ease;
 
   &:hover {
     transform: translateY(-1px);
     border-color: color-mix(in srgb, var(--color-primary) 24%, var(--color-outline));
     box-shadow: var(--frame-shadow);
   }
+
+  @media (max-width: 960px) {
+    grid-template-columns: 36px minmax(0,1fr) 18px;
+    gap: 12px;
+    justify-content: stretch;
+  }
 `;
 
-const HubNavButton = styled.button`
+const HubNavButton = styled.button<{ $expanded?: boolean }>`
   border: 1px solid var(--color-outline);
   border-radius: 16px;
-  padding: 14px 16px;
+  padding: 10px 12px;
   background: var(--color-surface);
   display: grid;
-  grid-template-columns: 36px 1fr 18px;
+  grid-template-columns: 36px ${(props) => (props.$expanded ? "minmax(0,1fr) 18px" : "0px 0px")};
   align-items: center;
-  gap: 12px;
+  justify-content: ${(props) => (props.$expanded ? "stretch" : "center")};
+  gap: ${(props) => (props.$expanded ? "12px" : "0")};
   color: inherit;
   box-shadow: var(--shadow-soft);
   cursor: pointer;
-  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+  overflow: hidden;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background 160ms ease,
+    grid-template-columns 180ms ease,
+    gap 180ms ease;
 
   &:hover {
     transform: translateY(-1px);
     border-color: color-mix(in srgb, var(--color-primary) 24%, var(--color-outline));
     box-shadow: var(--frame-shadow);
+  }
+
+  @media (max-width: 960px) {
+    grid-template-columns: 36px minmax(0,1fr) 18px;
+    gap: 12px;
+    justify-content: stretch;
   }
 `;
 
@@ -1176,20 +1569,48 @@ const HubNavIcon = styled.div`
   }
 `;
 
-const HubNavBody = styled.div`
+const HubNavBody = styled.div<{ $expanded?: boolean }>`
   display: grid;
-  gap: 3px;
+  gap: 0;
   text-align: left;
+  overflow: hidden;
+  opacity: ${(props) => (props.$expanded ? 1 : 0)};
+  max-width: ${(props) => (props.$expanded ? "220px" : "0px")};
+  transform: translateX(${(props) => (props.$expanded ? "0" : "-4px")});
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease,
+    max-width 180ms ease;
+  pointer-events: ${(props) => (props.$expanded ? "auto" : "none")};
+
+  @media (max-width: 960px) {
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+  }
 `;
 
 const HubNavTitle = styled.strong`
   color: var(--color-text);
 `;
 
-const HubNavCopy = styled.span`
-  color: var(--color-muted);
-  font-size: 0.88rem;
-  line-height: 1.45;
+const HubNavArrow = styled.div<{ $expanded?: boolean }>`
+  display: grid;
+  place-items: center;
+  opacity: ${(props) => (props.$expanded ? 1 : 0)};
+  max-width: ${(props) => (props.$expanded ? "18px" : "0px")};
+  overflow: hidden;
+  transform: translateX(${(props) => (props.$expanded ? "0" : "-4px")});
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease,
+    max-width 180ms ease;
+  pointer-events: none;
+
+  @media (max-width: 960px) {
+    opacity: 1;
+    transform: none;
+  }
 `;
 
 const FloatingAction = styled.button`
@@ -1588,6 +2009,7 @@ export default function AccountPage() {
   const [activeInquiry, setActiveInquiry] = useState<Record<string, unknown> | null>(null);
   const [activeSale, setActiveSale] = useState<Record<string, unknown> | null>(null);
   const [onboardingPending, setOnboardingPending] = useState(false);
+  const [hubRailExpanded, setHubRailExpanded] = useState(false);
   const [vendorWorkspace, setVendorWorkspace] = useState<{
     vendor: {
       id: string;
@@ -1624,6 +2046,9 @@ export default function AccountPage() {
   } | null>(null);
   const [vendorWorkspaceError, setVendorWorkspaceError] = useState<string | null>(null);
   const [vendorWorkspaceLoading, setVendorWorkspaceLoading] = useState(false);
+  const [vendorOverview, setVendorOverview] = useState<VendorOverviewPayload | null>(null);
+  const [vendorOverviewLoading, setVendorOverviewLoading] = useState(false);
+  const [vendorOverviewError, setVendorOverviewError] = useState<string | null>(null);
 
   useEffect(() => {
     setViewingRequests([]);
@@ -1662,6 +2087,58 @@ export default function AccountPage() {
     if (typeof window === "undefined") return;
     setOnboardingPending(window.localStorage.getItem("kaiten_vendor_onboarding_pending") === "1");
   }, []);
+
+  useEffect(() => {
+    if (!authToken || profileRole !== "vendor_user") {
+      setVendorOverview(null);
+      setVendorOverviewError(null);
+      setVendorOverviewLoading(false);
+      return;
+    }
+
+    if (vendorWorkspace?.vendor.plan === "free") {
+      setVendorOverview(null);
+      setVendorOverviewError(null);
+      setVendorOverviewLoading(false);
+      return;
+    }
+
+    let active = true;
+    setVendorOverviewLoading(true);
+    setVendorOverviewError(null);
+
+    fetch("/api/vendor/overview", {
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+      },
+    })
+      .then(async (response) => {
+        const payload = (await response.json().catch(() => null)) as (VendorOverviewPayload & { error?: string }) | null;
+        if (!response.ok) {
+          throw new Error(payload?.error || "Unable to load workspace insights.");
+        }
+        if (!payload) {
+          throw new Error("Unable to load workspace insights.");
+        }
+        if (active) {
+          setVendorOverview(payload);
+        }
+      })
+      .catch((error) => {
+        if (active) {
+          setVendorOverviewError(error instanceof Error ? error.message : "Unable to load workspace insights.");
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setVendorOverviewLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [authToken, profileRole, vendorWorkspace?.vendor.plan]);
 
   useEffect(() => {
     if (!profileReady || loading) return;
@@ -1976,6 +2453,7 @@ export default function AccountPage() {
   ];
   const profileReadinessDoneCount = profileReadinessItems.filter((item) => item.done).length;
   const freeSettingsHref = "/hub/settings";
+  const freeUpgradeHref = "/hub/upgrade";
   const profileReadinessHref =
     profileReadinessDoneCount === profileReadinessItems.length ? freeSettingsHref : "/agency-setup";
   const hubChecklist = [
@@ -2028,6 +2506,26 @@ export default function AccountPage() {
           .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
           .join(" ")
       : "Unknown";
+  const workspaceSnapshotView = useMemo(() => {
+    if (!vendorOverview) return HUB_SNAPSHOT_TEMPLATE;
+
+    return {
+      metrics:
+        vendorOverview.metrics.totalProperties < 1
+          ? HUB_SNAPSHOT_TEMPLATE.metrics
+          : vendorOverview.metrics,
+      nextAppointment: vendorOverview.nextAppointment ?? HUB_SNAPSHOT_TEMPLATE.nextAppointment,
+      statusMix: vendorOverview.statusMix.length ? vendorOverview.statusMix : HUB_SNAPSHOT_TEMPLATE.statusMix,
+      listingTypes: vendorOverview.listingTypes.length ? vendorOverview.listingTypes : HUB_SNAPSHOT_TEMPLATE.listingTypes,
+      salesByType: vendorOverview.salesByType.length ? vendorOverview.salesByType : HUB_SNAPSHOT_TEMPLATE.salesByType,
+      priceRangesByType: vendorOverview.priceRangesByType.some((item) => item.count >= 2)
+        ? vendorOverview.priceRangesByType
+        : HUB_SNAPSHOT_TEMPLATE.priceRangesByType,
+      appointmentsByType: vendorOverview.appointmentsByType.length
+        ? vendorOverview.appointmentsByType
+        : HUB_SNAPSHOT_TEMPLATE.appointmentsByType,
+    };
+  }, [vendorOverview]);
 
   useEffect(() => {
     if (pathname === "/hub" && vendorWorkspace && !storefrontReady) {
@@ -2112,6 +2610,146 @@ export default function AccountPage() {
           user &&
           (profileRole === "vendor_user" || onboardingPending || Boolean(vendorWorkspace?.vendor.id)) && (
           <VendorGrid>
+            <VendorActionRail
+              data-hub-rail="true"
+              $expanded={hubRailExpanded}
+              onMouseEnter={() => setHubRailExpanded(true)}
+              onMouseLeave={() => setHubRailExpanded(false)}
+              onFocus={() => setHubRailExpanded(true)}
+              onBlur={(event) => {
+                if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                  setHubRailExpanded(false);
+                }
+              }}
+            >
+              <HubRailSurface $expanded={hubRailExpanded}>
+                <HubNavList>
+                <HubNavItem $expanded={hubRailExpanded} href={isFreeAgencyPlan ? "/request-sale" : "/vendor/properties"}>
+                  <HubNavIcon>
+                    <Plus />
+                  </HubNavIcon>
+                  <HubNavBody $expanded={hubRailExpanded}>
+                    <HubNavTitle>Manage listings</HubNavTitle>
+                  </HubNavBody>
+                  <HubNavArrow $expanded={hubRailExpanded}>
+                    <ArrowUpRight size={18} />
+                    </HubNavArrow>
+                  </HubNavItem>
+
+                  {isFreeAgencyPlan ? (
+                    <HubNavItem $expanded={hubRailExpanded} href={freeUpgradeHref} $disabled>
+                      <HubNavIcon>
+                        <Calendar />
+                      </HubNavIcon>
+                      <HubNavBody $expanded={hubRailExpanded}>
+                        <HubNavTitle>Appointment management</HubNavTitle>
+                      </HubNavBody>
+                      <HubNavArrow $expanded={hubRailExpanded}>
+                        <ArrowUpRight size={18} />
+                      </HubNavArrow>
+                    </HubNavItem>
+                  ) : (
+                    <HubNavItem $expanded={hubRailExpanded} href="/vendor/viewing-requests">
+                      <HubNavIcon>
+                        <Calendar />
+                      </HubNavIcon>
+                      <HubNavBody $expanded={hubRailExpanded}>
+                        <HubNavTitle>Appointment management</HubNavTitle>
+                      </HubNavBody>
+                      <HubNavArrow $expanded={hubRailExpanded}>
+                        <ArrowUpRight size={18} />
+                      </HubNavArrow>
+                    </HubNavItem>
+                  )}
+
+                  {!isFreeAgencyPlan ? (
+                    <HubNavItem $expanded={hubRailExpanded} href="/vendor/inquiries">
+                      <HubNavIcon>
+                        <MessageSquareText />
+                      </HubNavIcon>
+                      <HubNavBody $expanded={hubRailExpanded}>
+                        <HubNavTitle>Lead inbox</HubNavTitle>
+                      </HubNavBody>
+                      <HubNavArrow $expanded={hubRailExpanded}>
+                        <ArrowUpRight size={18} />
+                      </HubNavArrow>
+                    </HubNavItem>
+                  ) : null}
+
+                  <HubNavItem $expanded={hubRailExpanded} href={isFreeAgencyPlan ? freeSettingsHref : "/vendor/settings"}>
+                    <HubNavIcon>
+                      <Settings />
+                    </HubNavIcon>
+                    <HubNavBody $expanded={hubRailExpanded}>
+                      <HubNavTitle>Organization settings</HubNavTitle>
+                    </HubNavBody>
+                    <HubNavArrow $expanded={hubRailExpanded}>
+                      <ArrowUpRight size={18} />
+                    </HubNavArrow>
+                  </HubNavItem>
+
+                  {isFreeAgencyPlan ? (
+                    <HubNavItem $expanded={hubRailExpanded} href={freeUpgradeHref} $disabled>
+                      <HubNavIcon>
+                        <Users2 />
+                      </HubNavIcon>
+                      <HubNavBody $expanded={hubRailExpanded}>
+                        <HubNavTitle>Add members</HubNavTitle>
+                      </HubNavBody>
+                      <HubNavArrow $expanded={hubRailExpanded}>
+                        <ArrowUpRight size={18} />
+                      </HubNavArrow>
+                    </HubNavItem>
+                  ) : (vendorWorkspace?.membership.role === "owner" || vendorWorkspace?.membership.role === "admin") ? (
+                    <HubNavItem $expanded={hubRailExpanded} href="/vendor/team">
+                      <HubNavIcon>
+                        <Users2 />
+                      </HubNavIcon>
+                      <HubNavBody $expanded={hubRailExpanded}>
+                        <HubNavTitle>Add members</HubNavTitle>
+                      </HubNavBody>
+                      <HubNavArrow $expanded={hubRailExpanded}>
+                        <ArrowUpRight size={18} />
+                      </HubNavArrow>
+                    </HubNavItem>
+                  ) : null}
+
+                  {vendorWorkspace?.vendor.public_storefront_enabled && vendorWorkspace?.vendor.slug ? (
+                    <HubNavItem $expanded={hubRailExpanded} href={`/agency/${vendorWorkspace.vendor.slug}`}>
+                      <HubNavIcon>
+                        <Globe2 />
+                      </HubNavIcon>
+                      <HubNavBody $expanded={hubRailExpanded}>
+                        <HubNavTitle>View public profile</HubNavTitle>
+                      </HubNavBody>
+                      <HubNavArrow $expanded={hubRailExpanded}>
+                        <ArrowUpRight size={18} />
+                      </HubNavArrow>
+                    </HubNavItem>
+                  ) : null}
+
+                  <HubNavButton
+                    $expanded={hubRailExpanded}
+                    type="button"
+                    onClick={async () => {
+                      await logout();
+                      router.push("/");
+                    }}
+                  >
+                    <HubNavIcon>
+                      <X />
+                    </HubNavIcon>
+                    <HubNavBody $expanded={hubRailExpanded}>
+                      <HubNavTitle>Sign out</HubNavTitle>
+                    </HubNavBody>
+                    <HubNavArrow $expanded={hubRailExpanded}>
+                      <ArrowUpRight size={18} />
+                    </HubNavArrow>
+                  </HubNavButton>
+                </HubNavList>
+              </HubRailSurface>
+              <HubRailSpacer />
+            </VendorActionRail>
             <VendorColumn>
             <VendorCard>
               <StarterHeader>
@@ -2122,18 +2760,18 @@ export default function AccountPage() {
                   <VendorTitle>{vendorWorkspace?.vendor.name || "Agency account"}</VendorTitle>
                 </VendorIdentity>
                 <VendorMeta>
-                  <VendorPillLink href="/vendor-setup" $tone="warning">
+                  <VendorPillLink href={isFreeAgencyPlan ? freeUpgradeHref : "/vendor"} $tone="warning">
                     <Sparkles size={14} />
                     {vendorWorkspace?.limits?.currentPlan?.name || currentVendorPlan.name}
                   </VendorPillLink>
                   <VendorPill>{labelize(vendorWorkspace?.membership.role)}</VendorPill>
                   {isFreeAgencyPlan ? (
-                    <VendorPillLink href="/vendor-setup" $tone="warning">
+                    <VendorPillLink href={freeUpgradeHref} $tone="warning">
                       Upgrade
                     </VendorPillLink>
                   ) : null}
                   <VendorPillLink
-                    href={isFreeAgencyPlan ? "/vendor-setup" : "/vendor/verification"}
+                    href={isFreeAgencyPlan ? freeUpgradeHref : "/vendor/verification"}
                     $tone={vendorWorkspace?.vendor.verified_status === "approved" ? "success" : "warning"}
                   >
                     {vendorWorkspace?.vendor.verified_status === "approved" ? <BadgeCheck size={14} /> : <ShieldCheck size={14} />}
@@ -2154,124 +2792,75 @@ export default function AccountPage() {
 
               {vendorWorkspaceError ? <Muted>{vendorWorkspaceError}</Muted> : null}
 
-              {isFreeAgencyPlan ? (
-                <>
-                  <StarterGrid>
-                    <StarterStat>
-                      <StarterStatTop>
-                        <span>Listings</span>
-                        <Building2 />
-                      </StarterStatTop>
-                      <StarterStatValue>
-                        {listingUsage} / {listingLimit}
-                      </StarterStatValue>
-                    </StarterStat>
-                    <StarterStat>
-                      <StarterStatTop>
-                        <span>Seats</span>
-                        <Users2 />
-                      </StarterStatTop>
-                      <StarterStatValue>
-                        {agentUsage} / {agentLimit}
-                      </StarterStatValue>
-                    </StarterStat>
-                    <StarterStat>
-                      <StarterStatTop>
-                        <span>Storefront</span>
-                        <Globe2 />
-                      </StarterStatTop>
-                      <StarterStatValue>
-                        {vendorWorkspace?.vendor.public_storefront_enabled && vendorWorkspace?.vendor.slug
-                          ? "Live"
-                          : "Draft"}
-                      </StarterStatValue>
-                    </StarterStat>
-                  </StarterGrid>
-                </>
-              ) : (
-                <>
-                  <VendorSectionTitle>Workspace</VendorSectionTitle>
-                  <VendorActionGrid>
-                  <VendorAction href="/vendor">
-                    <VendorActionTitle>Dashboard</VendorActionTitle>
-                    <VendorActionCopy>
-                      Open your agency dashboard, analytics, listings, and lead operations.
-                    </VendorActionCopy>
-                  </VendorAction>
-
-                    <VendorAction href="/vendor/properties">
-                      <VendorActionTitle>Properties</VendorActionTitle>
-                      <VendorActionCopy>
-                        Review current listings, verification state, and property activity.
-                      </VendorActionCopy>
-                    </VendorAction>
-
-                    <VendorAction href="/vendor/inquiries">
-                      <VendorActionTitle>Lead Inbox</VendorActionTitle>
-                      <VendorActionCopy>
-                        Handle routed marketplace inquiries, pipeline stages, reminders, and templates.
-                      </VendorActionCopy>
-                    </VendorAction>
-
-                    <VendorAction href="/vendor/settings">
-                      <VendorActionTitle>Settings</VendorActionTitle>
-                      <VendorActionCopy>
-                        Manage agency profile, storefront branding, workspace preferences, and plan-facing controls.
-                      </VendorActionCopy>
-                    </VendorAction>
-
-                    <VendorAction
-                      as="button"
-                      type="button"
-                      onClick={async () => {
-                        await logout();
-                        router.push("/");
-                      }}
-                    >
-                      <VendorActionTitle>Sign out</VendorActionTitle>
-                      <VendorActionCopy>
-                        Exit this agency session on this device.
-                      </VendorActionCopy>
-                    </VendorAction>
-                  </VendorActionGrid>
-                </>
-              )}
+              <StarterGrid>
+                <StarterStat>
+                  <StarterStatTop>
+                    <span>Listings</span>
+                    <Building2 />
+                  </StarterStatTop>
+                  <StarterStatValue>
+                    {listingUsage} / {listingLimit}
+                  </StarterStatValue>
+                </StarterStat>
+                <StarterStat>
+                  <StarterStatTop>
+                    <span>Seats</span>
+                    <Users2 />
+                  </StarterStatTop>
+                  <StarterStatValue>
+                    {agentUsage} / {agentLimit}
+                  </StarterStatValue>
+                </StarterStat>
+                <StarterStat>
+                  <StarterStatTop>
+                    <span>Storefront</span>
+                    <Globe2 />
+                  </StarterStatTop>
+                  <StarterStatValue>
+                    {vendorWorkspace?.vendor.public_storefront_enabled && vendorWorkspace?.vendor.slug
+                      ? "Live"
+                      : "Draft"}
+                  </StarterStatValue>
+                </StarterStat>
+              </StarterGrid>
             </VendorCard>
-            {isFreeAgencyPlan ? (
-              <VendorCardFill>
-                <HubFeatureCard>
-                  {!starterChecklistComplete ? (
-                    <>
-                      <HubFeatureHeader>
-                        <HubFeatureTop>
-                          <HubFeatureTitle>Next steps</HubFeatureTitle>
-                          <HubProgressPill>
-                            {starterChecklistDoneCount}/{hubChecklist.length} complete
-                          </HubProgressPill>
-                        </HubFeatureTop>
-                        <HubFeatureCopy>Finish these basics to make your agency profile ready for buyers.</HubFeatureCopy>
-                      </HubFeatureHeader>
-                      <HubChecklist>
-                        {hubChecklist.map((item) => (
-                          <HubChecklistRow key={item.title} href={item.href} $done={item.done}>
-                            <div style={{ color: item.done ? "#0f766e" : "var(--color-muted)" }}>
-                              {item.done ? <CheckCircle2 size={18} /> : <Circle size={18} />}
-                            </div>
-                            <HubChecklistText>
-                              <HubChecklistTitle>{item.title}</HubChecklistTitle>
-                              <HubChecklistHint>{item.hint}</HubChecklistHint>
-                            </HubChecklistText>
-                            <HubChecklistAction>{item.actionLabel}</HubChecklistAction>
-                          </HubChecklistRow>
-                        ))}
-                      </HubChecklist>
-                    </>
-                  ) : (
-                    <>
-                      <HubFeatureHeader>
-                        <HubFeatureTitle>Premium workspace preview</HubFeatureTitle>
+            <VendorCardFill>
+              <HubFeatureCard>
+                {!starterChecklistComplete ? (
+                  <>
+                    <HubFeatureHeader>
+                      <HubFeatureTop>
+                        <HubFeatureTitle>Next steps</HubFeatureTitle>
+                        <HubProgressPill>
+                          {starterChecklistDoneCount}/{hubChecklist.length} complete
+                        </HubProgressPill>
+                      </HubFeatureTop>
+                      <HubFeatureCopy>Finish these basics to make your agency profile ready for buyers.</HubFeatureCopy>
+                    </HubFeatureHeader>
+                    <HubChecklist>
+                      {hubChecklist.map((item) => (
+                        <HubChecklistRow key={item.title} href={item.href} $done={item.done}>
+                          <div style={{ color: item.done ? "#0f766e" : "var(--color-muted)" }}>
+                            {item.done ? <CheckCircle2 size={18} /> : <Circle size={18} />}
+                          </div>
+                          <HubChecklistText>
+                            <HubChecklistTitle>{item.title}</HubChecklistTitle>
+                            <HubChecklistHint>{item.hint}</HubChecklistHint>
+                          </HubChecklistText>
+                          <HubChecklistAction>{item.actionLabel}</HubChecklistAction>
+                        </HubChecklistRow>
+                      ))}
+                    </HubChecklist>
+                  </>
+                ) : (
+                  <>
+                    <HubFeatureHeader>
+                      <HubFeatureTitle>{isFreeAgencyPlan ? "Premium workspace preview" : "Workspace snapshot"}</HubFeatureTitle>
+                      {isFreeAgencyPlan ? (
                         <HubFeatureCopy>Upgrade to unlock live sales and lead overview inside your hub.</HubFeatureCopy>
-                      </HubFeatureHeader>
+                      ) : null}
+                    </HubFeatureHeader>
+                    {isFreeAgencyPlan ? (
                       <HubFeaturePreview>
                         <HubFeaturePreviewGrid>
                           <HubFeaturePreviewItem>
@@ -2288,175 +2877,243 @@ export default function AccountPage() {
                             </HubFeaturePreviewTop>
                             <HubFeaturePreviewValue>MMK 180L pipeline</HubFeaturePreviewValue>
                           </HubFeaturePreviewItem>
+                          <HubFeaturePreviewItem>
+                            <HubFeaturePreviewTop>
+                              <span>Viewing demand</span>
+                              <Calendar />
+                            </HubFeaturePreviewTop>
+                            <HubFeaturePreviewValue>12 appointments this week</HubFeaturePreviewValue>
+                          </HubFeaturePreviewItem>
+                          <HubFeaturePreviewItem>
+                            <HubFeaturePreviewTop>
+                              <span>Team response</span>
+                              <Users2 />
+                            </HubFeaturePreviewTop>
+                            <HubFeaturePreviewValue>2h average first reply</HubFeaturePreviewValue>
+                          </HubFeaturePreviewItem>
                         </HubFeaturePreviewGrid>
-                        <HubFeatureOverlay>
-                          <HubFeatureOverlayCard>
+                        <HubFeatureUpsellCard href={freeUpgradeHref}>
+                          <HubFeatureUpsellHeader>
                             <HubFeatureLock>
                               <Lock size={18} />
                             </HubFeatureLock>
                             <HubChecklistTitle>Upgrade to reveal premium insights</HubChecklistTitle>
-                            <HubChecklistHint>
-                              Sales stats, lead summaries, and team overview appear here once your plan is upgraded.
-                            </HubChecklistHint>
-                          </HubFeatureOverlayCard>
-                        </HubFeatureOverlay>
+                          </HubFeatureUpsellHeader>
+                          <HubChecklistHint>
+                            Sales stats, lead summaries, appointments, and team performance appear here once your plan is upgraded.
+                          </HubChecklistHint>
+                        </HubFeatureUpsellCard>
                       </HubFeaturePreview>
-                    </>
-                  )}
-                </HubFeatureCard>
-              </VendorCardFill>
-            ) : null}
+                    ) : vendorOverviewLoading && !vendorOverview ? (
+                      <HubFeatureCopy>Loading workspace insights...</HubFeatureCopy>
+                    ) : vendorOverviewError || !vendorOverview ? (
+                      <HubFeatureCopy>{vendorOverviewError ?? "Workspace insights are unavailable right now."}</HubFeatureCopy>
+                    ) : (
+                      <HubInsightGrid>
+                        <HubInsightCard>
+                          <HubInsightCardTop>
+                            <HubInsightCardTitle>
+                              <BarChart3 />
+                              Portfolio value
+                            </HubInsightCardTitle>
+                          </HubInsightCardTop>
+                          <HubInsightBody>
+                            <HubInsightCardInner>
+                              <HubInsightCardValueCentered>
+                                {formatCurrency(workspaceSnapshotView.metrics.totalValue, "MMK", "MMK 0")}
+                              </HubInsightCardValueCentered>
+                            </HubInsightCardInner>
+                          </HubInsightBody>
+                        </HubInsightCard>
+
+                        <HubInsightCard>
+                          <HubInsightCardTop>
+                            <HubInsightCardTitle>
+                              <TagIcon />
+                              Listings by type
+                            </HubInsightCardTitle>
+                          </HubInsightCardTop>
+                          <HubInsightBody>
+                            <HubInsightCardInner>
+                              <HubInsightHero>
+                                <HubInsightHeroValue>{workspaceSnapshotView.metrics.totalProperties}</HubInsightHeroValue>
+                                <HubInsightHeroLabel>Total active property records</HubInsightHeroLabel>
+                              </HubInsightHero>
+                              <HubInsightStack>
+                                <HubInsightStackTrack>
+                                  {workspaceSnapshotView.listingTypes.slice(0, 4).map((item, index) => {
+                                    const total = Math.max(
+                                      1,
+                                      workspaceSnapshotView.listingTypes
+                                        .slice(0, 4)
+                                        .reduce((sum, current) => sum + current.count, 0)
+                                    );
+                                    return (
+                                      <HubInsightStackSegment
+                                        key={item.key}
+                                        $width={(item.count / total) * 100}
+                                        $color={HUB_INSIGHT_COLORS[index % HUB_INSIGHT_COLORS.length]}
+                                      />
+                                    );
+                                  })}
+                                </HubInsightStackTrack>
+                                <HubInsightLegend>
+                                  {workspaceSnapshotView.listingTypes.slice(0, 4).map((item, index) => (
+                                    <HubInsightLegendRow key={item.key}>
+                                      <HubInsightLegendDot $color={HUB_INSIGHT_COLORS[index % HUB_INSIGHT_COLORS.length]} />
+                                      <span>{labelize(item.key)}</span>
+                                      <HubInsightMiniCount>{item.count}</HubInsightMiniCount>
+                                    </HubInsightLegendRow>
+                                  ))}
+                                </HubInsightLegend>
+                              </HubInsightStack>
+                            </HubInsightCardInner>
+                          </HubInsightBody>
+                        </HubInsightCard>
+
+                        <HubInsightCard>
+                          <HubInsightCardTop>
+                            <HubInsightCardTitle>
+                              <BadgeCheck />
+                              Sales by type
+                            </HubInsightCardTitle>
+                          </HubInsightCardTop>
+                          <HubInsightBody>
+                            <HubInsightCardInner>
+                              <HubInsightHero>
+                                <HubInsightHeroValue>
+                                  {workspaceSnapshotView.metrics.soldProperties + workspaceSnapshotView.metrics.rentedProperties}
+                                </HubInsightHeroValue>
+                                <HubInsightHeroLabel>Closed sale or rent outcomes</HubInsightHeroLabel>
+                              </HubInsightHero>
+                              <HubInsightStack>
+                                <HubInsightStackTrack>
+                                  {workspaceSnapshotView.salesByType.slice(0, 4).map((item, index) => {
+                                    const total = Math.max(
+                                      1,
+                                      workspaceSnapshotView.salesByType
+                                        .slice(0, 4)
+                                        .reduce((sum, current) => sum + current.count, 0)
+                                    );
+                                    return (
+                                      <HubInsightStackSegment
+                                        key={item.key}
+                                        $width={(item.count / total) * 100}
+                                        $color={HUB_INSIGHT_COLORS[index % HUB_INSIGHT_COLORS.length]}
+                                      />
+                                    );
+                                  })}
+                                </HubInsightStackTrack>
+                                <HubInsightLegend>
+                                  {workspaceSnapshotView.salesByType.slice(0, 4).map((item, index) => (
+                                    <HubInsightLegendRow key={item.key}>
+                                      <HubInsightLegendDot $color={HUB_INSIGHT_COLORS[index % HUB_INSIGHT_COLORS.length]} />
+                                      <span>{labelize(item.key)}</span>
+                                      <HubInsightMiniCount>{item.count}</HubInsightMiniCount>
+                                    </HubInsightLegendRow>
+                                  ))}
+                                </HubInsightLegend>
+                              </HubInsightStack>
+                            </HubInsightCardInner>
+                          </HubInsightBody>
+                        </HubInsightCard>
+
+                        <HubInsightCard>
+                          <HubInsightCardTop>
+                            <HubInsightCardTitle>
+                              <BarChart3 />
+                              Price range by type
+                            </HubInsightCardTitle>
+                          </HubInsightCardTop>
+                          <HubInsightBody>
+                            <HubInsightCardInner>
+                              <HubInsightMiniList>
+                                {workspaceSnapshotView.priceRangesByType.slice(0, 4).map((item) => (
+                                  <HubInsightMiniRow key={item.key}>
+                                    <span>{labelize(item.key)}</span>
+                                    <span>
+                                      {formatCurrency(item.min, item.currency, "MMK 0")} -{" "}
+                                      {formatCurrency(item.max, item.currency, "MMK 0")}
+                                    </span>
+                                  </HubInsightMiniRow>
+                                ))}
+                              </HubInsightMiniList>
+                            </HubInsightCardInner>
+                          </HubInsightBody>
+                        </HubInsightCard>
+
+                        <HubInsightCard>
+                          <HubInsightCardTop>
+                            <HubInsightCardTitle>
+                              <Calendar />
+                              Next appointment
+                            </HubInsightCardTitle>
+                          </HubInsightCardTop>
+                          <HubInsightBody>
+                            <HubInsightCardInner>
+                              <HubInsightCardValue>
+                                {workspaceSnapshotView.nextAppointment?.title || "Upcoming appointment"}
+                              </HubInsightCardValue>
+                              <HubInsightCardCopy>
+                                {workspaceSnapshotView.nextAppointment?.start_at
+                                  ? new Date(workspaceSnapshotView.nextAppointment.start_at).toLocaleString(locale)
+                                  : "No upcoming appointments scheduled yet."}
+                              </HubInsightCardCopy>
+                            </HubInsightCardInner>
+                          </HubInsightBody>
+                        </HubInsightCard>
+
+                        <HubInsightCard>
+                          <HubInsightCardTop>
+                            <HubInsightCardTitle>
+                              <Clock />
+                              Appointments by type
+                            </HubInsightCardTitle>
+                          </HubInsightCardTop>
+                          <HubInsightBody>
+                            <HubInsightCardInner>
+                              <HubInsightHero>
+                                <HubInsightHeroValue>{workspaceSnapshotView.metrics.appointmentsCount}</HubInsightHeroValue>
+                                <HubInsightHeroLabel>Scheduled viewing appointments</HubInsightHeroLabel>
+                              </HubInsightHero>
+                              <HubInsightStack>
+                                <HubInsightStackTrack>
+                                  {workspaceSnapshotView.appointmentsByType.slice(0, 4).map((item, index) => {
+                                    const total = Math.max(
+                                      1,
+                                      workspaceSnapshotView.appointmentsByType
+                                        .slice(0, 4)
+                                        .reduce((sum, current) => sum + current.count, 0)
+                                    );
+                                    return (
+                                      <HubInsightStackSegment
+                                        key={item.key}
+                                        $width={(item.count / total) * 100}
+                                        $color={HUB_INSIGHT_COLORS[index % HUB_INSIGHT_COLORS.length]}
+                                      />
+                                    );
+                                  })}
+                                </HubInsightStackTrack>
+                                <HubInsightLegend>
+                                  {workspaceSnapshotView.appointmentsByType.slice(0, 4).map((item, index) => (
+                                    <HubInsightLegendRow key={item.key}>
+                                      <HubInsightLegendDot $color={HUB_INSIGHT_COLORS[index % HUB_INSIGHT_COLORS.length]} />
+                                      <span>{labelize(item.key)}</span>
+                                      <HubInsightMiniCount>{item.count}</HubInsightMiniCount>
+                                    </HubInsightLegendRow>
+                                  ))}
+                                </HubInsightLegend>
+                              </HubInsightStack>
+                            </HubInsightCardInner>
+                          </HubInsightBody>
+                        </HubInsightCard>
+                      </HubInsightGrid>
+                    )}
+                  </>
+                )}
+              </HubFeatureCard>
+            </VendorCardFill>
             </VendorColumn>
-
-            <VendorCard>
-              <VendorSectionTitle>{isFreeAgencyPlan ? "Workspace actions" : "Access by role and plan"}</VendorSectionTitle>
-
-              {isFreeAgencyPlan ? (
-                <HubNavList>
-                  <HubNavItem href="/request-sale">
-                    <HubNavIcon>
-                      <Plus />
-                    </HubNavIcon>
-                    <HubNavBody>
-                      <HubNavTitle>Manage listings</HubNavTitle>
-                      <HubNavCopy>Create or review your agency property submissions.</HubNavCopy>
-                    </HubNavBody>
-                    <ArrowUpRight size={18} />
-                  </HubNavItem>
-
-                  <HubNavItem href={freeSettingsHref}>
-                    <HubNavIcon>
-                      <Settings />
-                    </HubNavIcon>
-                    <HubNavBody>
-                      <HubNavTitle>Organization settings</HubNavTitle>
-                      <HubNavCopy>Update branding, contact details, and storefront configuration.</HubNavCopy>
-                    </HubNavBody>
-                    <ArrowUpRight size={18} />
-                  </HubNavItem>
-
-                  <HubNavItem href="/vendor-setup">
-                    <HubNavIcon>
-                      <Sparkles />
-                    </HubNavIcon>
-                    <HubNavBody>
-                      <HubNavTitle>Upgrade plan</HubNavTitle>
-                      <HubNavCopy>
-                        {suggestedUpgrade
-                          ? `${suggestedUpgrade.name} unlocks ${suggestedUpgrade.listingLimit} listings and ${suggestedUpgrade.agentLimit} seats.`
-                          : "Explore higher plans for more capacity."}
-                      </HubNavCopy>
-                    </HubNavBody>
-                    <ArrowUpRight size={18} />
-                  </HubNavItem>
-
-                  <HubNavItem href="/vendor-setup" $disabled>
-                    <HubNavIcon>
-                      <Users2 />
-                    </HubNavIcon>
-                    <HubNavBody>
-                      <HubNavTitle>Add members</HubNavTitle>
-                      <HubNavCopy>Available after upgrading from the starter plan.</HubNavCopy>
-                    </HubNavBody>
-                    <ArrowUpRight size={18} />
-                  </HubNavItem>
-
-                  {vendorWorkspace?.vendor.public_storefront_enabled && vendorWorkspace?.vendor.slug ? (
-                    <HubNavItem href={`/agency/${vendorWorkspace.vendor.slug}`}>
-                      <HubNavIcon>
-                        <Globe2 />
-                      </HubNavIcon>
-                      <HubNavBody>
-                        <HubNavTitle>View public profile</HubNavTitle>
-                        <HubNavCopy>Open the live storefront buyers see for this agency.</HubNavCopy>
-                      </HubNavBody>
-                      <ArrowUpRight size={18} />
-                    </HubNavItem>
-                  ) : null}
-
-                  <HubNavButton
-                    type="button"
-                    onClick={async () => {
-                      await logout();
-                      router.push("/");
-                    }}
-                  >
-                    <HubNavIcon>
-                      <X />
-                    </HubNavIcon>
-                    <HubNavBody>
-                      <HubNavTitle>Sign out</HubNavTitle>
-                      <HubNavCopy>Exit this organization session on this device.</HubNavCopy>
-                    </HubNavBody>
-                    <ArrowUpRight size={18} />
-                  </HubNavButton>
-                </HubNavList>
-              ) : (
-                <>
-                  <List>
-                    <ListItem>
-                      <strong>Membership role</strong>
-                      <Muted>{labelize(vendorWorkspace?.membership.role)}</Muted>
-                    </ListItem>
-                    <ListItem>
-                      <strong>Listing capacity</strong>
-                      <Muted>
-                        {listingUsage} / {listingLimit} listings
-                      </Muted>
-                    </ListItem>
-                    <ListItem>
-                      <strong>Team capacity</strong>
-                      <Muted>
-                        {agentUsage} / {agentLimit} seats
-                      </Muted>
-                    </ListItem>
-                    <ListItem>
-                      <strong>Public storefront</strong>
-                      <Muted>
-                        {vendorWorkspace?.vendor.public_storefront_enabled && vendorWorkspace?.vendor.slug
-                          ? `Live at /agency/${vendorWorkspace.vendor.slug}`
-                          : "Not published yet"}
-                      </Muted>
-                    </ListItem>
-                  </List>
-                  <VendorActionGrid>
-                  {(vendorWorkspace?.membership.role === "owner" || vendorWorkspace?.membership.role === "admin") && (
-                    <VendorAction href="/vendor/team">
-                      <VendorActionTitle>Team</VendorActionTitle>
-                      <VendorActionCopy>
-                        Manage agents, assignments, and operational seats in this workspace.
-                      </VendorActionCopy>
-                    </VendorAction>
-                  )}
-
-                  {(vendorWorkspace?.membership.role === "owner" || vendorWorkspace?.membership.role === "admin") && (
-                    <VendorAction href="/vendor/verification">
-                      <VendorActionTitle>Verification</VendorActionTitle>
-                      <VendorActionCopy>
-                        Submit or review manual agency verification requirements for this workspace.
-                      </VendorActionCopy>
-                    </VendorAction>
-                  )}
-
-                  {vendorWorkspace?.vendor.public_storefront_enabled && vendorWorkspace?.vendor.slug ? (
-                    <VendorAction href={`/agency/${vendorWorkspace.vendor.slug}`}>
-                      <VendorActionTitle>Public Profile</VendorActionTitle>
-                      <VendorActionCopy>
-                        Open the live storefront buyers see for this agency.
-                      </VendorActionCopy>
-                    </VendorAction>
-                  ) : null}
-
-                  <VendorAction href="/request-sale">
-                    <VendorActionTitle>Request Listing</VendorActionTitle>
-                    <VendorActionCopy>
-                      Add a new property submission within your current plan limits.
-                    </VendorActionCopy>
-                  </VendorAction>
-                  </VendorActionGrid>
-                </>
-              )}
-            </VendorCard>
           </VendorGrid>
         )}
 

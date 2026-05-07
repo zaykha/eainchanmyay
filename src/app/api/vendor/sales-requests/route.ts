@@ -170,7 +170,6 @@ export async function POST(request: Request) {
     currency: body.currency ?? "MMK",
     state_region: body.state_region.trim(),
     district: toNullableString(body.district),
-    city: toNullableString(body.city),
     township: body.township.trim(),
     address_text: toNullableString(body.address_text),
     bedrooms: isLand ? null : toNullableNumber(body.bedrooms),

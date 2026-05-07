@@ -595,7 +595,7 @@ export default function AuthPage() {
     };
 
     if (effectiveRole === "vendor_user") {
-      redirectToTarget("/vendor-setup");
+      redirectToTarget("/hub");
       return;
     }
 

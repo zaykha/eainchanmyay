@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { createDingerPrebuiltCheckoutUrl } from "@/lib/dinger";
 import { getBearerToken } from "@/lib/vendor-auth";
 import { getVendorPlan, isVendorPlanKey } from "@/lib/vendor-plans";
+import { isVendorStorefrontSetupComplete } from "@/lib/vendor-storefront";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
@@ -18,6 +19,7 @@ const isConfigured = Boolean(supabaseUrl && supabaseServiceRoleKey);
 const isDingerConfigured = Boolean(
   dingerClientId && dingerPublicKey && dingerMerchantKey && dingerProjectName && dingerMerchantName
 );
+const isDevBypassBilling = process.env.NODE_ENV !== "production";
 
 function getFallbackVendorName(email: string | null | undefined) {
   if (!email) return "My Vendor Workspace";
@@ -30,7 +32,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Supabase is not configured." }, { status: 500 });
   }
 
-  if (!isDingerConfigured) {
+  if (!isDingerConfigured && !isDevBypassBilling) {
     return NextResponse.json({ error: "Dinger is not configured." }, { status: 500 });
   }
 
@@ -88,7 +90,9 @@ export async function POST(request: Request) {
 
   const { data: existingMembershipRows, error: membershipError } = await supabase
     .from("vendor_members")
-    .select("vendor_id,role,status,vendor:vendors(id,name,plan,billing_status)")
+    .select(
+      "vendor_id,role,status,vendor:vendors(id,name,plan,billing_status,description,contact_phone,contact_email,logo_url,public_storefront_enabled,slug)"
+    )
     .eq("user_id", user.id)
     .order("created_at", { ascending: true })
     .limit(1);
@@ -108,12 +112,24 @@ export async function POST(request: Request) {
               name?: string | null;
               plan?: string | null;
               billing_status?: string | null;
+              description?: string | null;
+              contact_phone?: string | null;
+              contact_email?: string | null;
+              logo_url?: string | null;
+              public_storefront_enabled?: boolean | null;
+              slug?: string | null;
             }
           | Array<{
               id?: string | null;
               name?: string | null;
               plan?: string | null;
               billing_status?: string | null;
+              description?: string | null;
+              contact_phone?: string | null;
+              contact_email?: string | null;
+              logo_url?: string | null;
+              public_storefront_enabled?: boolean | null;
+              slug?: string | null;
             }>
           | null;
       }
@@ -190,10 +206,11 @@ export async function POST(request: Request) {
       currency: "MMK",
       provider: dingerBillingProvider,
       provider_order_id: merchantOrderId,
-      status: "pending",
+      status: isDevBypassBilling ? "succeeded" : "pending",
       raw_payload: {
         initiated_by: user.id,
-        source: "vendor_setup",
+        source: isDevBypassBilling ? "vendor_setup_dev_bypass" : "vendor_setup",
+        dev_bypass: isDevBypassBilling,
       },
     })
     .select("id")
@@ -201,6 +218,35 @@ export async function POST(request: Request) {
 
   if (paymentError || !paymentRow?.id) {
     return NextResponse.json({ error: paymentError?.message ?? "Unable to create payment record." }, { status: 500 });
+  }
+
+  if (isDevBypassBilling) {
+    const { error: activateVendorError } = await supabase
+      .from("vendors")
+      .update({
+        plan: plan.key,
+        billing_status: "active",
+        billing_provider: dingerBillingProvider,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", vendorId);
+
+    if (activateVendorError) {
+      return NextResponse.json({ error: activateVendorError.message }, { status: 500 });
+    }
+
+    const storefrontReady = existingVendor ? isVendorStorefrontSetupComplete(existingVendor) : false;
+    const redirectTo = storefrontReady ? "/hub" : "/agency-setup";
+
+    return NextResponse.json({
+      ok: true,
+      checkoutUrl: redirectTo,
+      vendorId,
+      paymentId: String(paymentRow.id),
+      merchantOrderId,
+      plan: plan.key,
+      devBypass: true,
+    });
   }
 
   const checkoutUrl = createDingerPrebuiltCheckoutUrl({
