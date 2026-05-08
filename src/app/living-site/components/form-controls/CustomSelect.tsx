@@ -13,6 +13,7 @@ type CustomSelectProps = {
   error?: string | null;
   status?: "default" | "error" | "success";
   disabled?: boolean;
+  hideLabel?: boolean;
   children: React.ReactNode;
 };
 
@@ -84,6 +85,7 @@ export function CustomSelect({
   error,
   status = "default",
   disabled,
+  hideLabel = false,
   children,
 }: CustomSelectProps) {
   const [open, setOpen] = useState(false);
@@ -100,12 +102,14 @@ export function CustomSelect({
 
   return (
     <div className="Field" data-filled={filled} data-status={error ? "error" : status}>
-      <label className="Label" htmlFor={id}>
-        {label}
-      </label>
+      {!hideLabel ? (
+        <label className="Label" htmlFor={id}>
+          {label}
+        </label>
+      ) : null}
       <button
         type="button"
-        className="Control SelectTrigger"
+        className={`Control SelectTrigger${hideLabel ? " SelectTrigger--plain" : ""}`}
         id={id}
         name={name}
         onClick={() => {

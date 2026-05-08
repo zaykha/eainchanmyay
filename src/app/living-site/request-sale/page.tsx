@@ -1221,7 +1221,7 @@ function RequestSalePageContent() {
     district: "",
     township: "",
   });
-  const vendorReturnPath = isEdit && editId ? `/vendor/sales-requests` : "/vendor";
+  const vendorReturnPath = "/hub";
   const isVendorFlow =
     profileRole === "vendor_user" || profileRole === "staff" || profileRole === "admin" || profileRole === "master_admin";
 const currentPlan = getVendorPlan(workspaceLimits?.currentPlan?.name ?? 'free');
@@ -2587,11 +2587,11 @@ const currentPlan = getVendorPlan(workspaceLimits?.currentPlan?.name ?? 'free');
             <Actions>
               {profileRole === "vendor_user" ? (
                 <>
-                  <SecondaryButton type="button" onClick={() => router.push("/vendor/properties")}>
-                    Go to vendor properties
+                  <SecondaryButton type="button" onClick={() => router.push("/hub?section=manage-listings")}>
+                    Go to manage listings
                   </SecondaryButton>
                   <PrimaryButton type="button" onClick={() => router.push(vendorReturnPath)}>
-                    Back to vendor workspace
+                    Back to hub
                   </PrimaryButton>
                 </>
               ) : (

@@ -84,6 +84,23 @@ html[lang="mm"] .Field:focus-within .Label {
   cursor: pointer;
   text-align: left;
   padding-right: 14px;
+  transition:
+    border-color 0.16s ease,
+    background-color 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.SelectTrigger:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--primary) 22%, var(--border));
+  background: color-mix(in srgb, var(--surface2) 86%, white);
+}
+
+.SelectTrigger--plain {
+  background: var(--surface);
+}
+
+.SelectTrigger--plain:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--surface) 88%, white);
 }
 
 .SelectTrigger:disabled {
@@ -146,6 +163,15 @@ html[lang="mm"] .Field:focus-within .Label {
   font-size: 15px;
   color: var(--text);
   cursor: pointer;
+  transition:
+    background-color 0.14s ease,
+    color 0.14s ease,
+    transform 0.14s ease;
+}
+
+.SelectOption:hover {
+  background: color-mix(in srgb, var(--primary) 7%, var(--surface));
+  color: var(--primary);
 }
 
 .SelectOption[data-active="true"] {

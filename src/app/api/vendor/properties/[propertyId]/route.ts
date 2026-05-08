@@ -1,176 +1,153 @@
 import { NextResponse } from "next/server";
-import { getVendorRequestContext, type VendorRequestContext } from "@/app/api/vendor/_lib/context";
-import { resolveImage, resolveListingImage, resolvePhotoUrl } from "@/app/living-site/lib/images";
-import { propertyTypeValues } from "@/lib/property-types";
+import { getVendorRequestContext } from "@/app/api/vendor/_lib/context";
+import { resolveListingImage } from "@/app/living-site/lib/images";
 
-const allowedStatuses = new Set(["draft", "published", "sold", "rented", "archived"]);
-const allowedDeals = new Set(["sale", "rent"]);
-const allowedPropertyTypes = new Set(propertyTypeValues);
-const allowedBackupPowerTypes = new Set(["solar", "generator", "solar_generator"]);
+type PropertyRow = {
+  id: string;
+  title: string | null;
+  deal_type: string | null;
+  property_type: string | null;
+  price: number | null;
+  currency: string | null;
+  status: string | null;
+  district: string | null;
+  township: string | null;
+  city: string | null;
+  verification_status: string | null;
+  created_by: string | null;
+};
 
-function toNullableString(value: unknown) {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  return trimmed || null;
-}
+type AppointmentRow = {
+  id: string;
+  title: string | null;
+  start_at: string | null;
+  status: string | null;
+  client_name: string | null;
+  assigned_staff_id: string | null;
+};
 
-function toNullableNumber(value: unknown) {
-  if (value === null || value === undefined || value === "") return null;
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string") {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-  return null;
-}
-
-function toBoolean(value: unknown) {
-  return value === true;
-}
-
-async function getScopedProperty(context: VendorRequestContext, propertyId: string) {
-  const { supabase, memberIds } = context;
-
-  const { data: property, error } = await supabase
-    .from("properties")
-    .select(
-      "id,title,description,deal_type,property_type,status,price,currency,state_region,district,township,city,address_text,bedrooms,bathrooms,area_sqft,has_lift,has_backup_power,backup_power_type,has_parking,latitude,longitude,created_at,updated_at,created_by,is_deleted,verification_status,verified_at,verification_notes"
-    )
-    .eq("id", propertyId)
-    .in("created_by", memberIds)
-    .eq("is_deleted", false)
-    .maybeSingle();
-
-  if (error) {
-    return { property: null, response: NextResponse.json({ error: error.message }, { status: 500 }) };
-  }
-
-  if (!property) {
-    return { property: null, response: NextResponse.json({ error: "Property not found in this vendor workspace." }, { status: 404 }) };
-  }
-
-  return { property, response: null };
-}
+type PropertyImageRow = {
+  property_id: string | null;
+  public_url: string | null;
+  r2_key: string | null;
+  is_cover: boolean | null;
+  sort_order: number | null;
+};
 
 export async function GET(request: Request, { params }: { params: Promise<{ propertyId: string }> }) {
   const result = await getVendorRequestContext(request);
-  if (!result.ok) {
-    return result.response;
-  }
+  if (!result.ok) return result.response;
 
   const { propertyId } = await params;
-  const scoped = await getScopedProperty(result.context, propertyId);
-  if (!scoped.property) {
-    return scoped.response!;
+  const { supabase, memberIds } = result.context;
+
+  const { data: property, error: propertyError } = await supabase
+    .from("properties")
+    .select("id,title,deal_type,property_type,price,currency,status,district,township,city,verification_status,created_by")
+    .eq("id", propertyId)
+    .eq("is_deleted", false)
+    .maybeSingle();
+
+  if (propertyError) {
+    return NextResponse.json({ error: propertyError.message }, { status: 500 });
   }
 
-  const { supabase } = result.context;
-  const { data: images, error: imageError } = await supabase
-    .from("property_images")
-    .select("id,property_id,public_url,r2_key,is_cover,sort_order")
-    .eq("property_id", propertyId)
-    .order("sort_order", { ascending: true });
-
-  if (imageError) {
-    return NextResponse.json({ error: imageError.message }, { status: 500 });
+  const row = property as PropertyRow | null;
+  if (!row || !row.created_by || !memberIds.includes(row.created_by)) {
+    return NextResponse.json({ error: "Property not found." }, { status: 404 });
   }
 
-  const photos = images ?? [];
+  const [{ data: appointments, error: appointmentsError }, { data: propertyImages, error: propertyImagesError }] =
+    await Promise.all([
+      supabase
+        .from("appointments")
+        .select("id,title,start_at,status,client_name,assigned_staff_id")
+        .eq("property_id", propertyId)
+        .order("start_at", { ascending: true }),
+      supabase
+        .from("property_images")
+        .select("property_id,public_url,r2_key,is_cover,sort_order")
+        .eq("property_id", propertyId)
+        .order("is_cover", { ascending: false })
+        .order("sort_order", { ascending: true }),
+    ]);
+
+  if (appointmentsError || propertyImagesError) {
+    return NextResponse.json(
+      { error: appointmentsError?.message || propertyImagesError?.message || "Unable to load property detail." },
+      { status: 500 }
+    );
+  }
+
+  const assignedStaffIds = Array.from(
+    new Set(
+      ((appointments ?? []) as AppointmentRow[])
+        .map((appointment) => appointment.assigned_staff_id)
+        .filter((value): value is string => Boolean(value))
+    )
+  );
+
+  let staffProfiles: Array<{ id: string | null; full_name: string | null; email: string | null }> = [];
+  if (assignedStaffIds.length) {
+    const { data, error } = await supabase.from("profiles").select("id,full_name,email").in("id", assignedStaffIds);
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    staffProfiles = data ?? [];
+  }
+
+  const profileMap = new Map(
+    staffProfiles.map((profile) => [
+      String(profile.id ?? ""),
+      {
+        full_name: profile.full_name ?? null,
+        email: profile.email ?? null,
+      },
+    ])
+  );
+
+  const appointmentRows = (appointments ?? []) as AppointmentRow[];
+  const staffSummaryMap = new Map<string, { id: string; name: string; assigned_count: number }>();
+
+  for (const appointment of appointmentRows) {
+    const assignedId = String(appointment.assigned_staff_id ?? "");
+    if (!assignedId) continue;
+    const existing = staffSummaryMap.get(assignedId);
+    const profile = profileMap.get(assignedId);
+    if (existing) {
+      existing.assigned_count += 1;
+      continue;
+    }
+    staffSummaryMap.set(assignedId, {
+      id: assignedId,
+      name: profile?.full_name || profile?.email || "Assigned staff",
+      assigned_count: 1,
+    });
+  }
 
   return NextResponse.json({
     property: {
-      ...scoped.property,
-      cover_image_url: resolveListingImage(scoped.property as Record<string, unknown>, photos as Record<string, unknown>[]),
+      ...row,
+      appointments_count: appointmentRows.length,
+      cover_image_url: resolveListingImage(
+        row as unknown as Record<string, unknown>,
+        ((propertyImages ?? []) as PropertyImageRow[]) as unknown as Record<string, unknown>[]
+      ),
     },
-    images: photos.map((image) => ({
-      ...image,
-      resolved_url:
-        resolvePhotoUrl(image as Record<string, unknown>) ||
-        resolveImage(typeof image.r2_key === "string" ? image.r2_key : undefined) ||
-        null,
-    })),
+    appointments: appointmentRows.map((appointment) => {
+      const assignedId = String(appointment.assigned_staff_id ?? "");
+      const profile = assignedId ? profileMap.get(assignedId) : null;
+      return {
+        id: appointment.id,
+        title: appointment.title,
+        start_at: appointment.start_at,
+        status: appointment.status,
+        client_name: appointment.client_name,
+        assigned_staff_id: appointment.assigned_staff_id,
+        assigned_staff_name: profile?.full_name || profile?.email || null,
+      };
+    }),
+    staff_summary: Array.from(staffSummaryMap.values()),
+    unassigned_count: appointmentRows.filter((appointment) => !appointment.assigned_staff_id).length,
   });
-}
-
-export async function PATCH(request: Request, { params }: { params: Promise<{ propertyId: string }> }) {
-  const result = await getVendorRequestContext(request);
-  if (!result.ok) {
-    return result.response;
-  }
-
-  const { propertyId } = await params;
-  const scoped = await getScopedProperty(result.context, propertyId);
-  if (!scoped.property) {
-    return scoped.response!;
-  }
-
-  const raw = (await request.json().catch(() => null)) as Record<string, unknown> | null;
-  if (!raw) {
-    return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
-  }
-
-  const dealType = toNullableString(raw.deal_type);
-  const propertyType = toNullableString(raw.property_type);
-  const status = toNullableString(raw.status);
-  const backupPowerType = toNullableString(raw.backup_power_type);
-
-  if (!dealType || !allowedDeals.has(dealType)) {
-    return NextResponse.json({ error: "Invalid deal type." }, { status: 400 });
-  }
-  if (!propertyType || !allowedPropertyTypes.has(propertyType)) {
-    return NextResponse.json({ error: "Invalid property type." }, { status: 400 });
-  }
-  if (!status || !allowedStatuses.has(status)) {
-    return NextResponse.json({ error: "Invalid property status." }, { status: 400 });
-  }
-  if (backupPowerType && !allowedBackupPowerTypes.has(backupPowerType)) {
-    return NextResponse.json({ error: "Invalid backup power type." }, { status: 400 });
-  }
-  if (!toNullableString(raw.title)) {
-    return NextResponse.json({ error: "Property title is required." }, { status: 400 });
-  }
-  if (!toNullableString(raw.state_region) || !toNullableString(raw.township)) {
-    return NextResponse.json({ error: "State / region and township are required." }, { status: 400 });
-  }
-
-  const isLand = propertyType === "land";
-  const payload = {
-    title: toNullableString(raw.title),
-    description: toNullableString(raw.description),
-    deal_type: dealType,
-    property_type: propertyType,
-    status,
-    price: toNullableNumber(raw.price),
-    currency: toNullableString(raw.currency) ?? "MMK",
-    state_region: toNullableString(raw.state_region),
-    district: toNullableString(raw.district),
-    township: toNullableString(raw.township),
-    city: toNullableString(raw.city),
-    address_text: toNullableString(raw.address_text),
-    bedrooms: isLand ? null : toNullableNumber(raw.bedrooms),
-    bathrooms: isLand ? null : toNullableNumber(raw.bathrooms),
-    area_sqft: toNullableNumber(raw.area_sqft),
-    has_lift: isLand ? false : toBoolean(raw.has_lift),
-    has_backup_power: isLand ? false : toBoolean(raw.has_backup_power),
-    backup_power_type: isLand ? null : backupPowerType,
-    has_parking: isLand ? false : toBoolean(raw.has_parking),
-    latitude: toNullableNumber(raw.latitude),
-    longitude: toNullableNumber(raw.longitude),
-    updated_at: new Date().toISOString(),
-  };
-
-  const { data, error } = await result.context.supabase
-    .from("properties")
-    .update(payload)
-    .eq("id", propertyId)
-    .select(
-      "id,title,description,deal_type,property_type,status,price,currency,state_region,district,township,city,address_text,bedrooms,bathrooms,area_sqft,has_lift,has_backup_power,backup_power_type,has_parking,latitude,longitude,created_at,updated_at,verification_status,verified_at,verification_notes"
-    )
-    .maybeSingle();
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  return NextResponse.json({ property: data });
 }

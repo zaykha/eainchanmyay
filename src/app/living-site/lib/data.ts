@@ -367,7 +367,7 @@ export async function getListingDetail(propertyId: string) {
   const { data: property, error } = await supabase
     .from("properties")
     .select(
-      "id,title,description,deal_type,property_type,price,currency,state_region,district,township,city,address_text,bedrooms,bathrooms,area_sqft,latitude,longitude,created_by,verification_status,owner_name,owner_phone,owner_phone_secondary"
+      "id,title,description,deal_type,property_type,price,currency,state_region,district,township,city,address_text,bedrooms,bathrooms,area_sqft,latitude,longitude,created_by,vendor_id,verification_status,owner_name,owner_phone,owner_phone_secondary"
     )
     .eq("id", propertyId)
     .eq("status", "published")
@@ -380,13 +380,20 @@ export async function getListingDetail(propertyId: string) {
   }
 
   const createdBy = typeof property.created_by === "string" ? property.created_by : "";
+  const vendorId = typeof property.vendor_id === "string" ? property.vendor_id : "";
   const [imagesResult, membershipResult] = await Promise.all([
     supabase
       .from("property_images")
       .select(propertyImageSelect)
       .eq("property_id", propertyId)
       .order("sort_order", { ascending: true }),
-    createdBy
+    vendorId
+      ? supabase
+          .from("vendors")
+          .select("id,name,slug,tagline,contact_phone,contact_email,plan,verification_status,public_storefront_enabled")
+          .eq("id", vendorId)
+          .maybeSingle()
+      : createdBy
       ? supabase
           .from("vendor_members")
           .select(
@@ -401,7 +408,11 @@ export async function getListingDetail(propertyId: string) {
 
   let agency: Record<string, unknown> | null = null;
   const membership = membershipResult.data;
-  const vendorRaw = Array.isArray(membership?.vendor) ? membership?.vendor[0] : membership?.vendor;
+  const vendorRaw = vendorId
+    ? membership
+    : Array.isArray(membership?.vendor)
+      ? membership?.vendor[0]
+      : membership?.vendor;
   if (vendorRaw?.id && vendorRaw.name) {
     agency = {
       id: String(vendorRaw.id),

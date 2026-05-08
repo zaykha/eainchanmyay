@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getVendorRequestContext } from "@/app/api/vendor/_lib/context";
+import { resolveListingImage } from "@/app/living-site/lib/images";
 
 type PropertyRow = {
   id: string;
@@ -14,6 +15,14 @@ type PropertyRow = {
   city: string | null;
   created_at: string | null;
   verification_status: string | null;
+};
+
+type PropertyImageRow = {
+  property_id: string | null;
+  public_url: string | null;
+  r2_key: string | null;
+  is_cover: boolean | null;
+  sort_order: number | null;
 };
 
 export async function GET(request: Request) {
@@ -64,15 +73,24 @@ export async function GET(request: Request) {
   const rows = (properties ?? []) as PropertyRow[];
   const propertyIds = rows.map((property) => property.id).filter(Boolean);
   const appointmentCountMap = new Map<string, number>();
+  const propertyPhotosMap = new Map<string, PropertyImageRow[]>();
 
   if (propertyIds.length) {
-    const { data: appointments, error: appointmentsError } = await supabase
-      .from("appointments")
-      .select("property_id")
-      .in("property_id", propertyIds);
+    const [
+      { data: appointments, error: appointmentsError },
+      { data: propertyImages, error: propertyImagesError },
+    ] = await Promise.all([
+      supabase.from("appointments").select("property_id").in("property_id", propertyIds),
+      supabase
+        .from("property_images")
+        .select("property_id,public_url,r2_key,is_cover,sort_order")
+        .in("property_id", propertyIds)
+        .order("is_cover", { ascending: false })
+        .order("sort_order", { ascending: true }),
+    ]);
 
-    if (appointmentsError) {
-      return NextResponse.json({ error: appointmentsError.message }, { status: 500 });
+    if (appointmentsError || propertyImagesError) {
+      return NextResponse.json({ error: appointmentsError?.message || propertyImagesError?.message || "Unable to load vendor properties." }, { status: 500 });
     }
 
     for (const appointment of appointments ?? []) {
@@ -80,12 +98,24 @@ export async function GET(request: Request) {
       if (!propertyId) continue;
       appointmentCountMap.set(propertyId, (appointmentCountMap.get(propertyId) ?? 0) + 1);
     }
+
+    for (const image of (propertyImages ?? []) as PropertyImageRow[]) {
+      const propertyId = String(image.property_id ?? "");
+      if (!propertyId) continue;
+      const existing = propertyPhotosMap.get(propertyId) ?? [];
+      existing.push(image);
+      propertyPhotosMap.set(propertyId, existing);
+    }
   }
 
   return NextResponse.json({
     items: rows.map((property) => ({
       ...property,
       appointments_count: appointmentCountMap.get(property.id) ?? 0,
+      cover_image_url: resolveListingImage(
+        property as unknown as Record<string, unknown>,
+        (propertyPhotosMap.get(property.id) ?? []) as unknown as Record<string, unknown>[]
+      ),
     })),
   });
 }

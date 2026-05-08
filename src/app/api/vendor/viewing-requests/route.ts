@@ -50,7 +50,7 @@ export async function GET(request: Request) {
 
   const { data, error } = await supabase
     .from("viewing_requests")
-    .select("id,property_id,name,phone,preferred_date,preferred_time_window,notes,lead_status,created_at,updated_at")
+    .select("id,property_id,name,phone,preferred_date,preferred_time_window,notes,lead_status,assigned_staff_id,created_at,updated_at")
     .in("property_id", propertyIds)
     .order("created_at", { ascending: false });
 
@@ -76,16 +76,33 @@ export async function PATCH(request: Request) {
   }
 
   const { supabase, memberIds } = result.context;
-  const raw = (await request.json().catch(() => null)) as { id?: unknown; lead_status?: unknown } | null;
+  const raw = (await request.json().catch(() => null)) as {
+    id?: unknown;
+    lead_status?: unknown;
+    assigned_staff_id?: unknown;
+  } | null;
 
   const requestId = typeof raw?.id === "string" ? raw.id.trim() : "";
-  const leadStatus = normalizeLeadStatus(raw?.lead_status);
+  const leadStatus =
+    raw && "lead_status" in raw ? normalizeLeadStatus(raw?.lead_status) : undefined;
+  const assignedStaffId =
+    raw && "assigned_staff_id" in raw
+      ? typeof raw?.assigned_staff_id === "string" && raw.assigned_staff_id.trim()
+        ? raw.assigned_staff_id.trim()
+        : raw?.assigned_staff_id === null
+          ? null
+          : undefined
+      : undefined;
 
   if (!requestId) {
     return NextResponse.json({ error: "Viewing request id is required." }, { status: 400 });
   }
 
-  if (!leadStatus) {
+  if (leadStatus === undefined && assignedStaffId === undefined) {
+    return NextResponse.json({ error: "At least one change is required." }, { status: 400 });
+  }
+
+  if (leadStatus === null) {
     return NextResponse.json({ error: "Invalid lead status." }, { status: 400 });
   }
 
@@ -118,14 +135,27 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Viewing request not found in this vendor workspace." }, { status: 404 });
   }
 
+  if (assignedStaffId !== undefined && assignedStaffId !== null && !memberIds.includes(assignedStaffId)) {
+    return NextResponse.json({ error: "Assigned staff must belong to this vendor workspace." }, { status: 400 });
+  }
+
+  const updatePayload: Record<string, unknown> = {
+    updated_at: new Date().toISOString(),
+  };
+
+  if (leadStatus !== undefined) {
+    updatePayload.lead_status = leadStatus;
+  }
+
+  if (assignedStaffId !== undefined) {
+    updatePayload.assigned_staff_id = assignedStaffId;
+  }
+
   const { data: updatedRow, error: updateError } = await supabase
     .from("viewing_requests")
-    .update({
-      lead_status: leadStatus,
-      updated_at: new Date().toISOString(),
-    })
+    .update(updatePayload)
     .eq("id", requestId)
-    .select("id,lead_status,updated_at")
+    .select("id,lead_status,assigned_staff_id,updated_at")
     .maybeSingle();
 
   if (updateError) {
@@ -135,7 +165,11 @@ export async function PATCH(request: Request) {
   return NextResponse.json({
     item: {
       id: String(updatedRow?.id ?? requestId),
-      lead_status: String(updatedRow?.lead_status ?? leadStatus),
+      lead_status: String(updatedRow?.lead_status ?? leadStatus ?? requestRow.lead_status ?? "new"),
+      assigned_staff_id:
+        updatedRow?.assigned_staff_id === null
+          ? null
+          : String(updatedRow?.assigned_staff_id ?? assignedStaffId ?? ""),
       updated_at: updatedRow?.updated_at ?? null,
     },
   });

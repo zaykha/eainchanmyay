@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getListingDetail, type ListingDetail } from "@/app/living-site/lib/data";
+import type { ListingDetail } from "@/app/living-site/lib/data";
 
 const detailCache = new Map<string, ListingDetail | null>();
-const detailCachePrefix = "ecm_listing_detail_v1";
+const detailCachePrefix = "ecm_listing_detail_v2";
 const detailCacheTtlMs = 10 * 60 * 1000;
 
 function readDetailCache(propertyId: string) {
@@ -58,7 +58,13 @@ export function useListingDetail(propertyId?: string) {
       setLoading(true);
     }
 
-    getListingDetail(propertyId)
+    fetch(`/api/public/listings/${encodeURIComponent(propertyId)}`)
+      .then(async (response) => {
+        if (!response.ok) {
+          return null;
+        }
+        return (await response.json()) as ListingDetail | null;
+      })
       .then((data) => {
         if (active) {
           detailCache.set(propertyId, data);

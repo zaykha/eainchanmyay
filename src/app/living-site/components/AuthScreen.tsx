@@ -339,6 +339,7 @@ export function AuthScreen({ role, onSuccess, onChangeRole }: AuthScreenProps) {
     const isAgentRegistration = mode === "register" && role === "agent";
     if (typeof window !== "undefined" && isAgentRegistration) {
       window.localStorage.setItem(AGENT_REGISTERING_STORAGE_KEY, "1");
+      window.localStorage.setItem(AGENT_ONBOARDING_STORAGE_KEY, "1");
     }
     if (mode === "login") {
       setLoadingMessage(t("auth.signingInShort"));

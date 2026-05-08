@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import {
   Bath,
   BedDouble,
@@ -35,7 +35,7 @@ import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
 import { CustomInput } from "@/app/living-site/components/form-controls/CustomInput";
 import { CustomSelect } from "@/app/living-site/components/form-controls/CustomSelect";
 import { CustomTextarea } from "@/app/living-site/components/form-controls/CustomTextarea";
-import { useI18n } from "@/app/living-site/lib/i18n";
+import { useLanguage } from "@/app/living-site/components/Providers";
 import { formatPropertyTypeValue, isBedBathPropertyType } from "@/lib/property-types";
 
 const PageShell = styled.div`
@@ -378,6 +378,47 @@ const AgencyCard = styled(Link)`
   color: inherit;
 `;
 
+const ManagedAgencyCard = styled.div`
+  border: 1px solid var(--color-outline);
+  border-radius: 16px;
+  padding: 14px 16px;
+  background: var(--color-surface-2);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: center;
+`;
+
+const ManagedAgencyLogo = styled.div`
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  border: 1px solid var(--color-outline);
+  background: var(--color-surface);
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  svg {
+    width: 24px;
+    height: 24px;
+    color: var(--color-muted);
+  }
+`;
+
+const ManagedAgencyInfo = styled.div`
+  display: grid;
+  gap: 4px;
+`;
+
 const ContactButton = styled.button`
   display: inline-flex;
   align-items: center;
@@ -718,7 +759,75 @@ const toDateString = (value: Date) => {
   return `${year}-${month}-${day}`;
 };
 
-const VIEWING_CONTACT_CACHE_KEY = "ecm_viewing_contact_cache";
+function getViewingContactCacheKey(userId?: string | null) {
+  return `ecm_viewing_contact_cache:${userId ?? "guest"}`;
+}
+
+const LISTING_COPY: Record<string, string> = {
+  "calendar.sun": "Sun",
+  "calendar.mon": "Mon",
+  "calendar.tue": "Tue",
+  "calendar.wed": "Wed",
+  "calendar.thu": "Thu",
+  "calendar.fri": "Fri",
+  "calendar.sat": "Sat",
+  "common.close": "Close",
+  "common.next": "Next",
+  "common.previous": "Previous",
+  "common.signIn": "Sign in",
+  "common.submitting": "Submitting...",
+  "listing.areaSqft": "sq ft",
+  "listing.bathrooms": "bathrooms",
+  "listing.bedrooms": "bedrooms",
+  "listing.completeRequired": "Complete the required fields before submitting your viewing request.",
+  "listing.confirmByPhone": "We will confirm the appointment by phone.",
+  "listing.contactAgent": "Contact agency",
+  "listing.contactPrice": "Contact for price",
+  "listing.contactSubtitle": "Reach out directly for this listing.",
+  "listing.customer": "Customer",
+  "listing.description": "Description",
+  "listing.editRequest": "Edit request",
+  "listing.forRent": "For rent",
+  "listing.forSale": "For sale",
+  "listing.fullName": "Full name",
+  "listing.goToPhoto": "Go to photo",
+  "listing.hotline": "Hotline",
+  "listing.loadingProperty": "Loading property...",
+  "listing.location": "Location",
+  "listing.locationDetailsSoon": "More location details coming soon.",
+  "listing.locationTbd": "Location to be confirmed",
+  "listing.nextPhoto": "Next photo",
+  "listing.noDescription": "No description has been added yet.",
+  "listing.noNotes": "No notes added.",
+  "listing.noPhotoAvailable": "No photo available",
+  "listing.notFound": "Property not found.",
+  "listing.notes": "Notes",
+  "listing.notesOptional": "Notes (optional)",
+  "listing.openMaps": "Open in Maps",
+  "listing.phoneNumber": "Phone number",
+  "listing.phoneRequired": "Phone number is required to request a viewing.",
+  "listing.photoLabel": "Photo",
+  "listing.preferredDate": "Preferred date",
+  "listing.previousPhoto": "Previous photo",
+  "listing.property": "Property",
+  "listing.requestSent": "Viewing request sent.",
+  "listing.requestViewing": "Request viewing",
+  "listing.saveCompare": "Save and compare listings later.",
+  "listing.saveProperty": "Save property",
+  "listing.saved": "Saved",
+  "listing.signInToTrack": "Sign in to save and track this request",
+  "listing.submitRequest": "Submit request",
+  "listing.timeWindow": "Time window",
+  "listing.timeWindow.afternoon": "12 PM - 3 PM",
+  "listing.timeWindow.evening": "3 PM - 6 PM",
+  "listing.timeWindow.morning": "9 AM - 12 PM",
+  "listing.timeWindow.night": "6 PM - 9 PM",
+  "listing.unableSubmitRequest": "Unable to submit your viewing request right now.",
+  "listing.verifiedAgent": "Verified agency",
+  "listing.viewStatus": "View request status and updates.",
+  "listing.viewingRequest": "Viewing request",
+  "listing.viewingRequested": "Viewing requested",
+};
 
 
 type DateTimePickerProps = {
@@ -834,13 +943,18 @@ function DateTimePicker({
 
 export default function ListingDetailPage() {
   const params = useParams();
-  const { user, authToken } = useAppState();
-  const { t, language } = useI18n();
+  const router = useRouter();
+  const { user, authToken, profileRole } = useAppState();
+  const { language } = useLanguage();
+  const t = (key: string) => LISTING_COPY[key] ?? key;
   const propertyId = params?.propertyId as string | undefined;
   const { detail, loading } = useListingDetail(propertyId);
   const [viewingOpen, setViewingOpen] = useState(false);
   const [viewingName, setViewingName] = useState("");
   const [viewingPhone, setViewingPhone] = useState("");
+  const [viewingNameTouched, setViewingNameTouched] = useState(false);
+  const [viewingPhoneTouched, setViewingPhoneTouched] = useState(false);
+  const [viewingContactPrefilled, setViewingContactPrefilled] = useState(false);
   const [viewingDate, setViewingDate] = useState("");
   const [viewingWindow, setViewingWindow] = useState("");
   const [viewingNotes, setViewingNotes] = useState("");
@@ -863,6 +977,7 @@ export default function ListingDetailPage() {
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
   const [reportSuccess, setReportSuccess] = useState(false);
+  const [currentVendorId, setCurrentVendorId] = useState<string | null>(null);
   const metadataFullName =
     typeof user?.user_metadata?.full_name === "string" ? user.user_metadata.full_name.trim() : "";
   const metadataName =
@@ -910,11 +1025,48 @@ export default function ListingDetailPage() {
   }, [propertyId, user?.id, viewingDate, viewingNotes, viewingWindow]);
 
   useEffect(() => {
+    if (!authToken || profileRole !== "vendor_user") {
+      setCurrentVendorId(null);
+      return;
+    }
+
+    let active = true;
+    fetch("/api/vendor/workspace", {
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+      },
+    })
+      .then(async (response) => {
+        if (!response.ok) return null;
+        return (await response.json().catch(() => null)) as
+          | { vendor?: { id?: string | null } | null }
+          | null;
+      })
+      .then((payload) => {
+        if (!active) return;
+        const vendorId =
+          payload?.vendor && typeof payload.vendor.id === "string" ? payload.vendor.id : null;
+        setCurrentVendorId(vendorId);
+      })
+      .catch(() => {
+        if (active) {
+          setCurrentVendorId(null);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [authToken, profileRole]);
+
+  useEffect(() => {
     if (!viewingOpen || !user?.id) return;
+    if (viewingContactPrefilled) return;
     const currentName = viewingName.trim();
     const currentPhone = viewingPhone.trim();
+    const cacheKey = getViewingContactCacheKey(user.id);
 
-    if (!currentName) {
+    if (!currentName && !viewingNameTouched) {
       const resolvedMetadataName = metadataFullName || metadataName;
       if (resolvedMetadataName) {
         setViewingName(resolvedMetadataName);
@@ -922,13 +1074,13 @@ export default function ListingDetailPage() {
     }
 
     try {
-      const cached = window.localStorage.getItem(VIEWING_CONTACT_CACHE_KEY);
+      const cached = window.localStorage.getItem(cacheKey);
       if (cached) {
         const parsed = JSON.parse(cached) as { name?: string; phone?: string } | null;
-        if (!currentName && typeof parsed?.name === "string" && parsed.name.trim()) {
+        if (!currentName && !viewingNameTouched && typeof parsed?.name === "string" && parsed.name.trim()) {
           setViewingName(parsed.name.trim());
         }
-        if (!currentPhone && typeof parsed?.phone === "string" && parsed.phone.trim()) {
+        if (!currentPhone && !viewingPhoneTouched && typeof parsed?.phone === "string" && parsed.phone.trim()) {
           setViewingPhone(parsed.phone.trim());
         }
       }
@@ -942,7 +1094,10 @@ export default function ListingDetailPage() {
       metadataName;
     const nextPhone = currentPhone;
 
-    if (nextName && nextPhone) return;
+    if (nextName && nextPhone) {
+      setViewingContactPrefilled(true);
+      return;
+    }
 
     let active = true;
     getCustomerProfile(user.id)
@@ -951,15 +1106,15 @@ export default function ListingDetailPage() {
         const resolvedName = !nextName && profile.name ? profile.name.trim() : nextName;
         const resolvedPhone = !nextPhone && profile.contact_number ? profile.contact_number.trim() : nextPhone;
 
-        if (!currentName && profile.name) {
+        if (!currentName && !viewingNameTouched && profile.name) {
           setViewingName(profile.name);
         }
-        if (!currentPhone && profile.contact_number) {
+        if (!currentPhone && !viewingPhoneTouched && profile.contact_number) {
           setViewingPhone(profile.contact_number);
         }
         try {
           window.localStorage.setItem(
-            VIEWING_CONTACT_CACHE_KEY,
+            cacheKey,
             JSON.stringify({
               name: resolvedName || "",
               phone: resolvedPhone || "",
@@ -971,18 +1126,37 @@ export default function ListingDetailPage() {
       })
       .finally(() => {
         if (!active) return;
+        setViewingContactPrefilled(true);
       });
 
     return () => {
       active = false;
     };
-  }, [metadataFullName, metadataName, user?.id, viewingOpen, viewingName, viewingPhone]);
+  }, [
+    metadataFullName,
+    metadataName,
+    user?.id,
+    viewingContactPrefilled,
+    viewingName,
+    viewingNameTouched,
+    viewingOpen,
+    viewingPhone,
+    viewingPhoneTouched,
+  ]);
+
+  useEffect(() => {
+    if (viewingOpen) return;
+    setViewingContactPrefilled(false);
+    setViewingNameTouched(false);
+    setViewingPhoneTouched(false);
+  }, [viewingOpen]);
 
   useEffect(() => {
     if (!viewingOpen) return;
+    const cacheKey = getViewingContactCacheKey(user?.id);
     try {
       window.localStorage.setItem(
-        VIEWING_CONTACT_CACHE_KEY,
+        cacheKey,
         JSON.stringify({
           name: viewingName.trim(),
           phone: viewingPhone.trim(),
@@ -1102,15 +1276,22 @@ export default function ListingDetailPage() {
       : undefined;
   const propertyVerificationStatus = typeof property.verification_status === "string" ? property.verification_status : null;
   const agencyVerificationStatus = agency && typeof agency.verification_status === "string" ? agency.verification_status : null;
+  const agencyId = agency && typeof agency.id === "string" ? agency.id : null;
   const agencySlug = agency && typeof agency.slug === "string" ? agency.slug : null;
   const agencyName = agency && typeof agency.name === "string" ? agency.name : null;
   const agencyTagline = agency && typeof agency.tagline === "string" ? agency.tagline : null;
   const agencyPhone = agency && typeof agency.contact_phone === "string" ? agency.contact_phone : null;
+  const agencyLogo = agency && typeof agency.logo_url === "string" ? agency.logo_url : null;
   const ownerName = typeof property.owner_name === "string" ? property.owner_name : null;
   const ownerPhone = typeof property.owner_phone === "string" ? property.owner_phone : null;
+  const createdBy = typeof property.created_by === "string" ? property.created_by : null;
+  const isAgencyListing = Boolean(agencyId || agencySlug || agencyPhone || agencyName);
+  const isOwnAgencyListing = Boolean(isAgencyListing && agencyId && currentVendorId && agencyId === currentVendorId);
+  const isOwnDirectListing = Boolean(!isAgencyListing && user?.id && createdBy && user.id === createdBy);
+  const isOwnListing = isOwnAgencyListing || isOwnDirectListing;
   const primaryContact = agencyPhone || ownerPhone || EAIN_CONTACT_PHONE;
   const contactName = agencyName || ownerName || "Eain Chan Myay Advisory";
-  const canRequestViewing = Boolean(agencyName);
+  const canRequestViewing = isAgencyListing && !isOwnListing;
   const showVerifiedListing = propertyVerificationStatus === "approved";
   const showVerifiedAgency = !showVerifiedListing && agencyVerificationStatus === "approved";
   const showBeds = isBedBathPropertyType(propertyTypeRaw) && bedrooms !== undefined;
@@ -1390,66 +1571,101 @@ export default function ListingDetailPage() {
             </SectionBlock>
           </div>
           <ContactCard>
-            <ContactTitle>{agencyName ? t("listing.contactAgent") : "Contact seller"}</ContactTitle>
+            <ContactTitle>
+              {isOwnListing ? "Manage your listing" : isAgencyListing ? t("listing.contactAgent") : "Contact seller"}
+            </ContactTitle>
             {showVerifiedListing ? <TrustPill>Verified listing</TrustPill> : null}
             {showVerifiedAgency ? <TrustPill>{t("listing.verifiedAgent")}</TrustPill> : null}
             <ContactRow>
-                <strong>{contactName}</strong>
-              <span>{t("listing.contactSubtitle")}</span>
-              <span>
-                {t("listing.hotline")}: <a href={`tel:${primaryContact}`}>{primaryContact}</a>
-              </span>
+              <strong>{isOwnListing ? title : contactName}</strong>
+              {isOwnListing ? (
+                <span>
+                  {isOwnAgencyListing
+                    ? "This is one of your agency listings."
+                    : "This is your direct owner listing."}
+                </span>
+              ) : (
+                <>
+                  <span>{t("listing.contactSubtitle")}</span>
+                  <span>
+                    {t("listing.hotline")}: <a href={`tel:${primaryContact}`}>{primaryContact}</a>
+                  </span>
+                </>
+              )}
             </ContactRow>
-            {agencySlug ? (
+            {isOwnAgencyListing ? (
+              <ManagedAgencyCard>
+                <ManagedAgencyLogo>
+                  {agencyLogo ? <img src={agencyLogo} alt={agencyName || "Agency logo"} /> : <Home size={24} />}
+                </ManagedAgencyLogo>
+                <ManagedAgencyInfo>
+                  <strong>{agencyName || "Your agency"}</strong>
+                  <span>{agencyTagline || "Manage this listing from your agency workspace."}</span>
+                </ManagedAgencyInfo>
+              </ManagedAgencyCard>
+            ) : null}
+            {!isOwnListing && agencySlug ? (
               <AgencyCard href={`/agency/${agencySlug}`}>
                 <strong>{agencyName || "Agency profile"}</strong>
                 <span>{agencyTagline || "Open the public agency storefront and browse more listings."}</span>
               </AgencyCard>
             ) : null}
-            <ContactButton
-              type="button"
-              onClick={() => {
-                setContactCopied(false);
-                setContactOpen(true);
-              }}
-            >
-              <Phone size={16} style={{ marginRight: 6 }} />
-              {t("listing.contactAgent")}
-            </ContactButton>
-            <SaveButton type="button" onClick={handleSave} disabled={saveSubmitting} $active={saved}>
-              {saved ? t("listing.saved") : t("listing.saveProperty")}
-            </SaveButton>
-            {canRequestViewing ? (
+            {isOwnListing ? (
               <SecondaryButton
                 as="button"
                 type="button"
-                onClick={() => {
-                  if (existingViewingRequest) {
-                    setViewingInfoOpen(true);
-                  } else {
-                    setViewingOpen(true);
-                    setViewingSuccess(false);
-                    setViewingError(null);
-                  }
-                }}
-                $active={Boolean(existingViewingRequest)}
+                onClick={() => router.push("/hub?section=manage-listings")}
               >
-                {existingViewingRequest ? t("listing.viewingRequested") : t("listing.requestViewing")}
+                Manage your listing
               </SecondaryButton>
-            ) : null}
-            <ReportButton
-              type="button"
-              onClick={() => {
-                setReportError(null);
-                setReportSuccess(false);
-                setReportDetails("");
-                setReportReason("spam");
-                setReportOpen(true);
-              }}
-            >
-              <Flag size={16} />
-              Report listing
-            </ReportButton>
+            ) : (
+              <>
+                <ContactButton
+                  type="button"
+                  onClick={() => {
+                    setContactCopied(false);
+                    setContactOpen(true);
+                  }}
+                >
+                  <Phone size={16} style={{ marginRight: 6 }} />
+                  {isAgencyListing ? t("listing.contactAgent") : "Contact seller"}
+                </ContactButton>
+                <SaveButton type="button" onClick={handleSave} disabled={saveSubmitting} $active={saved}>
+                  {saved ? t("listing.saved") : t("listing.saveProperty")}
+                </SaveButton>
+                {canRequestViewing ? (
+                  <SecondaryButton
+                    as="button"
+                    type="button"
+                    onClick={() => {
+                      if (existingViewingRequest) {
+                        setViewingInfoOpen(true);
+                      } else {
+                        setViewingOpen(true);
+                        setViewingSuccess(false);
+                        setViewingError(null);
+                      }
+                    }}
+                    $active={Boolean(existingViewingRequest)}
+                  >
+                    {existingViewingRequest ? t("listing.viewingRequested") : t("listing.requestViewing")}
+                  </SecondaryButton>
+                ) : null}
+                <ReportButton
+                  type="button"
+                  onClick={() => {
+                    setReportError(null);
+                    setReportSuccess(false);
+                    setReportDetails("");
+                    setReportReason("spam");
+                    setReportOpen(true);
+                  }}
+                >
+                  <Flag size={16} />
+                  Report listing
+                </ReportButton>
+              </>
+            )}
           </ContactCard>
         </ContentLayout>
       </PageShell>
@@ -1530,14 +1746,20 @@ export default function ListingDetailPage() {
                   label={t("listing.fullName")}
                   name="name"
                   value={viewingName}
-                  onChange={(event) => setViewingName(event.target.value)}
+                  onChange={(event) => {
+                    setViewingNameTouched(true);
+                    setViewingName(event.target.value);
+                  }}
                 />
                 <CustomInput
                   id="viewing-phone"
                   label={t("listing.phoneNumber")}
                   name="phone"
                   value={viewingPhone}
-                  onChange={(event) => setViewingPhone(event.target.value)}
+                  onChange={(event) => {
+                    setViewingPhoneTouched(true);
+                    setViewingPhone(event.target.value);
+                  }}
                 />
                 <DateTimePicker
                   label={t("listing.preferredDate")}

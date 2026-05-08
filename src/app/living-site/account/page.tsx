@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import styled, { keyframes } from "styled-components";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -12,6 +12,8 @@ import {
   BedDouble,
   Building2,
   Calendar,
+  ChevronLeft,
+  ChevronRight,
   Clock,
   CheckCircle2,
   Circle,
@@ -30,6 +32,7 @@ import {
   ShieldCheck,
   Sparkles,
   Tag as TagIcon,
+  Trash2,
   Users2,
   X,
 } from "lucide-react";
@@ -48,6 +51,11 @@ import { useI18n } from "@/app/living-site/lib/i18n";
 import { getUpgradePlan, getVendorPlan } from "@/lib/vendor-plans";
 import { isVendorStorefrontSetupComplete } from "@/lib/vendor-storefront";
 import { formatPropertyTypeValue } from "@/lib/property-types";
+import { CustomSelect } from "@/app/living-site/components/form-controls/CustomSelect";
+import {
+  VendorPropertiesView,
+  type VendorPropertyItem,
+} from "@/app/living-site/components/vendor/VendorPropertiesView";
 
 const shimmer = keyframes`
   0% {
@@ -85,6 +93,215 @@ type VendorOverviewPayload = {
   priceRangesByType: Array<{ key: string; min: number; max: number; count: number; currency: string }>;
   appointmentsByType: Array<{ key: string; count: number }>;
 };
+
+type HubPropertyDetailPayload = {
+  property: VendorPropertyItem;
+  appointments: Array<{
+    id: string;
+    title: string | null;
+    start_at: string | null;
+    status: string | null;
+    client_name: string | null;
+    assigned_staff_id: string | null;
+    assigned_staff_name: string | null;
+  }>;
+  staff_summary: Array<{
+    id: string;
+    name: string;
+    assigned_count: number;
+  }>;
+  unassigned_count: number;
+};
+
+type VendorAppointmentsDashboardPayload = {
+  stats: {
+    today: number;
+    unassigned: number;
+    upcoming: number;
+  };
+  assignments: Array<{
+    id: string;
+    name: string;
+    role: string;
+    assigned_count: number;
+  }>;
+  appointments: Array<{
+    id: string;
+    title: string;
+    start_at: string | null;
+    status: string;
+    client_name: string;
+    client_phone: string | null;
+    notes: string | null;
+    property_id: string | null;
+    property_title: string;
+    property_location: string;
+    assigned_staff_id: string | null;
+    assigned_staff_name: string | null;
+    source: "appointment" | "viewing_request";
+  }>;
+};
+
+type AppointmentDatePickerProps = {
+  name: string;
+  value: string;
+  onChange: (value: string) => void;
+  locale: string;
+  disabled?: boolean;
+};
+
+function AppointmentDatePicker({ name, value, onChange, locale, disabled }: AppointmentDatePickerProps) {
+  const [open, setOpen] = useState(false);
+  const selectedDate = value ? parseDateOnly(value) : null;
+  const [currentMonth, setCurrentMonth] = useState<Date>(selectedDate ?? new Date());
+  const days = useMemo(() => getCalendarDays(currentMonth), [currentMonth]);
+  const monthLabel = currentMonth.toLocaleDateString(locale, {
+    month: "long",
+    year: "numeric",
+  });
+
+  return (
+    <>
+      <AppointmentDateTrigger
+        type="button"
+        name={name}
+        disabled={disabled}
+        onClick={() => {
+          if (disabled) return;
+          setCurrentMonth(selectedDate ?? new Date());
+          setOpen(true);
+        }}
+      >
+        <AppointmentSelectValue $muted={!value}>
+          {formatDatePickerLabel(value, locale) || "Select date"}
+        </AppointmentSelectValue>
+      </AppointmentDateTrigger>
+      {open && (
+        <AppointmentCalendarOverlay onClick={() => setOpen(false)}>
+          <AppointmentCalendarCard onClick={(event) => event.stopPropagation()}>
+            <AppointmentCalendarHeader>
+              <AppointmentCalendarNav
+                type="button"
+                onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}
+                disabled={disabled}
+              >
+                Prev
+              </AppointmentCalendarNav>
+              <strong>{monthLabel}</strong>
+              <AppointmentCalendarNav
+                type="button"
+                onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))}
+                disabled={disabled}
+              >
+                Next
+              </AppointmentCalendarNav>
+            </AppointmentCalendarHeader>
+            <AppointmentCalendarGrid>
+              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+                <span
+                  key={day}
+                  style={{
+                    textAlign: "center",
+                    fontSize: "0.75rem",
+                    color: "var(--color-muted)",
+                    fontWeight: 600,
+                  }}
+                >
+                  {day}
+                </span>
+              ))}
+              {days.map((item) => {
+                const key = toDateString(item.date);
+                const active = value === key;
+                return (
+                  <AppointmentCalendarDay
+                    key={key}
+                    type="button"
+                    $muted={!item.inMonth}
+                    $active={active}
+                    onClick={() => {
+                      if (disabled) return;
+                      onChange(key);
+                      setOpen(false);
+                    }}
+                  >
+                    {item.date.getDate()}
+                  </AppointmentCalendarDay>
+                );
+              })}
+            </AppointmentCalendarGrid>
+          </AppointmentCalendarCard>
+        </AppointmentCalendarOverlay>
+      )}
+    </>
+  );
+}
+
+function toLocalDateKey(value: string | Date) {
+  const date = value instanceof Date ? value : new Date(value);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(
+    2,
+    "0"
+  )}`;
+}
+
+function parseDateOnly(value: string) {
+  const parts = value.split("-").map((part) => Number(part));
+  if (parts.length !== 3 || parts.some((part) => Number.isNaN(part))) return null;
+  const [year, month, day] = parts;
+  return new Date(year, month - 1, day);
+}
+
+function formatDatePickerLabel(value: string | undefined, locale: string) {
+  if (!value) return "";
+  const parsed = parseDateOnly(value);
+  if (!parsed) return "";
+  return parsed.toLocaleDateString(locale, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function getCalendarDays(monthDate: Date) {
+  const year = monthDate.getFullYear();
+  const month = monthDate.getMonth();
+  const start = new Date(year, month, 1);
+  const startDay = start.getDay();
+  const first = new Date(year, month, 1 - startDay);
+  const days: Array<{ date: Date; inMonth: boolean }> = [];
+
+  for (let i = 0; i < 42; i += 1) {
+    const current = new Date(first);
+    current.setDate(first.getDate() + i);
+    days.push({ date: current, inMonth: current.getMonth() === month });
+  }
+
+  return days;
+}
+
+function toDateString(value: Date) {
+  const year = value.getFullYear();
+  const month = `${value.getMonth() + 1}`.padStart(2, "0");
+  const day = `${value.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getDatePart(value: string) {
+  if (!value) return "";
+  return value.slice(0, 10);
+}
+
+function getTimePart(value: string) {
+  if (!value) return "";
+  const normalized = value.includes("T") ? value.split("T")[1] : value;
+  return normalized.slice(0, 5);
+}
+
+function combineDateAndTime(date: string, time: string) {
+  if (!date) return "";
+  return `${date}T${time || "09:00"}`;
+}
 
 const HUB_SNAPSHOT_TEMPLATE: VendorOverviewPayload = {
   metrics: {
@@ -134,6 +351,121 @@ const HUB_SNAPSHOT_TEMPLATE: VendorOverviewPayload = {
     { key: "shop_office", count: 1 },
   ],
 };
+
+const HUB_SUMMARY_TEMPLATE = {
+  totalValue: HUB_SNAPSHOT_TEMPLATE.metrics.totalValue,
+  nextAppointmentTitle: HUB_SNAPSHOT_TEMPLATE.nextAppointment?.title ?? "Upcoming appointment",
+  nextAppointmentAt: HUB_SNAPSHOT_TEMPLATE.nextAppointment?.start_at ?? null,
+};
+
+const HUB_APPOINTMENT_CALENDAR_DAYS = [
+  { day: "Mon", date: 5, active: false, count: 0 },
+  { day: "Tue", date: 6, active: false, count: 1 },
+  { day: "Wed", date: 7, active: false, count: 0 },
+  { day: "Thu", date: 8, active: true, count: 3 },
+  { day: "Fri", date: 9, active: false, count: 4 },
+  { day: "Sat", date: 10, active: false, count: 2 },
+  { day: "Sun", date: 11, active: false, count: 0 },
+];
+
+const HUB_APPOINTMENT_MONTH_COUNTS: Record<number, number> = {
+  2: 1,
+  6: 1,
+  8: 3,
+  9: 4,
+  10: 2,
+  14: 1,
+  16: 2,
+  21: 1,
+  23: 2,
+  28: 1,
+};
+
+const HUB_APPOINTMENT_MONTH_DETAILS: Record<
+  number,
+  Array<{
+    property: string;
+    assignee: string;
+    time: string;
+  }>
+> = {
+  2: [{ property: "Condo viewing with buyer", assignee: "Mya Mya", time: "10:30 AM" }],
+  6: [{ property: "Owner follow-up call", assignee: "Ei Ei", time: "2:00 PM" }],
+  8: [
+    { property: "Condo viewing with buyer", assignee: "Mya Mya", time: "10:30 AM" },
+    { property: "Land site walk-through", assignee: "Ei Ei", time: "3:30 PM" },
+    { property: "Evening buyer callback", assignee: "Ko Ko", time: "6:15 PM" },
+  ],
+  9: [
+    { property: "House follow-up inspection", assignee: "Ko Ko", time: "1:00 PM" },
+    { property: "Owner document review", assignee: "Ei Ei", time: "2:30 PM" },
+    { property: "Broker handoff", assignee: "Mya Mya", time: "4:00 PM" },
+    { property: "Late buyer check-in", assignee: "Ko Ko", time: "7:00 PM" },
+  ],
+  10: [
+    { property: "Shop office key handover", assignee: "Ko Ko", time: "11:00 AM" },
+    { property: "Route planning", assignee: "Ei Ei", time: "4:45 PM" },
+  ],
+  14: [{ property: "Warehouse site visit", assignee: "Ko Ko", time: "9:00 AM" }],
+  16: [
+    { property: "Team check-in", assignee: "Ei Ei", time: "10:00 AM" },
+    { property: "Seller briefing", assignee: "Mya Mya", time: "1:30 PM" },
+  ],
+  21: [{ property: "Buyer reconfirmation", assignee: "Ei Ei", time: "12:00 PM" }],
+  23: [
+    { property: "Condo viewing", assignee: "Mya Mya", time: "11:30 AM" },
+    { property: "House negotiation", assignee: "Ko Ko", time: "4:30 PM" },
+  ],
+  28: [{ property: "Land plot revisit", assignee: "Ei Ei", time: "3:00 PM" }],
+};
+
+const HUB_APPOINTMENT_QUEUE = [
+  {
+    time: "10:30 AM",
+    property: "Condo viewing with buyer",
+    location: "Tamwe",
+    client: "Ko Aung",
+    owner: "Mya Mya",
+    status: "Confirmed",
+  },
+  {
+    time: "1:00 PM",
+    property: "House follow-up inspection",
+    location: "Mayangone",
+    client: "Daw Ei",
+    owner: "Ko Ko",
+    status: "Awaiting staff",
+  },
+  {
+    time: "3:30 PM",
+    property: "Land site walk-through",
+    location: "Bago",
+    client: "U Min",
+    owner: "Ei Ei",
+    status: "Confirmed",
+  },
+  {
+    time: "5:15 PM",
+    property: "Shop office key handover",
+    location: "Lanmadaw",
+    client: "Moe Zay",
+    owner: "Ko Ko",
+    status: "Needs owner note",
+  },
+];
+
+const HUB_APPOINTMENT_ASSIGNMENT_PREVIEW = [
+  { name: "Mya Mya", assignedCount: 3, unassignedShare: 1 },
+  { name: "Ko Ko", assignedCount: 2, unassignedShare: 0 },
+  { name: "Ei Ei", assignedCount: 1, unassignedShare: 0 },
+];
+
+function withOthers<T extends { count: number }>(items: T[], limit = 4): Array<T | (Omit<T, "count"> & { key?: string; count: number; label?: string })> {
+  const top = items.slice(0, limit);
+  if (items.length <= limit) return top;
+  const othersCount = items.slice(limit).reduce((sum, item) => sum + item.count, 0);
+  return [...top, { count: othersCount, key: "others", label: "Others" }];
+}
 
 const Header = styled.header`
   padding-bottom: 14px;
@@ -1011,45 +1343,54 @@ const VendorSectionTitle = styled.h3`
 
 const StarterHeader = styled.div`
   display: grid;
-  gap: 14px;
-`;
-
-const StarterGrid = styled.div`
-  display: grid;
-  gap: 12px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-
-  @media (max-width: 720px) {
-    grid-template-columns: 1fr;
-  }
-`;
-
-const StarterStat = styled.div`
-  border: 1px solid var(--color-outline);
-  border-radius: 18px;
-  padding: 12px 14px;
-  background: var(--color-surface-2);
-  display: grid;
-  gap: 6px;
-`;
-
-const StarterStatTop = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   gap: 10px;
-  color: var(--color-muted);
+`;
 
-  svg {
-    width: 16px;
-    height: 16px;
+const StarterTopRow = styled.div`
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+
+  @media (max-width: 960px) {
+    flex-direction: column;
+    align-items: stretch;
   }
 `;
 
-const StarterStatValue = styled.div`
-  font-size: 1.2rem;
-  font-weight: 800;
+const StarterSummary = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px 14px;
+
+  @media (max-width: 960px) {
+    justify-content: flex-start;
+  }
+
+  @media (max-width: 640px) {
+    gap: 8px;
+  }
+`;
+
+const StarterSummaryItem = styled.div`
+  display: grid;
+  gap: 2px;
+  min-width: 88px;
+`;
+
+const StarterSummaryLabel = styled.div`
+  color: var(--color-muted);
+  font-size: 0.76rem;
+  line-height: 1.2;
+`;
+
+const StarterSummaryValue = styled.div`
   color: var(--color-text);
+  font-size: 0.92rem;
+  font-weight: 800;
+  line-height: 1.2;
 `;
 
 const HubFeatureCard = styled.div`
@@ -1057,6 +1398,902 @@ const HubFeatureCard = styled.div`
   display: grid;
   gap: 14px;
   overflow: hidden;
+`;
+
+const HubSectionFooter = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 2px;
+`;
+
+const HubSectionAction = styled(Link)`
+  min-height: 42px;
+  padding: 0 16px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--gradient);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: var(--frame-shadow);
+  transition: transform 160ms ease, box-shadow 160ms ease, filter 160ms ease;
+
+  &:visited,
+  &:active,
+  &:hover {
+    color: #fff;
+    text-decoration: none;
+  }
+
+  &:hover {
+    transform: translateY(-1px);
+    filter: brightness(0.98);
+    box-shadow: 0 12px 22px rgba(235, 35, 64, 0.16);
+  }
+`;
+
+const HubSectionViewport = styled.div`
+  min-height: 640px;
+  max-height: 640px;
+  display: grid;
+  overflow: hidden;
+`;
+
+const HubSectionScroller = styled.div`
+  min-height: 0;
+  height: 100%;
+  overflow-y: auto;
+  padding-right: 6px;
+  display: grid;
+  align-content: start;
+  gap: 16px;
+`;
+
+const AppointmentLayout = styled.div`
+  display: grid;
+  gap: 16px;
+`;
+
+const AppointmentTopGrid = styled.div`
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+  gap: 16px;
+
+  @media (max-width: 1100px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const AppointmentCard = styled.div`
+  border: 1px solid var(--color-outline);
+  border-radius: 24px;
+  background: color-mix(in srgb, var(--color-surface-2) 72%, white);
+  padding: 18px;
+  display: grid;
+  gap: 14px;
+`;
+
+const AppointmentCardHeader = styled.div`
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+`;
+
+const AppointmentCardTitleWrap = styled.div`
+  display: grid;
+  gap: 4px;
+`;
+
+const AppointmentCardTitle = styled.h3`
+  margin: 0;
+  font-size: 1rem;
+  color: var(--color-text);
+`;
+
+const AppointmentCardCopy = styled.p`
+  margin: 0;
+  color: var(--color-muted);
+  line-height: 1.5;
+`;
+
+const AppointmentCardHeaderRight = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+`;
+
+const AppointmentPill = styled.span<{ $tone?: "neutral" | "warning" | "success" }>`
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid
+    ${(props) =>
+      props.$tone === "warning"
+        ? "rgba(235, 35, 64, 0.14)"
+        : props.$tone === "success"
+          ? "rgba(16, 185, 129, 0.14)"
+          : "var(--color-outline)"};
+  background: ${(props) =>
+    props.$tone === "warning"
+      ? "#fff1f3"
+      : props.$tone === "success"
+        ? "#ecfdf5"
+        : "var(--color-surface)"};
+  color: ${(props) =>
+    props.$tone === "warning"
+      ? "#b4233a"
+      : props.$tone === "success"
+        ? "#0f766e"
+        : "var(--color-text)"};
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  white-space: nowrap;
+`;
+
+const AppointmentStats = styled.div`
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+
+  @media (max-width: 720px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const AppointmentCalendarSplit = styled.div`
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(180px, 1fr);
+  gap: 14px;
+  align-items: start;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const AppointmentStatsColumn = styled.div`
+  display: grid;
+  gap: 10px;
+`;
+
+const AppointmentStat = styled.div`
+  border: 1px solid var(--color-outline);
+  border-radius: 18px;
+  background: var(--color-surface);
+  padding: 12px 14px;
+  display: grid;
+  gap: 6px;
+`;
+
+const AppointmentStatLabel = styled.span`
+  color: var(--color-muted);
+  font-size: 0.78rem;
+`;
+
+const AppointmentStatValue = styled.strong`
+  color: var(--color-text);
+  font-size: 1rem;
+`;
+
+const AppointmentToggleRow = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid var(--color-outline);
+  border-radius: 999px;
+  background: var(--color-surface);
+`;
+
+const AppointmentToggleButton = styled.button<{ $active?: boolean }>`
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 0;
+  background: ${(props) => (props.$active ? "var(--gradient)" : "transparent")};
+  color: ${(props) => (props.$active ? "#fff" : "var(--color-text)")};
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+`;
+
+const AppointmentMonthNav = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const AppointmentMonthButton = styled.button`
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: 1px solid var(--color-outline);
+  background: var(--color-surface);
+  color: var(--color-text);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+`;
+
+const AppointmentMonthLabel = styled.strong`
+  color: var(--color-text);
+  font-size: 0.84rem;
+`;
+
+const AppointmentWeekScroller = styled.div`
+  overflow-x: auto;
+  padding-bottom: 4px;
+`;
+
+const AppointmentWeekRow = styled.div`
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 10px;
+  min-width: 720px;
+`;
+
+const AppointmentMonthGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+`;
+
+const AppointmentMonthWeekdays = styled.div`
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+`;
+
+const AppointmentMonthWeekday = styled.div`
+  padding: 0 4px;
+  color: var(--color-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  text-align: center;
+`;
+
+const AppointmentMonthCell = styled.div<{ $muted?: boolean; $active?: boolean }>`
+  min-height: 48px;
+  border: 1px solid
+    ${(props) =>
+      props.$active ? "color-mix(in srgb, var(--color-primary) 18%, var(--color-outline))" : "var(--color-outline)"};
+  border-radius: 18px;
+  background: ${(props) => (props.$active ? "#fff7f8" : "var(--color-surface)")};
+  padding: 7px 8px;
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  gap: 6px;
+  opacity: ${(props) => (props.$muted ? 0.45 : 1)};
+  cursor: ${(props) => (props.$active ? "pointer" : "default")};
+  position: relative;
+`;
+
+const AppointmentDayCell = styled.div<{ $active?: boolean }>`
+  border: 1px solid
+    ${(props) =>
+      props.$active ? "color-mix(in srgb, var(--color-primary) 18%, var(--color-outline))" : "var(--color-outline)"};
+  border-radius: 18px;
+  background: ${(props) => (props.$active ? "#fff7f8" : "var(--color-surface)")};
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+`;
+
+const AppointmentDayName = styled.span`
+  color: var(--color-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+`;
+
+const AppointmentDayDate = styled.strong`
+  color: var(--color-text);
+  font-size: 0.86rem;
+`;
+
+const AppointmentCount = styled.span<{ $active?: boolean }>`
+  color: ${(props) => (props.$active ? "var(--color-primary)" : "var(--color-muted)")};
+  font-size: 0.78rem;
+  font-weight: 700;
+`;
+
+const AppointmentMonthCount = styled.span<{ $active?: boolean }>`
+  color: ${(props) => (props.$active ? "var(--color-primary)" : "var(--color-muted)")};
+  font-size: 0.76rem;
+  font-weight: 700;
+`;
+
+const AppointmentDot = styled.span<{ $active?: boolean }>`
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: ${(props) => (props.$active ? "var(--color-primary)" : "var(--color-muted)")};
+`;
+
+const AppointmentMonthPopup = styled.div`
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 5;
+  min-width: 220px;
+  max-width: 260px;
+  border: 1px solid var(--color-outline);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: var(--frame-shadow);
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+`;
+
+const AppointmentMonthPopupTitle = styled.strong`
+  color: var(--color-text);
+  font-size: 0.84rem;
+`;
+
+const AppointmentMonthPopupList = styled.div`
+  display: grid;
+  gap: 6px;
+`;
+
+const AppointmentMonthPopupItem = styled.div`
+  text-align: left;
+  width: 100%;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1px solid var(--color-outline);
+  border-radius: 14px;
+  background: var(--color-surface);
+  padding: 8px 10px;
+  display: grid;
+  gap: 3px;
+`;
+
+const AppointmentMonthPopupProperty = styled.strong`
+  color: var(--color-text);
+  font-size: 0.8rem;
+  line-height: 1.35;
+`;
+
+const AppointmentMonthPopupMeta = styled.div`
+  color: var(--color-muted);
+  font-size: 0.76rem;
+  line-height: 1.35;
+`;
+
+const AppointmentAssignmentList = styled.div`
+  display: grid;
+  gap: 10px;
+`;
+
+const AppointmentAssignmentRow = styled.div`
+  border: 1px solid var(--color-outline);
+  border-radius: 18px;
+  background: var(--color-surface);
+  padding: 12px 14px;
+  display: grid;
+  gap: 6px;
+`;
+
+const AppointmentAssignmentTop = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+`;
+
+const AppointmentAssignmentName = styled.strong`
+  color: var(--color-text);
+  font-size: 0.92rem;
+`;
+
+const AppointmentAssignmentMeta = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-muted);
+  font-size: 0.8rem;
+  flex-wrap: wrap;
+`;
+
+const AppointmentQueueList = styled.div`
+  display: grid;
+  gap: 10px;
+`;
+
+const AppointmentQueueRow = styled.div`
+  border: 1px solid var(--color-outline);
+  border-radius: 18px;
+  background: var(--color-surface);
+  padding: 14px 16px;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1.4fr) minmax(0, 0.8fr) auto;
+  gap: 14px;
+  align-items: center;
+
+  @media (max-width: 980px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const AppointmentQueueTime = styled.div`
+  display: grid;
+  gap: 4px;
+`;
+
+const AppointmentQueueTimeValue = styled.strong`
+  color: var(--color-text);
+  font-size: 0.96rem;
+`;
+
+const AppointmentQueueTimeLabel = styled.span`
+  color: var(--color-muted);
+  font-size: 0.74rem;
+`;
+
+const AppointmentQueueMain = styled.div`
+  display: grid;
+  gap: 6px;
+`;
+
+const AppointmentQueueTitle = styled.strong`
+  color: var(--color-text);
+  font-size: 0.94rem;
+  line-height: 1.3;
+`;
+
+const AppointmentQueueMeta = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--color-muted);
+  font-size: 0.8rem;
+  flex-wrap: wrap;
+`;
+
+const AppointmentQueueSide = styled.div`
+  display: grid;
+  gap: 4px;
+`;
+
+const AppointmentQueueSideLabel = styled.span`
+  color: var(--color-muted);
+  font-size: 0.74rem;
+`;
+
+const AppointmentQueueSideValue = styled.strong`
+  color: var(--color-text);
+  font-size: 0.84rem;
+`;
+
+const AppointmentClickable = styled.button`
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+`;
+
+const AppointmentEditorMeta = styled.div`
+  display: grid;
+  gap: 10px;
+`;
+
+const AppointmentEditorRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--color-muted);
+  font-size: 0.9rem;
+  flex-wrap: wrap;
+`;
+
+const AppointmentEditorGrid = styled.div`
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+
+  @media (max-width: 760px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const AppointmentEditorSections = styled.div`
+  display: grid;
+  gap: 16px;
+`;
+
+const AppointmentEditorSection = styled.section`
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--color-outline);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--color-surface-2) 84%, white);
+`;
+
+const AppointmentEditorSectionHeader = styled.div`
+  display: grid;
+  gap: 4px;
+`;
+
+const AppointmentEditorSectionTitle = styled.strong`
+  color: var(--color-text);
+  font-size: 0.98rem;
+`;
+
+const AppointmentEditorSectionCopy = styled.span`
+  color: var(--color-muted);
+  font-size: 0.86rem;
+  line-height: 1.45;
+`;
+
+const AppointmentEditorLabel = styled.div`
+  color: var(--color-muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+`;
+
+const AppointmentEditorField = styled.div`
+  display: grid;
+  gap: 8px;
+`;
+
+const AppointmentEditorInput = styled.input`
+  width: 100%;
+  height: 50px;
+  border-radius: 14px;
+  border: 1px solid var(--color-outline);
+  background: var(--color-surface);
+  color: var(--color-text);
+  padding: 0 16px;
+  font: inherit;
+  outline: none;
+
+  &:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 18%, transparent);
+  }
+
+  &:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+`;
+
+const DangerButton = styled.button`
+  border: 1px solid color-mix(in srgb, var(--color-primary) 30%, var(--color-outline));
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  background: color-mix(in srgb, var(--color-primary) 8%, white);
+  color: var(--color-primary);
+  font-weight: 700;
+  cursor: pointer;
+`;
+
+const AppointmentTextArea = styled.textarea`
+  min-height: 108px;
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid var(--color-outline);
+  background: var(--color-surface);
+  color: var(--color-text);
+  padding: 14px 16px;
+  resize: vertical;
+  font: inherit;
+
+  &:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 18%, transparent);
+  }
+`;
+
+const AppointmentSelectValue = styled.span<{ $muted?: boolean }>`
+  color: ${(props) => (props.$muted ? "var(--color-muted)" : "var(--color-text)")};
+  font-size: 0.95rem;
+  line-height: 1.2;
+`;
+
+const AppointmentDateTrigger = styled.button`
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--color-outline);
+  padding: 0 16px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  height: 50px;
+  text-align: left;
+  cursor: pointer;
+  outline: none;
+  display: flex;
+  align-items: center;
+
+  &:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 25%, transparent);
+  }
+`;
+
+const AppointmentCalendarOverlay = styled.div`
+  position: fixed;
+  inset: 0;
+  background: rgba(12, 18, 36, 0.4);
+  display: grid;
+  place-items: center;
+  z-index: 110;
+  padding: 16px;
+`;
+
+const AppointmentCalendarCard = styled.div`
+  width: min(420px, 100%);
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-outline);
+  border-radius: 16px;
+  box-shadow: var(--shadow-soft);
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+`;
+
+const AppointmentCalendarHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+`;
+
+const AppointmentCalendarNav = styled.button`
+  border: 1px solid var(--color-outline);
+  border-radius: 10px;
+  padding: 6px 10px;
+  background: var(--color-surface);
+  cursor: pointer;
+  color: var(--color-text);
+`;
+
+const AppointmentCalendarGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+`;
+
+const AppointmentCalendarDay = styled.button<{ $muted?: boolean; $active?: boolean }>`
+  border: 1px solid var(--color-outline);
+  border-radius: 10px;
+  padding: 8px 0;
+  background: ${(props) =>
+    props.$active ? "color-mix(in srgb, var(--color-primary) 18%, transparent)" : "transparent"};
+  color: ${(props) =>
+    props.$active ? "var(--color-primary)" : props.$muted ? "var(--color-muted)" : "var(--color-text)"};
+  cursor: pointer;
+  font-weight: 600;
+`;
+
+const ListingDetailViewport = styled(HubSectionViewport)``;
+
+const ListingDetailScroller = styled(HubSectionScroller)``;
+
+const ListingDetailHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+`;
+
+const ListingDetailBack = styled.button`
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--color-outline);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+`;
+
+const ListingDetailTitleWrap = styled.div`
+  display: grid;
+  gap: 4px;
+`;
+
+const ListingDetailTitle = styled.h3`
+  margin: 0;
+  font-size: 1.05rem;
+  color: var(--color-text);
+`;
+
+const ListingDetailCopy = styled.p`
+  margin: 0;
+  color: var(--color-muted);
+  line-height: 1.45;
+`;
+
+const ListingDetailHero = styled.div`
+  display: grid;
+  grid-template-columns: minmax(260px, 0.95fr) minmax(0, 1.05fr);
+  gap: 16px;
+
+  @media (max-width: 980px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const ListingDetailImage = styled.div<{ $image?: string }>`
+  min-height: 260px;
+  border-radius: 24px;
+  border: 1px solid var(--color-outline);
+  background: ${(props) =>
+    props.$image ? `center / cover no-repeat url(${props.$image})` : "color-mix(in srgb, var(--color-surface) 92%, white)"};
+  display: grid;
+  place-items: center;
+  color: var(--color-muted);
+  overflow: hidden;
+`;
+
+const ListingDetailInfo = styled.div`
+  display: grid;
+  gap: 14px;
+  border: 1px solid var(--color-outline);
+  border-radius: 24px;
+  background: color-mix(in srgb, var(--color-surface-2) 72%, white);
+  padding: 18px;
+`;
+
+const ListingDetailPills = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+`;
+
+const ListingDetailPrice = styled.div`
+  color: var(--color-text);
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1.1;
+`;
+
+const ListingDetailMetaGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+
+  @media (max-width: 720px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const ListingDetailMetaCard = styled.div`
+  border: 1px solid var(--color-outline);
+  border-radius: 18px;
+  background: var(--color-surface);
+  padding: 12px 14px;
+  display: grid;
+  gap: 5px;
+`;
+
+const ListingDetailMetaLabel = styled.span`
+  color: var(--color-muted);
+  font-size: 0.76rem;
+`;
+
+const ListingDetailMetaValue = styled.strong`
+  color: var(--color-text);
+  font-size: 0.9rem;
+`;
+
+const ListingDetailLower = styled.div`
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.8fr);
+  gap: 16px;
+
+  @media (max-width: 1100px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const ListingDetailCard = styled.div`
+  border: 1px solid var(--color-outline);
+  border-radius: 24px;
+  background: color-mix(in srgb, var(--color-surface-2) 72%, white);
+  padding: 18px;
+  display: grid;
+  gap: 14px;
+`;
+
+const ListingDetailSectionTitle = styled.h4`
+  margin: 0;
+  color: var(--color-text);
+  font-size: 0.98rem;
+`;
+
+const ListingAppointmentList = styled.div`
+  display: grid;
+  gap: 10px;
+`;
+
+const ListingAppointmentRow = styled.div`
+  border: 1px solid var(--color-outline);
+  border-radius: 18px;
+  background: var(--color-surface);
+  padding: 12px 14px;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+
+  @media (max-width: 720px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const ListingAppointmentTime = styled.strong`
+  color: var(--color-text);
+  font-size: 0.9rem;
+`;
+
+const ListingAppointmentMain = styled.div`
+  display: grid;
+  gap: 4px;
+`;
+
+const ListingAppointmentTitle = styled.strong`
+  color: var(--color-text);
+  font-size: 0.88rem;
+`;
+
+const ListingAppointmentMeta = styled.div`
+  color: var(--color-muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+`;
+
+const ListingStaffList = styled.div`
+  display: grid;
+  gap: 10px;
+`;
+
+const ListingStaffRow = styled.div`
+  border: 1px solid var(--color-outline);
+  border-radius: 18px;
+  background: var(--color-surface);
+  padding: 12px 14px;
+  display: grid;
+  gap: 5px;
+`;
+
+const ListingStaffName = styled.strong`
+  color: var(--color-text);
+  font-size: 0.88rem;
+`;
+
+const ListingStaffMeta = styled.div`
+  color: var(--color-muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
 `;
 
 const HubFeatureHeader = styled.div`
@@ -1247,7 +2484,7 @@ const HubInsightBody = styled.div`
   position: relative;
   min-height: 98px;
   border-radius: 14px;
-  overflow: hidden;
+  overflow: visible;
 `;
 
 const HubInsightCardInner = styled.div<{ $blurred?: boolean }>`
@@ -1382,6 +2619,42 @@ const HubInsightHeroLabel = styled.div`
   color: var(--color-muted);
 `;
 
+const HubInsightPieWrap = styled.div`
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+`;
+
+const HubInsightPie = styled.div<{ $gradient: string }>`
+  width: 96px;
+  height: 96px;
+  border-radius: 999px;
+  background: ${(props) => props.$gradient};
+  position: relative;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.06);
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 20px;
+    border-radius: 999px;
+    background: var(--color-surface);
+    box-shadow: inset 0 0 0 1px var(--color-outline);
+  }
+`;
+
+const HubInsightPieCenter = styled.div`
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  z-index: 1;
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--color-text);
+`;
+
 const HubInsightStack = styled.div`
   position: relative;
   display: grid;
@@ -1441,6 +2714,141 @@ const HubInsightLegendDot = styled.span<{ $color: string }>`
   height: 10px;
   border-radius: 999px;
   background: ${(props) => props.$color};
+`;
+
+const HubInsightBarList = styled.div`
+  display: grid;
+  gap: 8px;
+`;
+
+const HubInsightBarRow = styled.div`
+  display: grid;
+  gap: 0;
+`;
+
+const HubInsightBarMeta = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.88rem;
+  color: var(--color-text);
+`;
+
+const HubInsightBarTrack = styled.div`
+  height: 20px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--color-surface) 92%, white);
+  border: 1px solid var(--color-outline);
+`;
+
+const HubInsightBarFill = styled.div<{ $width: number; $color: string }>`
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 8px;
+  height: 100%;
+  width: ${(props) => props.$width}%;
+  background: ${(props) => props.$color};
+  border-radius: inherit;
+  min-width: ${(props) => (props.$width > 0 ? "74px" : "0")};
+  color: white;
+  font-size: 0.76rem;
+  font-weight: 800;
+  white-space: nowrap;
+`;
+
+const HubInsightRangeList = styled.div`
+  display: grid;
+  gap: 12px;
+`;
+
+const HubInsightRangeRow = styled.div`
+  display: grid;
+  gap: 7px;
+`;
+
+const HubInsightRangeMeta = styled.div`
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.86rem;
+  color: var(--color-text);
+`;
+
+const HubInsightRangeTrack = styled.div`
+  position: relative;
+  height: 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-surface) 92%, white);
+  border: 1px solid var(--color-outline);
+`;
+
+const HubInsightRangeFill = styled.div<{ $left: number; $width: number; $color: string }>`
+  position: absolute;
+  top: -1px;
+  left: ${(props) => props.$left}%;
+  width: ${(props) => props.$width}%;
+  height: calc(100% + 2px);
+  min-width: 10px;
+  border-radius: 999px;
+  background: ${(props) => props.$color};
+`;
+
+const HubInsightColumnWrap = styled.div`
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  align-items: end;
+  min-height: 108px;
+`;
+
+const HubInsightColumn = styled.div`
+  display: grid;
+  gap: 7px;
+  justify-items: center;
+`;
+
+const HubInsightColumnBar = styled.div<{ $height: number; $color: string }>`
+  width: 100%;
+  max-width: 32px;
+  height: ${(props) => props.$height}px;
+  min-height: 12px;
+  border-radius: 10px 10px 4px 4px;
+  background: ${(props) => props.$color};
+`;
+
+const HubInsightColumnLabel = styled.span`
+  font-size: 0.74rem;
+  color: var(--color-muted);
+  text-align: center;
+  line-height: 1.25;
+`;
+
+const HubInsightFooterLink = styled(Link)`
+  position: absolute;
+  top: 0;
+  right: 14px;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--color-outline);
+  background: var(--color-surface);
+  color: var(--color-primary);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
 `;
 
 const HubFeatureLock = styled.div`
@@ -1554,14 +2962,18 @@ const HubNavButton = styled.button<{ $expanded?: boolean }>`
   }
 `;
 
-const HubNavIcon = styled.div`
+const HubNavIcon = styled.div<{ $image?: string }>`
   width: 36px;
   height: 36px;
   border-radius: 12px;
-  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  background: ${(props) =>
+    props.$image
+      ? `center / cover no-repeat url(${props.$image})`
+      : "color-mix(in srgb, var(--color-primary) 10%, transparent)"};
   color: var(--color-primary);
   display: grid;
   place-items: center;
+  overflow: hidden;
 
   svg {
     width: 18px;
@@ -1653,6 +3065,12 @@ const ModalCard = styled(Panel)`
   width: min(720px, 94vw);
   display: grid;
   gap: 14px;
+`;
+
+const AppointmentModalCard = styled(ModalCard)`
+  height: min(760px, calc(100vh - 48px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
 `;
 
 const ModalHeader = styled.div`
@@ -2010,6 +3428,34 @@ export default function AccountPage() {
   const [activeSale, setActiveSale] = useState<Record<string, unknown> | null>(null);
   const [onboardingPending, setOnboardingPending] = useState(false);
   const [hubRailExpanded, setHubRailExpanded] = useState(false);
+  const [hubSection, setHubSection] = useState<"snapshot" | "manage-listings" | "appointments" | "listing-detail">("snapshot");
+  const [selectedHubProperty, setSelectedHubProperty] = useState<VendorPropertyItem | null>(null);
+  const [selectedHubPropertyDetail, setSelectedHubPropertyDetail] = useState<HubPropertyDetailPayload | null>(null);
+  const [selectedHubPropertyLoading, setSelectedHubPropertyLoading] = useState(false);
+  const [selectedHubPropertyError, setSelectedHubPropertyError] = useState<string | null>(null);
+  const [appointmentCalendarView, setAppointmentCalendarView] = useState<"week" | "month">("week");
+  const [appointmentMonthOffset, setAppointmentMonthOffset] = useState(0);
+  const [appointmentPopupDay, setAppointmentPopupDay] = useState<string | null>(null);
+  const appointmentMonthPopupRef = useRef<HTMLDivElement | null>(null);
+  const [appointmentDashboard, setAppointmentDashboard] = useState<VendorAppointmentsDashboardPayload | null>(null);
+  const [appointmentDashboardLoading, setAppointmentDashboardLoading] = useState(false);
+  const [appointmentDashboardError, setAppointmentDashboardError] = useState<string | null>(null);
+  const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null);
+  const [appointmentEditorStatus, setAppointmentEditorStatus] = useState("");
+  const [appointmentEditorAssignee, setAppointmentEditorAssignee] = useState("");
+  const [appointmentEditorPropertyId, setAppointmentEditorPropertyId] = useState("");
+  const [appointmentEditorTitle, setAppointmentEditorTitle] = useState("");
+  const [appointmentEditorStartAt, setAppointmentEditorStartAt] = useState("");
+  const [appointmentEditorClientName, setAppointmentEditorClientName] = useState("");
+  const [appointmentEditorClientPhone, setAppointmentEditorClientPhone] = useState("");
+  const [appointmentEditorNotes, setAppointmentEditorNotes] = useState("");
+  const [appointmentEditorSaving, setAppointmentEditorSaving] = useState(false);
+  const [appointmentEditorError, setAppointmentEditorError] = useState<string | null>(null);
+  const [appointmentDashboardVersion, setAppointmentDashboardVersion] = useState(0);
+  const [appointmentComposerMode, setAppointmentComposerMode] = useState<"edit" | "create" | null>(null);
+  const [appointmentComposerPropertyLocked, setAppointmentComposerPropertyLocked] = useState(false);
+  const [vendorPropertyOptions, setVendorPropertyOptions] = useState<VendorPropertyItem[]>([]);
+  const [vendorPropertyOptionsLoading, setVendorPropertyOptionsLoading] = useState(false);
   const [vendorWorkspace, setVendorWorkspace] = useState<{
     vendor: {
       id: string;
@@ -2139,6 +3585,140 @@ export default function AccountPage() {
       active = false;
     };
   }, [authToken, profileRole, vendorWorkspace?.vendor.plan]);
+
+  useEffect(() => {
+    if (!authToken || !selectedHubProperty?.id || hubSection !== "listing-detail") {
+      setSelectedHubPropertyDetail(null);
+      setSelectedHubPropertyLoading(false);
+      setSelectedHubPropertyError(null);
+      return;
+    }
+
+    let active = true;
+    setSelectedHubPropertyLoading(true);
+    setSelectedHubPropertyError(null);
+
+    fetch(`/api/vendor/properties/${selectedHubProperty.id}`, {
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+      },
+    })
+      .then(async (response) => {
+        const payload = (await response.json().catch(() => null)) as (HubPropertyDetailPayload & { error?: string }) | null;
+        if (!response.ok) {
+          throw new Error(payload?.error || "Unable to load property detail.");
+        }
+        if (!payload) {
+          throw new Error("Unable to load property detail.");
+        }
+        if (active) {
+          setSelectedHubPropertyDetail(payload);
+        }
+      })
+      .catch((error) => {
+        if (active) {
+          setSelectedHubPropertyError(error instanceof Error ? error.message : "Unable to load property detail.");
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setSelectedHubPropertyLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [authToken, hubSection, selectedHubProperty?.id]);
+
+  useEffect(() => {
+    const shouldLoadAppointmentDashboard = appointmentComposerMode || hubSection === "appointments";
+    if (!authToken || !shouldLoadAppointmentDashboard) {
+      setAppointmentDashboardLoading(false);
+      setAppointmentDashboardError(null);
+      return;
+    }
+
+    let active = true;
+    setAppointmentDashboardLoading(true);
+    setAppointmentDashboardError(null);
+
+    fetch("/api/vendor/appointments/dashboard", {
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+      },
+    })
+      .then(async (response) => {
+        const payload = (await response.json().catch(() => null)) as (VendorAppointmentsDashboardPayload & {
+          error?: string;
+        }) | null;
+        if (!response.ok) {
+          throw new Error(payload?.error || "Unable to load appointment management.");
+        }
+        if (!payload) {
+          throw new Error("Unable to load appointment management.");
+        }
+        if (active) {
+          setAppointmentDashboard(payload);
+        }
+      })
+      .catch((error) => {
+        if (active) {
+          setAppointmentDashboardError(
+            error instanceof Error ? error.message : "Unable to load appointment management."
+          );
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setAppointmentDashboardLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [Boolean(appointmentComposerMode), appointmentDashboardVersion, authToken, hubSection === "appointments"]);
+
+  useEffect(() => {
+    if (!authToken || profileRole !== "vendor_user") {
+      setVendorPropertyOptions([]);
+      setVendorPropertyOptionsLoading(false);
+      return;
+    }
+
+    let active = true;
+    setVendorPropertyOptionsLoading(true);
+
+    fetch("/api/vendor/properties", {
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+      },
+    })
+      .then(async (response) => {
+        const payload = (await response.json().catch(() => null)) as { items?: VendorPropertyItem[]; error?: string } | null;
+        if (!response.ok) {
+          throw new Error(payload?.error || "Unable to load properties.");
+        }
+        if (active) {
+          setVendorPropertyOptions(payload?.items ?? []);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setVendorPropertyOptions([]);
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setVendorPropertyOptionsLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [authToken, profileRole]);
 
   useEffect(() => {
     if (!profileReady || loading) return;
@@ -2424,6 +4004,116 @@ export default function AccountPage() {
     setActiveSale(null);
   };
 
+  const closeAppointmentEditor = () => {
+    setSelectedAppointmentId(null);
+    setAppointmentComposerMode(null);
+    setAppointmentComposerPropertyLocked(false);
+    setAppointmentEditorError(null);
+    setAppointmentEditorSaving(false);
+  };
+
+  const openAppointmentEditor = (appointmentId: string) => {
+    setAppointmentComposerMode("edit");
+    setSelectedAppointmentId(appointmentId);
+    setAppointmentEditorError(null);
+  };
+
+  const openAppointmentCreator = (propertyId?: string | null) => {
+    setAppointmentComposerMode("create");
+    setAppointmentComposerPropertyLocked(Boolean(propertyId));
+    setSelectedAppointmentId(null);
+    setAppointmentEditorStatus("scheduled");
+    setAppointmentEditorAssignee("");
+    setAppointmentEditorPropertyId(propertyId ?? "");
+    setAppointmentEditorTitle("");
+    setAppointmentEditorStartAt("");
+    setAppointmentEditorClientName("");
+    setAppointmentEditorClientPhone("");
+    setAppointmentEditorNotes("");
+    setAppointmentEditorError(null);
+  };
+
+  const handleAppointmentSave = async () => {
+    if (!authToken) return;
+
+    setAppointmentEditorSaving(true);
+    setAppointmentEditorError(null);
+    try {
+      const isCreate = appointmentComposerMode === "create";
+      const response = await fetch("/api/vendor/appointments/manage", {
+        method: isCreate ? "POST" : "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          ...(isCreate
+            ? {}
+            : {
+                source: selectedAppointment?.source,
+                id: selectedAppointment?.id,
+              }),
+          status: appointmentEditorStatus,
+          assigned_staff_id: appointmentEditorAssignee || null,
+          property_id: appointmentEditorPropertyId || null,
+          title: appointmentEditorTitle || null,
+          start_at: appointmentEditorStartAt || null,
+          client_name: appointmentEditorClientName || null,
+          client_phone: appointmentEditorClientPhone || null,
+          notes: appointmentEditorNotes || null,
+        }),
+      });
+
+      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+      if (!response.ok) {
+        throw new Error(payload?.error || `Unable to ${isCreate ? "create" : "update"} appointment.`);
+      }
+
+      closeAppointmentEditor();
+      setAppointmentDashboardVersion((current) => current + 1);
+    } catch (error) {
+      setAppointmentEditorError(
+        error instanceof Error
+          ? error.message
+          : `Unable to ${appointmentComposerMode === "create" ? "create" : "update"} appointment.`
+      );
+    } finally {
+      setAppointmentEditorSaving(false);
+    }
+  };
+
+  const handleAppointmentDelete = async () => {
+    if (!authToken || !selectedAppointment || appointmentComposerMode !== "edit") return;
+
+    setAppointmentEditorSaving(true);
+    setAppointmentEditorError(null);
+    try {
+      const response = await fetch("/api/vendor/appointments/manage", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          source: selectedAppointment.source,
+          id: selectedAppointment.id,
+        }),
+      });
+
+      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+      if (!response.ok) {
+        throw new Error(payload?.error || "Unable to delete appointment.");
+      }
+
+      closeAppointmentEditor();
+      setAppointmentDashboardVersion((current) => current + 1);
+    } catch (error) {
+      setAppointmentEditorError(error instanceof Error ? error.message : "Unable to delete appointment.");
+    } finally {
+      setAppointmentEditorSaving(false);
+    }
+  };
+
   const currentVendorPlan = getVendorPlan(vendorWorkspace?.vendor.plan);
   const suggestedUpgrade = getUpgradePlan(vendorWorkspace?.vendor.plan);
   const isFreeAgencyPlan = vendorWorkspace?.vendor.plan === "free";
@@ -2454,6 +4144,7 @@ export default function AccountPage() {
   const profileReadinessDoneCount = profileReadinessItems.filter((item) => item.done).length;
   const freeSettingsHref = "/hub/settings";
   const freeUpgradeHref = "/hub/upgrade";
+  const canManageTeam = vendorWorkspace?.membership.role === "owner" || vendorWorkspace?.membership.role === "admin";
   const profileReadinessHref =
     profileReadinessDoneCount === profileReadinessItems.length ? freeSettingsHref : "/agency-setup";
   const hubChecklist = [
@@ -2506,26 +4197,202 @@ export default function AccountPage() {
           .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
           .join(" ")
       : "Unknown";
-  const workspaceSnapshotView = useMemo(() => {
-    if (!vendorOverview) return HUB_SNAPSHOT_TEMPLATE;
+  const workspaceSnapshotView = useMemo(() => HUB_SNAPSHOT_TEMPLATE, []);
+  const summaryPortfolioValue =
+    vendorOverview?.metrics.totalValue ??
+    (vendorWorkspace?.vendor.plan && vendorWorkspace.vendor.plan !== "free" ? HUB_SUMMARY_TEMPLATE.totalValue : 0);
+  const summaryNextAppointmentTitle =
+    vendorOverview?.nextAppointment?.title ??
+    (vendorWorkspace?.vendor.plan && vendorWorkspace.vendor.plan !== "free"
+      ? HUB_SUMMARY_TEMPLATE.nextAppointmentTitle
+      : "No upcoming");
+  const summaryNextAppointmentAt =
+    vendorOverview?.nextAppointment?.start_at ??
+    (vendorWorkspace?.vendor.plan && vendorWorkspace.vendor.plan !== "free"
+      ? HUB_SUMMARY_TEMPLATE.nextAppointmentAt
+      : null);
+  const listingTypesSummary = useMemo(() => workspaceSnapshotView.listingTypes, [workspaceSnapshotView]);
+  const salesByTypeSummary = useMemo(() => withOthers(workspaceSnapshotView.salesByType, 4), [workspaceSnapshotView]);
+  const appointmentsByTypeSummary = useMemo(
+    () => withOthers(workspaceSnapshotView.appointmentsByType, 4),
+    [workspaceSnapshotView]
+  );
+  const priceRangesSummary = useMemo(() => workspaceSnapshotView.priceRangesByType.slice(0, 4), [workspaceSnapshotView]);
+  const appointmentMonthDate = useMemo(() => {
+    const base = new Date();
+    return new Date(base.getFullYear(), base.getMonth() + appointmentMonthOffset, 1);
+  }, [appointmentMonthOffset]);
+  const appointmentMonthLabel = appointmentMonthDate.toLocaleString(locale, { month: "long", year: "numeric" });
+  const appointmentDashboardAppointments = appointmentDashboard?.appointments ?? [];
+  const appointmentStats = appointmentDashboard?.stats ?? { today: 0, unassigned: 0, upcoming: 0 };
+  const appointmentWeekDays = useMemo(() => {
+    const base = new Date();
+    const startOfToday = new Date(base.getFullYear(), base.getMonth(), base.getDate());
 
-    return {
-      metrics:
-        vendorOverview.metrics.totalProperties < 1
-          ? HUB_SNAPSHOT_TEMPLATE.metrics
-          : vendorOverview.metrics,
-      nextAppointment: vendorOverview.nextAppointment ?? HUB_SNAPSHOT_TEMPLATE.nextAppointment,
-      statusMix: vendorOverview.statusMix.length ? vendorOverview.statusMix : HUB_SNAPSHOT_TEMPLATE.statusMix,
-      listingTypes: vendorOverview.listingTypes.length ? vendorOverview.listingTypes : HUB_SNAPSHOT_TEMPLATE.listingTypes,
-      salesByType: vendorOverview.salesByType.length ? vendorOverview.salesByType : HUB_SNAPSHOT_TEMPLATE.salesByType,
-      priceRangesByType: vendorOverview.priceRangesByType.some((item) => item.count >= 2)
-        ? vendorOverview.priceRangesByType
-        : HUB_SNAPSHOT_TEMPLATE.priceRangesByType,
-      appointmentsByType: vendorOverview.appointmentsByType.length
-        ? vendorOverview.appointmentsByType
-        : HUB_SNAPSHOT_TEMPLATE.appointmentsByType,
+    return Array.from({ length: 7 }, (_, index) => {
+      const current = new Date(startOfToday);
+      current.setDate(startOfToday.getDate() + index);
+      const next = new Date(current);
+      next.setDate(current.getDate() + 1);
+
+      const count = appointmentDashboardAppointments.filter((appointment) => {
+        if (!appointment.start_at) return false;
+        const timestamp = new Date(appointment.start_at).getTime();
+        return timestamp >= current.getTime() && timestamp < next.getTime();
+      }).length;
+
+      return {
+        key: current.toISOString(),
+        day: current.toLocaleDateString(locale, { weekday: "short" }),
+        date: current.getDate(),
+        active: count > 0,
+        count,
+      };
+    });
+  }, [appointmentDashboardAppointments, locale]);
+  const appointmentMonthCells = useMemo(() => {
+    const year = appointmentMonthDate.getFullYear();
+    const month = appointmentMonthDate.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const startOffset = (firstDay.getDay() + 6) % 7;
+    const startDate = new Date(year, month, 1 - startOffset);
+    return Array.from({ length: 35 }, (_, index) => {
+      const current = new Date(startDate);
+      current.setDate(startDate.getDate() + index);
+      const key = toLocalDateKey(current);
+      const isCurrentMonth = current.getMonth() === month;
+      const details = isCurrentMonth
+        ? appointmentDashboardAppointments
+            .filter((appointment) => appointment.start_at && toLocalDateKey(appointment.start_at) === key)
+            .map((appointment) => ({
+              id: appointment.id,
+              source: appointment.source,
+              property: appointment.property_title,
+              assignee: appointment.assigned_staff_name || "Unassigned",
+              time: appointment.start_at
+                ? new Date(appointment.start_at).toLocaleTimeString(locale, {
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })
+                : "Unscheduled",
+            }))
+        : [];
+      const count = details.length;
+      const isActive = isCurrentMonth && count > 0;
+      return {
+        key,
+        day: current.getDate(),
+        count,
+        details,
+        muted: !isCurrentMonth,
+        active: isActive,
+      };
+    });
+  }, [appointmentDashboardAppointments, appointmentMonthDate, locale]);
+  const appointmentAssignments = useMemo(() => appointmentDashboard?.assignments ?? [], [appointmentDashboard]);
+  const selectedAppointment = useMemo(
+    () => appointmentDashboardAppointments.find((appointment) => appointment.id === selectedAppointmentId) ?? null,
+    [appointmentDashboardAppointments, selectedAppointmentId]
+  );
+  const appointmentQueue = useMemo(
+    () =>
+      appointmentDashboardAppointments
+        .filter((appointment) => {
+          if (!appointment.start_at) return false;
+          return new Date(appointment.start_at).getTime() >= Date.now();
+        })
+        .sort((left, right) => new Date(left.start_at ?? 0).getTime() - new Date(right.start_at ?? 0).getTime())
+        .slice(0, 8)
+        .map((appointment) => {
+          const startAt = appointment.start_at ? new Date(appointment.start_at) : null;
+          const isToday = startAt
+            ? new Date(startAt.getFullYear(), startAt.getMonth(), startAt.getDate()).getTime() ===
+              new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()).getTime()
+            : false;
+          return {
+            id: appointment.id,
+            time: startAt
+              ? startAt.toLocaleTimeString(locale, {
+                  hour: "numeric",
+                  minute: "2-digit",
+                })
+              : "Unscheduled",
+            dayLabel: startAt
+              ? isToday
+                ? "Today"
+                : startAt.toLocaleDateString(locale, { month: "short", day: "numeric" })
+              : "TBD",
+            property: appointment.property_title,
+            client: appointment.client_name,
+            location: appointment.property_location,
+            owner: appointment.assigned_staff_name || "Unassigned",
+            status: labelize(appointment.status),
+            rawStatus: appointment.status,
+            assignedStaffId: appointment.assigned_staff_id,
+            source: appointment.source,
+          };
+        }),
+    [appointmentDashboardAppointments, locale]
+  );
+  const selectedPropertyAppointments = useMemo(() => {
+    if (!selectedHubPropertyDetail) return [];
+    return selectedHubPropertyDetail.appointments.map((appointment) => ({
+      id: appointment.id,
+      time: appointment.start_at
+        ? new Date(appointment.start_at).toLocaleTimeString(locale, { hour: "numeric", minute: "2-digit" })
+        : "Unscheduled",
+      title: appointment.title || selectedHubPropertyDetail.property.title || "Property viewing",
+      client: appointment.client_name || "Buyer",
+      assignee: appointment.assigned_staff_name || "Unassigned",
+      status: appointment.assigned_staff_id ? labelize(appointment.status) : "Awaiting staff",
+    }));
+  }, [locale, selectedHubPropertyDetail]);
+  const selectedPropertyStaff = useMemo(() => {
+    if (!selectedHubPropertyDetail) return [];
+    return selectedHubPropertyDetail.staff_summary;
+  }, [selectedHubPropertyDetail]);
+
+  useEffect(() => {
+    if (appointmentPopupDay === null) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (appointmentMonthPopupRef.current?.contains(target ?? null)) return;
+      setAppointmentPopupDay(null);
     };
-  }, [vendorOverview]);
+
+    window.addEventListener("pointerdown", handlePointerDown);
+    return () => window.removeEventListener("pointerdown", handlePointerDown);
+  }, [appointmentPopupDay]);
+
+  useEffect(() => {
+    if (!selectedAppointment) {
+      if (appointmentComposerMode !== "create") {
+        setAppointmentEditorStatus("");
+        setAppointmentEditorAssignee("");
+        setAppointmentEditorPropertyId("");
+        setAppointmentEditorTitle("");
+        setAppointmentEditorStartAt("");
+        setAppointmentEditorClientName("");
+        setAppointmentEditorClientPhone("");
+        setAppointmentEditorNotes("");
+      }
+      setAppointmentEditorError(null);
+      setAppointmentEditorSaving(false);
+      return;
+    }
+    setAppointmentEditorStatus(selectedAppointment.status || (selectedAppointment.source === "viewing_request" ? "new" : "scheduled"));
+    setAppointmentEditorAssignee(selectedAppointment.assigned_staff_id || "");
+    setAppointmentEditorPropertyId(selectedAppointment.property_id || "");
+    setAppointmentEditorTitle(selectedAppointment.title || "");
+    setAppointmentEditorStartAt(
+      selectedAppointment.start_at ? new Date(selectedAppointment.start_at).toISOString().slice(0, 16) : ""
+    );
+    setAppointmentEditorClientName(selectedAppointment.client_name || "");
+    setAppointmentEditorClientPhone(selectedAppointment.client_phone || "");
+    setAppointmentEditorNotes(selectedAppointment.notes || "");
+    setAppointmentEditorError(null);
+  }, [appointmentComposerMode, selectedAppointment]);
 
   useEffect(() => {
     if (pathname === "/hub" && vendorWorkspace && !storefrontReady) {
@@ -2624,17 +4491,51 @@ export default function AccountPage() {
             >
               <HubRailSurface $expanded={hubRailExpanded}>
                 <HubNavList>
-                <HubNavItem $expanded={hubRailExpanded} href={isFreeAgencyPlan ? "/request-sale" : "/vendor/properties"}>
-                  <HubNavIcon>
-                    <Plus />
-                  </HubNavIcon>
-                  <HubNavBody $expanded={hubRailExpanded}>
-                    <HubNavTitle>Manage listings</HubNavTitle>
-                  </HubNavBody>
-                  <HubNavArrow $expanded={hubRailExpanded}>
-                    <ArrowUpRight size={18} />
+                  <HubNavButton
+                    $expanded={hubRailExpanded}
+                    type="button"
+                    onClick={() => setHubSection("snapshot")}
+                  >
+                    <HubNavIcon $image={vendorWorkspace?.vendor.logo_url || undefined}>
+                      {!vendorWorkspace?.vendor.logo_url ? <Home /> : null}
+                    </HubNavIcon>
+                    <HubNavBody $expanded={hubRailExpanded}>
+                      <HubNavTitle>Hub</HubNavTitle>
+                    </HubNavBody>
+                    <HubNavArrow $expanded={hubRailExpanded}>
+                      <ArrowUpRight size={18} />
                     </HubNavArrow>
-                  </HubNavItem>
+                  </HubNavButton>
+
+                  {isFreeAgencyPlan ? (
+                    <HubNavItem $expanded={hubRailExpanded} href="/request-sale">
+                      <HubNavIcon>
+                        <Plus />
+                      </HubNavIcon>
+                      <HubNavBody $expanded={hubRailExpanded}>
+                        <HubNavTitle>Manage listings</HubNavTitle>
+                      </HubNavBody>
+                      <HubNavArrow $expanded={hubRailExpanded}>
+                        <ArrowUpRight size={18} />
+                      </HubNavArrow>
+                    </HubNavItem>
+                  ) : (
+                    <HubNavButton
+                      $expanded={hubRailExpanded}
+                      type="button"
+                      onClick={() => setHubSection("manage-listings")}
+                    >
+                      <HubNavIcon>
+                        <Plus />
+                      </HubNavIcon>
+                      <HubNavBody $expanded={hubRailExpanded}>
+                        <HubNavTitle>Manage listings</HubNavTitle>
+                      </HubNavBody>
+                      <HubNavArrow $expanded={hubRailExpanded}>
+                        <ArrowUpRight size={18} />
+                      </HubNavArrow>
+                    </HubNavButton>
+                  )}
 
                   {isFreeAgencyPlan ? (
                     <HubNavItem $expanded={hubRailExpanded} href={freeUpgradeHref} $disabled>
@@ -2649,7 +4550,11 @@ export default function AccountPage() {
                       </HubNavArrow>
                     </HubNavItem>
                   ) : (
-                    <HubNavItem $expanded={hubRailExpanded} href="/vendor/viewing-requests">
+                    <HubNavButton
+                      $expanded={hubRailExpanded}
+                      type="button"
+                      onClick={() => setHubSection("appointments")}
+                    >
                       <HubNavIcon>
                         <Calendar />
                       </HubNavIcon>
@@ -2659,7 +4564,7 @@ export default function AccountPage() {
                       <HubNavArrow $expanded={hubRailExpanded}>
                         <ArrowUpRight size={18} />
                       </HubNavArrow>
-                    </HubNavItem>
+                    </HubNavButton>
                   )}
 
                   {!isFreeAgencyPlan ? (
@@ -2700,7 +4605,7 @@ export default function AccountPage() {
                         <ArrowUpRight size={18} />
                       </HubNavArrow>
                     </HubNavItem>
-                  ) : (vendorWorkspace?.membership.role === "owner" || vendorWorkspace?.membership.role === "admin") ? (
+                  ) : canManageTeam ? (
                     <HubNavItem $expanded={hubRailExpanded} href="/vendor/team">
                       <HubNavIcon>
                         <Users2 />
@@ -2751,79 +4656,50 @@ export default function AccountPage() {
               <HubRailSpacer />
             </VendorActionRail>
             <VendorColumn>
-            <VendorCard>
-              <StarterHeader>
-                <VendorIdentity>
-                  <VendorLogoBadge $image={vendorWorkspace?.vendor.logo_url || undefined}>
-                    {!vendorWorkspace?.vendor.logo_url ? <Building2 size={22} /> : null}
-                  </VendorLogoBadge>
-                  <VendorTitle>{vendorWorkspace?.vendor.name || "Agency account"}</VendorTitle>
-                </VendorIdentity>
-                <VendorMeta>
-                  <VendorPillLink href={isFreeAgencyPlan ? freeUpgradeHref : "/vendor"} $tone="warning">
-                    <Sparkles size={14} />
-                    {vendorWorkspace?.limits?.currentPlan?.name || currentVendorPlan.name}
-                  </VendorPillLink>
-                  <VendorPill>{labelize(vendorWorkspace?.membership.role)}</VendorPill>
-                  {isFreeAgencyPlan ? (
-                    <VendorPillLink href={freeUpgradeHref} $tone="warning">
-                      Upgrade
-                    </VendorPillLink>
-                  ) : null}
-                  <VendorPillLink
-                    href={isFreeAgencyPlan ? freeUpgradeHref : "/vendor/verification"}
-                    $tone={vendorWorkspace?.vendor.verified_status === "approved" ? "success" : "warning"}
-                  >
-                    {vendorWorkspace?.vendor.verified_status === "approved" ? <BadgeCheck size={14} /> : <ShieldCheck size={14} />}
-                    {vendorWorkspace?.vendor.verified_status === "approved" ? "Verified" : "Unverified"}
-                  </VendorPillLink>
-                  {vendorWorkspace?.vendor.verified_status === "approved" ? (
-                    <VendorPill $tone="success">
-                      <BadgeCheck size={14} />
-                    </VendorPill>
-                  ) : null}
-                  {vendorWorkspace?.vendor.billing_status && vendorWorkspace.vendor.plan !== "free" ? (
-                    <VendorPill $tone={vendorWorkspace.vendor.billing_status === "active" ? "success" : "warning"}>
-                      {labelize(vendorWorkspace.vendor.billing_status)}
-                    </VendorPill>
-                  ) : null}
-                </VendorMeta>
-              </StarterHeader>
+            {(isFreeAgencyPlan || hubSection === "snapshot") ? (
+              <VendorCard>
+                <StarterHeader>
+                  <StarterTopRow>
+                    <VendorHero>
+                      <VendorIdentity>
+                        <VendorLogoBadge $image={vendorWorkspace?.vendor.logo_url || undefined}>
+                          {!vendorWorkspace?.vendor.logo_url ? <Building2 size={22} /> : null}
+                        </VendorLogoBadge>
+                        <VendorTitle>{vendorWorkspace?.vendor.name || "Agency account"}</VendorTitle>
+                      </VendorIdentity>
+                    </VendorHero>
 
-              {vendorWorkspaceError ? <Muted>{vendorWorkspaceError}</Muted> : null}
+                    <StarterSummary>
+                      <StarterSummaryItem>
+                        <StarterSummaryLabel>Listings</StarterSummaryLabel>
+                        <StarterSummaryValue>
+                          {listingUsage} / {listingLimit}
+                        </StarterSummaryValue>
+                      </StarterSummaryItem>
+                      <StarterSummaryItem>
+                        <StarterSummaryLabel>Seats</StarterSummaryLabel>
+                        <StarterSummaryValue>
+                          {agentUsage} / {agentLimit}
+                        </StarterSummaryValue>
+                      </StarterSummaryItem>
+                      <VendorPillLink href={isFreeAgencyPlan ? freeUpgradeHref : "/hub/upgrade"} $tone="warning">
+                        <Sparkles size={14} />
+                        {vendorWorkspace?.limits?.currentPlan?.name || currentVendorPlan.name}
+                      </VendorPillLink>
+                      <VendorPillLink
+                        href={isFreeAgencyPlan ? freeUpgradeHref : "/vendor/verification"}
+                        $tone={vendorWorkspace?.vendor.verified_status === "approved" ? "success" : "warning"}
+                      >
+                        {vendorWorkspace?.vendor.verified_status === "approved" ? <BadgeCheck size={14} /> : <ShieldCheck size={14} />}
+                        {vendorWorkspace?.vendor.verified_status === "approved" ? "Verified" : "Unverified"}
+                      </VendorPillLink>
+                    </StarterSummary>
+                  </StarterTopRow>
+                </StarterHeader>
 
-              <StarterGrid>
-                <StarterStat>
-                  <StarterStatTop>
-                    <span>Listings</span>
-                    <Building2 />
-                  </StarterStatTop>
-                  <StarterStatValue>
-                    {listingUsage} / {listingLimit}
-                  </StarterStatValue>
-                </StarterStat>
-                <StarterStat>
-                  <StarterStatTop>
-                    <span>Seats</span>
-                    <Users2 />
-                  </StarterStatTop>
-                  <StarterStatValue>
-                    {agentUsage} / {agentLimit}
-                  </StarterStatValue>
-                </StarterStat>
-                <StarterStat>
-                  <StarterStatTop>
-                    <span>Storefront</span>
-                    <Globe2 />
-                  </StarterStatTop>
-                  <StarterStatValue>
-                    {vendorWorkspace?.vendor.public_storefront_enabled && vendorWorkspace?.vendor.slug
-                      ? "Live"
-                      : "Draft"}
-                  </StarterStatValue>
-                </StarterStat>
-              </StarterGrid>
-            </VendorCard>
+                {vendorWorkspaceError ? <Muted>{vendorWorkspaceError}</Muted> : null}
+              </VendorCard>
+            ) : null}
             <VendorCardFill>
               <HubFeatureCard>
                 {!starterChecklistComplete ? (
@@ -2854,12 +4730,14 @@ export default function AccountPage() {
                   </>
                 ) : (
                   <>
-                    <HubFeatureHeader>
-                      <HubFeatureTitle>{isFreeAgencyPlan ? "Premium workspace preview" : "Workspace snapshot"}</HubFeatureTitle>
-                      {isFreeAgencyPlan ? (
-                        <HubFeatureCopy>Upgrade to unlock live sales and lead overview inside your hub.</HubFeatureCopy>
-                      ) : null}
-                    </HubFeatureHeader>
+                    {isFreeAgencyPlan || hubSection === "snapshot" ? (
+                      <HubFeatureHeader>
+                        <HubFeatureTitle>{isFreeAgencyPlan ? "Premium workspace preview" : "Workspace snapshot"}</HubFeatureTitle>
+                        {isFreeAgencyPlan ? (
+                          <HubFeatureCopy>Upgrade to unlock live sales and lead overview inside your hub.</HubFeatureCopy>
+                        ) : null}
+                      </HubFeatureHeader>
+                    ) : null}
                     {isFreeAgencyPlan ? (
                       <HubFeaturePreview>
                         <HubFeaturePreviewGrid>
@@ -2902,8 +4780,423 @@ export default function AccountPage() {
                           <HubChecklistHint>
                             Sales stats, lead summaries, appointments, and team performance appear here once your plan is upgraded.
                           </HubChecklistHint>
-                        </HubFeatureUpsellCard>
-                      </HubFeaturePreview>
+                          </HubFeatureUpsellCard>
+                        </HubFeaturePreview>
+                    ) : hubSection === "manage-listings" ? (
+                      <>
+                        <VendorPropertiesView
+                          embedded
+                          hideHeader
+                          title="Manage listings"
+                          subtitle="Review current listings, verification state, and property activity."
+                          onSelectProperty={(property) => {
+                            setSelectedHubProperty(property);
+                            setHubSection("listing-detail");
+                          }}
+                        />
+                        <HubSectionFooter>
+                          <HubSectionAction href="/request-sale">
+                            <Plus size={16} />
+                            <span>Add property listing</span>
+                          </HubSectionAction>
+                        </HubSectionFooter>
+                      </>
+                    ) : hubSection === "listing-detail" && selectedHubProperty ? (
+                      <ListingDetailViewport>
+                        <ListingDetailScroller>
+                          <ListingDetailHeader>
+                            <ListingDetailTitleWrap>
+                              <ListingDetailTitle>Listing detail</ListingDetailTitle>
+                              <ListingDetailCopy>Review this property, its scheduled appointments, and who is handling each viewing.</ListingDetailCopy>
+                            </ListingDetailTitleWrap>
+                            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                              <CTAButton
+                                type="button"
+                                onClick={() => openAppointmentCreator(selectedHubPropertyDetail?.property.id ?? selectedHubProperty.id)}
+                              >
+                                Schedule appointment
+                              </CTAButton>
+                              <ListingDetailBack
+                                type="button"
+                                onClick={() => {
+                                  setHubSection("manage-listings");
+                                }}
+                              >
+                                Back to listings
+                              </ListingDetailBack>
+                            </div>
+                          </ListingDetailHeader>
+
+                          <ListingDetailHero>
+                            {selectedHubPropertyLoading ? (
+                              <HubFeatureCopy>Loading listing detail...</HubFeatureCopy>
+                            ) : selectedHubPropertyError || !selectedHubPropertyDetail ? (
+                              <HubFeatureCopy>{selectedHubPropertyError ?? "Unable to load listing detail."}</HubFeatureCopy>
+                            ) : (
+                              <>
+                                <ListingDetailImage $image={selectedHubPropertyDetail.property.cover_image_url || undefined}>
+                                  {!selectedHubPropertyDetail.property.cover_image_url ? <Building2 size={24} /> : null}
+                                </ListingDetailImage>
+                                <ListingDetailInfo>
+                                  <ListingDetailPills>
+                                    <AppointmentPill>{labelize(selectedHubPropertyDetail.property.status)}</AppointmentPill>
+                                    <AppointmentPill $tone="warning">{labelize(selectedHubPropertyDetail.property.deal_type)}</AppointmentPill>
+                                    <AppointmentPill>{formatPropertyTypeValue(selectedHubPropertyDetail.property.property_type)}</AppointmentPill>
+                                  </ListingDetailPills>
+                                  <ListingDetailTitle>{selectedHubPropertyDetail.property.title || "Untitled property"}</ListingDetailTitle>
+                                  <ListingDetailPrice>
+                                    {formatCurrency(
+                                      selectedHubPropertyDetail.property.price ?? undefined,
+                                      selectedHubPropertyDetail.property.currency ?? "MMK",
+                                      "Contact"
+                                    )}
+                                  </ListingDetailPrice>
+                                  <ListingDetailMetaGrid>
+                                    <ListingDetailMetaCard>
+                                      <ListingDetailMetaLabel>Location</ListingDetailMetaLabel>
+                                      <ListingDetailMetaValue>
+                                        {[
+                                          selectedHubPropertyDetail.property.district || selectedHubPropertyDetail.property.city,
+                                          selectedHubPropertyDetail.property.township,
+                                        ]
+                                          .filter(Boolean)
+                                          .join(" / ") || "Unspecified"}
+                                      </ListingDetailMetaValue>
+                                    </ListingDetailMetaCard>
+                                    <ListingDetailMetaCard>
+                                      <ListingDetailMetaLabel>Appointments</ListingDetailMetaLabel>
+                                      <ListingDetailMetaValue>
+                                        {selectedHubPropertyDetail.property.appointments_count} scheduled
+                                      </ListingDetailMetaValue>
+                                    </ListingDetailMetaCard>
+                                    <ListingDetailMetaCard>
+                                      <ListingDetailMetaLabel>Verification</ListingDetailMetaLabel>
+                                      <ListingDetailMetaValue>
+                                        {labelize(selectedHubPropertyDetail.property.verification_status)}
+                                      </ListingDetailMetaValue>
+                                    </ListingDetailMetaCard>
+                                    <ListingDetailMetaCard>
+                                      <ListingDetailMetaLabel>Listing ID</ListingDetailMetaLabel>
+                                      <ListingDetailMetaValue>{selectedHubPropertyDetail.property.id.slice(0, 8)}</ListingDetailMetaValue>
+                                    </ListingDetailMetaCard>
+                                  </ListingDetailMetaGrid>
+                                </ListingDetailInfo>
+                              </>
+                            )}
+                          </ListingDetailHero>
+
+                          <ListingDetailLower>
+                            <ListingDetailCard>
+                              <ListingDetailSectionTitle>Scheduled appointments</ListingDetailSectionTitle>
+                              <ListingAppointmentList>
+                                {selectedPropertyAppointments.length ? (
+                                  selectedPropertyAppointments.map((appointment) => (
+                                    <ListingAppointmentRow
+                                      key={appointment.id}
+                                      as="button"
+                                      type="button"
+                                      onClick={() => openAppointmentEditor(appointment.id)}
+                                    >
+                                      <ListingAppointmentTime>{appointment.time}</ListingAppointmentTime>
+                                      <ListingAppointmentMain>
+                                        <ListingAppointmentTitle>{appointment.title}</ListingAppointmentTitle>
+                                        <ListingAppointmentMeta>
+                                          {appointment.client} • Assigned to {appointment.assignee}
+                                        </ListingAppointmentMeta>
+                                      </ListingAppointmentMain>
+                                      <AppointmentPill $tone={appointment.status === "Confirmed" ? "success" : "warning"}>
+                                        {appointment.status}
+                                      </AppointmentPill>
+                                    </ListingAppointmentRow>
+                                  ))
+                                ) : (
+                                  <HubFeatureCopy>No appointments scheduled for this listing yet.</HubFeatureCopy>
+                                )}
+                              </ListingAppointmentList>
+                            </ListingDetailCard>
+
+                            <ListingDetailCard>
+                              <ListingDetailSectionTitle>Staff assignment</ListingDetailSectionTitle>
+                              <ListingStaffList>
+                                {selectedPropertyStaff.length ? (
+                                  selectedPropertyStaff.map((staff) => (
+                                    <ListingStaffRow key={staff.id}>
+                                      <ListingStaffName>{staff.name}</ListingStaffName>
+                                      <ListingStaffMeta>
+                                        {staff.assigned_count} assigned appointment{staff.assigned_count > 1 ? "s" : ""}
+                                      </ListingStaffMeta>
+                                    </ListingStaffRow>
+                                  ))
+                                ) : (
+                                  <HubFeatureCopy>
+                                    {selectedHubPropertyDetail?.unassigned_count
+                                      ? `${selectedHubPropertyDetail.unassigned_count} appointment${
+                                          selectedHubPropertyDetail.unassigned_count > 1 ? "s are" : " is"
+                                        } waiting for staff assignment.`
+                                      : "No staff assignments yet for this listing."}
+                                  </HubFeatureCopy>
+                                )}
+                              </ListingStaffList>
+                            </ListingDetailCard>
+                          </ListingDetailLower>
+                        </ListingDetailScroller>
+                      </ListingDetailViewport>
+                    ) : hubSection === "appointments" ? (
+                      <HubSectionViewport>
+                        <HubSectionScroller>
+                          <AppointmentLayout>
+                            <AppointmentTopGrid>
+                              <AppointmentCard>
+                                <AppointmentCardHeader>
+                                  <AppointmentCardTitleWrap>
+                                    <AppointmentCardTitle>Calendar</AppointmentCardTitle>
+                                  </AppointmentCardTitleWrap>
+                                  <AppointmentCardHeaderRight>
+                                  <AppointmentPill $tone="success">
+                                    <Calendar size={14} />
+                                    {appointmentStats.upcoming} upcoming
+                                  </AppointmentPill>
+                                    {appointmentCalendarView === "month" ? (
+                                      <AppointmentMonthNav>
+                                        <AppointmentMonthButton
+                                          type="button"
+                                          aria-label="Previous month"
+                                          onClick={() => {
+                                            setAppointmentPopupDay(null);
+                                            setAppointmentMonthOffset((current) => current - 1);
+                                          }}
+                                        >
+                                          <ChevronLeft size={16} />
+                                        </AppointmentMonthButton>
+                                        <AppointmentMonthLabel>{appointmentMonthLabel}</AppointmentMonthLabel>
+                                        <AppointmentMonthButton
+                                          type="button"
+                                          aria-label="Next month"
+                                          onClick={() => {
+                                            setAppointmentPopupDay(null);
+                                            setAppointmentMonthOffset((current) => current + 1);
+                                          }}
+                                        >
+                                          <ChevronRight size={16} />
+                                        </AppointmentMonthButton>
+                                      </AppointmentMonthNav>
+                                    ) : null}
+                                    <AppointmentToggleRow>
+                                      <AppointmentToggleButton
+                                        type="button"
+                                        $active={appointmentCalendarView === "week"}
+                                        onClick={() => {
+                                          setAppointmentPopupDay(null);
+                                          setAppointmentCalendarView("week");
+                                        }}
+                                      >
+                                        7 days
+                                      </AppointmentToggleButton>
+                                      <AppointmentToggleButton
+                                        type="button"
+                                        $active={appointmentCalendarView === "month"}
+                                        onClick={() => {
+                                          setAppointmentPopupDay(null);
+                                          setAppointmentCalendarView("month");
+                                        }}
+                                      >
+                                        Month
+                                      </AppointmentToggleButton>
+                                    </AppointmentToggleRow>
+                                  </AppointmentCardHeaderRight>
+                                </AppointmentCardHeader>
+                                {appointmentCalendarView === "week" ? (
+                                  <>
+                                    <AppointmentStats>
+                                      <AppointmentStat>
+                                        <AppointmentStatLabel>Today</AppointmentStatLabel>
+                                        <AppointmentStatValue>{appointmentStats.today} appointments</AppointmentStatValue>
+                                      </AppointmentStat>
+                                      <AppointmentStat>
+                                        <AppointmentStatLabel>Unassigned</AppointmentStatLabel>
+                                        <AppointmentStatValue>{appointmentStats.unassigned} appointment{appointmentStats.unassigned === 1 ? "" : "s"}</AppointmentStatValue>
+                                      </AppointmentStat>
+                                      <AppointmentStat>
+                                        <AppointmentStatLabel>Upcoming</AppointmentStatLabel>
+                                        <AppointmentStatValue>{appointmentStats.upcoming} appointments</AppointmentStatValue>
+                                      </AppointmentStat>
+                                    </AppointmentStats>
+                                    <AppointmentWeekScroller>
+                                      <AppointmentWeekRow>
+                                        {appointmentWeekDays.map((day) => (
+                                          <AppointmentDayCell key={`${day.day}-${day.date}`} $active={day.active}>
+                                            <AppointmentDayName>{day.day}</AppointmentDayName>
+                                            <AppointmentDayDate>{day.date}</AppointmentDayDate>
+                                            <AppointmentCount $active={day.active}>
+                                              {day.count ? `${day.count} viewing${day.count > 1 ? "s" : ""}` : "Open"}
+                                            </AppointmentCount>
+                                          </AppointmentDayCell>
+                                        ))}
+                                      </AppointmentWeekRow>
+                                    </AppointmentWeekScroller>
+                                  </>
+                                ) : (
+                                  <AppointmentCalendarSplit>
+                                    <div>
+                                      <AppointmentMonthWeekdays>
+                                        {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((label) => (
+                                          <AppointmentMonthWeekday key={label}>{label}</AppointmentMonthWeekday>
+                                        ))}
+                                      </AppointmentMonthWeekdays>
+                                      <AppointmentMonthGrid>
+                                        {appointmentMonthCells.map((day) => (
+                                          <AppointmentMonthCell
+                                            key={day.key}
+                                            $muted={day.muted}
+                                            $active={day.active}
+                                            onClick={() => {
+                                              if (!day.active) return;
+                                              setAppointmentPopupDay((current) => (current === day.key ? null : day.key));
+                                            }}
+                                          >
+                                            <AppointmentDayDate>{day.day}</AppointmentDayDate>
+                                          {day.count ? <AppointmentDot $active={day.active} /> : null}
+                                          {appointmentPopupDay === day.key && day.details.length ? (
+                                            <AppointmentMonthPopup
+                                              ref={appointmentMonthPopupRef}
+                                              onClick={(event) => event.stopPropagation()}
+                                            >
+                                              <AppointmentMonthPopupTitle>
+                                                {appointmentMonthLabel} {day.day}
+                                              </AppointmentMonthPopupTitle>
+                                              <AppointmentMonthPopupList>
+                                                      {day.details.map((detail) => (
+                                                        <AppointmentMonthPopupItem
+                                                    key={`${day.key}-${detail.id}`}
+                                                    as="button"
+                                                    type="button"
+                                                    onClick={() => {
+                                                      setAppointmentPopupDay(null);
+                                                      openAppointmentEditor(detail.id);
+                                                    }}
+                                                  >
+                                                    <AppointmentMonthPopupProperty>
+                                                      {detail.property}
+                                                    </AppointmentMonthPopupProperty>
+                                                    <AppointmentMonthPopupMeta>
+                                                      {detail.time} • Assigned to {detail.assignee}
+                                                    </AppointmentMonthPopupMeta>
+                                                  </AppointmentMonthPopupItem>
+                                                ))}
+                                              </AppointmentMonthPopupList>
+                                            </AppointmentMonthPopup>
+                                          ) : null}
+                                          </AppointmentMonthCell>
+                                        ))}
+                                      </AppointmentMonthGrid>
+                                    </div>
+                                    <AppointmentStatsColumn>
+                                      <AppointmentStat>
+                                        <AppointmentStatLabel>Today</AppointmentStatLabel>
+                                        <AppointmentStatValue>{appointmentStats.today} appointments</AppointmentStatValue>
+                                      </AppointmentStat>
+                                      <AppointmentStat>
+                                        <AppointmentStatLabel>Unassigned</AppointmentStatLabel>
+                                        <AppointmentStatValue>{appointmentStats.unassigned} appointment{appointmentStats.unassigned === 1 ? "" : "s"}</AppointmentStatValue>
+                                      </AppointmentStat>
+                                      <AppointmentStat>
+                                        <AppointmentStatLabel>Upcoming</AppointmentStatLabel>
+                                        <AppointmentStatValue>{appointmentStats.upcoming} appointments</AppointmentStatValue>
+                                      </AppointmentStat>
+                                    </AppointmentStatsColumn>
+                                  </AppointmentCalendarSplit>
+                                )}
+                              </AppointmentCard>
+
+                              <AppointmentCard>
+                                <AppointmentCardHeader>
+                                  <AppointmentCardTitleWrap>
+                                    <AppointmentCardTitle>Assignment control</AppointmentCardTitle>
+                                    <AppointmentCardCopy>Owners and admins can distribute scheduled viewings across available staff.</AppointmentCardCopy>
+                                  </AppointmentCardTitleWrap>
+                                  <AppointmentPill $tone={canManageTeam ? "success" : "neutral"}>
+                                    <Users2 size={14} />
+                                    {canManageTeam ? "Owner controls" : "View only"}
+                                  </AppointmentPill>
+                                </AppointmentCardHeader>
+                                <AppointmentAssignmentList>
+                                  {appointmentAssignments.length ? appointmentAssignments.map((staff) => (
+                                    <AppointmentAssignmentRow key={staff.id}>
+                                      <AppointmentAssignmentTop>
+                                        <AppointmentAssignmentName>{staff.name}</AppointmentAssignmentName>
+                                        <AppointmentPill>{staff.assigned_count} assigned</AppointmentPill>
+                                      </AppointmentAssignmentTop>
+                                      <AppointmentAssignmentMeta>
+                                        <span>{labelize(staff.role)}</span>
+                                        <span>•</span>
+                                        <span>
+                                          {staff.assigned_count} scheduled viewing{staff.assigned_count === 1 ? "" : "s"}
+                                        </span>
+                                      </AppointmentAssignmentMeta>
+                                    </AppointmentAssignmentRow>
+                                  )) : <HubFeatureCopy>No active team members are available for assignment yet.</HubFeatureCopy>}
+                                </AppointmentAssignmentList>
+                              </AppointmentCard>
+                            </AppointmentTopGrid>
+
+                            <AppointmentCard>
+                              <AppointmentCardHeader>
+                                <AppointmentCardTitleWrap>
+                                  <AppointmentCardTitle>Appointment board</AppointmentCardTitle>
+                                  <AppointmentCardCopy>Keep scheduled viewings staffed, confirmed, and easy to scan for the day.</AppointmentCardCopy>
+                                </AppointmentCardTitleWrap>
+                                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                                  <AppointmentPill $tone="warning">
+                                    <Clock size={14} />
+                                    {appointmentStats.unassigned} unassigned
+                                  </AppointmentPill>
+                                  <CTAButton type="button" onClick={() => openAppointmentCreator()}>
+                                    Create appointment
+                                  </CTAButton>
+                                </div>
+                              </AppointmentCardHeader>
+                              <AppointmentQueueList>
+                                {appointmentDashboardLoading && !appointmentDashboard ? (
+                                  <HubFeatureCopy>Loading appointments...</HubFeatureCopy>
+                                ) : appointmentDashboardError ? (
+                                  <HubFeatureCopy>{appointmentDashboardError}</HubFeatureCopy>
+                                ) : appointmentQueue.length ? (
+                                  appointmentQueue.map((appointment) => (
+                                    <AppointmentQueueRow
+                                      key={appointment.id}
+                                      as="button"
+                                      type="button"
+                                      onClick={() => openAppointmentEditor(appointment.id)}
+                                    >
+                                      <AppointmentQueueTime>
+                                        <AppointmentQueueTimeValue>{appointment.time}</AppointmentQueueTimeValue>
+                                        <AppointmentQueueTimeLabel>{appointment.dayLabel}</AppointmentQueueTimeLabel>
+                                      </AppointmentQueueTime>
+                                      <AppointmentQueueMain>
+                                        <AppointmentQueueTitle>{appointment.property}</AppointmentQueueTitle>
+                                        <AppointmentQueueMeta>
+                                          <span>{appointment.client}</span>
+                                          <span>•</span>
+                                          <span>{appointment.location}</span>
+                                        </AppointmentQueueMeta>
+                                      </AppointmentQueueMain>
+                                      <AppointmentQueueSide>
+                                        <AppointmentQueueSideLabel>Assigned staff</AppointmentQueueSideLabel>
+                                        <AppointmentQueueSideValue>{appointment.owner}</AppointmentQueueSideValue>
+                                      </AppointmentQueueSide>
+                                      <AppointmentPill $tone={appointment.status === "Confirmed" ? "success" : "warning"}>
+                                        {appointment.status}
+                                      </AppointmentPill>
+                                    </AppointmentQueueRow>
+                                  ))
+                                ) : (
+                                  <HubFeatureCopy>No upcoming appointments scheduled yet.</HubFeatureCopy>
+                                )}
+                              </AppointmentQueueList>
+                            </AppointmentCard>
+                          </AppointmentLayout>
+                        </HubSectionScroller>
+                      </HubSectionViewport>
                     ) : vendorOverviewLoading && !vendorOverview ? (
                       <HubFeatureCopy>Loading workspace insights...</HubFeatureCopy>
                     ) : vendorOverviewError || !vendorOverview ? (
@@ -2920,124 +5213,8 @@ export default function AccountPage() {
                           <HubInsightBody>
                             <HubInsightCardInner>
                               <HubInsightCardValueCentered>
-                                {formatCurrency(workspaceSnapshotView.metrics.totalValue, "MMK", "MMK 0")}
+                                {formatCurrency(summaryPortfolioValue, "MMK", "MMK 0")}
                               </HubInsightCardValueCentered>
-                            </HubInsightCardInner>
-                          </HubInsightBody>
-                        </HubInsightCard>
-
-                        <HubInsightCard>
-                          <HubInsightCardTop>
-                            <HubInsightCardTitle>
-                              <TagIcon />
-                              Listings by type
-                            </HubInsightCardTitle>
-                          </HubInsightCardTop>
-                          <HubInsightBody>
-                            <HubInsightCardInner>
-                              <HubInsightHero>
-                                <HubInsightHeroValue>{workspaceSnapshotView.metrics.totalProperties}</HubInsightHeroValue>
-                                <HubInsightHeroLabel>Total active property records</HubInsightHeroLabel>
-                              </HubInsightHero>
-                              <HubInsightStack>
-                                <HubInsightStackTrack>
-                                  {workspaceSnapshotView.listingTypes.slice(0, 4).map((item, index) => {
-                                    const total = Math.max(
-                                      1,
-                                      workspaceSnapshotView.listingTypes
-                                        .slice(0, 4)
-                                        .reduce((sum, current) => sum + current.count, 0)
-                                    );
-                                    return (
-                                      <HubInsightStackSegment
-                                        key={item.key}
-                                        $width={(item.count / total) * 100}
-                                        $color={HUB_INSIGHT_COLORS[index % HUB_INSIGHT_COLORS.length]}
-                                      />
-                                    );
-                                  })}
-                                </HubInsightStackTrack>
-                                <HubInsightLegend>
-                                  {workspaceSnapshotView.listingTypes.slice(0, 4).map((item, index) => (
-                                    <HubInsightLegendRow key={item.key}>
-                                      <HubInsightLegendDot $color={HUB_INSIGHT_COLORS[index % HUB_INSIGHT_COLORS.length]} />
-                                      <span>{labelize(item.key)}</span>
-                                      <HubInsightMiniCount>{item.count}</HubInsightMiniCount>
-                                    </HubInsightLegendRow>
-                                  ))}
-                                </HubInsightLegend>
-                              </HubInsightStack>
-                            </HubInsightCardInner>
-                          </HubInsightBody>
-                        </HubInsightCard>
-
-                        <HubInsightCard>
-                          <HubInsightCardTop>
-                            <HubInsightCardTitle>
-                              <BadgeCheck />
-                              Sales by type
-                            </HubInsightCardTitle>
-                          </HubInsightCardTop>
-                          <HubInsightBody>
-                            <HubInsightCardInner>
-                              <HubInsightHero>
-                                <HubInsightHeroValue>
-                                  {workspaceSnapshotView.metrics.soldProperties + workspaceSnapshotView.metrics.rentedProperties}
-                                </HubInsightHeroValue>
-                                <HubInsightHeroLabel>Closed sale or rent outcomes</HubInsightHeroLabel>
-                              </HubInsightHero>
-                              <HubInsightStack>
-                                <HubInsightStackTrack>
-                                  {workspaceSnapshotView.salesByType.slice(0, 4).map((item, index) => {
-                                    const total = Math.max(
-                                      1,
-                                      workspaceSnapshotView.salesByType
-                                        .slice(0, 4)
-                                        .reduce((sum, current) => sum + current.count, 0)
-                                    );
-                                    return (
-                                      <HubInsightStackSegment
-                                        key={item.key}
-                                        $width={(item.count / total) * 100}
-                                        $color={HUB_INSIGHT_COLORS[index % HUB_INSIGHT_COLORS.length]}
-                                      />
-                                    );
-                                  })}
-                                </HubInsightStackTrack>
-                                <HubInsightLegend>
-                                  {workspaceSnapshotView.salesByType.slice(0, 4).map((item, index) => (
-                                    <HubInsightLegendRow key={item.key}>
-                                      <HubInsightLegendDot $color={HUB_INSIGHT_COLORS[index % HUB_INSIGHT_COLORS.length]} />
-                                      <span>{labelize(item.key)}</span>
-                                      <HubInsightMiniCount>{item.count}</HubInsightMiniCount>
-                                    </HubInsightLegendRow>
-                                  ))}
-                                </HubInsightLegend>
-                              </HubInsightStack>
-                            </HubInsightCardInner>
-                          </HubInsightBody>
-                        </HubInsightCard>
-
-                        <HubInsightCard>
-                          <HubInsightCardTop>
-                            <HubInsightCardTitle>
-                              <BarChart3 />
-                              Price range by type
-                            </HubInsightCardTitle>
-                          </HubInsightCardTop>
-                          <HubInsightBody>
-                            <HubInsightCardInner>
-                              <HubInsightMiniList>
-                                {workspaceSnapshotView.priceRangesByType.slice(0, 4).map((item) => (
-                                  <HubInsightMiniRow key={item.key}>
-                                    <span>{labelize(item.key)}</span>
-                                    <span>
-                                      {formatCurrency(item.min, item.currency, "MMK 0")} -{" "}
-                                      {formatCurrency(item.max, item.currency, "MMK 0")}
-                                    </span>
-                                  </HubInsightMiniRow>
-                                ))}
-                              </HubInsightMiniList>
                             </HubInsightCardInner>
                           </HubInsightBody>
                         </HubInsightCard>
@@ -3051,14 +5228,152 @@ export default function AccountPage() {
                           </HubInsightCardTop>
                           <HubInsightBody>
                             <HubInsightCardInner>
-                              <HubInsightCardValue>
-                                {workspaceSnapshotView.nextAppointment?.title || "Upcoming appointment"}
-                              </HubInsightCardValue>
-                              <HubInsightCardCopy>
-                                {workspaceSnapshotView.nextAppointment?.start_at
-                                  ? new Date(workspaceSnapshotView.nextAppointment.start_at).toLocaleString(locale)
-                                  : "No upcoming appointments scheduled yet."}
-                              </HubInsightCardCopy>
+                              <HubInsightHero>
+                                <HubInsightHeroValue>{summaryNextAppointmentTitle}</HubInsightHeroValue>
+                                {summaryNextAppointmentAt ? (
+                                  <HubInsightHeroLabel>{new Date(summaryNextAppointmentAt).toLocaleString(locale)}</HubInsightHeroLabel>
+                                ) : (
+                                  <HubInsightHeroLabel>No appointment scheduled yet</HubInsightHeroLabel>
+                                )}
+                              </HubInsightHero>
+                            </HubInsightCardInner>
+                          </HubInsightBody>
+                        </HubInsightCard>
+
+                        <HubInsightCard>
+                          <HubInsightCardTop>
+                            <HubInsightCardTitle>
+                              <TagIcon />
+                              Listings by type
+                            </HubInsightCardTitle>
+                          </HubInsightCardTop>
+                          <HubInsightFooterLink href="/hub/analytics/listings-by-type">
+                            View full analytics <ArrowUpRight size={14} />
+                          </HubInsightFooterLink>
+                          <HubInsightBody>
+                            <HubInsightCardInner>
+                              <HubInsightPieWrap>
+                                <HubInsightStack>
+                                  <HubInsightPie
+                                    $gradient={`conic-gradient(${listingTypesSummary
+                                      .map((item, index, list) => {
+                                        const total = Math.max(1, list.reduce((sum, current) => sum + current.count, 0));
+                                        const start = (list
+                                          .slice(0, index)
+                                          .reduce((sum, current) => sum + current.count, 0) /
+                                          total) *
+                                          100;
+                                        const end = ((list
+                                          .slice(0, index + 1)
+                                          .reduce((sum, current) => sum + current.count, 0) /
+                                          total) *
+                                          100);
+                                        return `${HUB_INSIGHT_COLORS[index % HUB_INSIGHT_COLORS.length]} ${start}% ${end}%`;
+                                      })
+                                      .join(", ")})`}
+                                  >
+                                    <HubInsightPieCenter>{workspaceSnapshotView.metrics.totalProperties}</HubInsightPieCenter>
+                                  </HubInsightPie>
+                                  <HubInsightLegend>
+                                    {listingTypesSummary.map((item, index) => (
+                                      <HubInsightLegendRow key={("key" in item && item.key) || item.label || index}>
+                                        <HubInsightLegendDot $color={HUB_INSIGHT_COLORS[index % HUB_INSIGHT_COLORS.length]} />
+                                        <span>{"label" in item && item.label ? item.label : labelize("key" in item ? item.key : undefined)}</span>
+                                        <HubInsightMiniCount>{item.count}</HubInsightMiniCount>
+                                      </HubInsightLegendRow>
+                                    ))}
+                                  </HubInsightLegend>
+                                </HubInsightStack>
+                                <HubInsightHero>
+                                  <HubInsightHeroValue>{workspaceSnapshotView.metrics.totalProperties}</HubInsightHeroValue>
+                                  <HubInsightHeroLabel>Total active property records</HubInsightHeroLabel>
+                                </HubInsightHero>
+                              </HubInsightPieWrap>
+                            </HubInsightCardInner>
+                          </HubInsightBody>
+                        </HubInsightCard>
+
+                        <HubInsightCard>
+                          <HubInsightCardTop>
+                            <HubInsightCardTitle>
+                              <BadgeCheck />
+                              Sales by type
+                            </HubInsightCardTitle>
+                          </HubInsightCardTop>
+                          <HubInsightFooterLink href="/hub/analytics/sales-by-type">
+                            View full analytics <ArrowUpRight size={14} />
+                          </HubInsightFooterLink>
+                          <HubInsightBody>
+                            <HubInsightCardInner>
+                              <HubInsightHero>
+                                <HubInsightHeroValue>
+                                  {workspaceSnapshotView.metrics.soldProperties + workspaceSnapshotView.metrics.rentedProperties}
+                                </HubInsightHeroValue>
+                                <HubInsightHeroLabel>Closed sale or rent outcomes</HubInsightHeroLabel>
+                              </HubInsightHero>
+                              <HubInsightBarList>
+                                {salesByTypeSummary.map((item, index, list) => {
+                                  const max = Math.max(1, ...list.map((current) => current.count));
+                                  const label = "label" in item && item.label ? item.label : labelize("key" in item ? item.key : undefined);
+                                  return (
+                                    <HubInsightBarRow key={("key" in item && item.key) || item.label || index}>
+                                      <HubInsightBarTrack>
+                                        <HubInsightBarFill
+                                          $width={(item.count / max) * 100}
+                                          $color={HUB_INSIGHT_COLORS[index % HUB_INSIGHT_COLORS.length]}
+                                        >
+                                          <span>{label}</span>
+                                          <span>{item.count}</span>
+                                        </HubInsightBarFill>
+                                      </HubInsightBarTrack>
+                                    </HubInsightBarRow>
+                                  );
+                                })}
+                              </HubInsightBarList>
+                            </HubInsightCardInner>
+                          </HubInsightBody>
+                        </HubInsightCard>
+
+                        <HubInsightCard>
+                          <HubInsightCardTop>
+                            <HubInsightCardTitle>
+                              <BarChart3 />
+                              Price range by type
+                            </HubInsightCardTitle>
+                          </HubInsightCardTop>
+                          <HubInsightFooterLink href="/hub/analytics/price-range-by-type">
+                            View full analytics <ArrowUpRight size={14} />
+                          </HubInsightFooterLink>
+                          <HubInsightBody>
+                            <HubInsightCardInner>
+                              <HubInsightRangeList>
+                                {priceRangesSummary.map((item, index, list) => {
+                                  if (!("min" in item) || !("max" in item) || !("currency" in item)) return null;
+                                  const allMin = Math.min(...list.map((current) => current.min));
+                                  const allMax = Math.max(...list.map((current) => current.max));
+                                  const spread = Math.max(1, allMax - allMin);
+                                  const left = ((item.min - allMin) / spread) * 100;
+                                  const width = Math.max(8, ((item.max - item.min) / spread) * 100);
+                                  return (
+                                    <HubInsightRangeRow key={item.key}>
+                                      <HubInsightRangeMeta>
+                                        <span>{labelize(item.key)}</span>
+                                        <span>
+                                          {formatCurrency(item.min, item.currency, "MMK 0")} -{" "}
+                                          {formatCurrency(item.max, item.currency, "MMK 0")}
+                                        </span>
+                                      </HubInsightRangeMeta>
+                                      <HubInsightRangeTrack>
+                                        <HubInsightRangeFill
+                                          $left={left}
+                                          $width={Math.min(100 - left, width)}
+                                          $color={HUB_INSIGHT_COLORS[index % HUB_INSIGHT_COLORS.length]}
+                                        />
+                                      </HubInsightRangeTrack>
+                                    </HubInsightRangeRow>
+                                  );
+                                })}
+                              </HubInsightRangeList>
                             </HubInsightCardInner>
                           </HubInsightBody>
                         </HubInsightCard>
@@ -3070,40 +5385,32 @@ export default function AccountPage() {
                               Appointments by type
                             </HubInsightCardTitle>
                           </HubInsightCardTop>
+                          <HubInsightFooterLink href="/hub/analytics/appointments-by-type">
+                            View full analytics <ArrowUpRight size={14} />
+                          </HubInsightFooterLink>
                           <HubInsightBody>
                             <HubInsightCardInner>
                               <HubInsightHero>
                                 <HubInsightHeroValue>{workspaceSnapshotView.metrics.appointmentsCount}</HubInsightHeroValue>
                                 <HubInsightHeroLabel>Scheduled viewing appointments</HubInsightHeroLabel>
                               </HubInsightHero>
-                              <HubInsightStack>
-                                <HubInsightStackTrack>
-                                  {workspaceSnapshotView.appointmentsByType.slice(0, 4).map((item, index) => {
-                                    const total = Math.max(
-                                      1,
-                                      workspaceSnapshotView.appointmentsByType
-                                        .slice(0, 4)
-                                        .reduce((sum, current) => sum + current.count, 0)
-                                    );
-                                    return (
-                                      <HubInsightStackSegment
-                                        key={item.key}
-                                        $width={(item.count / total) * 100}
+                              <HubInsightColumnWrap>
+                                {appointmentsByTypeSummary.map((item, index, list) => {
+                                  const max = Math.max(1, ...list.map((current) => current.count));
+                                  return (
+                                    <HubInsightColumn key={("key" in item && item.key) || item.label || index}>
+                                      <HubInsightColumnBar
+                                        $height={Math.max(18, (item.count / max) * 72)}
                                         $color={HUB_INSIGHT_COLORS[index % HUB_INSIGHT_COLORS.length]}
                                       />
-                                    );
-                                  })}
-                                </HubInsightStackTrack>
-                                <HubInsightLegend>
-                                  {workspaceSnapshotView.appointmentsByType.slice(0, 4).map((item, index) => (
-                                    <HubInsightLegendRow key={item.key}>
-                                      <HubInsightLegendDot $color={HUB_INSIGHT_COLORS[index % HUB_INSIGHT_COLORS.length]} />
-                                      <span>{labelize(item.key)}</span>
+                                      <HubInsightColumnLabel>
+                                        {"label" in item && item.label ? item.label : labelize("key" in item ? item.key : undefined)}
+                                      </HubInsightColumnLabel>
                                       <HubInsightMiniCount>{item.count}</HubInsightMiniCount>
-                                    </HubInsightLegendRow>
-                                  ))}
-                                </HubInsightLegend>
-                              </HubInsightStack>
+                                    </HubInsightColumn>
+                                  );
+                                })}
+                              </HubInsightColumnWrap>
                             </HubInsightCardInner>
                           </HubInsightBody>
                         </HubInsightCard>
@@ -3608,6 +5915,282 @@ export default function AccountPage() {
               </CTAButton>
             </ModalActions>
           </ModalCard>
+        </ModalOverlay>
+      )}
+      {(selectedAppointment || appointmentComposerMode === "create") && (
+        <ModalOverlay onClick={closeAppointmentEditor}>
+          <AppointmentModalCard onClick={(event) => event.stopPropagation()}>
+            <ModalHeader>
+              <div style={{ display: "grid", gap: 6 }}>
+                <strong>
+                  {appointmentComposerMode === "create"
+                    ? "Create appointment"
+                    : selectedAppointment?.property_title || "Appointment"}
+                </strong>
+                <Muted>
+                  {appointmentComposerMode === "create"
+                    ? "Schedule a new viewing and assign it to a team member."
+                    : selectedAppointment?.source === "viewing_request"
+                      ? "Viewing request"
+                      : "Scheduled appointment"}
+                </Muted>
+              </div>
+              <GhostButton type="button" onClick={closeAppointmentEditor} aria-label="Close appointment editor">
+                <X size={16} />
+              </GhostButton>
+            </ModalHeader>
+            <AppointmentEditorMeta>
+              {appointmentComposerMode === "edit" && selectedAppointment ? (
+                <>
+                  <AppointmentEditorRow>
+                    <MapPin size={16} />
+                    <span>{selectedAppointment.property_location || "Unspecified"}</span>
+                  </AppointmentEditorRow>
+                  <AppointmentEditorRow>
+                    <Clock size={16} />
+                    <span>
+                      {selectedAppointment.start_at
+                        ? new Date(selectedAppointment.start_at).toLocaleString(locale, {
+                            month: "short",
+                            day: "numeric",
+                            hour: "numeric",
+                            minute: "2-digit",
+                          })
+                        : "Time pending"}
+                    </span>
+                  </AppointmentEditorRow>
+                  <AppointmentEditorRow>
+                    <Users2 size={16} />
+                    <span>{selectedAppointment.client_name || "Buyer"}</span>
+                  </AppointmentEditorRow>
+                </>
+              ) : null}
+            </AppointmentEditorMeta>
+            <CardDivider />
+            <AppointmentEditorSections>
+              <AppointmentEditorSection>
+                <AppointmentEditorSectionHeader>
+                  <AppointmentEditorSectionTitle>Appointment details</AppointmentEditorSectionTitle>
+                  <AppointmentEditorSectionCopy>Choose the property, current status, and time for this visit.</AppointmentEditorSectionCopy>
+                </AppointmentEditorSectionHeader>
+                <AppointmentEditorGrid>
+                  <AppointmentEditorField>
+                    <AppointmentEditorLabel>Property</AppointmentEditorLabel>
+                    <CustomSelect
+                      id="appointment-property"
+                      name="appointment-property"
+                      label="Property"
+                      hideLabel
+                      value={appointmentEditorPropertyId}
+                      onChange={setAppointmentEditorPropertyId}
+                      disabled={appointmentComposerMode === "edit" || appointmentComposerPropertyLocked}
+                    >
+                      <option value="">
+                        {vendorPropertyOptionsLoading ? "Loading properties..." : "Select property"}
+                      </option>
+                      {vendorPropertyOptions.map((property) => (
+                        <option key={property.id} value={property.id}>
+                          {property.title || "Untitled property"}
+                        </option>
+                      ))}
+                    </CustomSelect>
+                  </AppointmentEditorField>
+                  <AppointmentEditorField>
+                    <AppointmentEditorLabel>Status</AppointmentEditorLabel>
+                    <CustomSelect
+                      id="appointment-status"
+                      name="appointment-status"
+                      label="Status"
+                      hideLabel
+                      value={appointmentEditorStatus}
+                      onChange={setAppointmentEditorStatus}
+                    >
+                      {((appointmentComposerMode === "edit" && selectedAppointment?.source === "viewing_request")
+                        ? [
+                            { value: "new", label: "New" },
+                            { value: "contacted", label: "Contacted" },
+                            { value: "scheduled", label: "Scheduled" },
+                            { value: "closed", label: "Closed" },
+                            { value: "lost", label: "Lost" },
+                          ]
+                        : [
+                            { value: "scheduled", label: "Scheduled" },
+                            { value: "confirmed", label: "Confirmed" },
+                            { value: "completed", label: "Completed" },
+                            { value: "canceled", label: "Canceled" },
+                          ]
+                      ).map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </CustomSelect>
+                  </AppointmentEditorField>
+                  <AppointmentEditorField>
+                    <AppointmentEditorLabel>Title</AppointmentEditorLabel>
+                    <AppointmentEditorInput
+                      id="appointment-title"
+                      name="appointment-title"
+                      placeholder="Property viewing"
+                      value={appointmentEditorTitle}
+                      onChange={(event) => setAppointmentEditorTitle(event.target.value)}
+                      disabled={appointmentComposerMode === "edit" && selectedAppointment?.source === "viewing_request"}
+                    />
+                  </AppointmentEditorField>
+                  <AppointmentEditorField>
+                    <AppointmentEditorLabel>Date</AppointmentEditorLabel>
+                    <AppointmentDatePicker
+                      name="appointment-date"
+                      value={getDatePart(appointmentEditorStartAt)}
+                      onChange={(date) =>
+                        setAppointmentEditorStartAt(combineDateAndTime(date, getTimePart(appointmentEditorStartAt)))
+                      }
+                      locale={locale}
+                      disabled={appointmentComposerMode === "edit" && selectedAppointment?.source === "viewing_request"}
+                    />
+                  </AppointmentEditorField>
+                  <AppointmentEditorField>
+                    <AppointmentEditorLabel>Time</AppointmentEditorLabel>
+                    <CustomSelect
+                      id="appointment-time"
+                      name="appointment-time"
+                      label="Time"
+                      hideLabel
+                      value={getTimePart(appointmentEditorStartAt)}
+                      onChange={(time) =>
+                        setAppointmentEditorStartAt(combineDateAndTime(getDatePart(appointmentEditorStartAt), time))
+                      }
+                      disabled={appointmentComposerMode === "edit" && selectedAppointment?.source === "viewing_request"}
+                    >
+                      {[
+                        "09:00",
+                        "09:30",
+                        "10:00",
+                        "10:30",
+                        "11:00",
+                        "11:30",
+                        "12:00",
+                        "12:30",
+                        "13:00",
+                        "13:30",
+                        "14:00",
+                        "14:30",
+                        "15:00",
+                        "15:30",
+                        "16:00",
+                        "16:30",
+                        "17:00",
+                        "17:30",
+                        "18:00",
+                      ].map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </CustomSelect>
+                  </AppointmentEditorField>
+                </AppointmentEditorGrid>
+              </AppointmentEditorSection>
+
+              <AppointmentEditorSection>
+                <AppointmentEditorSectionHeader>
+                  <AppointmentEditorSectionTitle>Buyer details</AppointmentEditorSectionTitle>
+                  <AppointmentEditorSectionCopy>Add the buyer contact you want your team to reference for this appointment.</AppointmentEditorSectionCopy>
+                </AppointmentEditorSectionHeader>
+                <AppointmentEditorGrid>
+                  <AppointmentEditorField>
+                    <AppointmentEditorLabel>Client name</AppointmentEditorLabel>
+                    <AppointmentEditorInput
+                      id="appointment-client-name"
+                      name="appointment-client-name"
+                      placeholder="Full name"
+                      value={appointmentEditorClientName}
+                      onChange={(event) => setAppointmentEditorClientName(event.target.value)}
+                      disabled={appointmentComposerMode === "edit" && selectedAppointment?.source === "viewing_request"}
+                    />
+                  </AppointmentEditorField>
+                  <AppointmentEditorField>
+                    <AppointmentEditorLabel>Client phone</AppointmentEditorLabel>
+                    <AppointmentEditorInput
+                      id="appointment-client-phone"
+                      name="appointment-client-phone"
+                      placeholder="09..."
+                      value={appointmentEditorClientPhone}
+                      onChange={(event) => setAppointmentEditorClientPhone(event.target.value)}
+                      disabled={appointmentComposerMode === "edit" && selectedAppointment?.source === "viewing_request"}
+                    />
+                  </AppointmentEditorField>
+                </AppointmentEditorGrid>
+              </AppointmentEditorSection>
+
+              <AppointmentEditorSection>
+                <AppointmentEditorSectionHeader>
+                  <AppointmentEditorSectionTitle>Assignment</AppointmentEditorSectionTitle>
+                  <AppointmentEditorSectionCopy>Choose who will handle this appointment, or leave it unassigned for now.</AppointmentEditorSectionCopy>
+                </AppointmentEditorSectionHeader>
+                <AppointmentEditorField>
+                  <AppointmentEditorLabel>Assigned staff</AppointmentEditorLabel>
+                  <CustomSelect
+                    id="appointment-assignee"
+                    name="appointment-assignee"
+                    label="Assigned staff"
+                    hideLabel
+                    value={appointmentEditorAssignee}
+                    onChange={setAppointmentEditorAssignee}
+                  >
+                    <option value="">Unassigned</option>
+                    {appointmentAssignments.map((staff) => (
+                      <option key={staff.id} value={staff.id}>
+                        {staff.name}
+                      </option>
+                    ))}
+                  </CustomSelect>
+                </AppointmentEditorField>
+              </AppointmentEditorSection>
+
+              <AppointmentEditorSection>
+                <AppointmentEditorSectionHeader>
+                  <AppointmentEditorSectionTitle>Notes</AppointmentEditorSectionTitle>
+                  <AppointmentEditorSectionCopy>Capture access details, reminders, or anything the assigned staff should know.</AppointmentEditorSectionCopy>
+                </AppointmentEditorSectionHeader>
+                <AppointmentEditorField>
+                  <AppointmentTextArea
+                    value={appointmentEditorNotes}
+                    onChange={(event) => setAppointmentEditorNotes(event.target.value)}
+                    disabled={appointmentComposerMode === "edit" && selectedAppointment?.source === "viewing_request"}
+                    placeholder="Optional notes"
+                  />
+                </AppointmentEditorField>
+              </AppointmentEditorSection>
+            </AppointmentEditorSections>
+            {appointmentEditorError ? <Muted style={{ color: "var(--color-primary)" }}>{appointmentEditorError}</Muted> : null}
+            <ModalActions style={{ justifyContent: "space-between" }}>
+              {appointmentComposerMode === "edit" ? (
+                <DangerButton type="button" onClick={() => void handleAppointmentDelete()} disabled={appointmentEditorSaving}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                    <Trash2 size={16} />
+                    Delete
+                  </span>
+                </DangerButton>
+              ) : (
+                <div />
+              )}
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <GhostButton type="button" onClick={closeAppointmentEditor} disabled={appointmentEditorSaving}>
+                  Cancel
+                </GhostButton>
+                <CTAButton type="button" onClick={() => void handleAppointmentSave()} disabled={appointmentEditorSaving}>
+                  {appointmentEditorSaving
+                    ? appointmentComposerMode === "create"
+                      ? "Creating..."
+                      : "Saving..."
+                    : appointmentComposerMode === "create"
+                      ? "Create appointment"
+                      : "Save changes"}
+                </CTAButton>
+              </div>
+            </ModalActions>
+          </AppointmentModalCard>
         </ModalOverlay>
       )}
       {activeSale && (

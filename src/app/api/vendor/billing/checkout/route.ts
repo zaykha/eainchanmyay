@@ -206,7 +206,7 @@ export async function POST(request: Request) {
       currency: "MMK",
       provider: dingerBillingProvider,
       provider_order_id: merchantOrderId,
-      status: isDevBypassBilling ? "succeeded" : "pending",
+      status: isDevBypassBilling ? "paid" : "pending",
       raw_payload: {
         initiated_by: user.id,
         source: isDevBypassBilling ? "vendor_setup_dev_bypass" : "vendor_setup",

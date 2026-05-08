@@ -83,6 +83,7 @@ function clearClientAuthCaches() {
       if (!key) continue;
       if (
         key.startsWith("ecm_profile_summary_v1:") ||
+        key.startsWith("ecm_viewing_contact_cache:") ||
         key.startsWith("ecm_account_tab_cache_") ||
         key.startsWith("ecm_account_tab_cache_v2:") ||
         key.startsWith("ecm_vendor_workspace_cache:") ||

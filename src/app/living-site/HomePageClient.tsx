@@ -12,7 +12,6 @@ import { useInfiniteListings } from "@/app/living-site/hooks/useInfiniteListings
 import { useAppState } from "@/app/living-site/lib/app-state";
 import { resolveHeaderAccountPresentation } from "@/app/living-site/lib/header-account";
 import { isBedBathPropertyType } from "@/lib/property-types";
-import { useI18n } from "@/app/living-site/lib/i18n";
 import { getDistricts, getStates, getTownships } from "@/app/living-site/lib/myanmar-geo";
 
 const PageFrame = styled.div`
@@ -1225,9 +1224,33 @@ const propertyCards = [
   },
 ] as const;
 
+const HOME_COPY: Record<string, string> = {
+  "site.tagline": "Myanmar real estate marketplace",
+  "home.searchPlaceholder": "Search by title, township, district, or city",
+  "home.filters": "Filters",
+  "home.clear": "Clear",
+  "home.loadMore": "Load more",
+  "home.loadingMore": "Loading more...",
+  "filter.apply": "Apply",
+  "filter.area": "Area (sq ft)",
+  "filter.bathrooms": "Bathrooms",
+  "filter.bedrooms": "Bedrooms",
+  "filter.district": "District",
+  "filter.max": "Max",
+  "filter.min": "Min",
+  "filter.priceRange": "Price range",
+  "filter.state": "State / Region",
+  "filter.township": "Township",
+  "property.apartment": "Apartment",
+  "property.house": "House",
+  "property.miniCondo": "Mini condo",
+  "property.condo": "Condo",
+  "property.land": "Land",
+};
+
 export function HomePageClient() {
   const router = useRouter();
-  const { t } = useI18n();
+  const t = (key: string) => HOME_COPY[key] ?? key;
   const { user, profileRole, profileReady, loading: authLoading } = useAppState();
   const { language, setLanguage } = useLanguage();
   const params = useSearchParams();
