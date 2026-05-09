@@ -185,6 +185,23 @@ export async function POST(request: Request) {
     status: "new",
     source: "marketplace_routed",
     routing_score: selected.routingScore,
+    deal_type: inquiryPayload.deal_type,
+    property_type: inquiryPayload.property_type,
+    state_region: inquiryPayload.state_region,
+    district: inquiryPayload.district,
+    township: inquiryPayload.township,
+    budget_range: inquiryPayload.budget_range,
+    timeline: inquiryPayload.timeline,
+    bedrooms: inquiryPayload.bedrooms,
+    bathrooms: inquiryPayload.bathrooms,
+    area_sqft: inquiryPayload.area_sqft,
+    need_parking: inquiryPayload.need_parking,
+    need_lift: inquiryPayload.need_lift,
+    need_solar: inquiryPayload.need_solar,
+    need_generator: inquiryPayload.need_generator,
+    pipeline_stage: "new_lead",
+    last_activity_at: new Date().toISOString(),
+    sla_due_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
   });
 
   return NextResponse.json({

@@ -458,7 +458,7 @@ export default function AgencySetupPage() {
           contact_email: form.contact_email,
           logo_url: form.logo_url,
           description: form.description,
-          slug: slugifyVendorSlug(workspace.vendor.slug || form.name),
+          slug: slugifyVendorSlug(identityLocked ? workspace.vendor.slug || form.name : form.name),
           public_storefront_enabled: true,
         }),
       });

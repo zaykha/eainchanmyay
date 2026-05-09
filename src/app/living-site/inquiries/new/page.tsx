@@ -3,6 +3,22 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import styled from "styled-components";
 import { useRouter, useSearchParams } from "next/navigation";
+import {
+  Building2,
+  CarFront,
+  Check,
+  Factory,
+  Home,
+  House,
+  Landmark,
+  Lightbulb,
+  MapPin,
+  Ruler,
+  Search,
+  SunMedium,
+  Wallet,
+  Waves,
+} from "lucide-react";
 import { MarketplaceHeader } from "@/app/living-site/components/MarketplaceHeader";
 import { SectionTitle, Panel } from "@/app/living-site/components/PageSection";
 import { CustomSelect } from "@/app/living-site/components/form-controls/CustomSelect";
@@ -21,18 +37,18 @@ import {
 } from "@/lib/property-types";
 
 const PageShell = styled.div`
-  max-width: 960px;
+  max-width: 1040px;
   margin: 0 auto;
-  padding: 16px;
+  padding: 18px 16px 30px;
   display: grid;
-  gap: 16px;
+  gap: 14px;
 `;
 
 const BackButton = styled.button`
   border: 1px solid var(--color-outline);
   border-radius: var(--radius-md);
-  padding: 8px 12px;
-  background: transparent;
+  padding: 10px 14px;
+  background: color-mix(in srgb, var(--color-surface) 88%, white);
   color: var(--color-text);
   font-weight: 600;
   cursor: pointer;
@@ -41,9 +57,75 @@ const BackButton = styled.button`
 
 const TitleRow = styled.div`
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+
+  @media (max-width: 760px) {
+    flex-direction: column;
+    align-items: stretch;
+  }
+`;
+
+const Muted = styled.p`
+  margin: 0;
+  color: var(--color-muted);
+`;
+
+const Intro = styled.div`
+  display: grid;
+  gap: 4px;
+`;
+
+const IntroTitle = styled(SectionTitle)`
+  margin: 0;
+`;
+
+const AgencyBanner = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: fit-content;
+  margin: 0 auto;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--color-outline);
+  background: color-mix(in srgb, var(--color-surface) 92%, white);
+  box-shadow: var(--shadow-soft);
+`;
+
+const AgencyBannerLogo = styled.div<{ $image?: string | null }>`
+  width: 28px;
+  height: 28px;
+  border-radius: 10px;
+  flex: 0 0 auto;
+  background:
+    ${(props) =>
+      props.$image
+        ? `url(${props.$image}) center/cover no-repeat`
+        : "color-mix(in srgb, var(--color-primary) 14%, white)"};
+  display: grid;
+  place-items: center;
+  color: var(--color-primary);
+  overflow: hidden;
+`;
+
+const AgencyBannerText = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  color: var(--color-text);
+  font-size: 0.86rem;
+`;
+
+const AgencyBannerLabel = styled.span`
+  color: var(--color-muted);
+`;
+
+const AgencyBannerName = styled.span`
+  font-weight: 800;
 `;
 
 const PrimaryButton = styled.button`
@@ -59,38 +141,201 @@ const PrimaryButton = styled.button`
 
 const FieldGroup = styled.div`
   display: grid;
-  gap: 12px;
+  gap: 10px;
+`;
+
+const FieldStack = styled.div`
+  display: grid;
+  gap: 8px;
 `;
 
 const TileGrid = styled.div`
   display: grid;
-  gap: 10px;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+
+  @media (max-width: 920px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (max-width: 560px) {
+    grid-template-columns: 1fr 1fr;
+  }
 `;
 
 const Tile = styled.button<{ $active?: boolean }>`
   border: 1px solid
     ${(props) => (props.$active ? "var(--color-primary)" : "var(--color-outline)")};
-  border-radius: 14px;
-  padding: 12px;
+  border-radius: 12px;
+  padding: 8px 8px;
   background: ${(props) =>
     props.$active
-      ? "color-mix(in srgb, var(--color-primary) 12%, transparent)"
-      : "var(--color-surface-2)"};
+      ? "color-mix(in srgb, var(--color-primary) 12%, white)"
+      : "color-mix(in srgb, var(--color-surface-2) 84%, white)"};
   color: ${(props) => (props.$active ? "var(--color-primary)" : "var(--color-text)")};
   display: grid;
-  gap: 6px;
+  gap: 5px;
   justify-items: center;
+  min-height: 72px;
   font-weight: 600;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   text-align: center;
   line-height: 1.2;
   cursor: pointer;
 `;
 
-const Muted = styled.p`
+const FormCard = styled(Panel)`
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at top right, rgba(255, 226, 214, 0.56), transparent 32%),
+    linear-gradient(180deg, color-mix(in srgb, var(--color-surface) 92%, white), color-mix(in srgb, var(--color-surface-2) 90%, white));
+`;
+
+const SectionCard = styled.div`
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 18px;
+  border: 1px solid var(--color-outline);
+  background: color-mix(in srgb, var(--color-surface) 92%, white);
+`;
+
+const SectionHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+`;
+
+const SectionIcon = styled.div`
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--color-primary) 12%, white);
+  color: var(--color-primary);
+  flex: 0 0 auto;
+`;
+
+const SectionHeaderText = styled.div`
+  display: grid;
+  gap: 0;
+`;
+
+const SectionCardTitle = styled.h3`
   margin: 0;
-  color: var(--color-muted);
+  color: var(--color-text);
+  font-size: 0.95rem;
+`;
+
+const ChoiceGrid = styled.div`
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: min(100%, 420px);
+  margin: 0 auto;
+
+  @media (max-width: 720px) {
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+`;
+
+const ChoiceCard = styled.button<{ $active?: boolean }>`
+  border: 1px solid ${(props) => (props.$active ? "var(--color-primary)" : "var(--color-outline)")};
+  border-radius: 14px;
+  background: ${(props) =>
+    props.$active ? "color-mix(in srgb, var(--color-primary) 10%, white)" : "color-mix(in srgb, var(--color-surface-2) 84%, white)"};
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 54px;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: ${(props) => (props.$active ? "var(--frame-shadow)" : "var(--shadow-soft)")};
+`;
+
+const ChoiceTop = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+`;
+
+const ChoiceIcon = styled.div<{ $active?: boolean }>`
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: ${(props) =>
+    props.$active ? "color-mix(in srgb, var(--color-primary) 18%, white)" : "color-mix(in srgb, var(--color-surface) 70%, white)"};
+  color: ${(props) => (props.$active ? "var(--color-primary)" : "var(--color-text)")};
+`;
+
+const ChoiceCheck = styled.div<{ $active?: boolean }>`
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  border: 1px solid ${(props) => (props.$active ? "var(--color-primary)" : "var(--color-outline)")};
+  background: ${(props) => (props.$active ? "var(--color-primary)" : "transparent")};
+  color: ${(props) => (props.$active ? "#fff" : "transparent")};
+`;
+
+const ChoiceTitle = styled.div`
+  color: var(--color-text);
+  font-weight: 800;
+  font-size: 0.88rem;
+`;
+
+const InlineFieldGrid = styled.div`
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+
+  @media (max-width: 760px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const TripleFieldGrid = styled.div`
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+
+  @media (max-width: 920px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const SpaceFieldGrid = styled.div`
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+
+  @media (max-width: 920px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const RequirementIcon = styled.div`
+  width: 24px;
+  height: 24px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--color-surface) 70%, white);
+`;
+
+const RequirementLabel = styled.div`
+  font-weight: 700;
+  font-size: 0.78rem;
 `;
 
 const SuccessOverlay = styled.div`
@@ -127,13 +372,91 @@ const GhostButton = styled.button`
   cursor: pointer;
 `;
 
+const englishInquiryCopy = {
+  "common.back": "Back",
+  "common.loading": "Loading...",
+  "common.submitting": "Submitting...",
+  "common.saveChanges": "Save changes",
+  "common.completeRequired": "Please complete the required fields before submitting.",
+  "auth.signIn": "Sign in",
+  "inquiry.newTitle": "Request property help",
+  "inquiry.newSubtitle": "Tell us what you need and we will route your inquiry to the right agency workspace.",
+  "inquiry.editTitle": "Update your inquiry",
+  "inquiry.editSubtitle": "Refine your request so agencies can respond with more relevant options.",
+  "inquiry.signInRequired": "Please sign in before submitting a property inquiry.",
+  "inquiry.submitError": "We could not submit your inquiry right now.",
+  "inquiry.loadError": "We could not load this inquiry.",
+  "inquiry.submit": "Submit inquiry",
+  "inquiry.updated": "Your inquiry has been updated.",
+  "inquiry.thanks": "Your inquiry has been sent.",
+  "inquiry.browse": "Browse listings",
+  "inquiry.goActivities": "Go to account",
+  "inquiry.loading": "Loading inquiry...",
+  "inquiry.submitting": "Sending inquiry...",
+  "inquiry.dealType": "Request type",
+  "inquiry.buy": "Buy",
+  "inquiry.rent": "Rent",
+  "inquiry.propertyType": "Property type",
+  "inquiry.state": "State / region",
+  "inquiry.city": "District / city",
+  "inquiry.township": "Township",
+  "inquiry.budgetRange": "Budget range",
+  "inquiry.timeline": "Timeline",
+  "inquiry.areaSqft": "Preferred area (sqft)",
+  "inquiry.bedrooms": "Bedrooms",
+  "inquiry.bathrooms": "Bathrooms",
+  "inquiry.requirements": "Requirements",
+  "inquiry.needParking": "Parking",
+  "inquiry.needLift": "Lift",
+  "inquiry.needSolar": "Solar",
+  "inquiry.needGenerator": "Generator",
+  "inquiry.budget.buy1": "Up to MMK 1,000L",
+  "inquiry.budget.buy2": "MMK 1,000L to 5,000L",
+  "inquiry.budget.buy3": "MMK 5,000L to 50,000L",
+  "inquiry.budget.buy4": "MMK 50,000L to 100,000L",
+  "inquiry.budget.buy5": "Above MMK 100,000L",
+  "inquiry.budget.rent1": "Up to MMK 5L / month",
+  "inquiry.budget.rent2": "MMK 5L to 10L / month",
+  "inquiry.budget.rent3": "MMK 10L to 20L / month",
+  "inquiry.budget.rent4": "MMK 20L to 50L / month",
+  "inquiry.budget.rent5": "MMK 50L to 100L / month",
+  "inquiry.budget.rent6": "Above MMK 100L / month",
+  "inquiry.timeline.asap": "As soon as possible",
+  "inquiry.timeline.oneThree": "Within 1 to 3 months",
+  "inquiry.timeline.threeSix": "Within 3 to 6 months",
+  "inquiry.timeline.browsing": "Just browsing",
+} as const;
+
+const propertyTypeIconMap: Record<string, JSX.Element> = {
+  house: <House size={18} />,
+  apartment: <Building2 size={18} />,
+  mini_condo: <Building2 size={18} />,
+  condo: <Building2 size={18} />,
+  serviced_apartment: <Building2 size={18} />,
+  office: <Landmark size={18} />,
+  shop: <Home size={18} />,
+  shop_office: <Landmark size={18} />,
+  warehouse: <Factory size={18} />,
+  industrial: <Factory size={18} />,
+  land: <MapPin size={18} />,
+};
+
 function NewInquiryPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, authToken } = useAppState();
   const { t } = useI18n();
+  const tr = (key: keyof typeof englishInquiryCopy | string, fallback?: string) => {
+    const translated = t(key);
+    if (translated !== key) return translated;
+    if (fallback) return fallback;
+    return (englishInquiryCopy as Record<string, string>)[key] ?? key;
+  };
   const editId = searchParams.get("editId");
   const isEdit = Boolean(editId);
+  const agencyName = searchParams.get("agency")?.trim() || "";
+  const agencySlug = searchParams.get("agencySlug")?.trim() || "";
+  const agencyLogo = searchParams.get("agencyLogo")?.trim() || "";
   const [dealType, setDealType] = useState("buy");
   const [propertyType, setPropertyType] = useState("house");
   const [stateRegion, setStateRegion] = useState("");
@@ -165,7 +488,7 @@ function NewInquiryPageContent() {
           return;
         }
         if (!inquiry) {
-          setError(t("inquiry.loadError"));
+          setError(tr("inquiry.loadError"));
           return;
         }
         setDealType(String(inquiry.deal_type ?? "buy"));
@@ -196,6 +519,7 @@ function NewInquiryPageContent() {
     () => isBedBathPropertyType(propertyType),
     [propertyType]
   );
+  const showRequirementToggles = propertyType !== "land";
 
   useEffect(() => {
     if (!showBedBathFields) {
@@ -203,6 +527,15 @@ function NewInquiryPageContent() {
       setBathrooms("");
     }
   }, [showBedBathFields]);
+
+  useEffect(() => {
+    if (!showRequirementToggles) {
+      setNeedParking(false);
+      setNeedLift(false);
+      setNeedSolar(false);
+      setNeedGenerator(false);
+    }
+  }, [showRequirementToggles]);
 
   const toNullableNumber = (value: string) => {
     const trimmed = value.trim();
@@ -213,11 +546,11 @@ function NewInquiryPageContent() {
 
   const handleSubmit = async () => {
     if (!user?.id) {
-      setError(t("inquiry.signInRequired"));
+      setError(tr("inquiry.signInRequired"));
       return;
     }
     if (!stateRegion || !district || !township || !budgetRange) {
-      setError(t("common.completeRequired"));
+      setError(tr("common.completeRequired"));
       return;
     }
     setError(null);
@@ -244,7 +577,7 @@ function NewInquiryPageContent() {
         ? await updateInquiry({ id: editId, ...payload })
         : await (async () => {
             if (!authToken) {
-              return { ok: false, message: t("inquiry.submitError") };
+              return { ok: false, message: tr("inquiry.submitError") };
             }
 
             const response = await fetch("/api/public/inquiries", {
@@ -259,11 +592,11 @@ function NewInquiryPageContent() {
             const apiPayload = (await response.json().catch(() => null)) as { error?: string } | null;
             return response.ok
               ? { ok: true }
-              : { ok: false, message: apiPayload?.error ?? t("inquiry.submitError") };
+              : { ok: false, message: apiPayload?.error ?? tr("inquiry.submitError") };
           })();
     setSubmitting(false);
     if (!result.ok) {
-      setError(result.message ?? t("inquiry.submitError"));
+      setError(result.message ?? tr("inquiry.submitError"));
       return;
     }
     setSuccess(true);
@@ -275,24 +608,27 @@ function NewInquiryPageContent() {
 
   const propertyTypeOptions = propertyTypeDefinitions.map((option) => ({
     value: option.value,
-    label: formatPropertyTypeValue(option.value, t),
+    label: (() => {
+      const translated = formatPropertyTypeValue(option.value, t);
+      return translated.startsWith("property.") ? option.label : translated;
+    })(),
   }));
 
   const buyBudgetOptions = [
-    { value: "0-1000", label: t("inquiry.budget.buy1") },
-    { value: "1000-5000", label: t("inquiry.budget.buy2") },
-    { value: "5000-50000", label: t("inquiry.budget.buy3") },
-    { value: "50000-100000", label: t("inquiry.budget.buy4") },
-    { value: "100000+", label: t("inquiry.budget.buy5") },
+    { value: "0-1000", label: tr("inquiry.budget.buy1") },
+    { value: "1000-5000", label: tr("inquiry.budget.buy2") },
+    { value: "5000-50000", label: tr("inquiry.budget.buy3") },
+    { value: "50000-100000", label: tr("inquiry.budget.buy4") },
+    { value: "100000+", label: tr("inquiry.budget.buy5") },
   ];
 
   const rentBudgetOptions = [
-    { value: "0-5", label: t("inquiry.budget.rent1") },
-    { value: "5-10", label: t("inquiry.budget.rent2") },
-    { value: "10-20", label: t("inquiry.budget.rent3") },
-    { value: "20-50", label: t("inquiry.budget.rent4") },
-    { value: "50-100", label: t("inquiry.budget.rent5") },
-    { value: "100+", label: t("inquiry.budget.rent6") },
+    { value: "0-5", label: tr("inquiry.budget.rent1") },
+    { value: "5-10", label: tr("inquiry.budget.rent2") },
+    { value: "10-20", label: tr("inquiry.budget.rent3") },
+    { value: "20-50", label: tr("inquiry.budget.rent4") },
+    { value: "50-100", label: tr("inquiry.budget.rent5") },
+    { value: "100+", label: tr("inquiry.budget.rent6") },
   ];
 
   const budgetOptions = dealType === "rent" ? rentBudgetOptions : buyBudgetOptions;
@@ -302,210 +638,315 @@ function NewInquiryPageContent() {
       <MarketplaceHeader />
       <PageShell>
         <TitleRow>
-          <SectionTitle>{isEdit ? t("inquiry.editTitle") : t("inquiry.newTitle")}</SectionTitle>
+          <Intro>
+            <IntroTitle>{isEdit ? tr("inquiry.editTitle") : tr("inquiry.newTitle")}</IntroTitle>
+            {agencyName ? (
+              <AgencyBanner>
+                <AgencyBannerLogo $image={agencyLogo || null}>
+                  {!agencyLogo ? <Building2 size={14} /> : null}
+                </AgencyBannerLogo>
+                <AgencyBannerText>
+                  <AgencyBannerLabel>Inquiry for</AgencyBannerLabel>
+                  <AgencyBannerName>
+                    {agencySlug ? `${agencyName}` : agencyName}
+                  </AgencyBannerName>
+                </AgencyBannerText>
+              </AgencyBanner>
+            ) : null}
+          </Intro>
           <BackButton type="button" onClick={() => router.back()}>
-            {t("common.back")}
+            {tr("common.back")}
           </BackButton>
         </TitleRow>
-        <Muted>
-          {isEdit ? t("inquiry.editSubtitle") : t("inquiry.newSubtitle")}
-        </Muted>
         {!user && (
           <Panel style={{ display: "grid", gap: "10px" }}>
-            <Muted>{t("inquiry.signInRequired")}</Muted>
+            <Muted>{tr("inquiry.signInRequired")}</Muted>
             <PrimaryButton type="button" onClick={() => router.push("/auth")}>
-              {t("auth.signIn")}
+              {tr("auth.signIn")}
             </PrimaryButton>
           </Panel>
         )}
         {user && (
-          <Panel style={{ display: "grid", gap: "16px" }}>
-          <FieldGroup>
-            <CustomSelect
-              id="inquiry-deal-type"
-              name="deal_type"
-              label={t("inquiry.dealType")}
-              value={dealType}
-              onChange={(value) => setDealType(value)}
-            >
-              <option value="buy">{t("inquiry.buy")}</option>
-              <option value="rent">{t("inquiry.rent")}</option>
-            </CustomSelect>
-            <CustomSelect
-              id="inquiry-property-type"
-              name="property_type"
-              label={t("inquiry.propertyType")}
-              value={propertyType}
-              onChange={(value) => setPropertyType(value)}
-            >
-              {propertyTypeOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </CustomSelect>
-          </FieldGroup>
+          <FormCard>
+            <SectionCard>
+              <SectionHeader>
+                <SectionIcon>
+                  <Search size={18} />
+                </SectionIcon>
+                <SectionHeaderText>
+                  <SectionCardTitle>What are you looking for?</SectionCardTitle>
+                </SectionHeaderText>
+              </SectionHeader>
+              <FieldGroup>
+                <FieldStack>
+                  <Muted style={{ marginBottom: 10, fontWeight: 700, color: "var(--color-text)" }}>{tr("inquiry.dealType")}</Muted>
+                  <ChoiceGrid>
+                    <ChoiceCard type="button" $active={dealType === "buy"} onClick={() => setDealType("buy")}>
+                      <ChoiceTop>
+                        <ChoiceIcon $active={dealType === "buy"}>
+                          <Home size={18} />
+                        </ChoiceIcon>
+                        <ChoiceTitle>{tr("inquiry.buy")}</ChoiceTitle>
+                      </ChoiceTop>
+                      <ChoiceCheck $active={dealType === "buy"}>
+                        <Check size={14} />
+                      </ChoiceCheck>
+                    </ChoiceCard>
+                    <ChoiceCard type="button" $active={dealType === "rent"} onClick={() => setDealType("rent")}>
+                      <ChoiceTop>
+                        <ChoiceIcon $active={dealType === "rent"}>
+                          <Building2 size={18} />
+                        </ChoiceIcon>
+                        <ChoiceTitle>{tr("inquiry.rent")}</ChoiceTitle>
+                      </ChoiceTop>
+                      <ChoiceCheck $active={dealType === "rent"}>
+                        <Check size={14} />
+                      </ChoiceCheck>
+                    </ChoiceCard>
+                  </ChoiceGrid>
+                </FieldStack>
 
-          <FieldGroup>
-            <CustomSelect
-              id="inquiry-state"
-              name="state_region"
-              label={t("inquiry.state")}
-              value={stateRegion}
-              onChange={(value) => {
-                setStateRegion(value);
-                setDistrict("");
-                setTownship("");
-              }}
-            >
-              {stateOptions.map((state) => (
-                <option key={state.pcode} value={state.name_en}>
-                  {state.name_en}
-                </option>
-              ))}
-            </CustomSelect>
-            <CustomSelect
-              id="inquiry-district"
-              name="district"
-              label={t("inquiry.city")}
-              value={district}
-              onChange={(value) => {
-                setDistrict(value);
-                setTownship("");
-              }}
-              disabled={!stateRegion}
-            >
-              {districtOptions.map((item) => (
-                <option key={item.pcode} value={item.name_en}>
-                  {item.name_en}
-                </option>
-              ))}
-            </CustomSelect>
-            <CustomSelect
-              id="inquiry-township"
-              name="township"
-              label={t("inquiry.township")}
-              value={township}
-              onChange={(value) => setTownship(value)}
-              disabled={!district}
-            >
-              {townshipOptions.map((item) => (
-                <option key={item.pcode} value={item.name_en}>
-                  {item.name_en}
-                </option>
-              ))}
-            </CustomSelect>
-          </FieldGroup>
+                <FieldStack>
+                  <Muted style={{ fontWeight: 700, color: "var(--color-text)" }}>{tr("inquiry.propertyType")}</Muted>
+                  <CustomSelect
+                    id="inquiry-property-type"
+                    name="property_type"
+                    label={tr("inquiry.propertyType")}
+                    hideLabel
+                    value={propertyType}
+                    onChange={(value) => setPropertyType(value)}
+                  >
+                    {propertyTypeOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </CustomSelect>
+                </FieldStack>
+              </FieldGroup>
+            </SectionCard>
 
-          <CustomSelect
-            id="inquiry-budget-range"
-            name="budget_range"
-            label={t("inquiry.budgetRange")}
-            value={budgetRange}
-            onChange={(value) => setBudgetRange(value)}
-          >
-            {budgetOptions.map((option) => (
-              <option key={`range-${option.value}`} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </CustomSelect>
+            <SectionCard>
+              <SectionHeader>
+                <SectionIcon>
+                  <MapPin size={18} />
+                </SectionIcon>
+                <SectionHeaderText>
+                  <SectionCardTitle>Where should we search?</SectionCardTitle>
+                </SectionHeaderText>
+              </SectionHeader>
+              <TripleFieldGrid>
+                <CustomSelect
+                  id="inquiry-state"
+                  name="state_region"
+                  label={tr("inquiry.state")}
+                  value={stateRegion}
+                  onChange={(value) => {
+                    setStateRegion(value);
+                    setDistrict("");
+                    setTownship("");
+                  }}
+                >
+                  {stateOptions.map((state) => (
+                    <option key={state.pcode} value={state.name_en}>
+                      {state.name_en}
+                    </option>
+                  ))}
+                </CustomSelect>
+                <CustomSelect
+                  id="inquiry-district"
+                  name="district"
+                  label={tr("inquiry.city")}
+                  value={district}
+                  onChange={(value) => {
+                    setDistrict(value);
+                    setTownship("");
+                  }}
+                  disabled={!stateRegion}
+                >
+                  {districtOptions.map((item) => (
+                    <option key={item.pcode} value={item.name_en}>
+                      {item.name_en}
+                    </option>
+                  ))}
+                </CustomSelect>
+                <CustomSelect
+                  id="inquiry-township"
+                  name="township"
+                  label={tr("inquiry.township")}
+                  value={township}
+                  onChange={(value) => setTownship(value)}
+                  disabled={!district}
+                >
+                  {townshipOptions.map((item) => (
+                    <option key={item.pcode} value={item.name_en}>
+                      {item.name_en}
+                    </option>
+                  ))}
+                </CustomSelect>
+              </TripleFieldGrid>
+            </SectionCard>
 
-          <CustomSelect
-            id="inquiry-timeline"
-            name="timeline"
-            label={t("inquiry.timeline")}
-            value={timeline}
-            onChange={(value) => setTimeline(value)}
-          >
-            <option value="asap">{t("inquiry.timeline.asap")}</option>
-            <option value="1-3">{t("inquiry.timeline.oneThree")}</option>
-            <option value="3-6">{t("inquiry.timeline.threeSix")}</option>
-            <option value="browsing">{t("inquiry.timeline.browsing")}</option>
-          </CustomSelect>
+            <SectionCard>
+              <SectionHeader>
+                <SectionIcon>
+                  <Wallet size={18} />
+                </SectionIcon>
+                <SectionHeaderText>
+                  <SectionCardTitle>Budget and timing</SectionCardTitle>
+                </SectionHeaderText>
+              </SectionHeader>
+              <InlineFieldGrid>
+                <CustomSelect
+                  id="inquiry-budget-range"
+                  name="budget_range"
+                  label={tr("inquiry.budgetRange")}
+                  value={budgetRange}
+                  onChange={(value) => setBudgetRange(value)}
+                >
+                  {budgetOptions.map((option) => (
+                    <option key={`range-${option.value}`} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </CustomSelect>
 
-          <FieldGroup>
-            <CustomInput
-              id="inquiry-area-sqft"
-              label={t("inquiry.areaSqft")}
-              name="area_sqft"
-              value={areaSqft}
-              onChange={(event) => setAreaSqft(event.target.value)}
-            />
-            {showBedBathFields && (
-              <>
+                <CustomSelect
+                  id="inquiry-timeline"
+                  name="timeline"
+                  label={tr("inquiry.timeline")}
+                  value={timeline}
+                  onChange={(value) => setTimeline(value)}
+                >
+                  <option value="asap">{tr("inquiry.timeline.asap")}</option>
+                  <option value="1-3">{tr("inquiry.timeline.oneThree")}</option>
+                  <option value="3-6">{tr("inquiry.timeline.threeSix")}</option>
+                  <option value="browsing">{tr("inquiry.timeline.browsing")}</option>
+                </CustomSelect>
+              </InlineFieldGrid>
+            </SectionCard>
+
+            <SectionCard>
+              <SectionHeader>
+                <SectionIcon>
+                  <Ruler size={18} />
+                </SectionIcon>
+                <SectionHeaderText>
+                  <SectionCardTitle>Space requirements</SectionCardTitle>
+                </SectionHeaderText>
+              </SectionHeader>
+              <SpaceFieldGrid>
                 <CustomInput
-                  id="inquiry-bedrooms"
-                  label={t("inquiry.bedrooms")}
-                  name="bedrooms"
-                  value={bedrooms}
-                  onChange={(event) => setBedrooms(event.target.value)}
+                  id="inquiry-area-sqft"
+                  label={tr("inquiry.areaSqft")}
+                  name="area_sqft"
+                  value={areaSqft}
+                  onChange={(event) => setAreaSqft(event.target.value)}
                 />
-                <CustomInput
-                  id="inquiry-bathrooms"
-                  label={t("inquiry.bathrooms")}
-                  name="bathrooms"
-                  value={bathrooms}
-                  onChange={(event) => setBathrooms(event.target.value)}
-                />
-              </>
+                {showBedBathFields ? (
+                  <>
+                    <CustomInput
+                      id="inquiry-bedrooms"
+                      label={tr("inquiry.bedrooms")}
+                      name="bedrooms"
+                      value={bedrooms}
+                      onChange={(event) => setBedrooms(event.target.value)}
+                    />
+                    <CustomInput
+                      id="inquiry-bathrooms"
+                      label={tr("inquiry.bathrooms")}
+                      name="bathrooms"
+                      value={bathrooms}
+                      onChange={(event) => setBathrooms(event.target.value)}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <ChoiceCard type="button" $active={false} style={{ cursor: "default", gridColumn: "span 2" }}>
+                      <ChoiceTop>
+                        <ChoiceIcon>
+                          {propertyTypeIconMap[propertyType] ?? <Building2 size={18} />}
+                        </ChoiceIcon>
+                        <ChoiceTitle>{propertyTypeOptions.find((option) => option.value === propertyType)?.label || formatPropertyTypeValue(propertyType)}</ChoiceTitle>
+                      </ChoiceTop>
+                      <ChoiceCheck $active={false} />
+                    </ChoiceCard>
+                  </>
+                )}
+              </SpaceFieldGrid>
+            </SectionCard>
+
+            {showRequirementToggles ? (
+              <SectionCard>
+                <SectionHeader>
+                  <SectionIcon>
+                    <Lightbulb size={18} />
+                  </SectionIcon>
+                  <SectionHeaderText>
+                    <SectionCardTitle>{tr("inquiry.requirements")}</SectionCardTitle>
+                  </SectionHeaderText>
+                </SectionHeader>
+                <TileGrid>
+                  <Tile type="button" $active={needParking} onClick={() => setNeedParking(!needParking)}>
+                    <RequirementIcon>
+                      <CarFront size={16} />
+                    </RequirementIcon>
+                    <RequirementLabel>{tr("inquiry.needParking")}</RequirementLabel>
+                  </Tile>
+                  <Tile type="button" $active={needLift} onClick={() => setNeedLift(!needLift)}>
+                    <RequirementIcon>
+                      <Waves size={16} />
+                    </RequirementIcon>
+                    <RequirementLabel>{tr("inquiry.needLift")}</RequirementLabel>
+                  </Tile>
+                  <Tile type="button" $active={needSolar} onClick={() => setNeedSolar(!needSolar)}>
+                    <RequirementIcon>
+                      <SunMedium size={16} />
+                    </RequirementIcon>
+                    <RequirementLabel>{tr("inquiry.needSolar")}</RequirementLabel>
+                  </Tile>
+                  <Tile type="button" $active={needGenerator} onClick={() => setNeedGenerator(!needGenerator)}>
+                    <RequirementIcon>
+                      <Lightbulb size={16} />
+                    </RequirementIcon>
+                    <RequirementLabel>{tr("inquiry.needGenerator")}</RequirementLabel>
+                  </Tile>
+                </TileGrid>
+              </SectionCard>
+            ) : null}
+
+            {error && <Muted style={{ color: "var(--color-danger)" }}>{error}</Muted>}
+            {success ? (
+              <Muted>{isEdit ? tr("inquiry.updated") : tr("inquiry.thanks")}</Muted>
+            ) : (
+              <PrimaryButton type="button" onClick={handleSubmit} disabled={submitting || loadingEdit}>
+                {loadingEdit
+                  ? tr("common.loading")
+                  : submitting
+                    ? tr("common.submitting")
+                    : isEdit
+                      ? tr("common.saveChanges")
+                      : tr("inquiry.submit")}
+              </PrimaryButton>
             )}
-          </FieldGroup>
-
-          <FieldGroup>
-            <strong>{t("inquiry.requirements")}</strong>
-            <TileGrid>
-              <Tile type="button" $active={needParking} onClick={() => setNeedParking(!needParking)}>
-                {t("inquiry.needParking")}
-              </Tile>
-              <Tile type="button" $active={needLift} onClick={() => setNeedLift(!needLift)}>
-                {t("inquiry.needLift")}
-              </Tile>
-              <Tile type="button" $active={needSolar} onClick={() => setNeedSolar(!needSolar)}>
-                {t("inquiry.needSolar")}
-              </Tile>
-              <Tile
-                type="button"
-                $active={needGenerator}
-                onClick={() => setNeedGenerator(!needGenerator)}
-              >
-                {t("inquiry.needGenerator")}
-              </Tile>
-            </TileGrid>
-          </FieldGroup>
-
-          {error && <Muted style={{ color: "var(--color-danger)" }}>{error}</Muted>}
-          {success ? (
-            <Muted>{isEdit ? t("inquiry.updated") : t("inquiry.thanks")}</Muted>
-          ) : (
-            <PrimaryButton type="button" onClick={handleSubmit} disabled={submitting || loadingEdit}>
-              {loadingEdit
-                ? t("common.loading")
-                : submitting
-                  ? t("common.submitting")
-                  : isEdit
-                    ? t("common.saveChanges")
-                    : t("inquiry.submit")}
-            </PrimaryButton>
-          )}
-        </Panel>
+          </FormCard>
         )}
       </PageShell>
       {(submitting || loadingEdit) && (
         <LoadingOverlay
-          message={loadingEdit ? t("inquiry.loading") : t("inquiry.submitting")}
+          message={loadingEdit ? tr("inquiry.loading") : tr("inquiry.submitting")}
         />
       )}
       {success && (
         <SuccessOverlay>
           <SuccessModal>
-            <strong>{isEdit ? t("inquiry.updated") : t("inquiry.thanks")}</strong>
+            <strong>{isEdit ? tr("inquiry.updated") : tr("inquiry.thanks")}</strong>
             <ActionRow>
               <GhostButton type="button" onClick={() => router.push("/")}>
-                {t("inquiry.browse")}
+                {tr("inquiry.browse")}
               </GhostButton>
               <PrimaryButton type="button" onClick={() => router.push("/account")}>
-                {t("inquiry.goActivities")}
+                {tr("inquiry.goActivities")}
               </PrimaryButton>
             </ActionRow>
           </SuccessModal>

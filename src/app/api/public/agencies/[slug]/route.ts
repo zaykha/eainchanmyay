@@ -71,7 +71,7 @@ export async function GET(_request: Request, context: RouteContext) {
     const { data: properties, error: propertiesError } = await supabase
       .from("properties")
       .select(
-        "id,title,deal_type,property_type,price,currency,state_region,district,township,city,bedrooms,bathrooms,area_sqft,created_at,image_url,cover_image"
+        "id,title,deal_type,property_type,price,currency,state_region,district,township,city,bedrooms,bathrooms,area_sqft,created_at"
       )
       .in("created_by", memberIds)
       .eq("status", "published")

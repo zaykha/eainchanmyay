@@ -140,3 +140,37 @@ export async function PATCH(request: Request) {
 
   return NextResponse.json({ ok: true });
 }
+
+export async function DELETE(request: Request) {
+  const result = await getVendorRequestContext(request);
+  if (!result.ok) {
+    return result.response;
+  }
+
+  const { supabase, vendor } = result.context;
+  let body: { reminder_id?: string } = {};
+
+  try {
+    body = (await request.json()) as typeof body;
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON." }, { status: 400 });
+  }
+
+  const reminderId = body.reminder_id?.trim();
+
+  if (!reminderId) {
+    return NextResponse.json({ error: "Reminder id is required." }, { status: 400 });
+  }
+
+  const { error } = await supabase
+    .from("vendor_lead_reminders")
+    .delete()
+    .eq("id", reminderId)
+    .eq("vendor_id", vendor.id);
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ ok: true });
+}

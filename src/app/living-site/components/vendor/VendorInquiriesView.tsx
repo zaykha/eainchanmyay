@@ -1,14 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import styled from "styled-components";
-import { MapPinned, SearchCheck } from "lucide-react";
+import { MapPinned, Plus, SearchCheck, Trash2, UserRound, X } from "lucide-react";
 import { useAppState } from "@/app/living-site/lib/app-state";
 import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
+import { CustomSelect } from "@/app/living-site/components/form-controls/CustomSelect";
+import { supabase } from "@/app/living-site/lib/supabaseClient";
 
-const Page = styled.div`
+const Page = styled.div<{ $embedded?: boolean }>`
   display: grid;
-  gap: 20px;
+  gap: ${(props) => (props.$embedded ? "16px" : "20px")};
+  min-height: 0;
+  height: 100%;
+  align-content: start;
 `;
 
 const Header = styled.div`
@@ -16,113 +21,297 @@ const Header = styled.div`
   gap: 8px;
 `;
 
-const Title = styled.h1`
+const Title = styled.h1<{ $embedded?: boolean }>`
   margin: 0;
-  font-size: clamp(1.8rem, 3vw, 2.4rem);
-  color: #f8fafc;
+  font-size: ${(props) => (props.$embedded ? "1.34rem" : "clamp(1.8rem, 3vw, 2.4rem)")};
+  color: ${(props) => (props.$embedded ? "var(--color-text)" : "#f8fafc")};
 `;
 
-const Subtitle = styled.p`
+const Subtitle = styled.p<{ $embedded?: boolean }>`
   margin: 0;
-  color: #98a2b3;
+  color: ${(props) => (props.$embedded ? "var(--color-muted)" : "#98a2b3")};
   line-height: 1.6;
   max-width: 860px;
 `;
 
-const List = styled.div`
+const Empty = styled.div<{ $embedded?: boolean }>`
+  border-radius: 24px;
+  border: 1px dashed ${(props) => (props.$embedded ? "var(--color-outline)" : "rgba(255, 255, 255, 0.16)")};
+  background: ${(props) => (props.$embedded ? "color-mix(in srgb, var(--color-surface-2) 80%, white)" : "rgba(255, 255, 255, 0.02)")};
+  padding: 24px;
+  color: ${(props) => (props.$embedded ? "var(--color-muted)" : "#97a0b2")};
+  line-height: 1.65;
+`;
+
+const Notice = styled(Empty)`
+  border-style: solid;
+`;
+
+const UtilityRow = styled.div`
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+`;
+
+const Toolbar = styled.div`
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+  gap: 12px;
+`;
+
+const SearchBar = styled.div`
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) repeat(2, minmax(180px, 0.5fr));
+  gap: 12px;
 
   @media (max-width: 980px) {
     grid-template-columns: 1fr;
   }
 `;
 
-const Card = styled.div`
-  border-radius: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: #151b29;
-  padding: 18px;
-  display: grid;
-  gap: 14px;
+const Input = styled.input`
+  min-height: 44px;
+  border-radius: 14px;
+  border: 1px solid var(--color-outline);
+  background: var(--color-surface);
+  color: var(--color-text);
+  padding: 0 14px;
+  font: inherit;
 `;
 
-const Top = styled.div`
+const SelectField = styled.div`
+  min-width: 180px;
+  flex: 1 1 180px;
+`;
+
+const TabRow = styled.div`
   display: flex;
-  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+`;
+
+const UtilityActions = styled.div`
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+`;
+
+const Tab = styled.button<{ $active?: boolean }>`
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid
+    ${(props) =>
+      props.$active ? "color-mix(in srgb, var(--color-primary) 26%, var(--color-outline))" : "var(--color-outline)"};
+  background: ${(props) => (props.$active ? "color-mix(in srgb, var(--color-primary) 10%, white)" : "var(--color-surface)")};
+  color: ${(props) => (props.$active ? "var(--color-primary)" : "var(--color-text)")};
+  font-weight: 700;
+  cursor: pointer;
+`;
+
+const Shell = styled.div`
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(320px, 0.92fr) minmax(0, 1.08fr);
+  align-items: start;
+  min-height: 0;
+  height: 100%;
+
+  @media (max-width: 1100px) {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+`;
+
+const Panel = styled.div`
+  border: 1px solid var(--color-outline);
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--color-surface-2) 82%, white);
+  padding: 16px;
+  display: grid;
+  gap: 14px;
+  min-height: 0;
+`;
+
+const ScrollPanel = styled(Panel)`
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  grid-template-rows: auto minmax(0, 1fr);
+`;
+
+const PanelScrollBody = styled.div`
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+  display: grid;
+  gap: 14px;
+  align-content: start;
+`;
+
+const PanelHeader = styled.div`
+  display: flex;
   align-items: flex-start;
+  justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
 `;
 
-const Heading = styled.div`
+const PanelTitleWrap = styled.div`
+  display: grid;
+  gap: 4px;
+`;
+
+const PanelTitle = styled.h2`
+  margin: 0;
+  color: var(--color-text);
+  font-size: 1rem;
+`;
+
+const PanelCopy = styled.p`
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.86rem;
+  line-height: 1.5;
+`;
+
+const LeadList = styled.div`
+  display: grid;
+  gap: 10px;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+`;
+
+const LeadRow = styled.button<{ $active?: boolean }>`
+  border: 1px solid
+    ${(props) =>
+      props.$active ? "color-mix(in srgb, var(--color-primary) 24%, var(--color-outline))" : "var(--color-outline)"};
+  border-radius: 18px;
+  background: ${(props) => (props.$active ? "color-mix(in srgb, var(--color-primary) 8%, white)" : "var(--color-surface)")};
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-soft);
+    border-color: color-mix(in srgb, var(--color-primary) 20%, var(--color-outline));
+  }
+`;
+
+const LeadTop = styled.div`
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+`;
+
+const LeadMain = styled.div`
   display: grid;
   gap: 6px;
+  min-width: 0;
 `;
 
-const Name = styled.div`
-  color: #f8fafc;
-  font-weight: 700;
-  font-size: 1.02rem;
+const LeadTitle = styled.strong`
+  color: var(--color-text);
+  font-size: 0.95rem;
+  line-height: 1.35;
 `;
 
-const Meta = styled.div`
-  color: #98a2b3;
-  font-size: 0.92rem;
-  line-height: 1.45;
+const LeadMeta = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  color: var(--color-muted);
+  font-size: 0.8rem;
+`;
+
+const LeadUnreadDot = styled.span`
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--color-primary);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-primary) 14%, transparent);
+  flex: 0 0 auto;
+`;
+
+const LeadSummary = styled.div`
+  display: grid;
+  gap: 6px;
+  color: var(--color-muted);
+  font-size: 0.82rem;
 `;
 
 const StatusPill = styled.span<{ $status: string }>`
-  min-height: 30px;
+  min-height: 28px;
   padding: 0 10px;
   border-radius: 999px;
   display: inline-flex;
   align-items: center;
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   font-weight: 800;
   background: ${(props) =>
     props.$status === "closed"
-      ? "rgba(84, 214, 113, 0.16)"
+      ? "rgba(16, 185, 129, 0.14)"
       : props.$status === "lost"
-        ? "rgba(255, 113, 144, 0.16)"
+        ? "rgba(239, 68, 68, 0.12)"
         : props.$status === "qualified"
-          ? "rgba(111, 155, 255, 0.16)"
+          ? "rgba(59, 130, 246, 0.12)"
           : props.$status === "contacted"
-            ? "rgba(255, 210, 92, 0.16)"
-            : "rgba(255, 255, 255, 0.08)"};
+            ? "rgba(245, 158, 11, 0.14)"
+            : "color-mix(in srgb, var(--color-surface-2) 88%, white)"};
   color: ${(props) =>
     props.$status === "closed"
-      ? "#d6ffe2"
+      ? "#047857"
       : props.$status === "lost"
-        ? "#ffd8df"
+        ? "#b91c1c"
         : props.$status === "qualified"
-          ? "#dce8ff"
+          ? "#1d4ed8"
           : props.$status === "contacted"
-            ? "#fff2c7"
-            : "#e7edf8"};
+            ? "#b45309"
+            : "var(--color-text)"};
 `;
 
-const Rows = styled.div`
+const InlineGrid = styled.div`
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+
+  @media (max-width: 760px) {
+    grid-template-columns: 1fr;
+  }
 `;
 
-const Row = styled.div`
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  align-items: flex-start;
+const SummaryCard = styled.div`
+  border: 1px solid var(--color-outline);
+  border-radius: 16px;
+  background: var(--color-surface);
+  padding: 12px 14px;
+  display: grid;
+  gap: 4px;
 `;
 
-const Label = styled.span`
-  color: #98a2b3;
+const SummaryLabel = styled.span`
+  color: var(--color-muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 `;
 
-const Value = styled.span`
-  color: #e7edf8;
-  font-weight: 600;
-  text-align: right;
+const SummaryValue = styled.strong`
+  color: var(--color-text);
+  font-size: 0.92rem;
+  line-height: 1.4;
 `;
 
 const Chips = styled.div`
@@ -132,25 +321,16 @@ const Chips = styled.div`
 `;
 
 const Chip = styled.span`
-  min-height: 30px;
+  min-height: 32px;
   padding: 0 10px;
   border-radius: 999px;
   display: inline-flex;
   align-items: center;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: #d8deea;
-  font-size: 0.82rem;
+  border: 1px solid var(--color-outline);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 0.8rem;
   font-weight: 600;
-`;
-
-const Empty = styled.div`
-  border-radius: 24px;
-  border: 1px dashed rgba(255, 255, 255, 0.16);
-  background: rgba(255, 255, 255, 0.02);
-  padding: 24px;
-  color: #97a0b2;
-  line-height: 1.65;
 `;
 
 const Controls = styled.div`
@@ -160,32 +340,16 @@ const Controls = styled.div`
   align-items: center;
 `;
 
-const Select = styled.select`
-  min-height: 40px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: #101522;
-  color: #f8fafc;
-  padding: 0 12px;
-`;
-
-const Input = styled.input`
-  min-height: 40px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: #101522;
-  color: #f8fafc;
-  padding: 0 12px;
-`;
-
 const Textarea = styled.textarea`
-  min-height: 90px;
+  min-height: 100px;
   border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: #101522;
-  color: #f8fafc;
-  padding: 12px;
-  resize: vertical;
+  border: 1px solid var(--color-outline);
+  background: var(--color-surface);
+  color: var(--color-text);
+  padding: 12px 14px;
+  resize: none;
+  overflow-y: auto;
+  font: inherit;
 `;
 
 const Section = styled.div`
@@ -193,22 +357,22 @@ const Section = styled.div`
   gap: 10px;
 `;
 
-const SectionTitle = styled.h2`
+const SectionTitle = styled.h3`
   margin: 0;
   font-size: 0.95rem;
-  color: #f3f4f6;
+  color: var(--color-text);
 `;
 
 const Button = styled.button<{ $primary?: boolean }>`
-  min-height: 40px;
-  padding: 0 14px;
-  border-radius: 999px;
-  border: ${(props) => (props.$primary ? "none" : "1px solid rgba(255, 255, 255, 0.12)")};
-  background: ${(props) =>
-    props.$primary ? "linear-gradient(135deg, #ff3d5d 0%, #e91b42 100%)" : "transparent"};
-  color: #fff;
+  min-height: 42px;
+  padding: 10px 16px;
+  border-radius: var(--radius-md);
+  border: ${(props) => (props.$primary ? "1px solid rgba(0, 0, 0, 0.12)" : "1px solid var(--color-outline)")};
+  background: ${(props) => (props.$primary ? "var(--gradient)" : "var(--color-surface)")};
+  color: ${(props) => (props.$primary ? "#fff" : "var(--color-text)")};
   font-weight: 700;
   cursor: pointer;
+  box-shadow: ${(props) => (props.$primary ? "var(--frame-shadow)" : "none")};
 `;
 
 const NoteList = styled.div`
@@ -216,18 +380,116 @@ const NoteList = styled.div`
   gap: 8px;
 `;
 
+const SettingsPanel = styled(Panel)`
+  gap: 12px;
+  height: 100%;
+  min-height: 0;
+  align-content: start;
+`;
+
+const ToolsLayout = styled.div`
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 0.9fr) minmax(280px, 1.1fr);
+  min-height: 0;
+  height: 100%;
+  align-items: stretch;
+
+  @media (max-width: 980px) {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+`;
+
+const ToolsScrollSection = styled.div`
+  min-height: 0;
+  height: 100%;
+  max-height: 100%;
+  overflow-y: auto;
+  padding-right: 4px;
+  display: grid;
+  gap: 10px;
+  align-content: start;
+`;
+
 const NoteItem = styled.div`
   border-radius: 14px;
-  background: #101522;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--color-surface);
+  border: 1px solid var(--color-outline);
   padding: 10px 12px;
   display: grid;
   gap: 6px;
 `;
 
+const NoteTop = styled.div`
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+`;
+
+const IconButton = styled.button`
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid var(--color-outline);
+  background: var(--color-surface);
+  color: var(--color-text);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+`;
+
+const SectionHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+`;
+
+const ModalOverlay = styled.div`
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.4);
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  z-index: 120;
+`;
+
+const ModalCard = styled.div`
+  width: min(620px, 100%);
+  max-height: min(84vh, 760px);
+  overflow: hidden;
+  border: 1px solid var(--color-outline);
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--color-surface-2) 92%, white);
+  box-shadow: var(--shadow-soft);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+`;
+
+const ModalHeader = styled.div`
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 16px 0;
+`;
+
+const ModalBody = styled.div`
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+  align-content: start;
+`;
+
 const SmallText = styled.div`
-  color: #9aa4b6;
-  font-size: 0.82rem;
+  color: var(--color-muted);
+  font-size: 0.8rem;
   line-height: 1.5;
 `;
 
@@ -241,6 +503,7 @@ type InquiryItem = {
   assigned_member_name: string | null;
   pipeline_stage: string;
   last_contacted_at: string | null;
+  last_activity_at: string | null;
   sla_due_at: string | null;
   deal_type: string | null;
   property_type: string | null;
@@ -256,7 +519,9 @@ type InquiryItem = {
   need_lift: boolean | null;
   need_solar: boolean | null;
   need_generator: boolean | null;
+  contact_number: string | null;
   created_at: string | null;
+  is_unread?: boolean;
   notes: Array<{
     id: string;
     body: string;
@@ -294,6 +559,15 @@ type InquiriesPayload = {
   error?: string;
 };
 
+type InquiryTabKey = "all" | "new" | "unassigned" | "overdue" | "qualified" | "mine";
+
+type VendorInquiriesViewProps = {
+  embedded?: boolean;
+  hideHeader?: boolean;
+  title?: string;
+  subtitle?: string;
+};
+
 function labelize(value: string | null | undefined) {
   if (!value) return "Unknown";
   return value
@@ -328,6 +602,19 @@ function formatDate(value: string | null | undefined) {
   }).format(date);
 }
 
+function formatDateTime(value: string | null | undefined) {
+  if (!value) return "Not set";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Not set";
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
+}
+
 function buildRequirementChips(item: InquiryItem) {
   const chips: string[] = [];
   if (item.bedrooms) chips.push(`${item.bedrooms}+ beds`);
@@ -357,6 +644,15 @@ const pipelineStageOptions = [
   { value: "lost", label: "Lost" },
 ];
 
+const inboxTabs: Array<{ key: InquiryTabKey; label: string }> = [
+  { key: "all", label: "All leads" },
+  { key: "new", label: "New" },
+  { key: "unassigned", label: "Unassigned" },
+  { key: "overdue", label: "Overdue" },
+  { key: "qualified", label: "Qualified" },
+  { key: "mine", label: "Assigned to me" },
+];
+
 function formatStatus(value: string | null | undefined) {
   return statusOptions.find((option) => option.value === value)?.label ?? "New";
 }
@@ -365,21 +661,23 @@ function formatPipelineStage(value: string | null | undefined) {
   return pipelineStageOptions.find((option) => option.value === value)?.label ?? "New Lead";
 }
 
-function formatDateTime(value: string | null | undefined) {
-  if (!value) return "Not set";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Not set";
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(date);
+function formatLocation(item: InquiryItem) {
+  return [item.township, item.district, item.state_region].filter(Boolean).join(" / ") || "Location pending";
 }
 
-export function VendorInquiriesView() {
-  const { authToken } = useAppState();
+function isOverdue(item: InquiryItem) {
+  if (!item.sla_due_at) return false;
+  const due = new Date(item.sla_due_at).getTime();
+  return !Number.isNaN(due) && due < Date.now() && !["closed", "lost"].includes(item.status);
+}
+
+export function VendorInquiriesView({
+  embedded = false,
+  hideHeader = false,
+  title = "Inquiries",
+  subtitle = "Buyer and renter leads routed into your vendor workspace from the marketplace inquiry flow.",
+}: VendorInquiriesViewProps = {}) {
+  const { authToken, user } = useAppState();
   const [items, setItems] = useState<InquiryItem[]>([]);
   const [assignees, setAssignees] = useState<AssigneeOption[]>([]);
   const [membershipRole, setMembershipRole] = useState<string | null>(null);
@@ -388,10 +686,17 @@ export function VendorInquiriesView() {
   const [error, setError] = useState<string | null>(null);
   const [savingLeadId, setSavingLeadId] = useState<string | null>(null);
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
-  const [reminderDrafts, setReminderDrafts] = useState<Record<string, { remindAt: string; note: string; assignedUserId: string }>>({});
   const [templateTitle, setTemplateTitle] = useState("");
   const [templateBody, setTemplateBody] = useState("");
   const [creatingTemplate, setCreatingTemplate] = useState(false);
+  const [activeTab, setActiveTab] = useState<InquiryTabKey>("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [assigneeFilter, setAssigneeFilter] = useState("all");
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [noteModalOpen, setNoteModalOpen] = useState(false);
+  const [refreshVersion, setRefreshVersion] = useState(0);
 
   useEffect(() => {
     if (!authToken) return;
@@ -411,10 +716,12 @@ export function VendorInquiriesView() {
           throw new Error(payload?.error || "Unable to load inquiries.");
         }
         if (!cancelled) {
-          setItems(payload.items ?? []);
+          const nextItems = payload.items ?? [];
+          setItems(nextItems);
           setAssignees(payload.assignees ?? []);
           setMembershipRole(payload.membershipRole ?? null);
           setTemplates(payload.templates ?? []);
+          setSelectedLeadId((current) => current ?? nextItems[0]?.lead_id ?? null);
         }
       } catch (err) {
         if (!cancelled) {
@@ -431,7 +738,98 @@ export function VendorInquiriesView() {
     return () => {
       cancelled = true;
     };
-  }, [authToken]);
+  }, [authToken, refreshVersion]);
+
+  useEffect(() => {
+    if (!authToken || !user?.id) return;
+
+    const channel = supabase
+      .channel(`vendor-leads-${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "vendor_inquiry_leads" },
+        () => setRefreshVersion((current) => current + 1)
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "vendor_lead_notes" },
+        () => setRefreshVersion((current) => current + 1)
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "vendor_lead_reads" },
+        () => setRefreshVersion((current) => current + 1)
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [authToken, user?.id]);
+
+  const filteredItems = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    return items.filter((item) => {
+      if (activeTab === "new" && item.status !== "new") return false;
+      if (activeTab === "unassigned" && item.assigned_member_user_id) return false;
+      if (activeTab === "overdue" && !isOverdue(item)) return false;
+      if (activeTab === "qualified" && item.pipeline_stage !== "qualified" && item.status !== "qualified") return false;
+      if (activeTab === "mine" && (!user?.id || item.assigned_member_user_id !== user.id)) return false;
+      if (statusFilter !== "all" && item.status !== statusFilter) return false;
+      if (assigneeFilter === "unassigned" && item.assigned_member_user_id) return false;
+      if (assigneeFilter !== "all" && assigneeFilter !== "unassigned" && item.assigned_member_user_id !== assigneeFilter) return false;
+      if (!query) return true;
+
+      const haystack = [
+        labelize(item.deal_type),
+        labelize(item.property_type),
+        item.budget_range,
+        item.timeline,
+        item.assigned_member_name,
+        item.state_region,
+        item.district,
+        item.township,
+        ...item.notes.map((note) => note.body),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return haystack.includes(query);
+    });
+  }, [activeTab, assigneeFilter, items, searchQuery, statusFilter, user?.id]);
+
+  useEffect(() => {
+    if (!filteredItems.length) {
+      setSelectedLeadId(null);
+      return;
+    }
+    if (!selectedLeadId || !filteredItems.some((item) => item.lead_id === selectedLeadId)) {
+      setSelectedLeadId(filteredItems[0].lead_id);
+    }
+  }, [filteredItems, selectedLeadId]);
+
+  const selectedLead = useMemo(
+    () => filteredItems.find((item) => item.lead_id === selectedLeadId) ?? null,
+    [filteredItems, selectedLeadId]
+  );
+
+  useEffect(() => {
+    if (!authToken || !selectedLead?.lead_id || !selectedLead.is_unread) return;
+
+    setItems((current) =>
+      current.map((item) => (item.lead_id === selectedLead.lead_id ? { ...item, is_unread: false } : item))
+    );
+
+    void fetch("/api/vendor/inquiries/read", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({ lead_id: selectedLead.lead_id }),
+    }).catch(() => undefined);
+  }, [authToken, selectedLead?.is_unread, selectedLead?.lead_id]);
 
   const handleAddNote = async (leadId: string) => {
     if (!authToken) return;
@@ -465,92 +863,6 @@ export function VendorInquiriesView() {
       setNoteDrafts((current) => ({ ...current, [leadId]: "" }));
     } catch (noteError) {
       setError(noteError instanceof Error ? noteError.message : "Unable to save note.");
-    } finally {
-      setSavingLeadId(null);
-    }
-  };
-
-  const handleAddReminder = async (leadId: string) => {
-    if (!authToken) return;
-    const draft = reminderDrafts[leadId];
-    if (!draft?.remindAt) return;
-
-    setSavingLeadId(leadId);
-    setError(null);
-    try {
-      const response = await fetch("/api/vendor/inquiry-reminders", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${authToken}`,
-        },
-        body: JSON.stringify({
-          lead_id: leadId,
-          remind_at: new Date(draft.remindAt).toISOString(),
-          assigned_user_id: draft.assignedUserId || null,
-          note: draft.note || null,
-        }),
-      });
-
-      const payload = (await response.json().catch(() => null)) as
-        | { error?: string; reminder?: InquiryItem["reminders"][number] }
-        | null;
-      if (!response.ok || !payload?.reminder) {
-        throw new Error(payload?.error || "Unable to create reminder.");
-      }
-
-      setItems((current) =>
-        current.map((item) =>
-          item.lead_id === leadId ? { ...item, reminders: [...item.reminders, payload.reminder!] } : item
-        )
-      );
-      setReminderDrafts((current) => ({
-        ...current,
-        [leadId]: { remindAt: "", note: "", assignedUserId: "" },
-      }));
-    } catch (reminderError) {
-      setError(reminderError instanceof Error ? reminderError.message : "Unable to create reminder.");
-    } finally {
-      setSavingLeadId(null);
-    }
-  };
-
-  const handleReminderStatus = async (leadId: string, reminderId: string, status: string) => {
-    if (!authToken) return;
-    setSavingLeadId(leadId);
-    setError(null);
-    try {
-      const response = await fetch("/api/vendor/inquiry-reminders", {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${authToken}`,
-        },
-        body: JSON.stringify({
-          reminder_id: reminderId,
-          status,
-        }),
-      });
-
-      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-      if (!response.ok) {
-        throw new Error(payload?.error || "Unable to update reminder.");
-      }
-
-      setItems((current) =>
-        current.map((item) =>
-          item.lead_id === leadId
-            ? {
-                ...item,
-                reminders: item.reminders.map((reminder) =>
-                  reminder.id === reminderId ? { ...reminder, status } : reminder
-                ),
-              }
-            : item
-        )
-      );
-    } catch (reminderError) {
-      setError(reminderError instanceof Error ? reminderError.message : "Unable to update reminder.");
     } finally {
       setSavingLeadId(null);
     }
@@ -615,6 +927,7 @@ export function VendorInquiriesView() {
                     assigned_member_user_id: updates.assigned_member_user_id,
                     assigned_member_name:
                       assignees.find((assignee) => assignee.user_id === updates.assigned_member_user_id)?.full_name ??
+                      assignees.find((assignee) => assignee.user_id === updates.assigned_member_user_id)?.email ??
                       null,
                   }
                 : {}),
@@ -648,227 +961,425 @@ export function VendorInquiriesView() {
     }
   };
 
+  const handleDeleteNote = async (leadId: string, noteId: string) => {
+    if (!authToken) return;
+    setSavingLeadId(leadId);
+    setError(null);
+    try {
+      const response = await fetch("/api/vendor/inquiry-notes", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({ note_id: noteId }),
+      });
+      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+      if (!response.ok) {
+        throw new Error(payload?.error || "Unable to delete note.");
+      }
+      setItems((current) =>
+        current.map((item) =>
+          item.lead_id === leadId ? { ...item, notes: item.notes.filter((note) => note.id !== noteId) } : item
+        )
+      );
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : "Unable to delete note.");
+    } finally {
+      setSavingLeadId(null);
+    }
+  };
+
   if (loading) {
     return <LoadingOverlay message="Loading inquiries..." />;
   }
 
+  const canManageTemplates = membershipRole === "owner" || membershipRole === "admin";
+  const showEmptyPreview = !error && !items.length;
+
   return (
-    <Page>
-      <Header>
-        <Title>Inquiries</Title>
-        <Subtitle>Buyer and renter leads routed into your vendor workspace from the marketplace inquiry flow.</Subtitle>
-      </Header>
+    <Page $embedded={embedded}>
+      {!hideHeader ? (
+        <Header>
+          <Title $embedded={embedded}>{title}</Title>
+          <Subtitle $embedded={embedded}>{subtitle}</Subtitle>
+        </Header>
+      ) : null}
 
-      {error ? <Empty>{error}</Empty> : null}
+      {error ? <Notice $embedded={embedded}>{error}</Notice> : null}
 
-      {!error && !items.length ? (
-        <Empty>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 8, color: "#e5e7eb", fontWeight: 700 }}>
-            <SearchCheck size={16} />
-            <span>No inquiry leads yet.</span>
-          </div>
-          New marketplace inquiries routed to your vendor will appear here.
-        </Empty>
+      {showEmptyPreview ? (
+        <>
+          <Toolbar style={{ opacity: 0.72 }}>
+            <UtilityRow>
+              <TabRow>
+                {inboxTabs.map((tab, index) => (
+                  <Tab key={tab.key} type="button" $active={index === 0} disabled>
+                    {tab.label}
+                  </Tab>
+                ))}
+              </TabRow>
+            </UtilityRow>
+            <SearchBar style={{ opacity: 0.82 }}>
+              <Input value="" placeholder="Search leads, location, budget, notes" readOnly />
+              <SelectField>
+                <CustomSelect id="lead-inbox-preview-status-filter" name="lead-inbox-preview-status-filter" label="Status" hideLabel value="all" onChange={() => undefined} disabled>
+                  <option value="all">All statuses</option>
+                </CustomSelect>
+              </SelectField>
+              <SelectField>
+                <CustomSelect id="lead-inbox-preview-assignee-filter" name="lead-inbox-preview-assignee-filter" label="Assignee" hideLabel value="all" onChange={() => undefined} disabled>
+                  <option value="all">All assignees</option>
+                </CustomSelect>
+              </SelectField>
+            </SearchBar>
+          </Toolbar>
+
+          <Shell style={{ opacity: 0.84 }}>
+            <ScrollPanel>
+              <PanelHeader>
+                <PanelTitleWrap>
+                  <PanelTitle>Lead queue</PanelTitle>
+                </PanelTitleWrap>
+              </PanelHeader>
+              <PanelScrollBody>
+                <Empty $embedded>
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 8, color: "var(--color-text)", fontWeight: 700 }}>
+                    <SearchCheck size={16} />
+                    <span>Lead queue is empty.</span>
+                  </div>
+                </Empty>
+              </PanelScrollBody>
+            </ScrollPanel>
+
+            <ScrollPanel>
+              <PanelScrollBody>
+                <Empty $embedded>
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 8, color: "var(--color-text)", fontWeight: 700 }}>
+                    <UserRound size={16} />
+                    <span>Select a lead.</span>
+                  </div>
+                </Empty>
+              </PanelScrollBody>
+            </ScrollPanel>
+          </Shell>
+        </>
       ) : null}
 
       {!!items.length && (
         <>
-          {(membershipRole === "owner" || membershipRole === "admin") && (
-            <Card>
-              <Section>
-                <SectionTitle>Message templates</SectionTitle>
-                <SmallText>Templates help your team respond faster and keep follow-ups consistent.</SmallText>
-                <Input
-                  value={templateTitle}
-                  onChange={(event) => setTemplateTitle(event.target.value)}
-                  placeholder="Template title"
-                />
-                <Textarea
-                  value={templateBody}
-                  onChange={(event) => setTemplateBody(event.target.value)}
-                  placeholder="Template message body"
-                />
-                <Controls>
-                  <Button type="button" $primary onClick={() => void handleCreateTemplate()} disabled={creatingTemplate}>
-                    {creatingTemplate ? "Saving template..." : "Save template"}
-                  </Button>
-                </Controls>
-                {templates.length ? (
-                  <NoteList>
-                    {templates.slice(0, 5).map((template) => (
-                      <NoteItem key={template.id}>
-                        <strong style={{ color: "#f8fafc" }}>{template.title}</strong>
-                        <SmallText>{template.body}</SmallText>
-                      </NoteItem>
+          {canManageTemplates && settingsOpen ? (
+            <ScrollPanel>
+              <PanelHeader>
+                <PanelTitleWrap>
+                  <PanelTitle>Inbox tools</PanelTitle>
+                  <PanelCopy>Manage reusable message templates for lead follow-up.</PanelCopy>
+                </PanelTitleWrap>
+                <Button type="button" onClick={() => setSettingsOpen(false)}>
+                  Close tools
+                </Button>
+              </PanelHeader>
+              <PanelScrollBody>
+                <ToolsLayout>
+                  <SettingsPanel style={{ gridTemplateRows: "auto auto minmax(0, 1fr) auto", overflow: "hidden" }}>
+                    <PanelTitleWrap>
+                      <PanelTitle>Create template</PanelTitle>
+                      <PanelCopy>Write a reusable follow-up message for the team.</PanelCopy>
+                    </PanelTitleWrap>
+                    <Input
+                      value={templateTitle}
+                      onChange={(event) => setTemplateTitle(event.target.value)}
+                      placeholder="Template title"
+                    />
+                    <Textarea
+                      value={templateBody}
+                      onChange={(event) => setTemplateBody(event.target.value)}
+                      placeholder="Template message body"
+                      style={{ minHeight: 0, height: "100%" }}
+                    />
+                    <Controls>
+                      <Button type="button" $primary onClick={() => void handleCreateTemplate()} disabled={creatingTemplate}>
+                        {creatingTemplate ? "Saving template..." : "Save template"}
+                      </Button>
+                    </Controls>
+                  </SettingsPanel>
+
+                  <SettingsPanel style={{ minHeight: 0, overflow: "hidden", gridTemplateRows: "auto minmax(0, 1fr)" }}>
+                    <PanelTitleWrap>
+                      <PanelTitle>Saved templates</PanelTitle>
+                      <PanelCopy>Available for quick insertion when working a lead.</PanelCopy>
+                    </PanelTitleWrap>
+                    {templates.length ? (
+                      <ToolsScrollSection>
+                        <NoteList>
+                          {templates.map((template) => (
+                            <NoteItem key={template.id}>
+                              <strong style={{ color: "var(--color-text)" }}>{template.title}</strong>
+                              <SmallText>{template.body}</SmallText>
+                            </NoteItem>
+                          ))}
+                        </NoteList>
+                      </ToolsScrollSection>
+                    ) : (
+                      <SmallText>No templates yet.</SmallText>
+                    )}
+                  </SettingsPanel>
+                </ToolsLayout>
+              </PanelScrollBody>
+            </ScrollPanel>
+          ) : (
+            <>
+              <Toolbar>
+                <UtilityRow>
+                  <TabRow>
+                    {inboxTabs.map((tab) => (
+                      <Tab key={tab.key} type="button" $active={activeTab === tab.key} onClick={() => setActiveTab(tab.key)}>
+                        {tab.label}
+                      </Tab>
                     ))}
-                  </NoteList>
-                ) : (
-                  <SmallText>No templates yet.</SmallText>
-                )}
-              </Section>
-            </Card>
-          )}
-
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <Chip>{items.length} routed leads</Chip>
-            <Chip>{items.filter((item) => item.status === "new").length} new</Chip>
-            <Chip>{items.filter((item) => item.assigned_member_user_id).length} assigned</Chip>
-            <Chip>{items.filter((item) => item.sla_due_at && new Date(item.sla_due_at).getTime() < Date.now()).length} overdue</Chip>
-          </div>
-
-          <List>
-            {items.map((item) => {
-              const requirements = buildRequirementChips(item);
-              const location = [item.township, item.district, item.state_region].filter(Boolean).join(" / ");
-
-              return (
-                <Card key={item.lead_id}>
-                  <Top>
-                    <Heading>
-                      <Name>
-                        {labelize(item.deal_type)} {labelize(item.property_type)}
-                      </Name>
-                      <Meta>
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                          <MapPinned size={14} />
-                          {location || "Location pending"}
-                        </span>
-                      </Meta>
-                    </Heading>
-                    <StatusPill $status={item.status}>{formatStatus(item.status)}</StatusPill>
-                  </Top>
-
-                  <Rows>
-                    <Row>
-                      <Label>Budget</Label>
-                      <Value>{item.budget_range || "Not specified"}</Value>
-                    </Row>
-                    <Row>
-                      <Label>Timeline</Label>
-                      <Value>{formatTimeline(item.timeline)}</Value>
-                    </Row>
-                    <Row>
-                      <Label>Created</Label>
-                      <Value>{formatDate(item.created_at)}</Value>
-                    </Row>
-                    <Row>
-                      <Label>Assigned</Label>
-                      <Value>{item.assigned_member_name || "Unassigned"}</Value>
-                    </Row>
-                    <Row>
-                      <Label>Stage</Label>
-                      <Value>{formatPipelineStage(item.pipeline_stage)}</Value>
-                    </Row>
-                    <Row>
-                      <Label>SLA due</Label>
-                      <Value>{formatDateTime(item.sla_due_at)}</Value>
-                    </Row>
-                  </Rows>
-
-                  <Controls>
-                    <Select
-                      value={item.status}
-                      onChange={(event) => void handleUpdateLead(item.lead_id, { status: event.target.value })}
-                      disabled={savingLeadId === item.lead_id}
+                  </TabRow>
+                </UtilityRow>
+                <SearchBar>
+                  <Input
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                    placeholder="Search leads, location, budget, notes"
+                  />
+                  <SelectField>
+                    <CustomSelect
+                      id="lead-inbox-status-filter"
+                      name="lead-inbox-status-filter"
+                      label="Status"
+                      hideLabel
+                      value={statusFilter}
+                      onChange={setStatusFilter}
                     >
+                      <option value="all">All statuses</option>
                       {statusOptions.map((option) => (
                         <option key={option.value} value={option.value}>
                           {option.label}
                         </option>
                       ))}
-                    </Select>
-
-                    <Select
-                      value={item.pipeline_stage}
-                      onChange={(event) =>
-                        void handleUpdateLead(item.lead_id, { pipeline_stage: event.target.value })
-                      }
-                      disabled={savingLeadId === item.lead_id}
+                    </CustomSelect>
+                  </SelectField>
+                  <SelectField>
+                    <CustomSelect
+                      id="lead-inbox-assignee-filter"
+                      name="lead-inbox-assignee-filter"
+                      label="Assignee"
+                      hideLabel
+                      value={assigneeFilter}
+                      onChange={setAssigneeFilter}
                     >
-                      {pipelineStageOptions.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
+                      <option value="all">All assignees</option>
+                      <option value="unassigned">Unassigned</option>
+                      {assignees.map((assignee) => (
+                        <option key={assignee.user_id} value={assignee.user_id}>
+                          {assignee.full_name || assignee.email || assignee.user_id}
                         </option>
                       ))}
-                    </Select>
+                    </CustomSelect>
+                  </SelectField>
+                </SearchBar>
+              </Toolbar>
 
-                    {membershipRole === "owner" || membershipRole === "admin" ? (
-                      <Select
-                        value={item.assigned_member_user_id ?? ""}
-                        onChange={(event) =>
-                          void handleUpdateLead(item.lead_id, {
-                            assigned_member_user_id: event.target.value || null,
-                          })
-                        }
-                        disabled={savingLeadId === item.lead_id}
-                      >
-                        <option value="">Unassigned</option>
-                        {assignees.map((assignee) => (
-                          <option key={assignee.user_id} value={assignee.user_id}>
-                            {assignee.full_name || assignee.email || assignee.user_id}
-                          </option>
+              <Shell>
+                <ScrollPanel>
+                  <PanelHeader>
+                    <PanelTitleWrap>
+                      <PanelTitle>Lead queue</PanelTitle>
+                    </PanelTitleWrap>
+                  </PanelHeader>
+                  <PanelScrollBody>
+                    {filteredItems.length ? (
+                      <LeadList>
+                        {filteredItems.map((item) => (
+                          <LeadRow
+                            key={item.lead_id}
+                            type="button"
+                            $active={item.lead_id === selectedLeadId}
+                            onClick={() => setSelectedLeadId(item.lead_id)}
+                          >
+                            <LeadTop>
+                              <LeadMain>
+                                <LeadTitle>
+                                  {labelize(item.deal_type)} {labelize(item.property_type)}
+                                </LeadTitle>
+                                <LeadMeta>
+                                  {item.is_unread ? <LeadUnreadDot aria-hidden="true" /> : null}
+                                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                                    <MapPinned size={14} />
+                                    {formatLocation(item)}
+                                  </span>
+                                </LeadMeta>
+                              </LeadMain>
+                              <StatusPill $status={item.status}>{formatStatus(item.status)}</StatusPill>
+                            </LeadTop>
+                            <LeadSummary>
+                              <span>Budget: {item.budget_range || "Not specified"}</span>
+                              <span>Assigned: {item.assigned_member_name || "Unassigned"}</span>
+                              <span>SLA: {formatDateTime(item.sla_due_at)}</span>
+                            </LeadSummary>
+                          </LeadRow>
                         ))}
-                      </Select>
-                    ) : null}
-                    </Controls>
+                      </LeadList>
+                    ) : (
+                      <Empty $embedded>
+                        <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 8, color: "var(--color-text)", fontWeight: 700 }}>
+                          <SearchCheck size={16} />
+                          <span>No matching leads.</span>
+                        </div>
+                        Adjust your search or filter settings.
+                      </Empty>
+                    )}
+                  </PanelScrollBody>
+                </ScrollPanel>
 
-                  {requirements.length ? (
-                    <Chips>
-                      {requirements.map((requirement) => (
-                        <Chip key={requirement}>{requirement}</Chip>
-                      ))}
-                    </Chips>
+                <ScrollPanel>
+                  {selectedLead ? (
+                    <PanelScrollBody>
+                      <PanelHeader>
+                        <PanelTitleWrap>
+                          <PanelTitle>
+                            {labelize(selectedLead.deal_type)} {labelize(selectedLead.property_type)}
+                          </PanelTitle>
+                          <PanelCopy>{formatLocation(selectedLead)}</PanelCopy>
+                        </PanelTitleWrap>
+                        <StatusPill $status={selectedLead.status}>{formatStatus(selectedLead.status)}</StatusPill>
+                      </PanelHeader>
+
+                  <InlineGrid>
+                    <SummaryCard>
+                      <SummaryLabel>Budget</SummaryLabel>
+                      <SummaryValue>{selectedLead.budget_range || "Not specified"}</SummaryValue>
+                    </SummaryCard>
+                    <SummaryCard>
+                      <SummaryLabel>Timeline</SummaryLabel>
+                      <SummaryValue>{formatTimeline(selectedLead.timeline)}</SummaryValue>
+                    </SummaryCard>
+                  <SummaryCard>
+                    <SummaryLabel>Assigned</SummaryLabel>
+                    <SummaryValue>{selectedLead.assigned_member_name || "Unassigned"}</SummaryValue>
+                  </SummaryCard>
+                  <SummaryCard>
+                    <SummaryLabel>Contact number</SummaryLabel>
+                    <SummaryValue>{selectedLead.contact_number || "Not provided"}</SummaryValue>
+                  </SummaryCard>
+                  <SummaryCard>
+                    <SummaryLabel>SLA due</SummaryLabel>
+                    <SummaryValue>{formatDateTime(selectedLead.sla_due_at)}</SummaryValue>
+                    </SummaryCard>
+                    <SummaryCard>
+                      <SummaryLabel>Created</SummaryLabel>
+                      <SummaryValue>{formatDate(selectedLead.created_at)}</SummaryValue>
+                    </SummaryCard>
+                    <SummaryCard>
+                      <SummaryLabel>Last contacted</SummaryLabel>
+                      <SummaryValue>{formatDateTime(selectedLead.last_contacted_at)}</SummaryValue>
+                    </SummaryCard>
+                  </InlineGrid>
+
+                  <Section>
+                    <SectionTitle>Lead controls</SectionTitle>
+                    <Controls>
+                      <SelectField>
+                        <CustomSelect
+                          id={`lead-status-${selectedLead.lead_id}`}
+                          name={`lead-status-${selectedLead.lead_id}`}
+                          label="Status"
+                          hideLabel
+                          value={selectedLead.status}
+                          onChange={(value) => void handleUpdateLead(selectedLead.lead_id, { status: value })}
+                          disabled={savingLeadId === selectedLead.lead_id}
+                        >
+                          {statusOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </CustomSelect>
+                      </SelectField>
+                      <SelectField>
+                        <CustomSelect
+                          id={`lead-stage-${selectedLead.lead_id}`}
+                          name={`lead-stage-${selectedLead.lead_id}`}
+                          label="Stage"
+                          hideLabel
+                          value={selectedLead.pipeline_stage}
+                          onChange={(value) => void handleUpdateLead(selectedLead.lead_id, { pipeline_stage: value })}
+                          disabled={savingLeadId === selectedLead.lead_id}
+                        >
+                          {pipelineStageOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </CustomSelect>
+                      </SelectField>
+                      {membershipRole === "owner" || membershipRole === "admin" ? (
+                        <SelectField>
+                          <CustomSelect
+                            id={`lead-assignee-${selectedLead.lead_id}`}
+                            name={`lead-assignee-${selectedLead.lead_id}`}
+                            label="Assignee"
+                            hideLabel
+                            value={selectedLead.assigned_member_user_id ?? ""}
+                            onChange={(value) =>
+                              void handleUpdateLead(selectedLead.lead_id, {
+                                assigned_member_user_id: value || null,
+                              })
+                            }
+                            disabled={savingLeadId === selectedLead.lead_id}
+                          >
+                            <option value="">Unassigned</option>
+                            {assignees.map((assignee) => (
+                              <option key={assignee.user_id} value={assignee.user_id}>
+                                {assignee.full_name || assignee.email || assignee.user_id}
+                              </option>
+                            ))}
+                          </CustomSelect>
+                        </SelectField>
+                      ) : null}
+                    </Controls>
+                  </Section>
+
+                  {buildRequirementChips(selectedLead).length ? (
+                    <Section>
+                      <SectionTitle>Requirements</SectionTitle>
+                      <Chips>
+                        {buildRequirementChips(selectedLead).map((requirement) => (
+                          <Chip key={requirement}>{requirement}</Chip>
+                        ))}
+                      </Chips>
+                    </Section>
                   ) : null}
 
                   <Section>
-                    <SectionTitle>Notes</SectionTitle>
-                    <Controls>
-                      <Select
-                        value=""
-                        onChange={(event) => {
-                          const template = templates.find((itemTemplate) => itemTemplate.id === event.target.value);
-                          if (!template) return;
-                          setNoteDrafts((current) => ({
-                            ...current,
-                            [item.lead_id]: current[item.lead_id]
-                              ? `${current[item.lead_id]}\n${template.body}`
-                              : template.body,
-                          }));
-                        }}
-                      >
-                        <option value="">Use template</option>
-                        {templates.map((template) => (
-                          <option key={template.id} value={template.id}>
-                            {template.title}
-                          </option>
-                        ))}
-                      </Select>
-                    </Controls>
-                    <Textarea
-                      value={noteDrafts[item.lead_id] ?? ""}
-                      onChange={(event) =>
-                        setNoteDrafts((current) => ({ ...current, [item.lead_id]: event.target.value }))
-                      }
-                      placeholder="Add an internal note for this lead"
-                    />
-                    <Controls>
-                      <Button
-                        type="button"
-                        $primary
-                        onClick={() => void handleAddNote(item.lead_id)}
-                        disabled={savingLeadId === item.lead_id}
-                      >
+                    <SectionHeader>
+                      <SectionTitle>Internal notes</SectionTitle>
+                      <Button type="button" onClick={() => setNoteModalOpen(true)}>
+                        <Plus size={15} style={{ marginRight: 6, verticalAlign: "text-bottom" }} />
                         Add note
                       </Button>
-                    </Controls>
-                    {item.notes.length ? (
+                    </SectionHeader>
+                    {selectedLead.notes.length ? (
                       <NoteList>
-                        {item.notes.slice(0, 3).map((note) => (
+                        {selectedLead.notes.map((note) => (
                           <NoteItem key={note.id}>
-                            <SmallText>
-                              {(note.author_name || "Team member") + " • " + formatDateTime(note.created_at)}
-                            </SmallText>
-                            <div style={{ color: "#e7edf8", lineHeight: 1.6 }}>{note.body}</div>
+                            <NoteTop>
+                              <SmallText>
+                                {(note.author_name || "Team member") + " • " + formatDateTime(note.created_at)}
+                              </SmallText>
+                              <IconButton
+                                type="button"
+                                onClick={() => void handleDeleteNote(selectedLead.lead_id, note.id)}
+                                disabled={savingLeadId === selectedLead.lead_id}
+                                aria-label="Delete note"
+                              >
+                                <Trash2 size={15} />
+                              </IconButton>
+                            </NoteTop>
+                            <div style={{ color: "var(--color-text)", lineHeight: 1.6 }}>{note.body}</div>
                           </NoteItem>
                         ))}
                       </NoteList>
@@ -877,104 +1388,88 @@ export function VendorInquiriesView() {
                     )}
                   </Section>
 
-                  <Section>
-                    <SectionTitle>Reminders</SectionTitle>
-                    <Controls>
-                      <Input
-                        type="datetime-local"
-                        value={reminderDrafts[item.lead_id]?.remindAt ?? ""}
-                        onChange={(event) =>
-                          setReminderDrafts((current) => ({
-                            ...current,
-                            [item.lead_id]: {
-                              remindAt: event.target.value,
-                              note: current[item.lead_id]?.note ?? "",
-                              assignedUserId: current[item.lead_id]?.assignedUserId ?? "",
-                            },
-                          }))
-                        }
-                      />
-                      {(membershipRole === "owner" || membershipRole === "admin") && (
-                        <Select
-                          value={reminderDrafts[item.lead_id]?.assignedUserId ?? ""}
-                          onChange={(event) =>
-                            setReminderDrafts((current) => ({
-                              ...current,
-                              [item.lead_id]: {
-                                remindAt: current[item.lead_id]?.remindAt ?? "",
-                                note: current[item.lead_id]?.note ?? "",
-                                assignedUserId: event.target.value,
-                              },
-                            }))
-                          }
-                        >
-                          <option value="">Assign reminder</option>
-                          {assignees.map((assignee) => (
-                            <option key={assignee.user_id} value={assignee.user_id}>
-                              {assignee.full_name || assignee.email || assignee.user_id}
-                            </option>
-                          ))}
-                        </Select>
-                      )}
-                    </Controls>
-                    <Textarea
-                      value={reminderDrafts[item.lead_id]?.note ?? ""}
-                      onChange={(event) =>
-                        setReminderDrafts((current) => ({
-                          ...current,
-                          [item.lead_id]: {
-                            remindAt: current[item.lead_id]?.remindAt ?? "",
-                            note: event.target.value,
-                            assignedUserId: current[item.lead_id]?.assignedUserId ?? "",
-                          },
-                        }))
-                      }
-                      placeholder="Reminder note"
-                    />
-                    <Controls>
-                      <Button
-                        type="button"
-                        $primary
-                        onClick={() => void handleAddReminder(item.lead_id)}
-                        disabled={savingLeadId === item.lead_id}
-                      >
-                        Add reminder
-                      </Button>
-                    </Controls>
-                    {item.reminders.length ? (
-                      <NoteList>
-                        {item.reminders.slice(0, 3).map((reminder) => (
-                          <NoteItem key={reminder.id}>
-                            <SmallText>
-                              {formatDateTime(reminder.remind_at)} • {reminder.assigned_name || "Unassigned"}
-                            </SmallText>
-                            <div style={{ color: "#e7edf8", lineHeight: 1.6 }}>{reminder.note || "Reminder"}</div>
-                            <Controls>
-                              <Select
-                                value={reminder.status || "pending"}
-                                onChange={(event) =>
-                                  void handleReminderStatus(item.lead_id, reminder.id, event.target.value)
-                                }
-                                disabled={savingLeadId === item.lead_id}
-                              >
-                                <option value="pending">Pending</option>
-                                <option value="done">Done</option>
-                                <option value="canceled">Canceled</option>
-                              </Select>
-                            </Controls>
-                          </NoteItem>
-                        ))}
-                      </NoteList>
-                    ) : (
-                      <SmallText>No reminders yet.</SmallText>
-                    )}
-                  </Section>
-                </Card>
-              );
-            })}
-          </List>
+                    </PanelScrollBody>
+                  ) : (
+                    <PanelScrollBody>
+                      <Empty $embedded>
+                        <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 8, color: "var(--color-text)", fontWeight: 700 }}>
+                          <UserRound size={16} />
+                          <span>Select a lead.</span>
+                        </div>
+                        Choose a lead from the queue to review, assign, and check internal notes.
+                      </Empty>
+                    </PanelScrollBody>
+                  )}
+                </ScrollPanel>
+              </Shell>
+            </>
+          )}
         </>
       )}
+      {selectedLead && noteModalOpen ? (
+        <ModalOverlay onClick={() => setNoteModalOpen(false)}>
+          <ModalCard onClick={(event) => event.stopPropagation()}>
+            <ModalHeader>
+              <PanelTitleWrap>
+                <PanelTitle>Add internal note</PanelTitle>
+                <PanelCopy>Visible only to your team inside the lead inbox.</PanelCopy>
+              </PanelTitleWrap>
+              <IconButton type="button" onClick={() => setNoteModalOpen(false)} aria-label="Close note modal">
+                <X size={16} />
+              </IconButton>
+            </ModalHeader>
+            <ModalBody>
+              <SelectField>
+                <CustomSelect
+                  id={`lead-template-modal-${selectedLead.lead_id}`}
+                  name={`lead-template-modal-${selectedLead.lead_id}`}
+                  label="Template"
+                  hideLabel
+                  value=""
+                  onChange={(value) => {
+                    const template = templates.find((itemTemplate) => itemTemplate.id === value);
+                    if (!template) return;
+                    setNoteDrafts((current) => ({
+                      ...current,
+                      [selectedLead.lead_id]: current[selectedLead.lead_id]
+                        ? `${current[selectedLead.lead_id]}\n${template.body}`
+                        : template.body,
+                    }));
+                  }}
+                >
+                  <option value="">Use template</option>
+                  {templates.map((template) => (
+                    <option key={template.id} value={template.id}>
+                      {template.title}
+                    </option>
+                  ))}
+                </CustomSelect>
+              </SelectField>
+              <Textarea
+                value={noteDrafts[selectedLead.lead_id] ?? ""}
+                onChange={(event) =>
+                  setNoteDrafts((current) => ({ ...current, [selectedLead.lead_id]: event.target.value }))
+                }
+                placeholder="Add an internal note for this lead"
+                style={{ minHeight: 180 }}
+              />
+              <Controls>
+                <Button
+                  type="button"
+                  $primary
+                  onClick={async () => {
+                    await handleAddNote(selectedLead.lead_id);
+                    setNoteModalOpen(false);
+                  }}
+                  disabled={savingLeadId === selectedLead.lead_id}
+                >
+                  Add note
+                </Button>
+              </Controls>
+            </ModalBody>
+          </ModalCard>
+        </ModalOverlay>
+      ) : null}
     </Page>
   );
 }

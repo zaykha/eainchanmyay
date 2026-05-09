@@ -30,19 +30,11 @@ type InquiryLeadRow = {
   assigned_member_user_id: string | null;
   pipeline_stage: string | null;
   created_at: string | null;
-  inquiry: {
-    state_region: string | null;
-    district: string | null;
-    township: string | null;
-    property_type: string | null;
-    deal_type: string | null;
-  } | Array<{
-    state_region: string | null;
-    district: string | null;
-    township: string | null;
-    property_type: string | null;
-    deal_type: string | null;
-  }> | null;
+  state_region: string | null;
+  district: string | null;
+  township: string | null;
+  property_type: string | null;
+  deal_type: string | null;
 };
 
 type ViewRow = {
@@ -103,9 +95,7 @@ export async function GET(request: Request) {
       : Promise.resolve({ data: [], error: null }),
     supabase
       .from("vendor_inquiry_leads")
-      .select(
-        "id,status,assigned_member_user_id,pipeline_stage,created_at,inquiry:inquiries(state_region,district,township,property_type,deal_type)"
-      )
+      .select("id,status,assigned_member_user_id,pipeline_stage,created_at,state_region,district,township,property_type,deal_type")
       .eq("vendor_id", vendor.id),
     memberIds.length
       ? supabase.from("profiles").select("id,full_name,email").in("id", memberIds)
@@ -230,10 +220,9 @@ export async function GET(request: Request) {
   });
 
   const townshipDemandCounts = inquiryLeads.reduce<Record<string, number>>((acc, lead) => {
-    const inquiry = Array.isArray(lead.inquiry) ? lead.inquiry[0] : lead.inquiry;
-    const township = String(inquiry?.township ?? "").trim();
-    const district = String(inquiry?.district ?? "").trim();
-    const stateRegion = String(inquiry?.state_region ?? "").trim();
+    const township = String(lead.township ?? "").trim();
+    const district = String(lead.district ?? "").trim();
+    const stateRegion = String(lead.state_region ?? "").trim();
     const label = [township, district, stateRegion].filter(Boolean).join(", ");
     if (!label) return acc;
     acc[label] = (acc[label] ?? 0) + 1;
@@ -241,8 +230,7 @@ export async function GET(request: Request) {
   }, {});
 
   const propertyDemandCounts = inquiryLeads.reduce<Record<string, number>>((acc, lead) => {
-    const inquiry = Array.isArray(lead.inquiry) ? lead.inquiry[0] : lead.inquiry;
-    const key = String(inquiry?.property_type ?? "unknown");
+    const key = String(lead.property_type ?? "unknown");
     acc[key] = (acc[key] ?? 0) + 1;
     return acc;
   }, {});

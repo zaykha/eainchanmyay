@@ -53,6 +53,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: insertError.message }, { status: 500 });
   }
 
+  const activityTimestamp = new Date().toISOString();
+  const { error: touchError } = await supabase
+    .from("vendor_inquiry_leads")
+    .update({
+      last_activity_at: activityTimestamp,
+      updated_at: activityTimestamp,
+    })
+    .eq("id", leadId)
+    .eq("vendor_id", vendor.id);
+
+  if (touchError) {
+    return NextResponse.json({ error: touchError.message }, { status: 500 });
+  }
+
   return NextResponse.json({
     ok: true,
     note: {
@@ -62,4 +76,63 @@ export async function POST(request: Request) {
       author_name: result.context.profile.full_name ?? result.context.profile.email ?? null,
     },
   });
+}
+
+export async function DELETE(request: Request) {
+  const result = await getVendorRequestContext(request);
+  if (!result.ok) {
+    return result.response;
+  }
+
+  const { supabase, vendor } = result.context;
+  let body: { note_id?: string } = {};
+
+  try {
+    body = (await request.json()) as typeof body;
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON." }, { status: 400 });
+  }
+
+  const noteId = body.note_id?.trim();
+
+  if (!noteId) {
+    return NextResponse.json({ error: "Note id is required." }, { status: 400 });
+  }
+
+  const { data: existingNote, error: noteLookupError } = await supabase
+    .from("vendor_lead_notes")
+    .select("id,lead_id")
+    .eq("id", noteId)
+    .eq("vendor_id", vendor.id)
+    .maybeSingle();
+
+  if (noteLookupError) {
+    return NextResponse.json({ error: noteLookupError.message }, { status: 500 });
+  }
+
+  if (!existingNote?.id) {
+    return NextResponse.json({ error: "Note not found." }, { status: 404 });
+  }
+
+  const { error } = await supabase.from("vendor_lead_notes").delete().eq("id", noteId).eq("vendor_id", vendor.id);
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  const activityTimestamp = new Date().toISOString();
+  const { error: touchError } = await supabase
+    .from("vendor_inquiry_leads")
+    .update({
+      last_activity_at: activityTimestamp,
+      updated_at: activityTimestamp,
+    })
+    .eq("id", existingNote.lead_id)
+    .eq("vendor_id", vendor.id);
+
+  if (touchError) {
+    return NextResponse.json({ error: touchError.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ ok: true });
 }

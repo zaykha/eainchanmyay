@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getVendorRequestContext } from "@/app/api/vendor/_lib/context";
 
-const allowedAppointmentStatuses = new Set(["scheduled", "confirmed", "completed", "canceled"]);
+const allowedAppointmentStatuses = new Set(["scheduled", "completed", "canceled"]);
 const allowedLeadStatuses = new Set(["new", "contacted", "scheduled", "closed", "lost"]);
 
 function normalizeSource(value: unknown) {

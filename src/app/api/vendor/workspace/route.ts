@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getVendorRequestContext } from "@/app/api/vendor/_lib/context";
 import { getVendorPlanUsage } from "@/app/api/vendor/_lib/plan-limits";
-import { normalizeStorefrontPayload } from "@/lib/vendor-storefront";
+import { normalizeStorefrontPayload, slugifyVendorSlug } from "@/lib/vendor-storefront";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -83,6 +83,9 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "Agency name cannot be empty." }, { status: 400 });
     }
     updates.name = rawName;
+    if (payload.slug === undefined && !identityLocked) {
+      updates.slug = slugifyVendorSlug(rawName) || null;
+    }
   }
 
   if (!Object.keys(updates).length) {

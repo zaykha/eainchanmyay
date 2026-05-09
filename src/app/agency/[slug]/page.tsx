@@ -164,6 +164,7 @@ const Layout = styled.div`
   display: grid;
   gap: 22px;
   grid-template-columns: minmax(0, 2fr) minmax(280px, 0.95fr);
+  align-items: start;
 
   @media (max-width: 980px) {
     grid-template-columns: 1fr;
@@ -175,42 +176,71 @@ const Card = styled.section`
   background: rgba(255, 255, 255, 0.9);
   border: 1px solid rgba(15, 23, 42, 0.08);
   box-shadow: 0 22px 48px rgba(15, 23, 42, 0.06);
-  padding: 22px;
+  padding: 18px;
   display: grid;
-  gap: 16px;
+  gap: 14px;
 `;
 
 const BodyCopy = styled.p`
   margin: 0;
   color: #475467;
-  line-height: 1.7;
+  font-size: 0.94rem;
+  line-height: 1.6;
 `;
 
-const StrengthGrid = styled.div`
+const OverviewStack = styled.div`
   display: grid;
   gap: 12px;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 `;
 
-const StrengthCard = styled.div`
-  border-radius: 18px;
-  background: #f8fafc;
-  border: 1px solid rgba(15, 23, 42, 0.06);
-  padding: 14px 16px;
+const CompactSectionTitle = styled.h2`
+  margin: 0;
   color: #0f172a;
-  font-weight: 600;
+  font-size: 1rem;
+`;
+
+const StrengthList = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+`;
+
+const StrengthPill = styled.div`
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: #f8fafc;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  color: #0f172a;
+  font-size: 0.84rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
 `;
 
 const ContactStack = styled.div`
   display: grid;
-  gap: 12px;
+  gap: 8px;
 `;
 
 const ContactItem = styled.div`
   display: grid;
-  gap: 4px;
+  gap: 3px;
   color: #475467;
-  line-height: 1.5;
+  line-height: 1.45;
+
+  strong {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #667085;
+  }
+
+  span,
+  a {
+    font-size: 0.94rem;
+  }
 
   a {
     color: #0f172a;
@@ -221,31 +251,44 @@ const ContactItem = styled.div`
 const ActionRow = styled.div`
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 12px;
 `;
 
 const Action = styled(Link)`
-  min-height: 46px;
-  padding: 0 16px;
-  border-radius: 999px;
+  min-height: 44px;
+  padding: 10px 16px;
+  border-radius: var(--radius-md);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #0f766e, #115e59);
+  gap: 6px;
+  background: var(--gradient);
   color: white;
   font-weight: 700;
+  font-size: 0.95rem;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  box-shadow: var(--frame-shadow);
 `;
 
 const GhostAction = styled.a`
-  min-height: 46px;
-  padding: 0 16px;
-  border-radius: 999px;
+  min-height: 44px;
+  padding: 10px 16px;
+  border-radius: var(--radius-md);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(15, 23, 42, 0.12);
-  color: #0f172a;
+  gap: 6px;
+  border: 1px solid var(--color-outline);
+  background: var(--color-surface-2);
+  color: var(--color-text);
   font-weight: 700;
+  font-size: 0.95rem;
+`;
+
+const SidebarCard = styled(Card)`
+  align-self: start;
+  position: sticky;
+  top: 18px;
 `;
 
 const ListingGrid = styled.div`
@@ -366,6 +409,7 @@ export default function AgencyStorefrontPage() {
   const listings = data?.listings ?? [];
   const logoUrl = resolveImage(agency?.logo_url ?? null);
   const coverImageUrl = resolveImage(agency?.cover_image_url ?? null);
+  const isVerified = agency?.verified_status === "approved";
 
   return (
     <Shell>
@@ -385,16 +429,14 @@ export default function AgencyStorefrontPage() {
                   <Logo $image={logoUrl}>{agency.name.charAt(0).toUpperCase()}</Logo>
                   <HeroText>
                     <HeroTitle>{agency.name}</HeroTitle>
-                    <HeroCopy>{agency.tagline || `${agency.plan_name} agency profile on Eain Chan Myay.`}</HeroCopy>
+                    <HeroCopy>{agency.tagline || "Public agency profile on Eain Chan Myay."}</HeroCopy>
                   </HeroText>
                 </LogoRow>
                 <BadgeRow>
-                  {agency.badges.map((badge) => (
-                    <Badge key={badge}>
-                      {badge.toLowerCase().includes("verified") ? <ShieldCheck size={14} /> : null}
-                      {badge}
-                    </Badge>
-                  ))}
+                  <Badge>
+                    <ShieldCheck size={14} />
+                    {isVerified ? "Verified agency" : "Unverified agency"}
+                  </Badge>
                 </BadgeRow>
               </HeroContent>
             </Hero>
@@ -402,24 +444,26 @@ export default function AgencyStorefrontPage() {
             <Layout>
               <div style={{ display: "grid", gap: 22 }}>
                 <Card>
-                  <SectionTitle>About this agency</SectionTitle>
-                  <BodyCopy>
-                    {agency.description ||
-                      "This agency has not added a full description yet. Use the contact panel to connect with them or browse their public listings below."}
-                  </BodyCopy>
-                </Card>
-
-                <Card>
-                  <SectionTitle>Agency strengths</SectionTitle>
-                  {agency.strengths.length ? (
-                    <StrengthGrid>
-                      {agency.strengths.map((strength) => (
-                        <StrengthCard key={strength}>{strength}</StrengthCard>
-                      ))}
-                    </StrengthGrid>
-                  ) : (
-                    <EmptyState>This agency has not published strengths yet.</EmptyState>
-                  )}
+                  <SectionTitle>Agency overview</SectionTitle>
+                  <OverviewStack>
+                    <div style={{ display: "grid", gap: 8 }}>
+                      <CompactSectionTitle>About</CompactSectionTitle>
+                      <BodyCopy>
+                        {agency.description ||
+                          "This agency has not added a full description yet. Use the contact panel to connect with them or browse their public listings below."}
+                      </BodyCopy>
+                    </div>
+                    {agency.strengths.length ? (
+                      <div style={{ display: "grid", gap: 8 }}>
+                        <CompactSectionTitle>Strengths</CompactSectionTitle>
+                        <StrengthList>
+                          {agency.strengths.map((strength) => (
+                            <StrengthPill key={strength}>{strength}</StrengthPill>
+                          ))}
+                        </StrengthList>
+                      </div>
+                    ) : null}
+                  </OverviewStack>
                 </Card>
 
                 <Card>
@@ -450,16 +494,12 @@ export default function AgencyStorefrontPage() {
               </div>
 
               <div style={{ display: "grid", gap: 22 }}>
-                <Card>
+                <SidebarCard>
                   <SectionTitle>Contact points</SectionTitle>
                   <ContactStack>
                     <ContactItem>
-                      <strong>Agency plan</strong>
-                      <span>{agency.plan_name}</span>
-                    </ContactItem>
-                    <ContactItem>
-                      <strong>Vendor type</strong>
-                      <span>{formatLabel(agency.vendor_type) || "Agency"}</span>
+                      <strong>Verification</strong>
+                      <span>{isVerified ? "Verified" : "Unverified"}</span>
                     </ContactItem>
                     {agency.contact_phone ? (
                       <ContactItem>
@@ -526,10 +566,21 @@ export default function AgencyStorefrontPage() {
                     </ContactItem>
                   </ContactStack>
                   <ActionRow>
-                    <Action href="/inquiries/new">Request property help</Action>
+                    <Action
+                      href={{
+                        pathname: "/inquiries/new",
+                        query: {
+                          agency: agency.name,
+                          agencySlug: agency.slug || "",
+                          agencyLogo: agency.logo_url || "",
+                        },
+                      }}
+                    >
+                      Request property help
+                    </Action>
                     {agency.contact_phone ? <GhostAction href={`tel:${agency.contact_phone}`}>Call agency</GhostAction> : null}
                   </ActionRow>
-                </Card>
+                </SidebarCard>
               </div>
             </Layout>
           </>

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import styled, { keyframes } from "styled-components";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowUpRight,
   BarChart3,
@@ -21,11 +21,13 @@ import {
   Globe2,
   Heart,
   Home,
+  ImageIcon,
   Lock,
   Mail,
   Menu,
   MapPin,
   MessageSquareText,
+  Phone,
   Plus,
   Ruler,
   Settings,
@@ -39,6 +41,7 @@ import {
 import { useLanguage } from "@/app/living-site/components/Providers";
 import { Panel } from "@/app/living-site/components/PageSection";
 import { useAppState } from "@/app/living-site/lib/app-state";
+import { supabase } from "@/app/living-site/lib/supabaseClient";
 import { readWorkspaceCache, writeWorkspaceCache } from "@/app/living-site/lib/vendor-workspace-cache";
 import { formatCurrency } from "@/app/living-site/lib/format";
 import {
@@ -56,6 +59,7 @@ import {
   VendorPropertiesView,
   type VendorPropertyItem,
 } from "@/app/living-site/components/vendor/VendorPropertiesView";
+import { VendorInquiriesView } from "@/app/living-site/components/vendor/VendorInquiriesView";
 
 const shimmer = keyframes`
   0% {
@@ -1454,13 +1458,14 @@ const HubSectionScroller = styled.div`
 
 const AppointmentLayout = styled.div`
   display: grid;
-  gap: 16px;
+  gap: 14px;
 `;
 
 const AppointmentTopGrid = styled.div`
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
-  gap: 16px;
+  gap: 14px;
+  align-items: start;
 
   @media (max-width: 1100px) {
     grid-template-columns: 1fr;
@@ -1471,9 +1476,10 @@ const AppointmentCard = styled.div`
   border: 1px solid var(--color-outline);
   border-radius: 24px;
   background: color-mix(in srgb, var(--color-surface-2) 72%, white);
-  padding: 18px;
+  padding: 16px;
   display: grid;
-  gap: 14px;
+  gap: 12px;
+  align-content: start;
 `;
 
 const AppointmentCardHeader = styled.div`
@@ -1490,14 +1496,15 @@ const AppointmentCardTitleWrap = styled.div`
 
 const AppointmentCardTitle = styled.h3`
   margin: 0;
-  font-size: 1rem;
+  font-size: 0.94rem;
   color: var(--color-text);
 `;
 
 const AppointmentCardCopy = styled.p`
   margin: 0;
   color: var(--color-muted);
-  line-height: 1.5;
+  font-size: 0.8rem;
+  line-height: 1.4;
 `;
 
 const AppointmentCardHeaderRight = styled.div`
@@ -1569,19 +1576,22 @@ const AppointmentStat = styled.div`
   border: 1px solid var(--color-outline);
   border-radius: 18px;
   background: var(--color-surface);
-  padding: 12px 14px;
+  padding: 10px 12px;
   display: grid;
-  gap: 6px;
+  gap: 4px;
 `;
 
 const AppointmentStatLabel = styled.span`
   color: var(--color-muted);
-  font-size: 0.78rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 `;
 
 const AppointmentStatValue = styled.strong`
   color: var(--color-text);
-  font-size: 1rem;
+  font-size: 0.92rem;
 `;
 
 const AppointmentToggleRow = styled.div`
@@ -1776,27 +1786,44 @@ const AppointmentMonthPopupMeta = styled.div`
 const AppointmentAssignmentList = styled.div`
   display: grid;
   gap: 10px;
+  max-height: 206px;
+  overflow-y: auto;
+  padding-right: 4px;
+  align-content: start;
 `;
 
-const AppointmentAssignmentRow = styled.div`
+const AppointmentAssignmentRow = styled.button`
   border: 1px solid var(--color-outline);
-  border-radius: 18px;
+  border-radius: 14px;
   background: var(--color-surface);
-  padding: 12px 14px;
-  display: grid;
-  gap: 6px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
+
+  &:hover {
+    transform: translateY(-1px);
+    border-color: color-mix(in srgb, var(--color-primary) 24%, var(--color-outline));
+    box-shadow: var(--shadow-soft);
+    background: color-mix(in srgb, var(--color-surface) 88%, white);
+  }
 `;
 
 const AppointmentAssignmentTop = styled.div`
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 10px;
+  min-width: 0;
 `;
 
 const AppointmentAssignmentName = styled.strong`
   color: var(--color-text);
-  font-size: 0.92rem;
+  font-size: 0.86rem;
 `;
 
 const AppointmentAssignmentMeta = styled.div`
@@ -1804,13 +1831,17 @@ const AppointmentAssignmentMeta = styled.div`
   align-items: center;
   gap: 8px;
   color: var(--color-muted);
-  font-size: 0.8rem;
+  font-size: 0.74rem;
   flex-wrap: wrap;
 `;
 
 const AppointmentQueueList = styled.div`
   display: grid;
   gap: 10px;
+  max-height: 372px;
+  overflow-y: auto;
+  padding-right: 4px;
+  align-content: start;
 `;
 
 const AppointmentQueueRow = styled.div`
@@ -1843,7 +1874,10 @@ const AppointmentQueueTimeValue = styled.strong`
 
 const AppointmentQueueTimeLabel = styled.span`
   color: var(--color-muted);
-  font-size: 0.74rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 `;
 
 const AppointmentQueueMain = styled.div`
@@ -1873,12 +1907,145 @@ const AppointmentQueueSide = styled.div`
 
 const AppointmentQueueSideLabel = styled.span`
   color: var(--color-muted);
-  font-size: 0.74rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 `;
 
 const AppointmentQueueSideValue = styled.strong`
   color: var(--color-text);
   font-size: 0.84rem;
+`;
+
+const StaffAppointmentsModalBody = styled.div`
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
+  gap: 10px;
+  align-content: start;
+
+  @media (max-width: 980px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const StaffAppointmentsPanel = styled.div`
+  border: 1px solid var(--color-outline);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--color-surface-2) 84%, white);
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+  min-height: 0;
+`;
+
+const StaffAppointmentsPanelHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+`;
+
+const StaffAppointmentsPanelTitle = styled.strong`
+  color: var(--color-text);
+  font-size: 0.94rem;
+`;
+
+const StaffAppointmentsPanelCopy = styled.span`
+  color: var(--color-muted);
+  font-size: 0.8rem;
+  line-height: 1.4;
+`;
+
+const StaffAppointmentsList = styled.div`
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  gap: 5px;
+  padding-right: 4px;
+`;
+
+const StaffAppointmentsRow = styled.div`
+  border: 1px solid var(--color-outline);
+  border-radius: 16px;
+  background: var(--color-surface);
+  padding: 8px 10px;
+  display: grid;
+  gap: 4px;
+`;
+
+const StaffAppointmentsRowTop = styled.div`
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+`;
+
+const StaffAppointmentsRowTitle = styled.strong`
+  color: var(--color-text);
+  font-size: 0.84rem;
+  line-height: 1.3;
+`;
+
+const StaffAppointmentsRowMeta = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+  color: var(--color-muted);
+  font-size: 0.74rem;
+`;
+
+const StaffAppointmentsAside = styled.div`
+  border: 1px solid var(--color-outline);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--color-surface-2) 84%, white);
+  padding: 12px;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-height: 0;
+  overflow-y: auto;
+`;
+
+const StaffAppointmentsToggle = styled.button<{ $active?: boolean }>`
+  border: 1px solid
+    ${(props) =>
+      props.$active ? "color-mix(in srgb, var(--color-primary) 28%, var(--color-outline))" : "var(--color-outline)"};
+  border-radius: 999px;
+  padding: 7px 11px;
+  background: ${(props) => (props.$active ? "#fff1f3" : "var(--color-surface)")};
+  color: ${(props) => (props.$active ? "var(--color-primary)" : "var(--color-text)")};
+  font-weight: 700;
+  cursor: pointer;
+`;
+
+const StaffAppointmentsSummary = styled.div`
+  display: grid;
+  gap: 8px;
+`;
+
+const StaffAppointmentsSummaryRow = styled.div`
+  border: 1px solid var(--color-outline);
+  border-radius: 16px;
+  background: var(--color-surface);
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+`;
+
+const StaffAppointmentsSummaryLabel = styled.span`
+  color: var(--color-muted);
+  font-size: 0.8rem;
+`;
+
+const StaffAppointmentsSummaryValue = styled.strong`
+  color: var(--color-text);
+  font-size: 0.9rem;
 `;
 
 const AppointmentClickable = styled.button`
@@ -2090,6 +2257,605 @@ const AppointmentCalendarDay = styled.button<{ $muted?: boolean; $active?: boole
 const ListingDetailViewport = styled(HubSectionViewport)``;
 
 const ListingDetailScroller = styled(HubSectionScroller)``;
+
+const WorkspaceSectionViewport = styled(HubSectionViewport)``;
+
+const WorkspaceSectionScroller = styled(HubSectionScroller)``;
+
+const LeadInboxViewport = styled(HubSectionViewport)`
+  min-height: 640px;
+  max-height: 640px;
+  height: 640px;
+`;
+
+const LeadInboxScroller = styled(HubSectionScroller)`
+  overflow: hidden;
+  padding-right: 0;
+`;
+
+const WorkspaceSectionHeader = styled.div`
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+`;
+
+const WorkspaceSectionTitleWrap = styled.div`
+  display: grid;
+  gap: 6px;
+`;
+
+const WorkspaceSectionTitle = styled.h3`
+  margin: 0;
+  color: var(--color-text);
+  font-size: 1.34rem;
+`;
+
+const WorkspaceSectionCopy = styled.p`
+  margin: 0;
+  color: var(--color-muted);
+  line-height: 1.55;
+`;
+
+const WorkspaceGrid = styled.div`
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
+
+  @media (max-width: 1100px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const WorkspacePanel = styled.div`
+  border: 1px solid var(--color-outline);
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--color-surface-2) 78%, white);
+  padding: 16px;
+  display: grid;
+  gap: 14px;
+`;
+
+const WorkspacePanelTitle = styled.strong`
+  color: var(--color-text);
+  font-size: 1rem;
+`;
+
+const WorkspacePanelCopy = styled.span`
+  color: var(--color-muted);
+  font-size: 0.88rem;
+  line-height: 1.5;
+`;
+
+const WorkspaceSummaryList = styled.div`
+  display: grid;
+  gap: 10px;
+`;
+
+const WorkspaceSummaryRow = styled.div`
+  border: 1px solid var(--color-outline);
+  border-radius: 16px;
+  background: var(--color-surface);
+  padding: 12px 14px;
+  display: grid;
+  gap: 4px;
+`;
+
+const WorkspaceSummaryLabel = styled.span`
+  color: var(--color-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+`;
+
+const WorkspaceSummaryValue = styled.strong`
+  color: var(--color-text);
+  font-size: 0.98rem;
+  line-height: 1.4;
+`;
+
+const WorkspaceSummaryHint = styled.span`
+  color: var(--color-muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
+`;
+
+const TeamInviteGrid = styled.div`
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(180px, 0.8fr) auto;
+  gap: 10px;
+
+  @media (max-width: 980px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const TeamSectionStack = styled.div`
+  display: grid;
+  gap: 14px;
+`;
+
+const TeamSummaryBar = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+`;
+
+const TeamSummaryItem = styled.div`
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--color-outline);
+  background: var(--color-surface);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const TeamSummaryItemLabel = styled.span`
+  color: var(--color-muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+`;
+
+const TeamSummaryItemValue = styled.strong`
+  color: var(--color-text);
+  font-size: 0.92rem;
+`;
+
+const RolePolicyGrid = styled.div`
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+
+  @media (max-width: 980px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const RolePolicyCard = styled.div`
+  border: 1px solid var(--color-outline);
+  border-radius: 18px;
+  background: var(--color-surface);
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+`;
+
+const RolePolicyHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+`;
+
+const RolePolicyTitle = styled.strong`
+  color: var(--color-text);
+  font-size: 0.94rem;
+`;
+
+const RolePolicyList = styled.div`
+  display: grid;
+  gap: 7px;
+`;
+
+const RolePolicyItem = styled.div`
+  color: var(--color-muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+`;
+
+const OrgSettingsLayout = styled.div`
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1.15fr) minmax(340px, 0.85fr);
+
+  @media (max-width: 1100px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const OrgIdentityCard = styled.div`
+  border: 1px solid var(--color-outline);
+  border-radius: 24px;
+  background: color-mix(in srgb, var(--color-surface-2) 82%, white);
+  padding: 18px;
+  display: grid;
+  gap: 16px;
+`;
+
+const OrgIdentityTop = styled.div`
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+`;
+
+const OrgIdentityMain = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+`;
+
+const OrgIdentityLogo = styled.div<{ $image?: string }>`
+  width: 68px;
+  height: 68px;
+  border-radius: 20px;
+  border: 1px solid var(--color-outline);
+  background: ${(props) =>
+    props.$image ? `center / cover no-repeat url("${props.$image}")` : "color-mix(in srgb, var(--color-surface) 88%, white)"};
+  color: var(--color-text);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  flex: 0 0 auto;
+`;
+
+const OrgIdentityText = styled.div`
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+`;
+
+const OrgIdentityName = styled.h4`
+  margin: 0;
+  color: var(--color-text);
+  font-size: 1.36rem;
+  line-height: 1.1;
+`;
+
+const OrgIdentitySlug = styled.div`
+  color: var(--color-muted);
+  font-size: 0.9rem;
+  line-height: 1.4;
+  word-break: break-word;
+`;
+
+const OrgIdentityMeta = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+`;
+
+const OrgActionRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+`;
+
+const OrgSnapshotGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+
+  @media (max-width: 760px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const OrgSnapshotCard = styled.div`
+  border: 1px solid var(--color-outline);
+  border-radius: 18px;
+  background: var(--color-surface);
+  padding: 14px;
+  display: grid;
+  gap: 8px;
+`;
+
+const OrgSnapshotLabel = styled.span`
+  color: var(--color-muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+`;
+
+const OrgSnapshotValue = styled.strong`
+  color: var(--color-text);
+  font-size: 0.98rem;
+  line-height: 1.4;
+`;
+
+const OrgSnapshotHint = styled.span`
+  color: var(--color-muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+`;
+
+const OrgChannelTags = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+`;
+
+const OrgChannelTag = styled.span`
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--color-outline);
+  background: color-mix(in srgb, var(--color-surface-2) 80%, white);
+  color: var(--color-text);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+`;
+
+const OrgRoleColumn = styled.div`
+  display: grid;
+  gap: 12px;
+`;
+
+const OrgRoleHeader = styled.div`
+  display: grid;
+  gap: 4px;
+`;
+
+const OrgRoleTitle = styled.h4`
+  margin: 0;
+  color: var(--color-text);
+  font-size: 1.18rem;
+`;
+
+const OrgRoleCopy = styled.p`
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+`;
+
+const OrgRoleStack = styled.div`
+  display: grid;
+  gap: 10px;
+`;
+
+const OrgRoleCard = styled.div`
+  border: 1px solid var(--color-outline);
+  border-radius: 18px;
+  background: var(--color-surface);
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+`;
+
+const OrgRoleCardHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+`;
+
+const OrgRoleCardTitle = styled.strong`
+  color: var(--color-text);
+  font-size: 0.95rem;
+`;
+
+const OrgRoleBulletList = styled.div`
+  display: grid;
+  gap: 7px;
+`;
+
+const OrgRoleBullet = styled.div`
+  color: var(--color-muted);
+  font-size: 0.83rem;
+  line-height: 1.45;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+`;
+
+const SettingsIndexGrid = styled.div`
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+
+  @media (max-width: 980px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const SettingsIndexCard = styled.div`
+  border: 1px solid var(--color-outline);
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--color-surface-2) 82%, white);
+  padding: 16px;
+  display: grid;
+  gap: 14px;
+`;
+
+const SettingsIndexHeader = styled.div`
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+`;
+
+const SettingsIndexTitleWrap = styled.div`
+  display: grid;
+  gap: 4px;
+`;
+
+const SettingsIndexTitle = styled.h4`
+  margin: 0;
+  color: var(--color-text);
+  font-size: 0.98rem;
+`;
+
+const SettingsIndexCopy = styled.p`
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.8rem;
+  line-height: 1.4;
+`;
+
+const SettingsIndexRows = styled.div`
+  display: grid;
+  gap: 10px;
+`;
+
+const SettingsIndexRow = styled.div`
+  border: 1px solid var(--color-outline);
+  border-radius: 16px;
+  background: var(--color-surface);
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+`;
+
+const SettingsIndexLabel = styled.span`
+  color: var(--color-muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+`;
+
+const SettingsIndexValue = styled.strong`
+  color: var(--color-text);
+  font-size: 0.86rem;
+  line-height: 1.4;
+  text-align: right;
+`;
+
+const SettingsIndexBullets = styled.div`
+  display: grid;
+  gap: 8px;
+`;
+
+const SettingsIndexBullet = styled.div`
+  color: var(--color-muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+`;
+
+const SettingsIndexActions = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+`;
+
+const CompactTextInput = styled.input`
+  width: 100%;
+  min-height: 46px;
+  border-radius: 16px;
+  border: 1px solid var(--color-outline);
+  background: var(--color-surface);
+  color: var(--color-text);
+  padding: 0 16px;
+  font-size: 0.96rem;
+  outline: none;
+
+  &::placeholder {
+    color: var(--color-muted);
+  }
+
+  &:focus {
+    border-color: color-mix(in srgb, var(--color-primary) 24%, var(--color-outline));
+    box-shadow: 0 0 0 3px rgba(235, 35, 64, 0.08);
+  }
+`;
+
+const CompactSelectWrap = styled.div`
+  .Control {
+    min-height: 46px;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-radius: 16px;
+    font-size: 0.96rem;
+  }
+`;
+
+const CompactGhostButton = styled.button`
+  min-height: 42px;
+  padding: 0 14px;
+  border-radius: 14px;
+  font-size: 0.88rem;
+  border: 1px solid var(--color-outline);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-weight: 700;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+`;
+
+const CompactCTAButton = styled(CTAButton)`
+  min-height: 46px;
+  padding: 0 18px;
+  border-radius: 16px;
+  font-size: 0.94rem;
+`;
+
+const TeamMembersList = styled.div`
+  display: grid;
+  gap: 10px;
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: 4px;
+`;
+
+const TeamMemberCard = styled.div`
+  border: 1px solid var(--color-outline);
+  border-radius: 18px;
+  background: var(--color-surface);
+  padding: 12px 14px;
+  display: grid;
+  gap: 10px;
+`;
+
+const TeamMemberTop = styled.div`
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+`;
+
+const TeamMemberName = styled.strong`
+  color: var(--color-text);
+  font-size: 0.96rem;
+`;
+
+const TeamMemberMeta = styled.div`
+  color: var(--color-muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+`;
+
+const TeamMemberControls = styled.div`
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 10px;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
+`;
 
 const ListingDetailHeader = styled.div`
   display: flex;
@@ -2890,11 +3656,16 @@ const HubNavList = styled.div`
   gap: 10px;
 `;
 
-const HubNavItem = styled(Link)<{ $disabled?: boolean; $expanded?: boolean }>`
-  border: 1px solid var(--color-outline);
+const HubNavItem = styled(Link)<{ $active?: boolean; $disabled?: boolean; $expanded?: boolean }>`
+  border: 1px solid
+    ${(props) =>
+      props.$active
+        ? "color-mix(in srgb, var(--color-primary) 30%, var(--color-outline))"
+        : "var(--color-outline)"};
   border-radius: 16px;
   padding: 10px 12px;
-  background: var(--color-surface);
+  background: ${(props) =>
+    props.$active ? "color-mix(in srgb, var(--color-primary) 10%, white)" : "var(--color-surface)"};
   display: grid;
   grid-template-columns: 36px ${(props) => (props.$expanded ? "minmax(0,1fr) 18px" : "0px 0px")};
   align-items: center;
@@ -2902,7 +3673,7 @@ const HubNavItem = styled(Link)<{ $disabled?: boolean; $expanded?: boolean }>`
   gap: ${(props) => (props.$expanded ? "12px" : "0")};
   color: inherit;
   text-decoration: none;
-  box-shadow: var(--shadow-soft);
+  box-shadow: ${(props) => (props.$active ? "var(--frame-shadow)" : "var(--shadow-soft)")};
   opacity: ${(props) => (props.$disabled ? 0.55 : 1)};
   pointer-events: ${(props) => (props.$disabled ? "none" : "auto")};
   overflow: hidden;
@@ -2927,18 +3698,23 @@ const HubNavItem = styled(Link)<{ $disabled?: boolean; $expanded?: boolean }>`
   }
 `;
 
-const HubNavButton = styled.button<{ $expanded?: boolean }>`
-  border: 1px solid var(--color-outline);
+const HubNavButton = styled.button<{ $active?: boolean; $expanded?: boolean }>`
+  border: 1px solid
+    ${(props) =>
+      props.$active
+        ? "color-mix(in srgb, var(--color-primary) 30%, var(--color-outline))"
+        : "var(--color-outline)"};
   border-radius: 16px;
   padding: 10px 12px;
-  background: var(--color-surface);
+  background: ${(props) =>
+    props.$active ? "color-mix(in srgb, var(--color-primary) 10%, white)" : "var(--color-surface)"};
   display: grid;
   grid-template-columns: 36px ${(props) => (props.$expanded ? "minmax(0,1fr) 18px" : "0px 0px")};
   align-items: center;
   justify-content: ${(props) => (props.$expanded ? "stretch" : "center")};
   gap: ${(props) => (props.$expanded ? "12px" : "0")};
   color: inherit;
-  box-shadow: var(--shadow-soft);
+  box-shadow: ${(props) => (props.$active ? "var(--frame-shadow)" : "var(--shadow-soft)")};
   cursor: pointer;
   overflow: hidden;
   transition:
@@ -2962,23 +3738,45 @@ const HubNavButton = styled.button<{ $expanded?: boolean }>`
   }
 `;
 
-const HubNavIcon = styled.div<{ $image?: string }>`
+const HubNavIcon = styled.div<{ $active?: boolean; $image?: string }>`
   width: 36px;
   height: 36px;
   border-radius: 12px;
   background: ${(props) =>
     props.$image
       ? `center / cover no-repeat url(${props.$image})`
+      : props.$active
+      ? "color-mix(in srgb, var(--color-primary) 16%, white)"
       : "color-mix(in srgb, var(--color-primary) 10%, transparent)"};
   color: var(--color-primary);
   display: grid;
   place-items: center;
   overflow: hidden;
+  position: relative;
 
   svg {
     width: 18px;
     height: 18px;
   }
+`;
+
+const HubNavIconBadge = styled.span`
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 0.64rem;
+  font-weight: 800;
+  line-height: 1;
+  border: 2px solid var(--color-surface);
 `;
 
 const HubNavBody = styled.div<{ $expanded?: boolean }>`
@@ -3002,8 +3800,31 @@ const HubNavBody = styled.div<{ $expanded?: boolean }>`
   }
 `;
 
-const HubNavTitle = styled.strong`
-  color: var(--color-text);
+const HubNavTitleRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+`;
+
+const HubNavTitle = styled.strong<{ $active?: boolean }>`
+  color: ${(props) => (props.$active ? "var(--color-primary)" : "var(--color-text)")};
+`;
+
+const HubNavBadge = styled.span`
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1;
+  flex: 0 0 auto;
 `;
 
 const HubNavArrow = styled.div<{ $expanded?: boolean }>`
@@ -3071,6 +3892,24 @@ const AppointmentModalCard = styled(ModalCard)`
   height: min(760px, calc(100vh - 48px));
   overflow-y: auto;
   overscroll-behavior: contain;
+  box-shadow: 0 24px 54px rgba(15, 23, 42, 0.14);
+
+  &::after {
+    display: none;
+  }
+`;
+
+const StaffAppointmentsModalCard = styled(ModalCard)`
+  width: min(1120px, 96vw);
+  max-width: 1120px;
+  max-height: 70vh;
+  overflow-y: auto;
+  align-content: start;
+  box-shadow: 0 24px 54px rgba(15, 23, 42, 0.14);
+
+  &::after {
+    display: none;
+  }
 `;
 
 const ModalHeader = styled.div`
@@ -3428,7 +4267,10 @@ export default function AccountPage() {
   const [activeSale, setActiveSale] = useState<Record<string, unknown> | null>(null);
   const [onboardingPending, setOnboardingPending] = useState(false);
   const [hubRailExpanded, setHubRailExpanded] = useState(false);
-  const [hubSection, setHubSection] = useState<"snapshot" | "manage-listings" | "appointments" | "listing-detail">("snapshot");
+  const [hubSection, setHubSection] = useState<
+    "snapshot" | "analytics" | "manage-listings" | "lead-inbox" | "appointments" | "listing-detail" | "team" | "settings"
+  >("snapshot");
+  const searchParams = useSearchParams();
   const [selectedHubProperty, setSelectedHubProperty] = useState<VendorPropertyItem | null>(null);
   const [selectedHubPropertyDetail, setSelectedHubPropertyDetail] = useState<HubPropertyDetailPayload | null>(null);
   const [selectedHubPropertyLoading, setSelectedHubPropertyLoading] = useState(false);
@@ -3456,6 +4298,40 @@ export default function AccountPage() {
   const [appointmentComposerPropertyLocked, setAppointmentComposerPropertyLocked] = useState(false);
   const [vendorPropertyOptions, setVendorPropertyOptions] = useState<VendorPropertyItem[]>([]);
   const [vendorPropertyOptionsLoading, setVendorPropertyOptionsLoading] = useState(false);
+  const [selectedAppointmentStaffId, setSelectedAppointmentStaffId] = useState<string | null>(null);
+  const [showPastStaffAppointments, setShowPastStaffAppointments] = useState(false);
+
+  useEffect(() => {
+    const section = searchParams.get("section");
+    if (
+      section === "snapshot" ||
+      section === "analytics" ||
+      section === "manage-listings" ||
+      section === "lead-inbox" ||
+      section === "appointments" ||
+      section === "team" ||
+      section === "settings"
+    ) {
+      setHubSection(section);
+    }
+  }, [searchParams]);
+  const [teamMembers, setTeamMembers] = useState<
+    Array<{
+      user_id: string;
+      role: string;
+      status: string;
+      created_at: string | null;
+      full_name: string | null;
+      email: string | null;
+      phone: string | null;
+    }>
+  >([]);
+  const [teamLoading, setTeamLoading] = useState(false);
+  const [teamError, setTeamError] = useState<string | null>(null);
+  const [teamInviteEmail, setTeamInviteEmail] = useState("");
+  const [teamInviteRole, setTeamInviteRole] = useState("agent");
+  const [teamSavingInvite, setTeamSavingInvite] = useState(false);
+  const [teamSavingUserId, setTeamSavingUserId] = useState<string | null>(null);
   const [vendorWorkspace, setVendorWorkspace] = useState<{
     vendor: {
       id: string;
@@ -3495,6 +4371,8 @@ export default function AccountPage() {
   const [vendorOverview, setVendorOverview] = useState<VendorOverviewPayload | null>(null);
   const [vendorOverviewLoading, setVendorOverviewLoading] = useState(false);
   const [vendorOverviewError, setVendorOverviewError] = useState<string | null>(null);
+  const [leadInboxUnreadCount, setLeadInboxUnreadCount] = useState(0);
+  const [leadInboxUnreadVersion, setLeadInboxUnreadVersion] = useState(0);
 
   useEffect(() => {
     setViewingRequests([]);
@@ -3587,6 +4465,66 @@ export default function AccountPage() {
   }, [authToken, profileRole, vendorWorkspace?.vendor.plan]);
 
   useEffect(() => {
+    if (!authToken || profileRole !== "vendor_user" || vendorWorkspace?.vendor.plan === "free") {
+      setLeadInboxUnreadCount(0);
+      return;
+    }
+
+    let active = true;
+
+    fetch("/api/vendor/inquiries/unread", {
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+      },
+    })
+      .then(async (response) => {
+        const payload = (await response.json().catch(() => null)) as { unreadCount?: number; error?: string } | null;
+        if (!response.ok) {
+          throw new Error(payload?.error || "Unable to load unread lead count.");
+        }
+        if (active) {
+          setLeadInboxUnreadCount(typeof payload?.unreadCount === "number" ? payload.unreadCount : 0);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setLeadInboxUnreadCount(0);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [authToken, leadInboxUnreadVersion, profileRole, vendorWorkspace?.vendor.plan]);
+
+  useEffect(() => {
+    if (!authToken || !userId || profileRole !== "vendor_user" || vendorWorkspace?.vendor.plan === "free") return;
+
+    const channel = supabase
+      .channel(`hub-lead-unread-${userId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "vendor_inquiry_leads" },
+        () => setLeadInboxUnreadVersion((current) => current + 1)
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "vendor_lead_notes" },
+        () => setLeadInboxUnreadVersion((current) => current + 1)
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "vendor_lead_reads" },
+        () => setLeadInboxUnreadVersion((current) => current + 1)
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [authToken, profileRole, userId, vendorWorkspace?.vendor.plan]);
+
+  useEffect(() => {
     if (!authToken || !selectedHubProperty?.id || hubSection !== "listing-detail") {
       setSelectedHubPropertyDetail(null);
       setSelectedHubPropertyLoading(false);
@@ -3630,6 +4568,57 @@ export default function AccountPage() {
       active = false;
     };
   }, [authToken, hubSection, selectedHubProperty?.id]);
+
+  useEffect(() => {
+    if (!authToken || hubSection !== "team") {
+      setTeamLoading(false);
+      setTeamError(null);
+      return;
+    }
+
+    let cancelled = false;
+    setTeamLoading(true);
+    setTeamError(null);
+
+    fetch("/api/vendor/team", {
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+      },
+    })
+      .then(async (response) => {
+        const payload = (await response.json().catch(() => null)) as
+          | { members?: Array<{
+              user_id: string;
+              role: string;
+              status: string;
+              created_at: string | null;
+              full_name: string | null;
+              email: string | null;
+              phone: string | null;
+            }>; error?: string }
+          | null;
+        if (!response.ok) {
+          throw new Error(payload?.error || "Unable to load team.");
+        }
+        if (!cancelled) {
+          setTeamMembers(payload?.members ?? []);
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setTeamError(error instanceof Error ? error.message : "Unable to load team.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setTeamLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authToken, hubSection]);
 
   useEffect(() => {
     const shouldLoadAppointmentDashboard = appointmentComposerMode || hubSection === "appointments";
@@ -4114,6 +5103,91 @@ export default function AccountPage() {
     }
   };
 
+  const handleTeamInvite = async () => {
+    if (!authToken || !teamInviteEmail.trim()) return;
+    setTeamSavingInvite(true);
+    setTeamError(null);
+    try {
+      const response = await fetch("/api/vendor/team", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          email: teamInviteEmail.trim(),
+          role: teamInviteRole,
+        }),
+      });
+      const payload = (await response.json().catch(() => null)) as {
+        member?: {
+          user_id: string;
+          role: string;
+          status: string;
+          full_name: string | null;
+          email: string | null;
+          phone: string | null;
+        };
+        error?: string;
+      } | null;
+      if (!response.ok || !payload?.member) {
+        throw new Error(payload?.error || "Unable to add team member.");
+      }
+      setTeamMembers((current) => [
+        ...current,
+        {
+          ...payload.member,
+          created_at: new Date().toISOString(),
+        },
+      ]);
+      setTeamInviteEmail("");
+      setTeamInviteRole("agent");
+    } catch (error) {
+      setTeamError(error instanceof Error ? error.message : "Unable to add team member.");
+    } finally {
+      setTeamSavingInvite(false);
+    }
+  };
+
+  const handleTeamMemberUpdate = async (memberUserId: string, role: string, status: string) => {
+    if (!authToken) return;
+    setTeamSavingUserId(memberUserId);
+    setTeamError(null);
+    try {
+      const response = await fetch("/api/vendor/team", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          user_id: memberUserId,
+          role,
+          status,
+        }),
+      });
+      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+      if (!response.ok) {
+        throw new Error(payload?.error || "Unable to update team member.");
+      }
+      setTeamMembers((current) =>
+        current.map((member) =>
+          member.user_id === memberUserId
+            ? {
+                ...member,
+                role,
+                status,
+              }
+            : member
+        )
+      );
+    } catch (error) {
+      setTeamError(error instanceof Error ? error.message : "Unable to update team member.");
+    } finally {
+      setTeamSavingUserId(null);
+    }
+  };
+
   const currentVendorPlan = getVendorPlan(vendorWorkspace?.vendor.plan);
   const suggestedUpgrade = getUpgradePlan(vendorWorkspace?.vendor.plan);
   const isFreeAgencyPlan = vendorWorkspace?.vendor.plan === "free";
@@ -4145,6 +5219,19 @@ export default function AccountPage() {
   const freeSettingsHref = "/hub/settings";
   const freeUpgradeHref = "/hub/upgrade";
   const canManageTeam = vendorWorkspace?.membership.role === "owner" || vendorWorkspace?.membership.role === "admin";
+  const activeTeamCount = teamMembers.filter((member) => member.status === "active").length;
+  const ownerCount = teamMembers.filter((member) => member.role === "owner" && member.status === "active").length;
+  const adminCount = teamMembers.filter((member) => member.role === "admin" && member.status === "active").length;
+  const agentCount = teamMembers.filter((member) => member.role === "agent" && member.status === "active").length;
+  const storefrontChannels = [
+    vendorWorkspace?.vendor.contact_phone,
+    vendorWorkspace?.vendor.contact_email,
+    vendorWorkspace?.vendor.facebook_url,
+    vendorWorkspace?.vendor.telegram_url,
+    vendorWorkspace?.vendor.viber_phone,
+    vendorWorkspace?.vendor.tiktok_url,
+    vendorWorkspace?.vendor.website_url,
+  ].filter((value) => typeof value === "string" && value.trim()).length;
   const profileReadinessHref =
     profileReadinessDoneCount === profileReadinessItems.length ? freeSettingsHref : "/agency-setup";
   const hubChecklist = [
@@ -4290,10 +5377,30 @@ export default function AccountPage() {
     });
   }, [appointmentDashboardAppointments, appointmentMonthDate, locale]);
   const appointmentAssignments = useMemo(() => appointmentDashboard?.assignments ?? [], [appointmentDashboard]);
+  const selectedStaffAssignment = useMemo(
+    () => appointmentAssignments.find((staff) => staff.id === selectedAppointmentStaffId) ?? null,
+    [appointmentAssignments, selectedAppointmentStaffId]
+  );
   const selectedAppointment = useMemo(
     () => appointmentDashboardAppointments.find((appointment) => appointment.id === selectedAppointmentId) ?? null,
     [appointmentDashboardAppointments, selectedAppointmentId]
   );
+  const selectedStaffAppointments = useMemo(() => {
+    if (!selectedAppointmentStaffId) return [];
+    const now = Date.now();
+    return appointmentDashboardAppointments
+      .filter((appointment) => appointment.assigned_staff_id === selectedAppointmentStaffId)
+      .filter((appointment) => {
+        if (showPastStaffAppointments) return true;
+        if (!appointment.start_at) return true;
+        return new Date(appointment.start_at).getTime() >= now;
+      })
+      .sort((left, right) => {
+        const leftTime = left.start_at ? new Date(left.start_at).getTime() : Number.MAX_SAFE_INTEGER;
+        const rightTime = right.start_at ? new Date(right.start_at).getTime() : Number.MAX_SAFE_INTEGER;
+        return leftTime - rightTime;
+      });
+  }, [appointmentDashboardAppointments, selectedAppointmentStaffId, showPastStaffAppointments]);
   const appointmentQueue = useMemo(
     () =>
       appointmentDashboardAppointments
@@ -4492,15 +5599,16 @@ export default function AccountPage() {
               <HubRailSurface $expanded={hubRailExpanded}>
                 <HubNavList>
                   <HubNavButton
+                    $active={hubSection === "snapshot"}
                     $expanded={hubRailExpanded}
                     type="button"
                     onClick={() => setHubSection("snapshot")}
                   >
-                    <HubNavIcon $image={vendorWorkspace?.vendor.logo_url || undefined}>
+                    <HubNavIcon $active={hubSection === "snapshot"} $image={vendorWorkspace?.vendor.logo_url || undefined}>
                       {!vendorWorkspace?.vendor.logo_url ? <Home /> : null}
                     </HubNavIcon>
                     <HubNavBody $expanded={hubRailExpanded}>
-                      <HubNavTitle>Hub</HubNavTitle>
+                      <HubNavTitle $active={hubSection === "snapshot"}>Hub</HubNavTitle>
                     </HubNavBody>
                     <HubNavArrow $expanded={hubRailExpanded}>
                       <ArrowUpRight size={18} />
@@ -4521,15 +5629,18 @@ export default function AccountPage() {
                     </HubNavItem>
                   ) : (
                     <HubNavButton
+                      $active={hubSection === "manage-listings" || hubSection === "listing-detail"}
                       $expanded={hubRailExpanded}
                       type="button"
                       onClick={() => setHubSection("manage-listings")}
                     >
-                      <HubNavIcon>
+                      <HubNavIcon $active={hubSection === "manage-listings" || hubSection === "listing-detail"}>
                         <Plus />
                       </HubNavIcon>
                       <HubNavBody $expanded={hubRailExpanded}>
-                        <HubNavTitle>Manage listings</HubNavTitle>
+                        <HubNavTitle $active={hubSection === "manage-listings" || hubSection === "listing-detail"}>
+                          Manage listings
+                        </HubNavTitle>
                       </HubNavBody>
                       <HubNavArrow $expanded={hubRailExpanded}>
                         <ArrowUpRight size={18} />
@@ -4551,15 +5662,16 @@ export default function AccountPage() {
                     </HubNavItem>
                   ) : (
                     <HubNavButton
+                      $active={hubSection === "appointments"}
                       $expanded={hubRailExpanded}
                       type="button"
                       onClick={() => setHubSection("appointments")}
                     >
-                      <HubNavIcon>
+                      <HubNavIcon $active={hubSection === "appointments"}>
                         <Calendar />
                       </HubNavIcon>
                       <HubNavBody $expanded={hubRailExpanded}>
-                        <HubNavTitle>Appointment management</HubNavTitle>
+                        <HubNavTitle $active={hubSection === "appointments"}>Appointment management</HubNavTitle>
                       </HubNavBody>
                       <HubNavArrow $expanded={hubRailExpanded}>
                         <ArrowUpRight size={18} />
@@ -4567,31 +5679,62 @@ export default function AccountPage() {
                     </HubNavButton>
                   )}
 
-                  {!isFreeAgencyPlan ? (
-                    <HubNavItem $expanded={hubRailExpanded} href="/vendor/inquiries">
-                      <HubNavIcon>
-                        <MessageSquareText />
-                      </HubNavIcon>
-                      <HubNavBody $expanded={hubRailExpanded}>
-                        <HubNavTitle>Lead inbox</HubNavTitle>
-                      </HubNavBody>
-                      <HubNavArrow $expanded={hubRailExpanded}>
-                        <ArrowUpRight size={18} />
-                      </HubNavArrow>
-                    </HubNavItem>
-                  ) : null}
-
-                  <HubNavItem $expanded={hubRailExpanded} href={isFreeAgencyPlan ? freeSettingsHref : "/vendor/settings"}>
-                    <HubNavIcon>
-                      <Settings />
+                  <HubNavButton
+                    $active={hubSection === "analytics"}
+                    $expanded={hubRailExpanded}
+                    type="button"
+                    onClick={() => setHubSection("analytics")}
+                  >
+                    <HubNavIcon $active={hubSection === "analytics"}>
+                      <BarChart3 />
                     </HubNavIcon>
                     <HubNavBody $expanded={hubRailExpanded}>
-                      <HubNavTitle>Organization settings</HubNavTitle>
+                      <HubNavTitle $active={hubSection === "analytics"}>Analytics</HubNavTitle>
                     </HubNavBody>
                     <HubNavArrow $expanded={hubRailExpanded}>
                       <ArrowUpRight size={18} />
                     </HubNavArrow>
-                  </HubNavItem>
+                  </HubNavButton>
+
+                  {!isFreeAgencyPlan ? (
+                    <HubNavButton
+                      $active={hubSection === "lead-inbox"}
+                      $expanded={hubRailExpanded}
+                      type="button"
+                      onClick={() => setHubSection("lead-inbox")}
+                    >
+                      <HubNavIcon $active={hubSection === "lead-inbox"}>
+                        <MessageSquareText />
+                        {leadInboxUnreadCount > 0 ? <HubNavIconBadge>{leadInboxUnreadCount > 99 ? "99+" : leadInboxUnreadCount}</HubNavIconBadge> : null}
+                      </HubNavIcon>
+                      <HubNavBody $expanded={hubRailExpanded}>
+                        <HubNavTitleRow>
+                          <HubNavTitle $active={hubSection === "lead-inbox"}>Lead inbox</HubNavTitle>
+                          {leadInboxUnreadCount > 0 ? <HubNavBadge>{leadInboxUnreadCount > 99 ? "99+" : leadInboxUnreadCount}</HubNavBadge> : null}
+                        </HubNavTitleRow>
+                      </HubNavBody>
+                      <HubNavArrow $expanded={hubRailExpanded}>
+                        <ArrowUpRight size={18} />
+                      </HubNavArrow>
+                    </HubNavButton>
+                  ) : null}
+
+                  <HubNavButton
+                    $active={hubSection === "settings"}
+                    $expanded={hubRailExpanded}
+                    type="button"
+                    onClick={() => setHubSection("settings")}
+                  >
+                    <HubNavIcon $active={hubSection === "settings"}>
+                      <Settings />
+                    </HubNavIcon>
+                    <HubNavBody $expanded={hubRailExpanded}>
+                      <HubNavTitle $active={hubSection === "settings"}>Organization settings</HubNavTitle>
+                    </HubNavBody>
+                    <HubNavArrow $expanded={hubRailExpanded}>
+                      <ArrowUpRight size={18} />
+                    </HubNavArrow>
+                  </HubNavButton>
 
                   {isFreeAgencyPlan ? (
                     <HubNavItem $expanded={hubRailExpanded} href={freeUpgradeHref} $disabled>
@@ -4599,24 +5742,29 @@ export default function AccountPage() {
                         <Users2 />
                       </HubNavIcon>
                       <HubNavBody $expanded={hubRailExpanded}>
-                        <HubNavTitle>Add members</HubNavTitle>
+                        <HubNavTitle>Team</HubNavTitle>
                       </HubNavBody>
                       <HubNavArrow $expanded={hubRailExpanded}>
                         <ArrowUpRight size={18} />
                       </HubNavArrow>
                     </HubNavItem>
                   ) : canManageTeam ? (
-                    <HubNavItem $expanded={hubRailExpanded} href="/vendor/team">
-                      <HubNavIcon>
+                    <HubNavButton
+                      $active={hubSection === "team"}
+                      $expanded={hubRailExpanded}
+                      type="button"
+                      onClick={() => setHubSection("team")}
+                    >
+                      <HubNavIcon $active={hubSection === "team"}>
                         <Users2 />
                       </HubNavIcon>
                       <HubNavBody $expanded={hubRailExpanded}>
-                        <HubNavTitle>Add members</HubNavTitle>
+                        <HubNavTitle $active={hubSection === "team"}>Team</HubNavTitle>
                       </HubNavBody>
                       <HubNavArrow $expanded={hubRailExpanded}>
                         <ArrowUpRight size={18} />
                       </HubNavArrow>
-                    </HubNavItem>
+                    </HubNavButton>
                   ) : null}
 
                   {vendorWorkspace?.vendor.public_storefront_enabled && vendorWorkspace?.vendor.slug ? (
@@ -4687,7 +5835,7 @@ export default function AccountPage() {
                         {vendorWorkspace?.limits?.currentPlan?.name || currentVendorPlan.name}
                       </VendorPillLink>
                       <VendorPillLink
-                        href={isFreeAgencyPlan ? freeUpgradeHref : "/vendor/verification"}
+                        href={isFreeAgencyPlan ? freeUpgradeHref : "/hub?section=settings"}
                         $tone={vendorWorkspace?.vendor.verified_status === "approved" ? "success" : "warning"}
                       >
                         {vendorWorkspace?.vendor.verified_status === "approved" ? <BadgeCheck size={14} /> : <ShieldCheck size={14} />}
@@ -4730,11 +5878,23 @@ export default function AccountPage() {
                   </>
                 ) : (
                   <>
-                    {isFreeAgencyPlan || hubSection === "snapshot" ? (
+                    {isFreeAgencyPlan || hubSection === "snapshot" || hubSection === "analytics" ? (
                       <HubFeatureHeader>
-                        <HubFeatureTitle>{isFreeAgencyPlan ? "Premium workspace preview" : "Workspace snapshot"}</HubFeatureTitle>
+                        <HubFeatureTitle>
+                          {isFreeAgencyPlan
+                            ? hubSection === "analytics"
+                              ? "Premium analytics preview"
+                              : "Premium workspace preview"
+                            : hubSection === "analytics"
+                              ? "Analytics"
+                              : "Workspace snapshot"}
+                        </HubFeatureTitle>
                         {isFreeAgencyPlan ? (
-                          <HubFeatureCopy>Upgrade to unlock live sales and lead overview inside your hub.</HubFeatureCopy>
+                          <HubFeatureCopy>
+                            {hubSection === "analytics"
+                              ? "Upgrade to unlock live analytics and sales insights inside your hub."
+                              : "Upgrade to unlock live sales and lead overview inside your hub."}
+                          </HubFeatureCopy>
                         ) : null}
                       </HubFeatureHeader>
                     ) : null}
@@ -4941,6 +6101,17 @@ export default function AccountPage() {
                           </ListingDetailLower>
                         </ListingDetailScroller>
                       </ListingDetailViewport>
+                    ) : hubSection === "lead-inbox" ? (
+                      <LeadInboxViewport>
+                        <LeadInboxScroller>
+                          <VendorInquiriesView
+                            embedded
+                            hideHeader
+                            title="Lead inbox"
+                            subtitle="Track routed buyer leads, assign owners, and follow up from inside your hub."
+                          />
+                        </LeadInboxScroller>
+                      </LeadInboxViewport>
                     ) : hubSection === "appointments" ? (
                       <HubSectionViewport>
                         <HubSectionScroller>
@@ -4949,7 +6120,10 @@ export default function AccountPage() {
                               <AppointmentCard>
                                 <AppointmentCardHeader>
                                   <AppointmentCardTitleWrap>
-                                    <AppointmentCardTitle>Calendar</AppointmentCardTitle>
+                                    <AppointmentCardTitle>
+                                      <Calendar size={16} style={{ marginRight: 8, verticalAlign: "text-bottom" }} />
+                                      Calendar
+                                    </AppointmentCardTitle>
                                   </AppointmentCardTitleWrap>
                                   <AppointmentCardHeaderRight>
                                   <AppointmentPill $tone="success">
@@ -5111,8 +6285,11 @@ export default function AccountPage() {
                               <AppointmentCard>
                                 <AppointmentCardHeader>
                                   <AppointmentCardTitleWrap>
-                                    <AppointmentCardTitle>Assignment control</AppointmentCardTitle>
-                                    <AppointmentCardCopy>Owners and admins can distribute scheduled viewings across available staff.</AppointmentCardCopy>
+                                    <AppointmentCardTitle>
+                                      <Users2 size={16} style={{ marginRight: 8, verticalAlign: "text-bottom" }} />
+                                      Assignment
+                                    </AppointmentCardTitle>
+                                    <AppointmentCardCopy>Staff load and routing.</AppointmentCardCopy>
                                   </AppointmentCardTitleWrap>
                                   <AppointmentPill $tone={canManageTeam ? "success" : "neutral"}>
                                     <Users2 size={14} />
@@ -5121,30 +6298,38 @@ export default function AccountPage() {
                                 </AppointmentCardHeader>
                                 <AppointmentAssignmentList>
                                   {appointmentAssignments.length ? appointmentAssignments.map((staff) => (
-                                    <AppointmentAssignmentRow key={staff.id}>
+                                    <AppointmentAssignmentRow
+                                      key={staff.id}
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedAppointmentStaffId(staff.id);
+                                        setShowPastStaffAppointments(false);
+                                      }}
+                                    >
                                       <AppointmentAssignmentTop>
                                         <AppointmentAssignmentName>{staff.name}</AppointmentAssignmentName>
-                                        <AppointmentPill>{staff.assigned_count} assigned</AppointmentPill>
-                                      </AppointmentAssignmentTop>
-                                      <AppointmentAssignmentMeta>
                                         <span>{labelize(staff.role)}</span>
                                         <span>•</span>
                                         <span>
                                           {staff.assigned_count} scheduled viewing{staff.assigned_count === 1 ? "" : "s"}
                                         </span>
-                                      </AppointmentAssignmentMeta>
+                                      </AppointmentAssignmentTop>
+                                      <AppointmentPill>{staff.assigned_count} assigned</AppointmentPill>
                                     </AppointmentAssignmentRow>
                                   )) : <HubFeatureCopy>No active team members are available for assignment yet.</HubFeatureCopy>}
                                 </AppointmentAssignmentList>
                               </AppointmentCard>
                             </AppointmentTopGrid>
 
-                            <AppointmentCard>
-                              <AppointmentCardHeader>
-                                <AppointmentCardTitleWrap>
-                                  <AppointmentCardTitle>Appointment board</AppointmentCardTitle>
-                                  <AppointmentCardCopy>Keep scheduled viewings staffed, confirmed, and easy to scan for the day.</AppointmentCardCopy>
-                                </AppointmentCardTitleWrap>
+                              <AppointmentCard>
+                                <AppointmentCardHeader>
+                                  <AppointmentCardTitleWrap>
+                                    <AppointmentCardTitle>
+                                      <Clock size={16} style={{ marginRight: 8, verticalAlign: "text-bottom" }} />
+                                      Board
+                                    </AppointmentCardTitle>
+                                    <AppointmentCardCopy>Upcoming queue.</AppointmentCardCopy>
+                                  </AppointmentCardTitleWrap>
                                 <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                                   <AppointmentPill $tone="warning">
                                     <Clock size={14} />
@@ -5181,7 +6366,7 @@ export default function AccountPage() {
                                         </AppointmentQueueMeta>
                                       </AppointmentQueueMain>
                                       <AppointmentQueueSide>
-                                        <AppointmentQueueSideLabel>Assigned staff</AppointmentQueueSideLabel>
+                                        <AppointmentQueueSideLabel>Assignee</AppointmentQueueSideLabel>
                                         <AppointmentQueueSideValue>{appointment.owner}</AppointmentQueueSideValue>
                                       </AppointmentQueueSide>
                                       <AppointmentPill $tone={appointment.status === "Confirmed" ? "success" : "warning"}>
@@ -5197,6 +6382,318 @@ export default function AccountPage() {
                           </AppointmentLayout>
                         </HubSectionScroller>
                       </HubSectionViewport>
+                    ) : hubSection === "settings" ? (
+                      <WorkspaceSectionViewport>
+                        <WorkspaceSectionScroller>
+                          <WorkspaceSectionHeader>
+                            <WorkspaceSectionTitleWrap>
+                              <WorkspaceSectionTitle>Organization settings</WorkspaceSectionTitle>
+                              <WorkspaceSectionCopy>Core workspace controls.</WorkspaceSectionCopy>
+                            </WorkspaceSectionTitleWrap>
+                          </WorkspaceSectionHeader>
+                          <SettingsIndexGrid>
+                            <SettingsIndexCard>
+                              <SettingsIndexHeader>
+                                <SettingsIndexTitleWrap>
+                                  <SettingsIndexTitle>Workspace</SettingsIndexTitle>
+                                  <SettingsIndexCopy>Plan, seats, status.</SettingsIndexCopy>
+                                </SettingsIndexTitleWrap>
+                                <AppointmentPill>
+                                  <Users2 size={14} />
+                                  {activeTeamCount} / {agentLimit} seats
+                                </AppointmentPill>
+                              </SettingsIndexHeader>
+                              <SettingsIndexRows>
+                                <SettingsIndexRow>
+                                  <SettingsIndexLabel><Building2 size={14} style={{ marginRight: 6, verticalAlign: "text-bottom" }} />Agency</SettingsIndexLabel>
+                                  <SettingsIndexValue>{vendorWorkspace?.vendor.name || "Agency account"}</SettingsIndexValue>
+                                </SettingsIndexRow>
+                                <SettingsIndexRow>
+                                  <SettingsIndexLabel><Sparkles size={14} style={{ marginRight: 6, verticalAlign: "text-bottom" }} />Plan</SettingsIndexLabel>
+                                  <SettingsIndexValue>{vendorWorkspace?.limits?.currentPlan?.name || currentVendorPlan.name}</SettingsIndexValue>
+                                </SettingsIndexRow>
+                                <SettingsIndexRow>
+                                  <SettingsIndexLabel><ShieldCheck size={14} style={{ marginRight: 6, verticalAlign: "text-bottom" }} />Verification</SettingsIndexLabel>
+                                  <SettingsIndexValue>{labelize(vendorWorkspace?.vendor.verified_status || "not_requested")}</SettingsIndexValue>
+                                </SettingsIndexRow>
+                                <SettingsIndexRow>
+                                  <SettingsIndexLabel><Users2 size={14} style={{ marginRight: 6, verticalAlign: "text-bottom" }} />Control</SettingsIndexLabel>
+                                  <SettingsIndexValue>{canManageTeam ? "Owner / admin" : "View only"}</SettingsIndexValue>
+                                </SettingsIndexRow>
+                              </SettingsIndexRows>
+                              <SettingsIndexActions>
+                                <GhostButton type="button" onClick={() => setHubSection("team")}>
+                                  Team
+                                </GhostButton>
+                                {vendorWorkspace?.limits?.suggestedUpgrade ? (
+                                  <GhostButton type="button" onClick={() => router.push("/hub/upgrade")}>
+                                    Upgrade
+                                  </GhostButton>
+                                ) : null}
+                              </SettingsIndexActions>
+                            </SettingsIndexCard>
+
+                            <SettingsIndexCard>
+                              <SettingsIndexHeader>
+                                <SettingsIndexTitleWrap>
+                                  <SettingsIndexTitle>Storefront</SettingsIndexTitle>
+                                  <SettingsIndexCopy>Visibility, branding, contact.</SettingsIndexCopy>
+                                </SettingsIndexTitleWrap>
+                                <AppointmentPill $tone={vendorWorkspace?.vendor.public_storefront_enabled ? "success" : "warning"}>
+                                  <Globe2 size={14} />
+                                  {vendorWorkspace?.vendor.public_storefront_enabled ? "Live" : "Hidden"}
+                                </AppointmentPill>
+                              </SettingsIndexHeader>
+                              <SettingsIndexRows>
+                                <SettingsIndexRow>
+                                  <SettingsIndexLabel><Globe2 size={14} style={{ marginRight: 6, verticalAlign: "text-bottom" }} />Slug</SettingsIndexLabel>
+                                  <SettingsIndexValue>
+                                    {vendorWorkspace?.vendor.slug ? `/agency/${vendorWorkspace.vendor.slug}` : "Not set yet"}
+                                  </SettingsIndexValue>
+                                </SettingsIndexRow>
+                                <SettingsIndexRow>
+                                  <SettingsIndexLabel><ImageIcon size={14} style={{ marginRight: 6, verticalAlign: "text-bottom" }} />Branding</SettingsIndexLabel>
+                                  <SettingsIndexValue>
+                                    {hasAgencyLogo ? "Logo ready" : "Logo missing"} • {vendorWorkspace?.vendor.cover_image_url ? "Cover ready" : "Cover missing"}
+                                  </SettingsIndexValue>
+                                </SettingsIndexRow>
+                                <SettingsIndexRow>
+                                  <SettingsIndexLabel><Phone size={14} style={{ marginRight: 6, verticalAlign: "text-bottom" }} />Contact</SettingsIndexLabel>
+                                  <SettingsIndexValue>
+                                    {vendorWorkspace?.vendor.contact_phone?.trim() || vendorWorkspace?.vendor.contact_email?.trim() || "Not added yet"}
+                                  </SettingsIndexValue>
+                                </SettingsIndexRow>
+                                <SettingsIndexRow>
+                                  <SettingsIndexLabel><MessageSquareText size={14} style={{ marginRight: 6, verticalAlign: "text-bottom" }} />Channels</SettingsIndexLabel>
+                                  <SettingsIndexValue>{storefrontChannels} active</SettingsIndexValue>
+                                </SettingsIndexRow>
+                              </SettingsIndexRows>
+                              <SettingsIndexActions>
+                                <CTAButton type="button" onClick={() => router.push("/hub/settings")}>
+                                  Edit
+                                </CTAButton>
+                                {vendorWorkspace?.vendor.public_storefront_enabled && vendorWorkspace?.vendor.slug ? (
+                                  <GhostButton type="button" onClick={() => router.push(`/agency/${vendorWorkspace.vendor.slug}`)}>
+                                    View
+                                  </GhostButton>
+                                ) : null}
+                              </SettingsIndexActions>
+                            </SettingsIndexCard>
+
+                            <SettingsIndexCard>
+                              <SettingsIndexHeader>
+                                <SettingsIndexTitleWrap>
+                                  <SettingsIndexTitle>Permissions</SettingsIndexTitle>
+                                  <SettingsIndexCopy>Role access.</SettingsIndexCopy>
+                                </SettingsIndexTitleWrap>
+                              </SettingsIndexHeader>
+                              <SettingsIndexBullets>
+                                <SettingsIndexBullet>
+                                  <CheckCircle2 size={16} />
+                                  <span><strong style={{ color: "var(--color-text)" }}>Owner:</strong> full control.</span>
+                                </SettingsIndexBullet>
+                                <SettingsIndexBullet>
+                                  <CheckCircle2 size={16} />
+                                  <span><strong style={{ color: "var(--color-text)" }}>Admin:</strong> listings + appointments.</span>
+                                </SettingsIndexBullet>
+                                <SettingsIndexBullet>
+                                  <Circle size={16} />
+                                  <span><strong style={{ color: "var(--color-text)" }}>Agent:</strong> assigned work only.</span>
+                                </SettingsIndexBullet>
+                              </SettingsIndexBullets>
+                              <SettingsIndexActions>
+                                <GhostButton type="button" onClick={() => setHubSection("team")}>
+                                  Team
+                                </GhostButton>
+                              </SettingsIndexActions>
+                            </SettingsIndexCard>
+
+                            <SettingsIndexCard>
+                              <SettingsIndexHeader>
+                                <SettingsIndexTitleWrap>
+                                  <SettingsIndexTitle>Operations</SettingsIndexTitle>
+                                  <SettingsIndexCopy>Workflow defaults.</SettingsIndexCopy>
+                                </SettingsIndexTitleWrap>
+                              </SettingsIndexHeader>
+                              <SettingsIndexRows>
+                                <SettingsIndexRow>
+                                  <SettingsIndexLabel><Phone size={14} style={{ marginRight: 6, verticalAlign: "text-bottom" }} />Listing contact</SettingsIndexLabel>
+                                  <SettingsIndexValue>Agency profile</SettingsIndexValue>
+                                </SettingsIndexRow>
+                                <SettingsIndexRow>
+                                  <SettingsIndexLabel><Calendar size={14} style={{ marginRight: 6, verticalAlign: "text-bottom" }} />Assignments</SettingsIndexLabel>
+                                  <SettingsIndexValue>Manual</SettingsIndexValue>
+                                </SettingsIndexRow>
+                                <SettingsIndexRow>
+                                  <SettingsIndexLabel><Settings size={14} style={{ marginRight: 6, verticalAlign: "text-bottom" }} />Editor</SettingsIndexLabel>
+                                  <SettingsIndexValue>Storefront editor</SettingsIndexValue>
+                                </SettingsIndexRow>
+                                <SettingsIndexRow>
+                                  <SettingsIndexLabel><Users2 size={14} style={{ marginRight: 6, verticalAlign: "text-bottom" }} />Team source</SettingsIndexLabel>
+                                  <SettingsIndexValue>Vendor members</SettingsIndexValue>
+                                </SettingsIndexRow>
+                              </SettingsIndexRows>
+                              <SettingsIndexActions>
+                                <GhostButton type="button" onClick={() => router.push("/hub/settings")}>
+                                  Configure
+                                </GhostButton>
+                              </SettingsIndexActions>
+                            </SettingsIndexCard>
+                          </SettingsIndexGrid>
+                        </WorkspaceSectionScroller>
+                      </WorkspaceSectionViewport>
+                    ) : hubSection === "team" ? (
+                      <WorkspaceSectionViewport>
+                        <WorkspaceSectionScroller>
+                          <WorkspaceSectionHeader>
+                            <WorkspaceSectionTitleWrap>
+                              <WorkspaceSectionTitle>Team</WorkspaceSectionTitle>
+                              <WorkspaceSectionCopy>Manage seats and current member records tied to this agency workspace.</WorkspaceSectionCopy>
+                            </WorkspaceSectionTitleWrap>
+                            <AppointmentPill>
+                              <Users2 size={14} />
+                              {activeTeamCount} / {agentLimit} active seats
+                            </AppointmentPill>
+                          </WorkspaceSectionHeader>
+                          {teamError ? <HubFeatureCopy>{teamError}</HubFeatureCopy> : null}
+                          <TeamSectionStack>
+                            <TeamSummaryBar>
+                              <TeamSummaryItem>
+                                <TeamSummaryItemLabel>Active seats</TeamSummaryItemLabel>
+                                <TeamSummaryItemValue>
+                                  {activeTeamCount} / {agentLimit}
+                                </TeamSummaryItemValue>
+                              </TeamSummaryItem>
+                              <TeamSummaryItem>
+                                <TeamSummaryItemLabel>Role mix</TeamSummaryItemLabel>
+                                <TeamSummaryItemValue>
+                                  {ownerCount} owner • {adminCount} admin • {agentCount} agent
+                                </TeamSummaryItemValue>
+                              </TeamSummaryItem>
+                              <TeamSummaryItem>
+                                <TeamSummaryItemLabel>Current plan</TeamSummaryItemLabel>
+                                <TeamSummaryItemValue>{vendorWorkspace?.limits?.currentPlan?.name || currentVendorPlan.name}</TeamSummaryItemValue>
+                              </TeamSummaryItem>
+                            </TeamSummaryBar>
+                            <WorkspacePanel>
+                              <WorkspacePanelTitle>Add team member</WorkspacePanelTitle>
+                              <WorkspacePanelCopy>Add an existing vendor account by email and choose the role it should receive in this workspace.</WorkspacePanelCopy>
+                              {canManageTeam ? (
+                                <TeamInviteGrid>
+                                  <CompactTextInput
+                                    type="email"
+                                    value={teamInviteEmail}
+                                    onChange={(event) => setTeamInviteEmail(event.target.value)}
+                                    placeholder="member@example.com"
+                                  />
+                                  <CompactSelectWrap>
+                                    <CustomSelect
+                                      id="hub-team-role"
+                                      name="hub-team-role"
+                                      label="Role"
+                                      hideLabel
+                                      value={teamInviteRole}
+                                      onChange={setTeamInviteRole}
+                                    >
+                                      <option value="agent">Agent</option>
+                                      <option value="admin">Admin</option>
+                                      <option value="owner">Owner</option>
+                                    </CustomSelect>
+                                  </CompactSelectWrap>
+                                  <CompactCTAButton
+                                    type="button"
+                                    onClick={() => void handleTeamInvite()}
+                                    disabled={teamSavingInvite || !teamInviteEmail.trim()}
+                                  >
+                                    {teamSavingInvite ? "Adding..." : "Add member"}
+                                  </CompactCTAButton>
+                                </TeamInviteGrid>
+                              ) : (
+                                <WorkspaceSummaryHint>Only owner and admin seats can add team members in this workspace.</WorkspaceSummaryHint>
+                              )}
+                            </WorkspacePanel>
+                            <WorkspacePanel>
+                              <WorkspacePanelTitle>Current team members</WorkspacePanelTitle>
+                              <WorkspacePanelCopy>Review who is active in this workspace and adjust role or status as needed.</WorkspacePanelCopy>
+                              <TeamMembersList>
+                                {teamLoading ? (
+                                  <HubFeatureCopy>Loading team...</HubFeatureCopy>
+                                ) : teamMembers.length ? (
+                                  teamMembers.map((member) => (
+                                    <TeamMemberCard key={member.user_id}>
+                                      <TeamMemberTop>
+                                        <div style={{ display: "grid", gap: 4 }}>
+                                          <TeamMemberName>{member.full_name || member.email || "Unnamed member"}</TeamMemberName>
+                                          <TeamMemberMeta>{member.email || "No email"}</TeamMemberMeta>
+                                          {member.phone ? <TeamMemberMeta>{member.phone}</TeamMemberMeta> : null}
+                                        </div>
+                                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                          <AppointmentPill>{labelize(member.role)}</AppointmentPill>
+                                          <AppointmentPill $tone={member.status === "active" ? "success" : "neutral"}>
+                                            {labelize(member.status)}
+                                          </AppointmentPill>
+                                        </div>
+                                      </TeamMemberTop>
+                                      {canManageTeam && member.user_id !== userId ? (
+                                        <TeamMemberControls>
+                                          <CompactSelectWrap>
+                                            <CustomSelect
+                                              id={`team-role-${member.user_id}`}
+                                              name={`team-role-${member.user_id}`}
+                                              label="Role"
+                                              hideLabel
+                                              value={member.role}
+                                              onChange={(nextRole) => {
+                                                setTeamMembers((current) =>
+                                                  current.map((item) =>
+                                                    item.user_id === member.user_id ? { ...item, role: nextRole } : item
+                                                  )
+                                                );
+                                              }}
+                                            >
+                                              <option value="agent">Agent</option>
+                                              <option value="admin">Admin</option>
+                                              <option value="owner">Owner</option>
+                                            </CustomSelect>
+                                          </CompactSelectWrap>
+                                          <CompactSelectWrap>
+                                            <CustomSelect
+                                              id={`team-status-${member.user_id}`}
+                                              name={`team-status-${member.user_id}`}
+                                              label="Status"
+                                              hideLabel
+                                              value={member.status}
+                                              onChange={(nextStatus) => {
+                                                setTeamMembers((current) =>
+                                                  current.map((item) =>
+                                                    item.user_id === member.user_id ? { ...item, status: nextStatus } : item
+                                                  )
+                                                );
+                                              }}
+                                            >
+                                              <option value="active">Active</option>
+                                              <option value="inactive">Inactive</option>
+                                            </CustomSelect>
+                                          </CompactSelectWrap>
+                                          <CompactGhostButton
+                                            type="button"
+                                            onClick={() => void handleTeamMemberUpdate(member.user_id, member.role, member.status)}
+                                            disabled={teamSavingUserId === member.user_id}
+                                          >
+                                            {teamSavingUserId === member.user_id ? "Saving..." : "Save"}
+                                          </CompactGhostButton>
+                                        </TeamMemberControls>
+                                      ) : null}
+                                    </TeamMemberCard>
+                                  ))
+                                ) : (
+                                  <HubFeatureCopy>No team members found for this workspace yet.</HubFeatureCopy>
+                                )}
+                              </TeamMembersList>
+                            </WorkspacePanel>
+                          </TeamSectionStack>
+                        </WorkspaceSectionScroller>
+                      </WorkspaceSectionViewport>
                     ) : vendorOverviewLoading && !vendorOverview ? (
                       <HubFeatureCopy>Loading workspace insights...</HubFeatureCopy>
                     ) : vendorOverviewError || !vendorOverview ? (
@@ -6015,7 +7512,6 @@ export default function AccountPage() {
                           ]
                         : [
                             { value: "scheduled", label: "Scheduled" },
-                            { value: "confirmed", label: "Confirmed" },
                             { value: "completed", label: "Completed" },
                             { value: "canceled", label: "Canceled" },
                           ]
@@ -6191,6 +7687,114 @@ export default function AccountPage() {
               </div>
             </ModalActions>
           </AppointmentModalCard>
+        </ModalOverlay>
+      )}
+      {selectedStaffAssignment && (
+        <ModalOverlay
+          onClick={() => {
+            setSelectedAppointmentStaffId(null);
+            setShowPastStaffAppointments(false);
+          }}
+        >
+          <StaffAppointmentsModalCard onClick={(event) => event.stopPropagation()}>
+            <ModalHeader>
+              <div style={{ display: "grid", gap: 6 }}>
+                <strong>{selectedStaffAssignment.name}</strong>
+                <Muted>
+                  {labelize(selectedStaffAssignment.role)} • {selectedStaffAssignment.assigned_count} assigned appointment
+                  {selectedStaffAssignment.assigned_count === 1 ? "" : "s"}
+                </Muted>
+              </div>
+              <GhostButton
+                type="button"
+                onClick={() => {
+                  setSelectedAppointmentStaffId(null);
+                  setShowPastStaffAppointments(false);
+                }}
+                aria-label="Close staff appointments"
+              >
+                <X size={16} />
+              </GhostButton>
+            </ModalHeader>
+            <StaffAppointmentsModalBody>
+              <StaffAppointmentsPanel>
+                <StaffAppointmentsPanelHeader>
+                  <StaffAppointmentsPanelTitle>Appointments by staff</StaffAppointmentsPanelTitle>
+                  <StaffAppointmentsToggle
+                    type="button"
+                    $active={showPastStaffAppointments}
+                    onClick={() => setShowPastStaffAppointments((value) => !value)}
+                  >
+                    {showPastStaffAppointments ? "Hide previous tasks" : "Show previous tasks"}
+                  </StaffAppointmentsToggle>
+                </StaffAppointmentsPanelHeader>
+                <StaffAppointmentsList>
+                  {selectedStaffAppointments.length ? (
+                    selectedStaffAppointments.map((appointment) => (
+                      <StaffAppointmentsRow
+                        key={appointment.id}
+                        as="button"
+                        type="button"
+                        onClick={() => {
+                          setSelectedAppointmentStaffId(null);
+                          setShowPastStaffAppointments(false);
+                          openAppointmentEditor(appointment.id);
+                        }}
+                      >
+                        <StaffAppointmentsRowTop>
+                          <div style={{ display: "grid", gap: 4 }}>
+                            <StaffAppointmentsRowTitle>{appointment.property_title || appointment.title || "Untitled appointment"}</StaffAppointmentsRowTitle>
+                            <StaffAppointmentsRowMeta>
+                              <span>{appointment.start_at ? new Date(appointment.start_at).toLocaleString(locale, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "Time pending"}</span>
+                              <span>•</span>
+                              <span>{appointment.client_name || "Buyer"}</span>
+                            </StaffAppointmentsRowMeta>
+                          </div>
+                          <AppointmentPill $tone={appointment.status === "completed" || appointment.status === "closed" ? "success" : appointment.status === "canceled" || appointment.status === "lost" ? "danger" : "warning"}>
+                            {labelize(appointment.status)}
+                          </AppointmentPill>
+                        </StaffAppointmentsRowTop>
+                        <StaffAppointmentsRowMeta>
+                          <MapPin size={14} />
+                          <span>{appointment.property_location || "Unspecified"}</span>
+                        </StaffAppointmentsRowMeta>
+                      </StaffAppointmentsRow>
+                    ))
+                  ) : (
+                    <HubFeatureCopy>
+                      {showPastStaffAppointments
+                        ? "No appointments are assigned to this staff member yet."
+                        : "No upcoming appointments are currently assigned to this staff member."}
+                    </HubFeatureCopy>
+                  )}
+                </StaffAppointmentsList>
+              </StaffAppointmentsPanel>
+              <StaffAppointmentsAside>
+                <StaffAppointmentsPanelTitle>Assignment summary</StaffAppointmentsPanelTitle>
+                <StaffAppointmentsSummary>
+                  <StaffAppointmentsSummaryRow>
+                    <StaffAppointmentsSummaryLabel>Assigned now</StaffAppointmentsSummaryLabel>
+                    <StaffAppointmentsSummaryValue>
+                      {selectedStaffAssignment.assigned_count} appointment
+                      {selectedStaffAssignment.assigned_count === 1 ? "" : "s"}
+                    </StaffAppointmentsSummaryValue>
+                  </StaffAppointmentsSummaryRow>
+                  <StaffAppointmentsSummaryRow>
+                    <StaffAppointmentsSummaryLabel>Visible in this view</StaffAppointmentsSummaryLabel>
+                    <StaffAppointmentsSummaryValue>
+                      {selectedStaffAppointments.length} item{selectedStaffAppointments.length === 1 ? "" : "s"}
+                    </StaffAppointmentsSummaryValue>
+                  </StaffAppointmentsSummaryRow>
+                  <StaffAppointmentsSummaryRow>
+                    <StaffAppointmentsSummaryLabel>Scope</StaffAppointmentsSummaryLabel>
+                    <StaffAppointmentsSummaryValue>
+                      {showPastStaffAppointments ? "All tasks" : "Upcoming only"}
+                    </StaffAppointmentsSummaryValue>
+                  </StaffAppointmentsSummaryRow>
+                </StaffAppointmentsSummary>
+              </StaffAppointmentsAside>
+            </StaffAppointmentsModalBody>
+          </StaffAppointmentsModalCard>
         </ModalOverlay>
       )}
       {activeSale && (
