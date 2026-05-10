@@ -295,18 +295,14 @@ export function VendorTeamView() {
           role: inviteRole,
         }),
       });
-      const payload = (await response.json()) as { member?: Member; error?: string };
+      const payload = (await response.json()) as { invite?: { email?: string; role?: string; status?: string }; error?: string };
       if (!response.ok) {
-        throw new Error(payload?.error || "Unable to add vendor member.");
-      }
-      const newMember = payload.member;
-      if (newMember) {
-        setMembers((prev) => [...prev, newMember]);
+        throw new Error(payload?.error || "Unable to send vendor invite.");
       }
       setInviteEmail("");
       setInviteRole("agent");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to add vendor member.");
+      setError(err instanceof Error ? err.message : "Unable to send vendor invite.");
     } finally {
       setSavingInvite(false);
     }
@@ -389,7 +385,7 @@ export function VendorTeamView() {
           {canManage ? (
             <>
               <Empty>
-                This currently adds existing vendor accounts by email into this workspace. Invitation emails and pending seats come in a later phase.
+                Send an email invite and the recipient will finish onboarding from the invite link before joining this workspace.
               </Empty>
               <Form onSubmit={handleInvite}>
                 <Input
@@ -405,7 +401,7 @@ export function VendorTeamView() {
                   <option value="owner">Owner</option>
                 </Select>
                 <Button type="submit" disabled={savingInvite}>
-                  {savingInvite ? "Adding..." : "Add member"}
+                  {savingInvite ? "Sending..." : "Send invite"}
                 </Button>
               </Form>
             </>

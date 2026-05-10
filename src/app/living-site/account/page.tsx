@@ -4630,6 +4630,19 @@ export default function AccountPage() {
       phone: string | null;
     }>
   >([]);
+  const [teamInvites, setTeamInvites] = useState<
+    Array<{
+      id: string;
+      email: string;
+      role: string;
+      status: string;
+      has_existing_account: boolean;
+      created_at: string | null;
+      expires_at: string | null;
+      last_sent_at: string | null;
+      accepted_at: string | null;
+    }>
+  >([]);
   const [teamLoading, setTeamLoading] = useState(false);
   const [teamError, setTeamError] = useState<string | null>(null);
   const [teamInviteEmail, setTeamInviteEmail] = useState("");
@@ -5007,13 +5020,26 @@ export default function AccountPage() {
               full_name: string | null;
               email: string | null;
               phone: string | null;
-            }>; error?: string }
+            }>;
+              invites?: Array<{
+                id: string;
+                email: string;
+                role: string;
+                status: string;
+                has_existing_account: boolean;
+                created_at: string | null;
+                expires_at: string | null;
+                last_sent_at: string | null;
+                accepted_at: string | null;
+              }>;
+              error?: string }
           | null;
         if (!response.ok) {
           throw new Error(payload?.error || "Unable to load team.");
         }
         if (!cancelled) {
           setTeamMembers(payload?.members ?? []);
+          setTeamInvites(payload?.invites ?? []);
         }
       })
       .catch((error) => {
@@ -5543,30 +5569,36 @@ export default function AccountPage() {
         }),
       });
       const payload = (await response.json().catch(() => null)) as {
-        member?: {
-          user_id: string;
+        invite?: {
+          email: string;
           role: string;
           status: string;
-          full_name: string | null;
-          email: string | null;
-          phone: string | null;
+          has_existing_account: boolean;
+          expires_at: string | null;
         };
         error?: string;
       } | null;
-      if (!response.ok || !payload?.member) {
-        throw new Error(payload?.error || "Unable to add team member.");
+      if (!response.ok || !payload?.invite) {
+        throw new Error(payload?.error || "Unable to send team invite.");
       }
-      setTeamMembers((current) => [
-        ...current,
+      setTeamInvites((current) => [
         {
-          ...payload.member,
+          id: `pending-${Date.now()}`,
+          email: payload.invite?.email ?? teamInviteEmail.trim(),
+          role: payload.invite?.role ?? teamInviteRole,
+          status: payload.invite?.status ?? "pending",
+          has_existing_account: Boolean(payload.invite?.has_existing_account),
           created_at: new Date().toISOString(),
+          expires_at: payload.invite?.expires_at ?? null,
+          last_sent_at: new Date().toISOString(),
+          accepted_at: null,
         },
+        ...current.filter((invite) => invite.email.toLowerCase() !== teamInviteEmail.trim().toLowerCase()),
       ]);
       setTeamInviteEmail("");
       setTeamInviteRole("agent");
     } catch (error) {
-      setTeamError(error instanceof Error ? error.message : "Unable to add team member.");
+      setTeamError(error instanceof Error ? error.message : "Unable to send team invite.");
     } finally {
       setTeamSavingInvite(false);
     }
@@ -7131,7 +7163,7 @@ export default function AccountPage() {
                             </TeamSummaryBar>
                             <WorkspacePanel>
                               <WorkspacePanelTitle>Add team member</WorkspacePanelTitle>
-                              <WorkspacePanelCopy>Add an existing vendor account by email and choose the role it should receive in this workspace.</WorkspacePanelCopy>
+                              <WorkspacePanelCopy>Send an email invite and choose the role the person should receive after accepting it.</WorkspacePanelCopy>
                               {canManageTeam ? (
                                 <TeamInviteGrid>
                                   <CompactTextInput
@@ -7159,12 +7191,43 @@ export default function AccountPage() {
                                     onClick={() => void handleTeamInvite()}
                                     disabled={teamSavingInvite || !teamInviteEmail.trim()}
                                   >
-                                    {teamSavingInvite ? "Adding..." : "Add member"}
+                                    {teamSavingInvite ? "Sending..." : "Send invite"}
                                   </CompactCTAButton>
                                 </TeamInviteGrid>
                               ) : (
                                 <WorkspaceSummaryHint>Only owner and admin seats can add team members in this workspace.</WorkspaceSummaryHint>
                               )}
+                            </WorkspacePanel>
+                            <WorkspacePanel>
+                              <WorkspacePanelTitle>Pending invites</WorkspacePanelTitle>
+                              <WorkspacePanelCopy>Track which invitations are still waiting for the recipient to join the workspace.</WorkspacePanelCopy>
+                              <TeamMembersList>
+                                {teamInvites.length ? (
+                                  teamInvites.map((invite) => (
+                                    <TeamMemberCard key={invite.id}>
+                                      <TeamMemberTop>
+                                        <div style={{ display: "grid", gap: 4 }}>
+                                          <TeamMemberName>{invite.email}</TeamMemberName>
+                                          <TeamMemberMeta>
+                                            {invite.has_existing_account ? "Existing account" : "New account will be created on acceptance"}
+                                          </TeamMemberMeta>
+                                          {invite.expires_at ? (
+                                            <TeamMemberMeta>Expires {new Date(invite.expires_at).toLocaleDateString()}</TeamMemberMeta>
+                                          ) : null}
+                                        </div>
+                                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                          <AppointmentPill>{labelize(invite.role)}</AppointmentPill>
+                                          <AppointmentPill $tone={invite.status === "accepted" ? "success" : "warning"}>
+                                            {labelize(invite.status)}
+                                          </AppointmentPill>
+                                        </div>
+                                      </TeamMemberTop>
+                                    </TeamMemberCard>
+                                  ))
+                                ) : (
+                                  <HubFeatureCopy>No pending invites yet.</HubFeatureCopy>
+                                )}
+                              </TeamMembersList>
                             </WorkspacePanel>
                             <WorkspacePanel>
                               <WorkspacePanelTitle>Current team members</WorkspacePanelTitle>
