@@ -11,11 +11,12 @@ export async function GET(request: Request) {
     return result.response;
   }
 
-  const { vendor, membership, profile } = result.context;
+  const { vendor, membership, profile, workspaces } = result.context;
   if (!includeUsage) {
     return NextResponse.json({
       vendor,
       membership,
+      workspaces,
       profile: {
         full_name: profile.full_name,
         email: profile.email,
@@ -28,6 +29,7 @@ export async function GET(request: Request) {
   return NextResponse.json({
     vendor,
     membership,
+    workspaces,
     profile: {
       full_name: profile.full_name,
       email: profile.email,

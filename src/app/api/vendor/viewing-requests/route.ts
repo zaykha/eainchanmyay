@@ -50,7 +50,7 @@ export async function GET(request: Request) {
 
   const { data, error } = await supabase
     .from("viewing_requests")
-    .select("id,property_id,name,phone,preferred_date,preferred_time_window,notes,lead_status,assigned_staff_id,created_at,updated_at")
+    .select("id,property_id,name,phone,preferred_date,preferred_time_window,notes,lead_status,assigned_staff_id,created_at,updated_at,last_activity_at")
     .in("property_id", propertyIds)
     .order("created_at", { ascending: false });
 
@@ -141,6 +141,7 @@ export async function PATCH(request: Request) {
 
   const updatePayload: Record<string, unknown> = {
     updated_at: new Date().toISOString(),
+    last_activity_at: new Date().toISOString(),
   };
 
   if (leadStatus !== undefined) {
@@ -155,7 +156,7 @@ export async function PATCH(request: Request) {
     .from("viewing_requests")
     .update(updatePayload)
     .eq("id", requestId)
-    .select("id,lead_status,assigned_staff_id,updated_at")
+    .select("id,lead_status,assigned_staff_id,updated_at,last_activity_at")
     .maybeSingle();
 
   if (updateError) {
@@ -171,6 +172,7 @@ export async function PATCH(request: Request) {
           ? null
           : String(updatedRow?.assigned_staff_id ?? assignedStaffId ?? ""),
       updated_at: updatedRow?.updated_at ?? null,
+      last_activity_at: updatedRow?.last_activity_at ?? null,
     },
   });
 }

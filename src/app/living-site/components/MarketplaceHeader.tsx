@@ -1,13 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import { Menu, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { usePathname } from "next/navigation";
+import { ChevronDown, Menu, X } from "lucide-react";
 import styled from "styled-components";
 import { useLanguage } from "@/app/living-site/components/Providers";
 import { useAppState } from "@/app/living-site/lib/app-state";
 import { resolveHeaderAccountPresentation } from "@/app/living-site/lib/header-account";
 import { useI18n } from "@/app/living-site/lib/i18n";
+import { deriveActiveContextFromPath, readActiveContext, writeActiveContext } from "@/app/living-site/lib/active-context";
 
 const Header = styled.header`
   padding: 14px 20px 0;
@@ -148,6 +150,76 @@ const HeaderActions = styled.div`
 
   @media (max-width: 720px) {
     justify-self: end;
+  }
+`;
+
+const WorkspaceMenu = styled.div`
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+
+  &:hover > div,
+  &:focus-within > div {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+`;
+
+const WorkspaceMenuTrigger = styled.button`
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  padding: 0;
+
+  svg {
+    width: 14px;
+    height: 14px;
+    color: var(--color-muted);
+  }
+`;
+
+const WorkspaceMenuDropdown = styled.div`
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  min-width: 220px;
+  padding: 10px;
+  border-radius: 18px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 18px 38px rgba(15, 23, 42, 0.14);
+  display: grid;
+  gap: 6px;
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+  transition: opacity 140ms ease, transform 140ms ease;
+  z-index: 20;
+`;
+
+const WorkspaceMenuItem = styled(Link)<{ $active?: boolean }>`
+  min-height: 42px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  display: grid;
+  gap: 2px;
+  background: ${(props) => (props.$active ? "color-mix(in srgb, var(--color-primary) 8%, white)" : "transparent")};
+  color: ${(props) => (props.$active ? "var(--color-primary)" : "var(--color-text)")};
+
+  strong {
+    font-size: 0.92rem;
+    line-height: 1.2;
+  }
+
+  span {
+    font-size: 0.78rem;
+    color: var(--color-muted);
   }
 `;
 
@@ -312,10 +384,28 @@ export function MarketplaceHeader({
   accountHrefOverride,
 }: MarketplaceHeaderProps) {
   const { user, profileRole, profileReady, loading } = useAppState();
+  const pathname = usePathname();
   const { t } = useI18n();
   const { language, setLanguage } = useLanguage();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [languageOpen, setLanguageOpen] = useState(false);
+  const [activeContext, setActiveContext] = useState<"personal" | "vendor">("personal");
+  const hasWorkspaceAccess = profileReady && profileRole === "vendor_user";
+
+  useEffect(() => {
+    const pathContext = deriveActiveContextFromPath(pathname);
+    if (pathContext) {
+      setActiveContext(pathContext);
+      writeActiveContext(pathContext);
+      return;
+    }
+    const cached = readActiveContext();
+    if (cached === "vendor" && hasWorkspaceAccess) {
+      setActiveContext("vendor");
+      return;
+    }
+    setActiveContext("personal");
+  }, [hasWorkspaceAccess, pathname]);
 
   const resolvedAccount = useMemo(
     () =>
@@ -328,8 +418,10 @@ export function MarketplaceHeader({
     [loading, profileReady, profileRole, user]
   );
 
-  const accountLabel = accountLabelOverride || resolvedAccount.label;
-  const accountHref = accountHrefOverride || resolvedAccount.href;
+  const accountLabel =
+    accountLabelOverride || (!user ? resolvedAccount.label : hasWorkspaceAccess && activeContext === "vendor" ? "Hub" : "Account");
+  const accountHref =
+    accountHrefOverride || (!user ? resolvedAccount.href : hasWorkspaceAccess && activeContext === "vendor" ? "/hub" : "/account");
 
   const languageOptions = [
     { value: "en", flag: "🇬🇧", name: "English" },
@@ -361,7 +453,40 @@ export function MarketplaceHeader({
                 {item.label}
               </Link>
             ))}
-            <Link href={accountHref}>{accountLabel}</Link>
+            {user && hasWorkspaceAccess ? (
+              <WorkspaceMenu>
+                <WorkspaceMenuTrigger type="button" aria-label="Open account and workspace switcher">
+                  <span>Hub</span>
+                  <ChevronDown />
+                </WorkspaceMenuTrigger>
+                <WorkspaceMenuDropdown>
+                  <WorkspaceMenuItem
+                    href="/account"
+                    $active={activeContext === "personal"}
+                    onClick={() => {
+                      writeActiveContext("personal");
+                      setActiveContext("personal");
+                    }}
+                  >
+                    <strong>Personal account</strong>
+                    <span>Saved listings, inquiries, and requests</span>
+                  </WorkspaceMenuItem>
+                  <WorkspaceMenuItem
+                    href="/hub"
+                    $active={activeContext === "vendor"}
+                    onClick={() => {
+                      writeActiveContext("vendor");
+                      setActiveContext("vendor");
+                    }}
+                  >
+                    <strong>Agency workspace</strong>
+                    <span>Listings, appointments, leads, and team</span>
+                  </WorkspaceMenuItem>
+                </WorkspaceMenuDropdown>
+              </WorkspaceMenu>
+            ) : (
+              <Link href={accountHref}>{accountLabel}</Link>
+            )}
           </HeaderLinks>
           <HeaderActions>
             <LanguageTrigger
@@ -385,6 +510,30 @@ export function MarketplaceHeader({
               </GhostButton>
             </MobileMenuHeader>
             <MobileMenuLinks>
+              {user && hasWorkspaceAccess ? (
+                <>
+                  <Link
+                    href="/account"
+                    onClick={() => {
+                      writeActiveContext("personal");
+                      setActiveContext("personal");
+                      setMobileMenuOpen(false);
+                    }}
+                  >
+                    Personal account
+                  </Link>
+                  <Link
+                    href="/hub"
+                    onClick={() => {
+                      writeActiveContext("vendor");
+                      setActiveContext("vendor");
+                      setMobileMenuOpen(false);
+                    }}
+                  >
+                    Agency workspace
+                  </Link>
+                </>
+              ) : null}
               {navLinks.map((item) => (
                 <Link key={item.label} href={item.href} onClick={() => setMobileMenuOpen(false)}>
                   {item.label}

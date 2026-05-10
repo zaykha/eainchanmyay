@@ -17,6 +17,7 @@ import {
   Clock,
   CheckCircle2,
   Circle,
+  ChevronDown,
   Eye,
   Globe2,
   Heart,
@@ -42,6 +43,14 @@ import { useLanguage } from "@/app/living-site/components/Providers";
 import { Panel } from "@/app/living-site/components/PageSection";
 import { useAppState } from "@/app/living-site/lib/app-state";
 import { supabase } from "@/app/living-site/lib/supabaseClient";
+import {
+  deriveActiveContextFromPath,
+  readActiveContext,
+  readActiveVendorWorkspace,
+  withActiveVendorHeaders,
+  writeActiveContext,
+  writeActiveVendorWorkspace,
+} from "@/app/living-site/lib/active-context";
 import { readWorkspaceCache, writeWorkspaceCache } from "@/app/living-site/lib/vendor-workspace-cache";
 import { formatCurrency } from "@/app/living-site/lib/format";
 import {
@@ -60,6 +69,7 @@ import {
   type VendorPropertyItem,
 } from "@/app/living-site/components/vendor/VendorPropertiesView";
 import { VendorInquiriesView } from "@/app/living-site/components/vendor/VendorInquiriesView";
+import { VendorVerificationView } from "@/app/living-site/components/vendor/VendorVerificationView";
 
 const shimmer = keyframes`
   0% {
@@ -143,6 +153,7 @@ type VendorAppointmentsDashboardPayload = {
     assigned_staff_id: string | null;
     assigned_staff_name: string | null;
     source: "appointment" | "viewing_request";
+    is_unread?: boolean;
   }>;
 };
 
@@ -632,6 +643,204 @@ const HeaderActions = styled.div`
 
   @media (max-width: 720px) {
     justify-self: end;
+  }
+`;
+
+const HeaderWorkspaceMenu = styled.div`
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+`;
+
+const HeaderWorkspaceTrigger = styled.button`
+  min-height: 64px;
+  max-width: min(460px, 76vw);
+  padding: 12px 16px 12px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--color-outline);
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--color-text);
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  box-shadow: var(--shadow-soft);
+  text-align: left;
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  @media (max-width: 720px) {
+    max-width: min(340px, 86vw);
+    min-height: 58px;
+  }
+`;
+
+const HeaderWorkspaceTriggerAvatar = styled.div<{ $image?: string }>`
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  color: var(--color-primary);
+  background:
+    ${(props) =>
+      props.$image
+        ? `center / cover no-repeat url("${props.$image}")`
+        : "color-mix(in srgb, var(--color-primary) 10%, white)"};
+  overflow: hidden;
+
+  svg {
+    width: 18px;
+    height: 18px;
+  }
+`;
+
+const HeaderWorkspaceTriggerBody = styled.div`
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  flex: 1 1 auto;
+
+  strong {
+    font-size: 1.04rem;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  span {
+    font-size: 0.82rem;
+    line-height: 1.2;
+    color: var(--color-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+`;
+
+const HeaderWorkspaceTriggerChevron = styled.span`
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-muted);
+`;
+
+const HeaderWorkspaceDropdown = styled.div`
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  min-width: 260px;
+  padding: 10px;
+  border-radius: 18px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 18px 38px rgba(15, 23, 42, 0.14);
+  display: grid;
+  gap: 6px;
+  z-index: 30;
+`;
+
+const HeaderWorkspaceItem = styled.button<{ $active?: boolean }>`
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 12px;
+  background: ${(props) => (props.$active ? "color-mix(in srgb, var(--color-primary) 8%, white)" : "transparent")};
+  color: ${(props) => (props.$active ? "var(--color-primary)" : "var(--color-text)")};
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  text-align: left;
+  cursor: pointer;
+
+  strong {
+    display: block;
+    font-size: 0.92rem;
+    line-height: 1.2;
+  }
+
+  span {
+    display: block;
+    font-size: 0.78rem;
+    color: var(--color-muted);
+  }
+`;
+
+const ContextSwitch = styled.div`
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+
+  &:hover > div,
+  &:focus-within > div {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+`;
+
+const ContextButton = styled.button`
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  padding: 0;
+
+  svg {
+    width: 14px;
+    height: 14px;
+    color: var(--color-muted);
+  }
+`;
+
+const ContextMenu = styled.div`
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  min-width: 220px;
+  padding: 10px;
+  border-radius: 18px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 18px 38px rgba(15, 23, 42, 0.14);
+  display: grid;
+  gap: 6px;
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+  transition: opacity 140ms ease, transform 140ms ease;
+  z-index: 20;
+`;
+
+const ContextMenuItem = styled(Link)<{ $active?: boolean }>`
+  min-height: 42px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  display: grid;
+  gap: 2px;
+  background: ${(props) => (props.$active ? "color-mix(in srgb, var(--color-primary) 8%, white)" : "transparent")};
+  color: ${(props) => (props.$active ? "var(--color-primary)" : "var(--color-text)")};
+
+  strong {
+    font-size: 0.92rem;
+    line-height: 1.2;
+  }
+
+  span {
+    font-size: 0.78rem;
+    color: var(--color-muted);
   }
 `;
 
@@ -3716,7 +3925,7 @@ const HubNavButton = styled.button<{ $active?: boolean; $expanded?: boolean }>`
   color: inherit;
   box-shadow: ${(props) => (props.$active ? "var(--frame-shadow)" : "var(--shadow-soft)")};
   cursor: pointer;
-  overflow: hidden;
+  overflow: visible;
   transition:
     transform 160ms ease,
     border-color 160ms ease,
@@ -3751,7 +3960,7 @@ const HubNavIcon = styled.div<{ $active?: boolean; $image?: string }>`
   color: var(--color-primary);
   display: grid;
   place-items: center;
-  overflow: hidden;
+  overflow: visible;
   position: relative;
 
   svg {
@@ -3777,6 +3986,15 @@ const HubNavIconBadge = styled.span`
   font-weight: 800;
   line-height: 1;
   border: 2px solid var(--color-surface);
+`;
+
+const AppointmentUnreadDot = styled.span`
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--color-primary);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-primary) 14%, transparent);
+  flex: 0 0 auto;
 `;
 
 const HubNavBody = styled.div<{ $expanded?: boolean }>`
@@ -3961,12 +4179,22 @@ const formatPropertyTypeLabel = (value: unknown, t: (key: string) => string) => 
   return formatPropertyTypeValue(typeof value === "string" ? value : null, t) || formatEnum(value);
 };
 
+const formatRoleLabel = (value: string | null | undefined) =>
+  value
+    ? value
+        .split("_")
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(" ")
+    : "Unknown";
+
 function AccountHeader({ isVendor }: { isVendor: boolean }) {
-  const { user } = useAppState();
+  const { user, profileRole, profileReady } = useAppState();
+  const pathname = usePathname();
   const { t } = useI18n();
   const { language, setLanguage } = useLanguage();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [languageOpen, setLanguageOpen] = useState(false);
+  const [activeContext, setActiveContext] = useState<"personal" | "vendor">("personal");
   const navLinks = [
     { label: "Articles", href: "/faq" },
     { label: "Our Partners", href: "/#partners" },
@@ -3980,8 +4208,22 @@ function AccountHeader({ isVendor }: { isVendor: boolean }) {
   ] as const;
   const activeLanguage =
     languageOptions.find((option) => option.value === language) ?? languageOptions[0];
+  const hasWorkspaceAccess = profileReady && profileRole === "vendor_user";
   const accountLabel = !user ? "Sign in / Register" : isVendor ? "Hub" : "Account";
   const accountHref = !user ? "/auth" : isVendor ? "/hub" : "/account";
+
+  useEffect(() => {
+    const pathContext = deriveActiveContextFromPath(pathname);
+    if (pathContext) {
+      setActiveContext(pathContext);
+      writeActiveContext(pathContext);
+      return;
+    }
+    const cached = readActiveContext();
+    if (cached) {
+      setActiveContext(cached);
+    }
+  }, [pathname]);
 
   return (
     <>
@@ -4010,7 +4252,40 @@ function AccountHeader({ isVendor }: { isVendor: boolean }) {
                 {item.label}
               </Link>
             ))}
-            <Link href={accountHref}>{accountLabel}</Link>
+            {user && hasWorkspaceAccess ? (
+              <ContextSwitch>
+                <ContextButton type="button" aria-label="Open account and workspace switcher">
+                  <span>Hub</span>
+                  <ChevronDown />
+                </ContextButton>
+                <ContextMenu>
+                  <ContextMenuItem
+                    href="/account"
+                    $active={activeContext === "personal"}
+                    onClick={() => {
+                      writeActiveContext("personal");
+                      setActiveContext("personal");
+                    }}
+                  >
+                    <strong>Personal account</strong>
+                    <span>Saved listings, inquiries, and requests</span>
+                  </ContextMenuItem>
+                  <ContextMenuItem
+                    href="/hub"
+                    $active={activeContext === "vendor"}
+                    onClick={() => {
+                      writeActiveContext("vendor");
+                      setActiveContext("vendor");
+                    }}
+                  >
+                    <strong>Agency workspace</strong>
+                    <span>Listings, appointments, leads, and team</span>
+                  </ContextMenuItem>
+                </ContextMenu>
+              </ContextSwitch>
+            ) : (
+              <Link href={accountHref}>{accountLabel}</Link>
+            )}
           </HeaderLinks>
 
           <HeaderActions>
@@ -4035,6 +4310,30 @@ function AccountHeader({ isVendor }: { isVendor: boolean }) {
               </GhostButton>
             </MobileMenuHeader>
             <MobileMenuLinks>
+              {user && hasWorkspaceAccess ? (
+                <>
+                  <Link
+                    href="/account"
+                    onClick={() => {
+                      writeActiveContext("personal");
+                      setActiveContext("personal");
+                      setMobileMenuOpen(false);
+                    }}
+                  >
+                    Personal account
+                  </Link>
+                  <Link
+                    href="/hub"
+                    onClick={() => {
+                      writeActiveContext("vendor");
+                      setActiveContext("vendor");
+                      setMobileMenuOpen(false);
+                    }}
+                  >
+                    Agency workspace
+                  </Link>
+                </>
+              ) : null}
               {navLinks.map((item) => (
                 <Link key={item.label} href={item.href} onClick={() => setMobileMenuOpen(false)}>
                   {item.label}
@@ -4268,7 +4567,7 @@ export default function AccountPage() {
   const [onboardingPending, setOnboardingPending] = useState(false);
   const [hubRailExpanded, setHubRailExpanded] = useState(false);
   const [hubSection, setHubSection] = useState<
-    "snapshot" | "analytics" | "manage-listings" | "lead-inbox" | "appointments" | "listing-detail" | "team" | "settings"
+    "snapshot" | "analytics" | "manage-listings" | "lead-inbox" | "appointments" | "listing-detail" | "team" | "settings" | "verification"
   >("snapshot");
   const searchParams = useSearchParams();
   const [selectedHubProperty, setSelectedHubProperty] = useState<VendorPropertyItem | null>(null);
@@ -4294,12 +4593,16 @@ export default function AccountPage() {
   const [appointmentEditorSaving, setAppointmentEditorSaving] = useState(false);
   const [appointmentEditorError, setAppointmentEditorError] = useState<string | null>(null);
   const [appointmentDashboardVersion, setAppointmentDashboardVersion] = useState(0);
+  const [appointmentUnreadCount, setAppointmentUnreadCount] = useState(0);
+  const [appointmentUnreadVersion, setAppointmentUnreadVersion] = useState(0);
   const [appointmentComposerMode, setAppointmentComposerMode] = useState<"edit" | "create" | null>(null);
   const [appointmentComposerPropertyLocked, setAppointmentComposerPropertyLocked] = useState(false);
   const [vendorPropertyOptions, setVendorPropertyOptions] = useState<VendorPropertyItem[]>([]);
   const [vendorPropertyOptionsLoading, setVendorPropertyOptionsLoading] = useState(false);
   const [selectedAppointmentStaffId, setSelectedAppointmentStaffId] = useState<string | null>(null);
   const [showPastStaffAppointments, setShowPastStaffAppointments] = useState(false);
+  const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
+  const workspaceMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const section = searchParams.get("section");
@@ -4309,6 +4612,7 @@ export default function AccountPage() {
       section === "manage-listings" ||
       section === "lead-inbox" ||
       section === "appointments" ||
+      section === "verification" ||
       section === "team" ||
       section === "settings"
     ) {
@@ -4332,6 +4636,7 @@ export default function AccountPage() {
   const [teamInviteRole, setTeamInviteRole] = useState("agent");
   const [teamSavingInvite, setTeamSavingInvite] = useState(false);
   const [teamSavingUserId, setTeamSavingUserId] = useState<string | null>(null);
+  const [activeVendorId, setActiveVendorId] = useState<string | null>(null);
   const [vendorWorkspace, setVendorWorkspace] = useState<{
     vendor: {
       id: string;
@@ -4355,6 +4660,20 @@ export default function AccountPage() {
     membership: {
       role: string;
     };
+    workspaces?: Array<{
+      vendor: {
+        id: string;
+        name: string;
+        slug?: string | null;
+        logo_url?: string | null;
+        plan?: string | null;
+        verified_status?: string | null;
+      };
+      membership: {
+        role: string;
+        status: string;
+      };
+    }>;
     limits?: {
       currentPlan?: {
         name: string;
@@ -4373,6 +4692,48 @@ export default function AccountPage() {
   const [vendorOverviewError, setVendorOverviewError] = useState<string | null>(null);
   const [leadInboxUnreadCount, setLeadInboxUnreadCount] = useState(0);
   const [leadInboxUnreadVersion, setLeadInboxUnreadVersion] = useState(0);
+  const isHubPath = pathname === "/hub";
+  const isAccountPath = pathname === "/account";
+  const hasVendorWorkspaceAccess =
+    profileRole === "vendor_user" || onboardingPending || Boolean(vendorWorkspace?.vendor.id);
+
+  useEffect(() => {
+    const pathContext = deriveActiveContextFromPath(pathname);
+    if (pathContext) {
+      writeActiveContext(pathContext);
+    }
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!userId) {
+      setActiveVendorId(null);
+      return;
+    }
+    const storedVendorId = readActiveVendorWorkspace(userId);
+    if (storedVendorId) {
+      setActiveVendorId(storedVendorId);
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    if (!workspaceMenuOpen) return;
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!workspaceMenuRef.current?.contains(event.target as Node)) {
+        setWorkspaceMenuOpen(false);
+      }
+    };
+    window.addEventListener("mousedown", handlePointerDown);
+    return () => window.removeEventListener("mousedown", handlePointerDown);
+  }, [workspaceMenuOpen]);
+
+  const buildVendorHeaders = (contentType = true) =>
+    withActiveVendorHeaders(
+      {
+        ...(contentType ? { "Content-Type": "application/json" } : {}),
+        Authorization: `Bearer ${authToken}`,
+      },
+      activeVendorId
+    );
 
   useEffect(() => {
     setViewingRequests([]);
@@ -4432,9 +4793,7 @@ export default function AccountPage() {
     setVendorOverviewError(null);
 
     fetch("/api/vendor/overview", {
-      headers: {
-        Authorization: `Bearer ${authToken}`,
-      },
+      headers: buildVendorHeaders(false),
     })
       .then(async (response) => {
         const payload = (await response.json().catch(() => null)) as (VendorOverviewPayload & { error?: string }) | null;
@@ -4462,7 +4821,7 @@ export default function AccountPage() {
     return () => {
       active = false;
     };
-  }, [authToken, profileRole, vendorWorkspace?.vendor.plan]);
+  }, [activeVendorId, authToken, profileRole, vendorWorkspace?.vendor.plan]);
 
   useEffect(() => {
     if (!authToken || profileRole !== "vendor_user" || vendorWorkspace?.vendor.plan === "free") {
@@ -4473,9 +4832,7 @@ export default function AccountPage() {
     let active = true;
 
     fetch("/api/vendor/inquiries/unread", {
-      headers: {
-        Authorization: `Bearer ${authToken}`,
-      },
+      headers: buildVendorHeaders(false),
     })
       .then(async (response) => {
         const payload = (await response.json().catch(() => null)) as { unreadCount?: number; error?: string } | null;
@@ -4495,7 +4852,38 @@ export default function AccountPage() {
     return () => {
       active = false;
     };
-  }, [authToken, leadInboxUnreadVersion, profileRole, vendorWorkspace?.vendor.plan]);
+  }, [activeVendorId, authToken, leadInboxUnreadVersion, profileRole, vendorWorkspace?.vendor.plan]);
+
+  useEffect(() => {
+    if (!authToken || profileRole !== "vendor_user") {
+      setAppointmentUnreadCount(0);
+      return;
+    }
+
+    let active = true;
+
+    fetch("/api/vendor/viewing-requests/unread", {
+      headers: buildVendorHeaders(false),
+    })
+      .then(async (response) => {
+        const payload = (await response.json().catch(() => null)) as { unreadCount?: number; error?: string } | null;
+        if (!response.ok) {
+          throw new Error(payload?.error || "Unable to load unread viewing request count.");
+        }
+        if (active) {
+          setAppointmentUnreadCount(typeof payload?.unreadCount === "number" ? payload.unreadCount : 0);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setAppointmentUnreadCount(0);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [activeVendorId, appointmentUnreadVersion, authToken, profileRole]);
 
   useEffect(() => {
     if (!authToken || !userId || profileRole !== "vendor_user" || vendorWorkspace?.vendor.plan === "free") return;
@@ -4525,6 +4913,34 @@ export default function AccountPage() {
   }, [authToken, profileRole, userId, vendorWorkspace?.vendor.plan]);
 
   useEffect(() => {
+    if (!authToken || !userId || profileRole !== "vendor_user") return;
+
+    const channel = supabase
+      .channel(`hub-viewing-unread-${userId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "viewing_requests" },
+        () => {
+          setAppointmentUnreadVersion((current) => current + 1);
+          setAppointmentDashboardVersion((current) => current + 1);
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "vendor_viewing_request_reads" },
+        () => {
+          setAppointmentUnreadVersion((current) => current + 1);
+          setAppointmentDashboardVersion((current) => current + 1);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [authToken, profileRole, userId]);
+
+  useEffect(() => {
     if (!authToken || !selectedHubProperty?.id || hubSection !== "listing-detail") {
       setSelectedHubPropertyDetail(null);
       setSelectedHubPropertyLoading(false);
@@ -4537,9 +4953,7 @@ export default function AccountPage() {
     setSelectedHubPropertyError(null);
 
     fetch(`/api/vendor/properties/${selectedHubProperty.id}`, {
-      headers: {
-        Authorization: `Bearer ${authToken}`,
-      },
+      headers: buildVendorHeaders(false),
     })
       .then(async (response) => {
         const payload = (await response.json().catch(() => null)) as (HubPropertyDetailPayload & { error?: string }) | null;
@@ -4567,7 +4981,7 @@ export default function AccountPage() {
     return () => {
       active = false;
     };
-  }, [authToken, hubSection, selectedHubProperty?.id]);
+  }, [activeVendorId, authToken, hubSection, selectedHubProperty?.id]);
 
   useEffect(() => {
     if (!authToken || hubSection !== "team") {
@@ -4581,9 +4995,7 @@ export default function AccountPage() {
     setTeamError(null);
 
     fetch("/api/vendor/team", {
-      headers: {
-        Authorization: `Bearer ${authToken}`,
-      },
+      headers: buildVendorHeaders(false),
     })
       .then(async (response) => {
         const payload = (await response.json().catch(() => null)) as
@@ -4618,7 +5030,7 @@ export default function AccountPage() {
     return () => {
       cancelled = true;
     };
-  }, [authToken, hubSection]);
+  }, [activeVendorId, authToken, hubSection]);
 
   useEffect(() => {
     const shouldLoadAppointmentDashboard = appointmentComposerMode || hubSection === "appointments";
@@ -4633,9 +5045,7 @@ export default function AccountPage() {
     setAppointmentDashboardError(null);
 
     fetch("/api/vendor/appointments/dashboard", {
-      headers: {
-        Authorization: `Bearer ${authToken}`,
-      },
+      headers: buildVendorHeaders(false),
     })
       .then(async (response) => {
         const payload = (await response.json().catch(() => null)) as (VendorAppointmentsDashboardPayload & {
@@ -4667,7 +5077,7 @@ export default function AccountPage() {
     return () => {
       active = false;
     };
-  }, [Boolean(appointmentComposerMode), appointmentDashboardVersion, authToken, hubSection === "appointments"]);
+  }, [activeVendorId, Boolean(appointmentComposerMode), appointmentDashboardVersion, authToken, hubSection === "appointments"]);
 
   useEffect(() => {
     if (!authToken || profileRole !== "vendor_user") {
@@ -4680,9 +5090,7 @@ export default function AccountPage() {
     setVendorPropertyOptionsLoading(true);
 
     fetch("/api/vendor/properties", {
-      headers: {
-        Authorization: `Bearer ${authToken}`,
-      },
+      headers: buildVendorHeaders(false),
     })
       .then(async (response) => {
         const payload = (await response.json().catch(() => null)) as { items?: VendorPropertyItem[]; error?: string } | null;
@@ -4707,7 +5115,7 @@ export default function AccountPage() {
     return () => {
       active = false;
     };
-  }, [authToken, profileRole]);
+  }, [activeVendorId, authToken, profileRole]);
 
   useEffect(() => {
     if (!profileReady || loading) return;
@@ -4715,22 +5123,13 @@ export default function AccountPage() {
       router.replace("/auth");
       return;
     }
-    if ((profileRole === "vendor_user" || onboardingPending || Boolean(vendorWorkspace?.vendor.id)) && pathname === "/account") {
-      router.replace("/hub");
-      return;
-    }
-    if (
-      profileRole !== "vendor_user" &&
-      !onboardingPending &&
-      !vendorWorkspace?.vendor.id &&
-      pathname === "/hub"
-    ) {
+    if (isHubPath && !hasVendorWorkspaceAccess) {
       router.replace("/account");
     }
-  }, [loading, onboardingPending, pathname, profileReady, profileRole, router, user, vendorWorkspace]);
+  }, [hasVendorWorkspaceAccess, isHubPath, loading, profileReady, router, user]);
 
   useEffect(() => {
-    if (!userId || profileRole === "vendor_user") return;
+    if (!userId || !isAccountPath) return;
 
     const nextLoaded: Record<AccountTabKey, boolean> = {
       viewing: false,
@@ -4796,7 +5195,7 @@ export default function AccountPage() {
       inquiries: false,
       sales: false,
     });
-  }, [profileRole, userId]);
+  }, [isAccountPath, userId]);
 
   const applyTabData = (tab: AccountTabKey, items: Array<Record<string, unknown>>) => {
     if (tab === "viewing") {
@@ -4816,7 +5215,7 @@ export default function AccountPage() {
 
   useEffect(() => {
     if (!userId) return;
-    if (profileRole === "vendor_user") return;
+    if (!isAccountPath) return;
     if (refreshedTabs[activeTab]) return;
 
     let active = true;
@@ -4866,12 +5265,13 @@ export default function AccountPage() {
     return () => {
       active = false;
     };
-  }, [activeTab, loadedTabs, profileRole, refreshedTabs, userId]);
+  }, [activeTab, isAccountPath, loadedTabs, refreshedTabs, userId]);
 
   useEffect(() => {
     if (!authToken || (!onboardingPending && profileRole !== "vendor_user" && pathname !== "/hub")) return;
 
     let active = true;
+    const workspaceCacheVariant = `full:${activeVendorId ?? "default"}`;
     const cachedWorkspace = userId
       ? readWorkspaceCache<{
           vendor: {
@@ -4894,6 +5294,20 @@ export default function AccountPage() {
             verified_status?: string | null;
           };
           membership: { role: string };
+          workspaces?: Array<{
+            vendor: {
+              id: string;
+              name: string;
+              slug?: string | null;
+              logo_url?: string | null;
+              plan?: string | null;
+              verified_status?: string | null;
+            };
+            membership: {
+              role: string;
+              status: string;
+            };
+          }>;
           limits?: {
             currentPlan?: { name: string };
             listingCount?: number;
@@ -4902,7 +5316,7 @@ export default function AccountPage() {
             agentCount?: number;
             agentLimit?: number;
           };
-        }>(userId, "full")
+        }>(userId, workspaceCacheVariant)
       : null;
     setVendorWorkspaceError(null);
     setVendorWorkspaceLoading(!cachedWorkspace);
@@ -4911,9 +5325,7 @@ export default function AccountPage() {
     }
 
     fetch("/api/vendor/workspace", {
-      headers: {
-        Authorization: `Bearer ${authToken}`,
-      },
+      headers: buildVendorHeaders(false),
     })
       .then(async (response) => {
         const payload = (await response.json().catch(() => null)) as
@@ -4938,6 +5350,20 @@ export default function AccountPage() {
                 verified_status?: string | null;
               };
               membership?: { role: string };
+              workspaces?: Array<{
+                vendor: {
+                  id: string;
+                  name: string;
+                  slug?: string | null;
+                  logo_url?: string | null;
+                  plan?: string | null;
+                  verified_status?: string | null;
+                };
+                membership: {
+                  role: string;
+                  status: string;
+                };
+              }>;
               limits?: {
                 currentPlan?: { name: string };
                 listingCount?: number;
@@ -4962,14 +5388,20 @@ export default function AccountPage() {
               ? {
                   vendor: payload.vendor,
                   membership: payload.membership,
+                  workspaces: payload.workspaces,
                   limits: payload.limits,
                 }
               : null
           );
+          if (userId && payload?.vendor?.id) {
+            setActiveVendorId(payload.vendor.id);
+            writeActiveVendorWorkspace(userId, payload.vendor.id);
+          }
           if (userId && payload?.vendor && payload?.membership) {
-            writeWorkspaceCache(userId, "full", {
+            writeWorkspaceCache(userId, workspaceCacheVariant, {
               vendor: payload.vendor,
               membership: payload.membership,
+              workspaces: payload.workspaces,
               limits: payload.limits,
             });
           }
@@ -4986,7 +5418,7 @@ export default function AccountPage() {
     return () => {
       active = false;
     };
-  }, [authToken, onboardingPending, pathname, profileRole, userId]);
+  }, [activeVendorId, authToken, onboardingPending, pathname, profileRole, userId]);
 
   const closeDetails = () => {
     setActiveInquiry(null);
@@ -5031,10 +5463,7 @@ export default function AccountPage() {
       const isCreate = appointmentComposerMode === "create";
       const response = await fetch("/api/vendor/appointments/manage", {
         method: isCreate ? "POST" : "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${authToken}`,
-        },
+        headers: buildVendorHeaders(),
         body: JSON.stringify({
           ...(isCreate
             ? {}
@@ -5079,10 +5508,7 @@ export default function AccountPage() {
     try {
       const response = await fetch("/api/vendor/appointments/manage", {
         method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${authToken}`,
-        },
+        headers: buildVendorHeaders(),
         body: JSON.stringify({
           source: selectedAppointment.source,
           id: selectedAppointment.id,
@@ -5110,10 +5536,7 @@ export default function AccountPage() {
     try {
       const response = await fetch("/api/vendor/team", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${authToken}`,
-        },
+        headers: buildVendorHeaders(),
         body: JSON.stringify({
           email: teamInviteEmail.trim(),
           role: teamInviteRole,
@@ -5156,10 +5579,7 @@ export default function AccountPage() {
     try {
       const response = await fetch("/api/vendor/team", {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${authToken}`,
-        },
+        headers: buildVendorHeaders(),
         body: JSON.stringify({
           user_id: memberUserId,
           role,
@@ -5219,6 +5639,48 @@ export default function AccountPage() {
   const freeSettingsHref = "/hub/settings";
   const freeUpgradeHref = "/hub/upgrade";
   const canManageTeam = vendorWorkspace?.membership.role === "owner" || vendorWorkspace?.membership.role === "admin";
+  const workspaceOptions =
+    vendorWorkspace?.workspaces?.length
+      ? vendorWorkspace.workspaces
+      : vendorWorkspace
+        ? [
+            {
+              vendor: {
+                id: vendorWorkspace.vendor.id,
+                name: vendorWorkspace.vendor.name,
+                slug: vendorWorkspace.vendor.slug,
+                logo_url: vendorWorkspace.vendor.logo_url,
+                plan: vendorWorkspace.vendor.plan,
+                verified_status: vendorWorkspace.vendor.verified_status,
+              },
+              membership: {
+                role: vendorWorkspace.membership.role,
+                status: "active",
+              },
+            },
+          ]
+        : [];
+  const currentWorkspaceOption =
+    workspaceOptions.find((workspace) => workspace.vendor.id === (activeVendorId ?? vendorWorkspace?.vendor.id ?? "")) ??
+    workspaceOptions[0] ??
+    null;
+  const handleWorkspaceChange = (nextVendorId: string) => {
+    if (!userId || !nextVendorId || nextVendorId === activeVendorId) return;
+    writeActiveVendorWorkspace(userId, nextVendorId);
+    setActiveVendorId(nextVendorId);
+    setSelectedHubProperty(null);
+    setSelectedHubPropertyDetail(null);
+    setSelectedAppointmentId(null);
+    setAppointmentComposerMode(null);
+    setTeamMembers([]);
+    setVendorOverview(null);
+    setAppointmentDashboard(null);
+    setLeadInboxUnreadVersion((current) => current + 1);
+    setAppointmentUnreadVersion((current) => current + 1);
+    if (hubSection === "listing-detail") {
+      setHubSection("snapshot");
+    }
+  };
   const activeTeamCount = teamMembers.filter((member) => member.status === "active").length;
   const ownerCount = teamMembers.filter((member) => member.role === "owner" && member.status === "active").length;
   const adminCount = teamMembers.filter((member) => member.role === "admin" && member.status === "active").length;
@@ -5385,6 +5847,33 @@ export default function AccountPage() {
     () => appointmentDashboardAppointments.find((appointment) => appointment.id === selectedAppointmentId) ?? null,
     [appointmentDashboardAppointments, selectedAppointmentId]
   );
+
+  useEffect(() => {
+    if (!authToken || !selectedAppointment?.id || selectedAppointment.source !== "viewing_request" || !selectedAppointment.is_unread) {
+      return;
+    }
+
+    setAppointmentDashboard((current) =>
+      current
+        ? {
+            ...current,
+            appointments: current.appointments.map((appointment) =>
+              appointment.id === selectedAppointment.id ? { ...appointment, is_unread: false } : appointment
+            ),
+          }
+        : current
+    );
+
+    void fetch("/api/vendor/viewing-requests/read", {
+      method: "POST",
+      headers: buildVendorHeaders(),
+      body: JSON.stringify({ request_id: selectedAppointment.id }),
+    })
+      .then(() => {
+        setAppointmentUnreadVersion((current) => current + 1);
+      })
+      .catch(() => undefined);
+  }, [activeVendorId, authToken, selectedAppointment?.id, selectedAppointment?.is_unread, selectedAppointment?.source]);
   const selectedStaffAppointments = useMemo(() => {
     if (!selectedAppointmentStaffId) return [];
     const now = Date.now();
@@ -5437,6 +5926,7 @@ export default function AccountPage() {
             rawStatus: appointment.status,
             assignedStaffId: appointment.assigned_staff_id,
             source: appointment.source,
+            isUnread: Boolean(appointment.is_unread),
           };
         }),
     [appointmentDashboardAppointments, locale]
@@ -5531,14 +6021,14 @@ export default function AccountPage() {
 
   const showVendorShellSkeleton =
     Boolean(user) &&
-    pathname === "/hub" &&
+    isHubPath &&
     (profileRole === "vendor_user" || onboardingPending) &&
     vendorWorkspaceLoading &&
     !vendorWorkspace;
 
   return (
     <div>
-      <AccountHeader isVendor={profileRole === "vendor_user"} />
+      <AccountHeader isVendor={isHubPath} />
       <PageShell>
         {showVendorShellSkeleton ? (
           <VendorGrid>
@@ -5582,6 +6072,7 @@ export default function AccountPage() {
         ) : null}
         {!showVendorShellSkeleton &&
           user &&
+          isHubPath &&
           (profileRole === "vendor_user" || onboardingPending || Boolean(vendorWorkspace?.vendor.id)) && (
           <VendorGrid>
             <VendorActionRail
@@ -5669,9 +6160,12 @@ export default function AccountPage() {
                     >
                       <HubNavIcon $active={hubSection === "appointments"}>
                         <Calendar />
+                        {appointmentUnreadCount > 0 ? <HubNavIconBadge>{appointmentUnreadCount > 99 ? "99+" : appointmentUnreadCount}</HubNavIconBadge> : null}
                       </HubNavIcon>
                       <HubNavBody $expanded={hubRailExpanded}>
-                        <HubNavTitle $active={hubSection === "appointments"}>Appointment management</HubNavTitle>
+                        <HubNavTitleRow>
+                          <HubNavTitle $active={hubSection === "appointments"}>Appointment management</HubNavTitle>
+                        </HubNavTitleRow>
                       </HubNavBody>
                       <HubNavArrow $expanded={hubRailExpanded}>
                         <ArrowUpRight size={18} />
@@ -5710,7 +6204,6 @@ export default function AccountPage() {
                       <HubNavBody $expanded={hubRailExpanded}>
                         <HubNavTitleRow>
                           <HubNavTitle $active={hubSection === "lead-inbox"}>Lead inbox</HubNavTitle>
-                          {leadInboxUnreadCount > 0 ? <HubNavBadge>{leadInboxUnreadCount > 99 ? "99+" : leadInboxUnreadCount}</HubNavBadge> : null}
                         </HubNavTitleRow>
                       </HubNavBody>
                       <HubNavArrow $expanded={hubRailExpanded}>
@@ -5810,10 +6303,57 @@ export default function AccountPage() {
                   <StarterTopRow>
                     <VendorHero>
                       <VendorIdentity>
-                        <VendorLogoBadge $image={vendorWorkspace?.vendor.logo_url || undefined}>
-                          {!vendorWorkspace?.vendor.logo_url ? <Building2 size={22} /> : null}
-                        </VendorLogoBadge>
-                        <VendorTitle>{vendorWorkspace?.vendor.name || "Agency account"}</VendorTitle>
+                        {workspaceOptions.length > 0 ? (
+                          <HeaderWorkspaceMenu ref={workspaceMenuRef}>
+                            <HeaderWorkspaceTrigger
+                              type="button"
+                              aria-label="Open organization switcher"
+                              aria-expanded={workspaceMenuOpen}
+                              onClick={() => setWorkspaceMenuOpen((current) => !current)}
+                            >
+                              <HeaderWorkspaceTriggerAvatar $image={currentWorkspaceOption?.vendor.logo_url || undefined}>
+                                {!currentWorkspaceOption?.vendor.logo_url ? <Building2 /> : null}
+                              </HeaderWorkspaceTriggerAvatar>
+                              <HeaderWorkspaceTriggerBody>
+                                <strong>{currentWorkspaceOption?.vendor.name || vendorWorkspace?.vendor.name || "Agency account"}</strong>
+                                <span>{formatRoleLabel(currentWorkspaceOption?.membership.role || vendorWorkspace?.membership.role)}</span>
+                              </HeaderWorkspaceTriggerBody>
+                              <HeaderWorkspaceTriggerChevron>
+                                <ChevronDown />
+                              </HeaderWorkspaceTriggerChevron>
+                            </HeaderWorkspaceTrigger>
+                            {workspaceMenuOpen ? (
+                              <HeaderWorkspaceDropdown>
+                                {workspaceOptions.map((workspace) => (
+                                  <HeaderWorkspaceItem
+                                    key={workspace.vendor.id}
+                                    type="button"
+                                    $active={(activeVendorId ?? workspaceOptions[0]?.vendor.id ?? "") === workspace.vendor.id}
+                                    onClick={() => {
+                                      if (workspace.vendor.id !== activeVendorId) {
+                                        handleWorkspaceChange(workspace.vendor.id);
+                                      }
+                                      setWorkspaceMenuOpen(false);
+                                    }}
+                                  >
+                                    <Building2 size={16} />
+                                    <div>
+                                      <strong>{workspace.vendor.name}</strong>
+                                      <span>{formatRoleLabel(workspace.membership.role)}</span>
+                                    </div>
+                                  </HeaderWorkspaceItem>
+                                ))}
+                              </HeaderWorkspaceDropdown>
+                            ) : null}
+                          </HeaderWorkspaceMenu>
+                        ) : (
+                          <>
+                            <VendorLogoBadge $image={vendorWorkspace?.vendor.logo_url || undefined}>
+                              {!vendorWorkspace?.vendor.logo_url ? <Building2 size={22} /> : null}
+                            </VendorLogoBadge>
+                            <VendorTitle>{vendorWorkspace?.vendor.name || "Agency account"}</VendorTitle>
+                          </>
+                        )}
                       </VendorIdentity>
                     </VendorHero>
 
@@ -5835,7 +6375,7 @@ export default function AccountPage() {
                         {vendorWorkspace?.limits?.currentPlan?.name || currentVendorPlan.name}
                       </VendorPillLink>
                       <VendorPillLink
-                        href={isFreeAgencyPlan ? freeUpgradeHref : "/hub?section=settings"}
+                        href={isFreeAgencyPlan ? freeUpgradeHref : "/hub?section=verification"}
                         $tone={vendorWorkspace?.vendor.verified_status === "approved" ? "success" : "warning"}
                       >
                         {vendorWorkspace?.vendor.verified_status === "approved" ? <BadgeCheck size={14} /> : <ShieldCheck size={14} />}
@@ -5949,6 +6489,7 @@ export default function AccountPage() {
                           hideHeader
                           title="Manage listings"
                           subtitle="Review current listings, verification state, and property activity."
+                          vendorId={activeVendorId ?? vendorWorkspace?.vendor.id ?? null}
                           onSelectProperty={(property) => {
                             setSelectedHubProperty(property);
                             setHubSection("listing-detail");
@@ -6109,6 +6650,7 @@ export default function AccountPage() {
                             hideHeader
                             title="Lead inbox"
                             subtitle="Track routed buyer leads, assign owners, and follow up from inside your hub."
+                            vendorId={activeVendorId ?? vendorWorkspace?.vendor.id ?? null}
                           />
                         </LeadInboxScroller>
                       </LeadInboxViewport>
@@ -6360,6 +6902,12 @@ export default function AccountPage() {
                                       <AppointmentQueueMain>
                                         <AppointmentQueueTitle>{appointment.property}</AppointmentQueueTitle>
                                         <AppointmentQueueMeta>
+                                          {appointment.source === "viewing_request" && appointment.isUnread ? (
+                                            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                                              <AppointmentUnreadDot />
+                                              New request
+                                            </span>
+                                          ) : null}
                                           <span>{appointment.client}</span>
                                           <span>•</span>
                                           <span>{appointment.location}</span>
@@ -6540,6 +7088,12 @@ export default function AccountPage() {
                               </SettingsIndexActions>
                             </SettingsIndexCard>
                           </SettingsIndexGrid>
+                        </WorkspaceSectionScroller>
+                      </WorkspaceSectionViewport>
+                    ) : hubSection === "verification" ? (
+                      <WorkspaceSectionViewport>
+                        <WorkspaceSectionScroller>
+                          <VendorVerificationView />
                         </WorkspaceSectionScroller>
                       </WorkspaceSectionViewport>
                     ) : hubSection === "team" ? (
@@ -6921,7 +7475,7 @@ export default function AccountPage() {
           </VendorGrid>
         )}
 
-        {profileRole !== "vendor_user" && (
+        {isAccountPath && (
           <>
             {/* <PageSection> */}
               <HeaderRow>

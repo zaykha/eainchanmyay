@@ -23,6 +23,7 @@ type ViewingRequestRow = {
   lead_status: string | null;
   notes: string | null;
   assigned_staff_id: string | null;
+  last_activity_at: string | null;
 };
 
 type PropertyRow = {
@@ -50,7 +51,7 @@ export async function GET(request: Request) {
     return result.response;
   }
 
-  const { supabase, vendor, memberIds } = result.context;
+  const { supabase, vendor, memberIds, user } = result.context;
 
   const { data: propertiesData, error: propertiesLookupError } = await supabase
     .from("properties")
@@ -74,7 +75,7 @@ export async function GET(request: Request) {
     propertyIds.length
         ? supabase
           .from("viewing_requests")
-          .select("id,property_id,name,phone,preferred_date,preferred_time_window,lead_status,notes,assigned_staff_id")
+          .select("id,property_id,name,phone,preferred_date,preferred_time_window,lead_status,notes,assigned_staff_id,last_activity_at,created_at")
           .in("property_id", propertyIds)
           .order("preferred_date", { ascending: true })
       : Promise.resolve({ data: [], error: null }),
@@ -97,7 +98,8 @@ export async function GET(request: Request) {
         .filter(Boolean)
     )
   );
-  const [propertiesResult, profilesResult, membersResult] = await Promise.all([
+  const viewingRequestIds = viewingRequests.map((request) => String(request.id ?? "")).filter(Boolean);
+  const [propertiesResult, profilesResult, membersResult, viewingReadResult] = await Promise.all([
     propertyIdsWithActivity.length
       ? Promise.resolve({ data: properties.filter((property) => propertyIdsWithActivity.includes(String(property.id ?? ""))), error: null })
       : Promise.resolve({ data: [], error: null }),
@@ -105,6 +107,9 @@ export async function GET(request: Request) {
       ? supabase.from("profiles").select("id,full_name,email").in("id", memberIds)
       : Promise.resolve({ data: [], error: null }),
     supabase.from("vendor_members").select("user_id,role").eq("vendor_id", vendor.id).eq("status", "active"),
+    viewingRequestIds.length
+      ? supabase.from("vendor_viewing_request_reads").select("request_id,last_read_at").eq("user_id", user.id).in("request_id", viewingRequestIds)
+      : Promise.resolve({ data: [], error: null }),
   ]);
 
   if (propertiesResult.error) {
@@ -119,9 +124,14 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: membersResult.error.message }, { status: 500 });
   }
 
+  if (viewingReadResult.error) {
+    return NextResponse.json({ error: viewingReadResult.error.message }, { status: 500 });
+  }
+
   const activeProperties = (propertiesResult.data ?? []) as PropertyRow[];
   const profiles = (profilesResult.data ?? []) as MemberProfileRow[];
   const members = (membersResult.data ?? []) as MemberRow[];
+  const viewingReads = (viewingReadResult.data ?? []) as Array<{ request_id: string | null; last_read_at: string | null }>;
 
   const propertyMap = new Map(
     activeProperties.map((property) => [
@@ -144,6 +154,10 @@ export async function GET(request: Request) {
 
   const memberRoleMap = new Map(
     members.map((member) => [String(member.user_id ?? ""), String(member.role ?? "agent")])
+  );
+
+  const viewingReadMap = new Map(
+    viewingReads.map((row) => [String(row.request_id ?? ""), row.last_read_at ?? null])
   );
 
   const assignmentCounts = [...appointments, ...viewingRequests].reduce<Record<string, number>>((acc, item) => {
@@ -184,6 +198,14 @@ export async function GET(request: Request) {
       assigned_staff_id: assignedId || null,
       assigned_staff_name: assignee?.name ?? null,
       source: "viewing_request" as const,
+      is_unread: (() => {
+        const requestId = String(request.id ?? "");
+        const lastActivityAt = request.last_activity_at ?? startAt;
+        const lastReadAt = viewingReadMap.get(requestId) ?? null;
+        if (!lastActivityAt) return false;
+        if (!lastReadAt) return true;
+        return new Date(lastActivityAt).getTime() > new Date(lastReadAt).getTime();
+      })(),
     };
   });
 
@@ -207,6 +229,7 @@ export async function GET(request: Request) {
       assigned_staff_id: assignedId || null,
       assigned_staff_name: assignee?.name ?? null,
       source: "appointment" as const,
+      is_unread: false,
     };
   });
 

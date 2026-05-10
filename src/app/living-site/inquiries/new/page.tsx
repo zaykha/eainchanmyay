@@ -454,6 +454,7 @@ function NewInquiryPageContent() {
   };
   const editId = searchParams.get("editId");
   const isEdit = Boolean(editId);
+  const agencyId = searchParams.get("agencyId")?.trim() || "";
   const agencyName = searchParams.get("agency")?.trim() || "";
   const agencySlug = searchParams.get("agencySlug")?.trim() || "";
   const agencyLogo = searchParams.get("agencyLogo")?.trim() || "";
@@ -571,6 +572,7 @@ function NewInquiryPageContent() {
       needLift,
       needSolar,
       needGenerator,
+      targetVendorId: agencyId || null,
     };
     const result =
       isEdit && editId

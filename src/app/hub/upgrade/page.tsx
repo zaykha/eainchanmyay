@@ -61,11 +61,6 @@ export default function HubUpgradePage() {
 
       setWorkspace(payload.vendor);
 
-      if (payload.vendor.plan && payload.vendor.plan !== "free") {
-        router.replace("/hub");
-        return;
-      }
-
       setLoading(false);
     };
 

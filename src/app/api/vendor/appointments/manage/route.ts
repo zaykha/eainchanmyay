@@ -187,6 +187,7 @@ export async function PATCH(request: Request) {
 
   const updatePayload: Record<string, unknown> = {
     updated_at: new Date().toISOString(),
+    last_activity_at: new Date().toISOString(),
   };
   if (leadStatus !== undefined) {
     updatePayload.lead_status = leadStatus;
@@ -199,7 +200,7 @@ export async function PATCH(request: Request) {
     .from("viewing_requests")
     .update(updatePayload)
     .eq("id", id)
-    .select("id,lead_status,assigned_staff_id")
+    .select("id,lead_status,assigned_staff_id,last_activity_at")
     .maybeSingle();
 
   if (updateError) {
@@ -215,6 +216,7 @@ export async function PATCH(request: Request) {
         updatedRow?.assigned_staff_id === null
           ? null
           : String(updatedRow?.assigned_staff_id ?? assignedStaffId ?? requestRow.assigned_staff_id ?? ""),
+      last_activity_at: updatedRow?.last_activity_at ?? null,
     },
   });
 }

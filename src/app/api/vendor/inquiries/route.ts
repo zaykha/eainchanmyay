@@ -28,7 +28,7 @@ export async function GET(request: Request) {
     supabase
       .from("vendor_inquiry_leads")
       .select(
-        "id,inquiry_id,status,source,routing_score,assigned_member_user_id,pipeline_stage,last_contacted_at,last_activity_at,sla_due_at,created_at,updated_at,deal_type,property_type,state_region,district,township,budget_range,timeline,bedrooms,bathrooms,area_sqft,need_parking,need_lift,need_solar,need_generator,assignee:profiles!vendor_inquiry_leads_assigned_member_user_id_fkey(full_name,email)"
+        "id,inquiry_id,requester_user_id,contact_number,status,source,routing_score,assigned_member_user_id,pipeline_stage,last_contacted_at,last_activity_at,sla_due_at,created_at,updated_at,deal_type,property_type,state_region,district,township,budget_range,timeline,bedrooms,bathrooms,area_sqft,need_parking,need_lift,need_solar,need_generator,assignee:profiles!vendor_inquiry_leads_assigned_member_user_id_fkey(full_name,email),requester:profiles!vendor_inquiry_leads_requester_user_id_fkey(phone,full_name,email)"
       )
       .eq("vendor_id", vendor.id)
       .order("created_at", { ascending: false }),
@@ -58,8 +58,7 @@ export async function GET(request: Request) {
   }
 
   const leadIds = (leadRows ?? []).map((row) => String(row.id ?? "")).filter(Boolean);
-  const inquiryIds = (leadRows ?? []).map((row) => String(row.inquiry_id ?? "")).filter(Boolean);
-  const [{ data: noteRows, error: noteError }, { data: reminderRows, error: reminderError }, { data: readRows, error: readError }] = leadIds.length
+  const [{ data: noteRows, error: noteError }, { data: readRows, error: readError }] = leadIds.length
     ? await Promise.all([
         supabase
           .from("vendor_lead_notes")
@@ -67,39 +66,19 @@ export async function GET(request: Request) {
           .in("lead_id", leadIds)
           .order("created_at", { ascending: false }),
         supabase
-          .from("vendor_lead_reminders")
-          .select("id,lead_id,assigned_user_id,remind_at,status,note,created_at,updated_at,assignee:profiles!vendor_lead_reminders_assigned_user_id_fkey(full_name,email)")
-          .in("lead_id", leadIds)
-          .order("remind_at", { ascending: true }),
-        supabase
           .from("vendor_lead_reads")
           .select("lead_id,last_read_at")
           .eq("user_id", user.id)
           .in("lead_id", leadIds),
       ])
-    : [{ data: [], error: null }, { data: [], error: null }, { data: [], error: null }];
+    : [{ data: [], error: null }, { data: [], error: null }];
 
   if (noteError) {
     return NextResponse.json({ error: noteError.message }, { status: 500 });
   }
 
-  if (reminderError) {
-    return NextResponse.json({ error: reminderError.message }, { status: 500 });
-  }
-
   if (readError) {
     return NextResponse.json({ error: readError.message }, { status: 500 });
-  }
-
-  const { data: inquiryContactRows, error: inquiryContactError } = inquiryIds.length
-    ? await supabase
-        .from("inquiries")
-        .select("id,user_id,profile:profiles!inquiries_user_id_fkey(phone,full_name,email)")
-        .in("id", inquiryIds)
-    : { data: [], error: null };
-
-  if (inquiryContactError) {
-    return NextResponse.json({ error: inquiryContactError.message }, { status: 500 });
   }
 
   const assignees = (memberRows ?? []).map((row) => {
@@ -130,56 +109,6 @@ export async function GET(request: Request) {
     {}
   );
 
-  const remindersByLead = (reminderRows ?? []).reduce<
-    Record<
-      string,
-      Array<{
-        id: string;
-        assigned_user_id: string | null;
-        assigned_name: string | null;
-        remind_at: string | null;
-        status: string | null;
-        note: string | null;
-      }>
-    >
-  >((accumulator, row) => {
-    const leadId = String(row.lead_id ?? "");
-    if (!leadId) return accumulator;
-    const assignee = Array.isArray(row.assignee) ? row.assignee[0] : row.assignee;
-    const bucket = accumulator[leadId] ?? [];
-    bucket.push({
-      id: String(row.id ?? ""),
-      assigned_user_id: row.assigned_user_id ? String(row.assigned_user_id) : null,
-      assigned_name: (assignee?.full_name as string | null) ?? (assignee?.email as string | null) ?? null,
-      remind_at: (row.remind_at as string | null) ?? null,
-      status: (row.status as string | null) ?? null,
-      note: (row.note as string | null) ?? null,
-    });
-    accumulator[leadId] = bucket;
-    return accumulator;
-  }, {});
-
-  const inquiryContactById = (inquiryContactRows ?? []).reduce<
-    Record<
-      string,
-      {
-        phone: string | null;
-        full_name: string | null;
-        email: string | null;
-      }
-    >
-  >((accumulator, row) => {
-    const inquiryId = String(row.id ?? "");
-    if (!inquiryId) return accumulator;
-    const profile = Array.isArray(row.profile) ? row.profile[0] : row.profile;
-    accumulator[inquiryId] = {
-      phone: (profile?.phone as string | null) ?? null,
-      full_name: (profile?.full_name as string | null) ?? null,
-      email: (profile?.email as string | null) ?? null,
-    };
-    return accumulator;
-  }, {});
-
   const leadReadMap = (readRows ?? []).reduce<Record<string, string | null>>((accumulator, row) => {
     const leadId = String(row.lead_id ?? "");
     if (!leadId) return accumulator;
@@ -189,13 +118,14 @@ export async function GET(request: Request) {
 
   const items = (leadRows ?? []).flatMap((row) => {
     const assignee = Array.isArray(row.assignee) ? row.assignee[0] : row.assignee;
+    const requester = Array.isArray(row.requester) ? row.requester[0] : row.requester;
     const inquiryId = row.inquiry_id ? String(row.inquiry_id) : "";
-    const inquiryContact = inquiryContactById[inquiryId];
 
     return [
       {
         lead_id: String(row.id ?? ""),
         inquiry_id: inquiryId,
+        requester_user_id: row.requester_user_id ? String(row.requester_user_id) : null,
         status: String(row.status ?? "new"),
         source: String(row.source ?? "marketplace_routed"),
         routing_score: typeof row.routing_score === "number" ? row.routing_score : null,
@@ -219,7 +149,7 @@ export async function GET(request: Request) {
         need_lift: (row.need_lift as boolean | null) ?? null,
         need_solar: (row.need_solar as boolean | null) ?? null,
         need_generator: (row.need_generator as boolean | null) ?? null,
-        contact_number: inquiryContact?.phone ?? null,
+        contact_number: (row.contact_number as string | null) ?? (requester?.phone as string | null) ?? null,
         created_at: (row.created_at as string | null) ?? null,
         is_unread: (() => {
           const lastActivityAt = (row.last_activity_at as string | null) ?? (row.created_at as string | null) ?? null;
@@ -229,7 +159,6 @@ export async function GET(request: Request) {
           return new Date(lastActivityAt).getTime() > new Date(lastReadAt).getTime();
         })(),
         notes: notesByLead[String(row.id ?? "")] ?? [],
-        reminders: remindersByLead[String(row.id ?? "")] ?? [],
       },
     ];
   });

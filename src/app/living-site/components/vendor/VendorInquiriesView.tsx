@@ -7,6 +7,7 @@ import { useAppState } from "@/app/living-site/lib/app-state";
 import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
 import { CustomSelect } from "@/app/living-site/components/form-controls/CustomSelect";
 import { supabase } from "@/app/living-site/lib/supabaseClient";
+import { withActiveVendorHeaders } from "@/app/living-site/lib/active-context";
 
 const Page = styled.div<{ $embedded?: boolean }>`
   display: grid;
@@ -496,6 +497,7 @@ const SmallText = styled.div`
 type InquiryItem = {
   lead_id: string;
   inquiry_id: string;
+  requester_user_id?: string | null;
   status: string;
   source: string;
   routing_score: number | null;
@@ -528,14 +530,6 @@ type InquiryItem = {
     created_at: string | null;
     author_name: string | null;
   }>;
-  reminders: Array<{
-    id: string;
-    assigned_user_id: string | null;
-    assigned_name: string | null;
-    remind_at: string | null;
-    status: string | null;
-    note: string | null;
-  }>;
 };
 
 type AssigneeOption = {
@@ -566,6 +560,7 @@ type VendorInquiriesViewProps = {
   hideHeader?: boolean;
   title?: string;
   subtitle?: string;
+  vendorId?: string | null;
 };
 
 function labelize(value: string | null | undefined) {
@@ -676,6 +671,7 @@ export function VendorInquiriesView({
   hideHeader = false,
   title = "Inquiries",
   subtitle = "Buyer and renter leads routed into your vendor workspace from the marketplace inquiry flow.",
+  vendorId = null,
 }: VendorInquiriesViewProps = {}) {
   const { authToken, user } = useAppState();
   const [items, setItems] = useState<InquiryItem[]>([]);
@@ -707,9 +703,12 @@ export function VendorInquiriesView({
       setError(null);
       try {
         const response = await fetch("/api/vendor/inquiries", {
-          headers: {
-            Authorization: `Bearer ${authToken}`,
-          },
+          headers: withActiveVendorHeaders(
+            {
+              Authorization: `Bearer ${authToken}`,
+            },
+            vendorId
+          ),
         });
         const payload = (await response.json()) as InquiriesPayload;
         if (!response.ok) {
@@ -738,7 +737,7 @@ export function VendorInquiriesView({
     return () => {
       cancelled = true;
     };
-  }, [authToken, refreshVersion]);
+  }, [authToken, refreshVersion, vendorId]);
 
   useEffect(() => {
     if (!authToken || !user?.id) return;
@@ -823,13 +822,16 @@ export function VendorInquiriesView({
 
     void fetch("/api/vendor/inquiries/read", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${authToken}`,
-      },
+      headers: withActiveVendorHeaders(
+        {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        vendorId
+      ),
       body: JSON.stringify({ lead_id: selectedLead.lead_id }),
     }).catch(() => undefined);
-  }, [authToken, selectedLead?.is_unread, selectedLead?.lead_id]);
+  }, [authToken, selectedLead?.is_unread, selectedLead?.lead_id, vendorId]);
 
   const handleAddNote = async (leadId: string) => {
     if (!authToken) return;
@@ -841,10 +843,13 @@ export function VendorInquiriesView({
     try {
       const response = await fetch("/api/vendor/inquiry-notes", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${authToken}`,
-        },
+        headers: withActiveVendorHeaders(
+          {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${authToken}`,
+          },
+          vendorId
+        ),
         body: JSON.stringify({ lead_id: leadId, body }),
       });
 
@@ -875,10 +880,13 @@ export function VendorInquiriesView({
     try {
       const response = await fetch("/api/vendor/message-templates", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${authToken}`,
-        },
+        headers: withActiveVendorHeaders(
+          {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${authToken}`,
+          },
+          vendorId
+        ),
         body: JSON.stringify({
           title: templateTitle,
           body: templateBody,
@@ -939,10 +947,13 @@ export function VendorInquiriesView({
     try {
       const response = await fetch("/api/vendor/inquiries", {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${authToken}`,
-        },
+        headers: withActiveVendorHeaders(
+          {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${authToken}`,
+          },
+          vendorId
+        ),
         body: JSON.stringify({
           lead_id: leadId,
           ...updates,
@@ -968,10 +979,13 @@ export function VendorInquiriesView({
     try {
       const response = await fetch("/api/vendor/inquiry-notes", {
         method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${authToken}`,
-        },
+        headers: withActiveVendorHeaders(
+          {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${authToken}`,
+          },
+          vendorId
+        ),
         body: JSON.stringify({ note_id: noteId }),
       });
       const payload = (await response.json().catch(() => null)) as { error?: string } | null;

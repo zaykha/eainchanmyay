@@ -19,6 +19,7 @@ import {
   Warehouse,
 } from "lucide-react";
 import { useAppState } from "@/app/living-site/lib/app-state";
+import { withActiveVendorHeaders } from "@/app/living-site/lib/active-context";
 import { formatCurrency } from "@/app/living-site/lib/format";
 import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
 import { CustomSelect } from "@/app/living-site/components/form-controls/CustomSelect";
@@ -600,6 +601,7 @@ type VendorPropertiesViewProps = {
   subtitle?: string;
   simulateCount?: number;
   onSelectProperty?: (property: VendorPropertyItem) => void;
+  vendorId?: string | null;
 };
 
 export function VendorPropertiesView({
@@ -609,6 +611,7 @@ export function VendorPropertiesView({
   subtitle = "Manage the live properties linked to this vendor workspace, then open each one for workspace-specific detail and editing.",
   simulateCount,
   onSelectProperty,
+  vendorId = null,
 }: VendorPropertiesViewProps = {}) {
   const { authToken } = useAppState();
   const [items, setItems] = useState<VendorPropertyItem[]>([]);
@@ -665,14 +668,20 @@ export function VendorPropertiesView({
       try {
         const [response, workspaceResponse] = await Promise.all([
           fetch("/api/vendor/properties", {
-            headers: {
-              Authorization: `Bearer ${authToken}`,
-            },
+            headers: withActiveVendorHeaders(
+              {
+                Authorization: `Bearer ${authToken}`,
+              },
+              vendorId
+            ),
           }),
           fetch("/api/vendor/workspace", {
-            headers: {
-              Authorization: `Bearer ${authToken}`,
-            },
+            headers: withActiveVendorHeaders(
+              {
+                Authorization: `Bearer ${authToken}`,
+              },
+              vendorId
+            ),
           }),
         ]);
         const payload = (await response.json()) as { items?: VendorPropertyItem[]; error?: string };
@@ -702,7 +711,7 @@ export function VendorPropertiesView({
     return () => {
       cancelled = true;
     };
-  }, [authToken]);
+  }, [authToken, vendorId]);
 
   function applySearch() {
     setQuery(searchInput.trim());

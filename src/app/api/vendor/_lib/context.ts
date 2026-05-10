@@ -12,6 +12,14 @@ function getBearerToken(request: Request) {
   return authHeader.slice("Bearer ".length).trim() || null;
 }
 
+function getRequestedVendorId(request: Request) {
+  const headerValue = request.headers.get("x-vendor-id")?.trim();
+  if (headerValue) return headerValue;
+  const { searchParams } = new URL(request.url);
+  const queryValue = searchParams.get("vendorId")?.trim();
+  return queryValue || null;
+}
+
 export type VendorRequestContext = {
   supabase: SupabaseClient;
   user: { id: string; email?: string | null };
@@ -43,11 +51,33 @@ export type VendorRequestContext = {
     strengths: string[];
     public_storefront_enabled: boolean;
     verified_status: string | null;
+    verified_at: string | null;
+    verification_expires_at: string | null;
+    verification_level: string | null;
+    verification_score: number | null;
+    verification_rejection_reason_code: string | null;
+    verification_last_reviewed_by: string | null;
+    verification_last_reviewed_at: string | null;
+    verification_rank_bonus: number;
   };
   membership: {
     role: string;
     status: string;
   };
+  workspaces: Array<{
+    vendor: {
+      id: string;
+      name: string;
+      slug: string | null;
+      logo_url: string | null;
+      plan: string | null;
+      verified_status: string | null;
+    };
+    membership: {
+      role: string;
+      status: string;
+    };
+  }>;
   memberIds: string[];
 };
 
@@ -128,12 +158,11 @@ export async function getVendorRequestContext(
   const { data: membershipRows, error: membershipError } = await supabase
     .from("vendor_members")
     .select(
-      "role,status,vendor:vendors(id,name,vendor_type,plan,billing_status,billing_provider,slug,tagline,description,contact_phone,contact_email,logo_url,facebook_url,telegram_url,viber_phone,tiktok_url,website_url,cover_image_url,strengths,public_storefront_enabled,verified_status:verification_status),created_at"
+      "role,status,vendor:vendors(id,name,vendor_type,plan,billing_status,billing_provider,slug,tagline,description,contact_phone,contact_email,logo_url,facebook_url,telegram_url,viber_phone,tiktok_url,website_url,cover_image_url,strengths,public_storefront_enabled,verified_status:verification_status,verified_at,verification_expires_at,verification_level,verification_score,verification_rejection_reason_code,verification_last_reviewed_by,verification_last_reviewed_at,verification_rank_bonus),created_at"
     )
     .eq("user_id", user.id)
     .eq("status", "active")
-    .order("created_at", { ascending: true })
-    .limit(1);
+    .order("created_at", { ascending: true });
 
   if (membershipError) {
     return {
@@ -142,7 +171,8 @@ export async function getVendorRequestContext(
     };
   }
 
-  const membershipRow = membershipRows?.[0] as
+  const requestedVendorId = getRequestedVendorId(request);
+  const membershipEntries = (membershipRows ?? []) as Array<
     | {
         role?: string | null;
         status?: string | null;
@@ -169,6 +199,14 @@ export async function getVendorRequestContext(
               strengths?: unknown;
               public_storefront_enabled?: boolean | null;
               verified_status?: string | null;
+              verified_at?: string | null;
+              verification_expires_at?: string | null;
+              verification_level?: string | null;
+              verification_score?: number | null;
+              verification_rejection_reason_code?: string | null;
+              verification_last_reviewed_by?: string | null;
+              verification_last_reviewed_at?: string | null;
+              verification_rank_bonus?: number | null;
             }
           | Array<{
               id?: string | null;
@@ -192,6 +230,92 @@ export async function getVendorRequestContext(
               strengths?: unknown;
               public_storefront_enabled?: boolean | null;
               verified_status?: string | null;
+              verified_at?: string | null;
+              verification_expires_at?: string | null;
+              verification_level?: string | null;
+              verification_score?: number | null;
+              verification_rejection_reason_code?: string | null;
+              verification_last_reviewed_by?: string | null;
+              verification_last_reviewed_at?: string | null;
+              verification_rank_bonus?: number | null;
+            }>
+          | null;
+      }
+  >;
+
+  const membershipRow = (
+    requestedVendorId
+      ? membershipEntries.find((row) => {
+          const vendorValue = Array.isArray(row.vendor) ? row.vendor[0] : row.vendor;
+          return vendorValue?.id === requestedVendorId;
+        })
+      : membershipEntries[0]
+  ) as
+    | {
+        role?: string | null;
+        status?: string | null;
+        vendor?:
+          | {
+              id?: string | null;
+              name?: string | null;
+              vendor_type?: string | null;
+              plan?: string | null;
+              billing_status?: string | null;
+              billing_provider?: string | null;
+              slug?: string | null;
+              tagline?: string | null;
+              description?: string | null;
+              contact_phone?: string | null;
+              contact_email?: string | null;
+              logo_url?: string | null;
+              facebook_url?: string | null;
+              telegram_url?: string | null;
+              viber_phone?: string | null;
+              tiktok_url?: string | null;
+              website_url?: string | null;
+              cover_image_url?: string | null;
+              strengths?: unknown;
+              public_storefront_enabled?: boolean | null;
+              verified_status?: string | null;
+              verified_at?: string | null;
+              verification_expires_at?: string | null;
+              verification_level?: string | null;
+              verification_score?: number | null;
+              verification_rejection_reason_code?: string | null;
+              verification_last_reviewed_by?: string | null;
+              verification_last_reviewed_at?: string | null;
+              verification_rank_bonus?: number | null;
+            }
+          | Array<{
+              id?: string | null;
+              name?: string | null;
+              vendor_type?: string | null;
+              plan?: string | null;
+              billing_status?: string | null;
+              billing_provider?: string | null;
+              slug?: string | null;
+              tagline?: string | null;
+              description?: string | null;
+              contact_phone?: string | null;
+              contact_email?: string | null;
+              logo_url?: string | null;
+              facebook_url?: string | null;
+              telegram_url?: string | null;
+              viber_phone?: string | null;
+              tiktok_url?: string | null;
+              website_url?: string | null;
+              cover_image_url?: string | null;
+              strengths?: unknown;
+              public_storefront_enabled?: boolean | null;
+              verified_status?: string | null;
+              verified_at?: string | null;
+              verification_expires_at?: string | null;
+              verification_level?: string | null;
+              verification_score?: number | null;
+              verification_rejection_reason_code?: string | null;
+              verification_last_reviewed_by?: string | null;
+              verification_last_reviewed_at?: string | null;
+              verification_rank_bonus?: number | null;
             }>
           | null;
       }
@@ -222,6 +346,27 @@ export async function getVendorRequestContext(
   const memberIds = (memberRows ?? [])
     .map((row) => String(row.user_id ?? ""))
     .filter(Boolean);
+
+  const workspaces = membershipEntries
+    .map((row) => {
+      const vendorValue = Array.isArray(row.vendor) ? row.vendor[0] : row.vendor;
+      if (!row.role || !vendorValue?.id || !vendorValue.name) return null;
+      return {
+        vendor: {
+          id: String(vendorValue.id),
+          name: String(vendorValue.name),
+          slug: (vendorValue.slug as string | null) ?? null,
+          logo_url: (vendorValue.logo_url as string | null) ?? null,
+          plan: (vendorValue.plan as string | null) ?? null,
+          verified_status: (vendorValue.verified_status as string | null) ?? null,
+        },
+        membership: {
+          role: String(row.role),
+          status: String(row.status ?? "active"),
+        },
+      };
+    })
+    .filter(Boolean) as VendorRequestContext["workspaces"];
 
   const requiresActiveBilling = vendorRaw.plan && vendorRaw.plan !== "free";
   const effectiveBillingStatus =
@@ -277,11 +422,25 @@ export async function getVendorRequestContext(
           : [],
         public_storefront_enabled: vendorRaw.public_storefront_enabled !== false,
         verified_status: (vendorRaw.verified_status as string | null) ?? null,
+        verified_at: (vendorRaw.verified_at as string | null) ?? null,
+        verification_expires_at: (vendorRaw.verification_expires_at as string | null) ?? null,
+        verification_level: (vendorRaw.verification_level as string | null) ?? null,
+        verification_score:
+          typeof vendorRaw.verification_score === "number" ? vendorRaw.verification_score : null,
+        verification_rejection_reason_code:
+          (vendorRaw.verification_rejection_reason_code as string | null) ?? null,
+        verification_last_reviewed_by:
+          (vendorRaw.verification_last_reviewed_by as string | null) ?? null,
+        verification_last_reviewed_at:
+          (vendorRaw.verification_last_reviewed_at as string | null) ?? null,
+        verification_rank_bonus:
+          typeof vendorRaw.verification_rank_bonus === "number" ? vendorRaw.verification_rank_bonus : 0,
       },
       membership: {
         role: String(membershipRow.role),
         status: String(membershipRow.status ?? "active"),
       },
+      workspaces,
       memberIds,
     },
   };

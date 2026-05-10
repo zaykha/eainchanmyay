@@ -4,12 +4,13 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Mail, MapPin, Phone, ShieldCheck } from "lucide-react";
 import styled from "styled-components";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
 import { MarketplaceHeader } from "@/app/living-site/components/MarketplaceHeader";
 import { SectionTitle } from "@/app/living-site/components/PageSection";
 import { formatCurrency } from "@/app/living-site/lib/format";
 import { resolveImage } from "@/app/living-site/lib/images";
+import { useAppState } from "@/app/living-site/lib/app-state";
 
 type AgencyPayload = {
   agency: {
@@ -270,6 +271,23 @@ const Action = styled(Link)`
   box-shadow: var(--frame-shadow);
 `;
 
+const ActionButton = styled.button`
+  min-height: 44px;
+  padding: 10px 16px;
+  border-radius: var(--radius-md);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: var(--gradient);
+  color: white;
+  font-weight: 700;
+  font-size: 0.95rem;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  box-shadow: var(--frame-shadow);
+  cursor: pointer;
+`;
+
 const GhostAction = styled.a`
   min-height: 44px;
   padding: 10px 16px;
@@ -283,6 +301,22 @@ const GhostAction = styled.a`
   color: var(--color-text);
   font-weight: 700;
   font-size: 0.95rem;
+`;
+
+const GhostActionButton = styled.button`
+  min-height: 44px;
+  padding: 10px 16px;
+  border-radius: var(--radius-md);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid var(--color-outline);
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
 `;
 
 const SidebarCard = styled(Card)`
@@ -348,6 +382,45 @@ const EmptyState = styled.div`
   background: #f8fafc;
 `;
 
+const ModalOverlay = styled.div`
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.4);
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  z-index: 120;
+`;
+
+const ModalCard = styled.div`
+  width: min(460px, 100%);
+  border-radius: 24px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 22px 48px rgba(15, 23, 42, 0.16);
+  padding: 20px;
+  display: grid;
+  gap: 12px;
+`;
+
+const ModalTitle = styled.h3`
+  margin: 0;
+  color: #0f172a;
+  font-size: 1.05rem;
+`;
+
+const ModalCopy = styled.p`
+  margin: 0;
+  color: #475467;
+  line-height: 1.6;
+`;
+
+const ModalActions = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+`;
+
 function formatLocation(listing: AgencyPayload["listings"][number]) {
   return [listing.township, listing.district, listing.state_region].filter(Boolean).join(", ") || listing.city || "Myanmar";
 }
@@ -359,9 +432,13 @@ function formatLabel(value: string | null) {
 
 export default function AgencyStorefrontPage() {
   const params = useParams<{ slug: string }>();
+  const router = useRouter();
+  const { authToken, profileRole } = useAppState();
   const [data, setData] = useState<AgencyPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [viewerVendorId, setViewerVendorId] = useState<string | null>(null);
+  const [selfActionModalOpen, setSelfActionModalOpen] = useState(false);
 
   useEffect(() => {
     const slug = typeof params?.slug === "string" ? params.slug : "";
@@ -401,6 +478,36 @@ export default function AgencyStorefrontPage() {
     };
   }, [params?.slug]);
 
+  useEffect(() => {
+    if (!authToken || profileRole !== "vendor_user") {
+      setViewerVendorId(null);
+      return;
+    }
+
+    let active = true;
+    fetch("/api/vendor/workspace?includeUsage=false", {
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+      },
+    })
+      .then(async (response) => {
+        const payload = (await response.json().catch(() => null)) as { vendor?: { id?: string } } | null;
+        if (!response.ok) return;
+        if (active) {
+          setViewerVendorId(payload?.vendor?.id ? String(payload.vendor.id) : null);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setViewerVendorId(null);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [authToken, profileRole]);
+
   if (loading) {
     return <LoadingOverlay message="Loading agency profile..." />;
   }
@@ -410,6 +517,7 @@ export default function AgencyStorefrontPage() {
   const logoUrl = resolveImage(agency?.logo_url ?? null);
   const coverImageUrl = resolveImage(agency?.cover_image_url ?? null);
   const isVerified = agency?.verified_status === "approved";
+  const isOwnAgencyProfile = Boolean(viewerVendorId && agency?.id === viewerVendorId);
 
   return (
     <Shell>
@@ -566,19 +674,34 @@ export default function AgencyStorefrontPage() {
                     </ContactItem>
                   </ContactStack>
                   <ActionRow>
-                    <Action
-                      href={{
-                        pathname: "/inquiries/new",
-                        query: {
-                          agency: agency.name,
-                          agencySlug: agency.slug || "",
-                          agencyLogo: agency.logo_url || "",
-                        },
-                      }}
-                    >
-                      Request property help
-                    </Action>
-                    {agency.contact_phone ? <GhostAction href={`tel:${agency.contact_phone}`}>Call agency</GhostAction> : null}
+                    {isOwnAgencyProfile ? (
+                      <ActionButton type="button" onClick={() => setSelfActionModalOpen(true)}>
+                        Request property help
+                      </ActionButton>
+                    ) : (
+                      <Action
+                        href={{
+                          pathname: "/inquiries/new",
+                          query: {
+                            agencyId: agency.id,
+                            agency: agency.name,
+                            agencySlug: agency.slug || "",
+                            agencyLogo: agency.logo_url || "",
+                          },
+                        }}
+                      >
+                        Request property help
+                      </Action>
+                    )}
+                    {agency.contact_phone ? (
+                      isOwnAgencyProfile ? (
+                        <GhostActionButton type="button" onClick={() => setSelfActionModalOpen(true)}>
+                          Call agency
+                        </GhostActionButton>
+                      ) : (
+                        <GhostAction href={`tel:${agency.contact_phone}`}>Call agency</GhostAction>
+                      )
+                    ) : null}
                   </ActionRow>
                 </SidebarCard>
               </div>
@@ -586,6 +709,24 @@ export default function AgencyStorefrontPage() {
           </>
         )}
       </Page>
+      {selfActionModalOpen ? (
+        <ModalOverlay onClick={() => setSelfActionModalOpen(false)}>
+          <ModalCard onClick={(event) => event.stopPropagation()}>
+            <ModalTitle>Viewing your own agency profile</ModalTitle>
+            <ModalCopy>
+              You can’t request property help or call your own agency from this public profile. These actions are only for visitors viewing the agency page.
+            </ModalCopy>
+            <ModalActions>
+              <GhostActionButton type="button" onClick={() => setSelfActionModalOpen(false)}>
+                Close
+              </GhostActionButton>
+              <ActionButton type="button" onClick={() => router.push("/hub")}>
+                Go to hub
+              </ActionButton>
+            </ModalActions>
+          </ModalCard>
+        </ModalOverlay>
+      ) : null}
     </Shell>
   );
 }

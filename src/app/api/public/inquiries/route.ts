@@ -28,6 +28,7 @@ type Payload = {
   needLift?: boolean;
   needSolar?: boolean;
   needGenerator?: boolean;
+  targetVendorId?: string | null;
 };
 
 function toNullableString(value: unknown) {
@@ -78,7 +79,6 @@ export async function POST(request: Request) {
   }
 
   const inquiryPayload = {
-    user_id: user.id,
     deal_type: body.dealType,
     property_type: body.propertyType,
     state_region: body.stateRegion.trim(),
@@ -95,14 +95,69 @@ export async function POST(request: Request) {
     need_generator: Boolean(body.needGenerator),
   };
 
-  const { data: inquiryRow, error: inquiryError } = await supabase
-    .from("inquiries")
-    .insert(inquiryPayload)
-    .select("id")
+  const { data: requesterProfile, error: requesterProfileError } = await supabase
+    .from("profiles")
+    .select("id,phone")
+    .eq("id", user.id)
     .maybeSingle();
 
-  if (inquiryError || !inquiryRow?.id) {
-    return NextResponse.json({ error: inquiryError?.message ?? "Unable to create inquiry." }, { status: 500 });
+  if (requesterProfileError) {
+    return NextResponse.json({ error: requesterProfileError.message }, { status: 500 });
+  }
+
+  const targetVendorId = toNullableString(body.targetVendorId);
+  if (targetVendorId) {
+    const { data: targetVendorRow, error: targetVendorError } = await supabase
+      .from("vendors")
+      .select("id")
+      .eq("id", targetVendorId)
+      .maybeSingle();
+
+    if (targetVendorError) {
+      return NextResponse.json({ error: targetVendorError.message }, { status: 500 });
+    }
+
+    if (!targetVendorRow?.id) {
+      return NextResponse.json({ error: "Target agency not found." }, { status: 404 });
+    }
+
+    const { error: directLeadError } = await supabase.from("vendor_inquiry_leads").insert({
+      vendor_id: targetVendorRow.id,
+      inquiry_id: null,
+      requester_user_id: requesterProfile?.id ?? user.id,
+      contact_number: (requesterProfile?.phone as string | null) ?? null,
+      status: "new",
+      source: "agency_direct",
+      routing_score: null,
+      deal_type: inquiryPayload.deal_type,
+      property_type: inquiryPayload.property_type,
+      state_region: inquiryPayload.state_region,
+      district: inquiryPayload.district,
+      township: inquiryPayload.township,
+      budget_range: inquiryPayload.budget_range,
+      timeline: inquiryPayload.timeline,
+      bedrooms: inquiryPayload.bedrooms,
+      bathrooms: inquiryPayload.bathrooms,
+      area_sqft: inquiryPayload.area_sqft,
+      need_parking: inquiryPayload.need_parking,
+      need_lift: inquiryPayload.need_lift,
+      need_solar: inquiryPayload.need_solar,
+      need_generator: inquiryPayload.need_generator,
+      pipeline_stage: "new_lead",
+      last_activity_at: new Date().toISOString(),
+      sla_due_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    });
+
+    if (directLeadError) {
+      return NextResponse.json({ error: directLeadError.message }, { status: 500 });
+    }
+
+    return NextResponse.json({
+      ok: true,
+      routed: true,
+      vendorId: String(targetVendorRow.id),
+      source: "agency_direct",
+    });
   }
 
   const { data: membershipRows, error: membershipError } = await supabase
@@ -111,7 +166,7 @@ export async function POST(request: Request) {
     .eq("status", "active");
 
   if (membershipError) {
-    return NextResponse.json({ ok: true, inquiryId: String(inquiryRow.id), routed: false });
+    return NextResponse.json({ ok: true, routed: false });
   }
 
   const vendorMap = new Map<string, RoutedVendorCandidate>();
@@ -142,7 +197,7 @@ export async function POST(request: Request) {
 
   const memberIds = Array.from(new Set(Array.from(vendorMap.values()).flatMap((vendor) => vendor.memberIds)));
   if (!memberIds.length) {
-    return NextResponse.json({ ok: true, inquiryId: String(inquiryRow.id), routed: false });
+    return NextResponse.json({ ok: true, routed: false });
   }
 
   const { data: propertyRows, error: propertyError } = await supabase
@@ -155,7 +210,7 @@ export async function POST(request: Request) {
     .eq("property_type", body.propertyType);
 
   if (propertyError) {
-    return NextResponse.json({ ok: true, inquiryId: String(inquiryRow.id), routed: false });
+    return NextResponse.json({ ok: true, routed: false });
   }
 
   const selected = pickVendorForInquiry(
@@ -176,12 +231,14 @@ export async function POST(request: Request) {
   );
 
   if (!selected) {
-    return NextResponse.json({ ok: true, inquiryId: String(inquiryRow.id), routed: false });
+    return NextResponse.json({ ok: true, routed: false });
   }
 
-  await supabase.from("vendor_inquiry_leads").insert({
+  const { error: routedLeadError } = await supabase.from("vendor_inquiry_leads").insert({
     vendor_id: selected.vendor.vendorId,
-    inquiry_id: inquiryRow.id,
+    inquiry_id: null,
+    requester_user_id: requesterProfile?.id ?? user.id,
+    contact_number: (requesterProfile?.phone as string | null) ?? null,
     status: "new",
     source: "marketplace_routed",
     routing_score: selected.routingScore,
@@ -204,9 +261,12 @@ export async function POST(request: Request) {
     sla_due_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
   });
 
+  if (routedLeadError) {
+    return NextResponse.json({ error: routedLeadError.message }, { status: 500 });
+  }
+
   return NextResponse.json({
     ok: true,
-    inquiryId: String(inquiryRow.id),
     routed: true,
     vendorId: selected.vendor.vendorId,
   });

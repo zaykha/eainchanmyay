@@ -230,6 +230,7 @@ export function VendorPlanSelection({
     mode === "setup"
       ? "Free agencies can start immediately. Paid plans will require successful payment before the workspace is unlocked. If a paid checkout is canceled later, the account stays on Free until upgraded again."
       : "Upgrade your agency when you need more listing capacity, more seats, and richer workspace tools. Your current workspace stays active until payment is confirmed.";
+  const currentPlanIndex = VENDOR_PLANS.findIndex((plan) => plan.key === currentPlan);
 
   return (
     <Shell>
@@ -245,11 +246,18 @@ export function VendorPlanSelection({
         {VENDOR_PLANS.map((plan) => {
           const isFree = plan.key === "free";
           const isCurrent = currentPlan === plan.key;
+          const planIndex = VENDOR_PLANS.findIndex((item) => item.key === plan.key);
+          const isLockedBelowCurrent =
+            mode === "upgrade" &&
+            currentPlanIndex >= 0 &&
+            planIndex >= 0 &&
+            planIndex < currentPlanIndex;
           const isLoading = creatingPlan === plan.key;
           const isMostPopular = plan.key === "growth" && !isCurrent;
           const disabled =
             Boolean(creatingPlan) ||
             isCurrent ||
+            isLockedBelowCurrent ||
             (mode === "upgrade" && isFree) ||
             (mode === "setup" && isFree && !onSelectFree);
           const actionLabel =
@@ -257,6 +265,8 @@ export function VendorPlanSelection({
               ? isFree
                 ? "Continue with Free"
                 : `Pay and start ${plan.name}`
+              : isLockedBelowCurrent
+                ? "Current tier is higher"
               : isCurrent
                 ? "Current plan"
                 : isFree
@@ -323,4 +333,3 @@ export function VendorPlanSelection({
     </Shell>
   );
 }
-

@@ -14,7 +14,7 @@ const Page = styled.div`
 `;
 
 const Shell = styled.div`
-  max-width: 1200px;
+  max-width: 1240px;
   margin: 0 auto;
   display: grid;
   gap: 18px;
@@ -39,6 +39,15 @@ const Toolbar = styled.div`
 `;
 
 const Select = styled.select`
+  min-height: 44px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #151b29;
+  color: #eef2ff;
+  padding: 0 14px;
+`;
+
+const Input = styled.input`
   min-height: 44px;
   border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -87,7 +96,7 @@ const Badge = styled.span<{ $tone?: "success" | "warning" | "danger" | "neutral"
 
 const TwoCol = styled.div`
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
   gap: 16px;
 
   @media (max-width: 980px) {
@@ -117,21 +126,6 @@ const Textarea = styled.textarea`
   resize: vertical;
 `;
 
-const PropertyList = styled.div`
-  display: grid;
-  gap: 10px;
-`;
-
-const PropertyRow = styled.label`
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-  padding: 12px;
-  border-radius: 16px;
-  background: #101726;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-`;
-
 const ActionRow = styled.div`
   display: flex;
   gap: 10px;
@@ -154,6 +148,39 @@ const Button = styled.button<{ $tone?: "success" | "danger" | "neutral" }>`
   cursor: pointer;
 `;
 
+const MetaGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+
+  @media (max-width: 720px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const MetaCard = styled.div`
+  border-radius: 16px;
+  background: #101726;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 12px;
+  display: grid;
+  gap: 4px;
+`;
+
+const EventList = styled.div`
+  display: grid;
+  gap: 10px;
+`;
+
+const EventRow = styled.div`
+  border-radius: 16px;
+  background: #101726;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 12px;
+  display: grid;
+  gap: 4px;
+`;
+
 type VerificationItem = {
   id: string;
   status: string;
@@ -162,12 +189,30 @@ type VerificationItem = {
   included_in_plan: boolean;
   requested_at: string | null;
   reviewed_at: string | null;
+  request_type: string;
+  business_name_submitted: string | null;
+  license_number: string | null;
+  company_registration_number: string | null;
+  tax_id: string | null;
+  office_address: string | null;
+  contact_person_name: string | null;
+  contact_person_role: string | null;
+  contact_person_phone: string | null;
+  contact_person_email: string | null;
+  decision_reason_code: string | null;
+  checklist_json: Record<string, unknown>;
   vendor: {
     id: string;
     name: string;
     plan: string | null;
     verification_status: string | null;
     slug: string | null;
+    verified_at: string | null;
+    verification_expires_at: string | null;
+    verification_level: string | null;
+    verification_score: number | null;
+    verification_rejection_reason_code: string | null;
+    verification_rank_bonus: number;
   };
   requester: {
     id: string;
@@ -184,13 +229,28 @@ type VerificationItem = {
     document_type: string;
     document_name: string;
     document_url: string;
+    document_side: string | null;
+    mime_type: string | null;
+    file_size_bytes: number | null;
+    storage_path: string | null;
+    document_number: string | null;
+    document_issued_at: string | null;
+    document_expires_at: string | null;
+    document_country: string | null;
+    is_primary: boolean;
+    review_status: string;
+    review_notes: string | null;
     created_at: string | null;
   }>;
-  properties: Array<{
-    property_id: string;
-    title: string;
-    status: string | null;
-    verification_status: string | null;
+  events: Array<{
+    id: string;
+    event_type: string;
+    from_status: string | null;
+    to_status: string | null;
+    notes: string | null;
+    metadata_json: Record<string, unknown>;
+    created_at: string | null;
+    actor_name: string;
   }>;
 };
 
@@ -210,8 +270,12 @@ export default function AdminVendorVerificationsPage() {
   const { authToken, profileRole, profileReady } = useAppState();
   const [statusFilter, setStatusFilter] = useState("");
   const [items, setItems] = useState<VerificationItem[]>([]);
-  const [selectedProperties, setSelectedProperties] = useState<Record<string, string[]>>({});
   const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
+  const [decisionReasonCodes, setDecisionReasonCodes] = useState<Record<string, string>>({});
+  const [verificationLevels, setVerificationLevels] = useState<Record<string, string>>({});
+  const [verificationScores, setVerificationScores] = useState<Record<string, string>>({});
+  const [verificationBonuses, setVerificationBonuses] = useState<Record<string, string>>({});
+  const [verificationExpiry, setVerificationExpiry] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -243,10 +307,27 @@ export default function AdminVendorVerificationsPage() {
         if (!cancelled) {
           const nextItems = payload.items ?? [];
           setItems(nextItems);
-          setSelectedProperties(
-            Object.fromEntries(nextItems.map((item) => [item.id, item.properties.map((property) => property.property_id)]))
-          );
           setReviewNotes(Object.fromEntries(nextItems.map((item) => [item.id, item.review_notes || ""])));
+          setDecisionReasonCodes(
+            Object.fromEntries(nextItems.map((item) => [item.id, item.decision_reason_code || ""])),
+          );
+          setVerificationLevels(
+            Object.fromEntries(nextItems.map((item) => [item.id, item.vendor.verification_level || "verified_agency"]))
+          );
+          setVerificationScores(
+            Object.fromEntries(nextItems.map((item) => [item.id, String(item.vendor.verification_score ?? 80)]))
+          );
+          setVerificationBonuses(
+            Object.fromEntries(nextItems.map((item) => [item.id, String(item.vendor.verification_rank_bonus ?? 0)]))
+          );
+          setVerificationExpiry(
+            Object.fromEntries(
+              nextItems.map((item) => [
+                item.id,
+                item.vendor.verification_expires_at ? item.vendor.verification_expires_at.slice(0, 10) : "",
+              ])
+            )
+          );
         }
       } catch (err) {
         if (!cancelled) {
@@ -281,7 +362,16 @@ export default function AdminVendorVerificationsPage() {
           request_id: requestId,
           status,
           review_notes: reviewNotes[requestId] || "",
-          verified_property_ids: selectedProperties[requestId] || [],
+          decision_reason_code: decisionReasonCodes[requestId] || "",
+          verification_level: verificationLevels[requestId] || "verified_agency",
+          verification_score: verificationScores[requestId] || "",
+          verification_rank_bonus: verificationBonuses[requestId] || "",
+          verification_expires_at: verificationExpiry[requestId] || "",
+          checklist_json: {
+            business_identity_checked: true,
+            contact_checked: true,
+            documents_reviewed: true,
+          },
         }),
       });
       const payload = (await response.json()) as { items?: VerificationItem[]; error?: string };
@@ -318,7 +408,9 @@ export default function AdminVendorVerificationsPage() {
       <Shell>
         <div style={{ display: "grid", gap: 8 }}>
           <Title>Vendor Verifications</Title>
-          <Copy>Manual agency and listing verification queue. Approve the agency, decide which listings receive verified status, and leave review notes for the vendor team.</Copy>
+          <Copy>
+            Manual agency verification queue. Review the legal identity package, document metadata, and decide both trust status and ranking bonus.
+          </Copy>
         </div>
 
         <Toolbar>
@@ -329,8 +421,8 @@ export default function AdminVendorVerificationsPage() {
             <option value="rejected">Rejected</option>
             <option value="changes_requested">Changes requested</option>
           </Select>
-          <Link href="/vendor" style={{ color: "#f8fafc", fontWeight: 700 }}>
-            Open vendor workspace
+          <Link href="/hub" style={{ color: "#f8fafc", fontWeight: 700 }}>
+            Open hub
           </Link>
         </Toolbar>
 
@@ -350,6 +442,45 @@ export default function AdminVendorVerificationsPage() {
                 <Badge $tone={tone(item.status)}>{pretty(item.status)}</Badge>
               </Toolbar>
 
+              <MetaGrid>
+                <MetaCard>
+                  <strong>Request type</strong>
+                  <Copy>{pretty(item.request_type)}</Copy>
+                </MetaCard>
+                <MetaCard>
+                  <strong>Business name</strong>
+                  <Copy>{item.business_name_submitted || "Not provided"}</Copy>
+                </MetaCard>
+                <MetaCard>
+                  <strong>License number</strong>
+                  <Copy>{item.license_number || "Not provided"}</Copy>
+                </MetaCard>
+                <MetaCard>
+                  <strong>Registration number</strong>
+                  <Copy>{item.company_registration_number || "Not provided"}</Copy>
+                </MetaCard>
+                <MetaCard>
+                  <strong>Tax ID</strong>
+                  <Copy>{item.tax_id || "Not provided"}</Copy>
+                </MetaCard>
+                <MetaCard>
+                  <strong>Office address</strong>
+                  <Copy>{item.office_address || "Not provided"}</Copy>
+                </MetaCard>
+                <MetaCard>
+                  <strong>Contact person</strong>
+                  <Copy>
+                    {[item.contact_person_name, item.contact_person_role].filter(Boolean).join(" • ") || "Not provided"}
+                  </Copy>
+                </MetaCard>
+                <MetaCard>
+                  <strong>Contact channels</strong>
+                  <Copy>
+                    {[item.contact_person_phone, item.contact_person_email].filter(Boolean).join(" • ") || "Not provided"}
+                  </Copy>
+                </MetaCard>
+              </MetaGrid>
+
               <TwoCol>
                 <Column>
                   <Copy>{item.notes || "No vendor notes provided."}</Copy>
@@ -360,50 +491,109 @@ export default function AdminVendorVerificationsPage() {
                       onChange={(event) => setReviewNotes((current) => ({ ...current, [item.id]: event.target.value }))}
                     />
                   </Field>
+                  <Grid>
+                    <Field>
+                      Decision reason code
+                      <Input
+                        value={decisionReasonCodes[item.id] || ""}
+                        onChange={(event) =>
+                          setDecisionReasonCodes((current) => ({ ...current, [item.id]: event.target.value }))
+                        }
+                        placeholder="missing_license, unclear_nrc, office_mismatch"
+                      />
+                    </Field>
+                    <Field>
+                      Verification level
+                      <Select
+                        value={verificationLevels[item.id] || "verified_agency"}
+                        onChange={(event) =>
+                          setVerificationLevels((current) => ({ ...current, [item.id]: event.target.value }))
+                        }
+                      >
+                        <option value="basic">Basic</option>
+                        <option value="business">Business</option>
+                        <option value="verified_agency">Verified agency</option>
+                      </Select>
+                    </Field>
+                    <Field>
+                      Verification score
+                      <Input
+                        value={verificationScores[item.id] || ""}
+                        onChange={(event) =>
+                          setVerificationScores((current) => ({ ...current, [item.id]: event.target.value }))
+                        }
+                        placeholder="80"
+                      />
+                    </Field>
+                    <Field>
+                      Rank bonus
+                      <Input
+                        value={verificationBonuses[item.id] || ""}
+                        onChange={(event) =>
+                          setVerificationBonuses((current) => ({ ...current, [item.id]: event.target.value }))
+                        }
+                        placeholder="10"
+                      />
+                    </Field>
+                    <Field>
+                      Verification expiry
+                      <Input
+                        type="date"
+                        value={verificationExpiry[item.id] || ""}
+                        onChange={(event) =>
+                          setVerificationExpiry((current) => ({ ...current, [item.id]: event.target.value }))
+                        }
+                      />
+                    </Field>
+                  </Grid>
                   <div style={{ display: "grid", gap: 8 }}>
                     <strong>Documents</strong>
                     {item.documents.map((document) => (
-                      <Copy key={document.id}>
-                        {pretty(document.document_type)}:{" "}
+                      <MetaCard key={document.id}>
+                        <strong>
+                          {pretty(document.document_type)} {document.is_primary ? "• Primary" : ""}
+                        </strong>
+                        <Copy>
+                          {document.document_name} | {pretty(document.review_status)}
+                        </Copy>
+                        <Copy>
+                          {[document.document_number, document.document_country, document.document_side]
+                            .filter(Boolean)
+                            .join(" • ") || "No extra metadata"}
+                        </Copy>
+                        <Copy>
+                          {[document.mime_type, document.file_size_bytes ? `${document.file_size_bytes} bytes` : null]
+                            .filter(Boolean)
+                            .join(" • ") || "No file metadata"}
+                        </Copy>
                         <a href={document.document_url} target="_blank" rel="noreferrer" style={{ color: "#f8fafc", fontWeight: 700 }}>
-                          {document.document_name}
+                          Open document
                         </a>
-                      </Copy>
+                      </MetaCard>
                     ))}
                   </div>
                 </Column>
 
-                <Column>
-                  <strong>Listings to verify</strong>
-                  <PropertyList>
-                    {item.properties.map((property) => (
-                      <PropertyRow key={property.property_id}>
-                        <input
-                          type="checkbox"
-                          checked={(selectedProperties[item.id] || []).includes(property.property_id)}
-                          onChange={() =>
-                            setSelectedProperties((current) => {
-                              const bucket = current[item.id] || [];
-                              return {
-                                ...current,
-                                [item.id]: bucket.includes(property.property_id)
-                                  ? bucket.filter((value) => value !== property.property_id)
-                                  : [...bucket, property.property_id],
-                              };
-                            })
-                          }
-                        />
-                        <div style={{ display: "grid", gap: 4 }}>
-                          <strong style={{ color: "#f8fafc" }}>{property.title}</strong>
-                          <Copy>
-                            Listing status: {pretty(property.status)} | Verification: {pretty(property.verification_status)}
-                          </Copy>
-                        </div>
-                      </PropertyRow>
-                    ))}
-                  </PropertyList>
-                </Column>
               </TwoCol>
+
+              {item.events.length ? (
+                <div style={{ display: "grid", gap: 10 }}>
+                  <strong>Verification timeline</strong>
+                  <EventList>
+                    {item.events.map((event) => (
+                      <EventRow key={event.id}>
+                        <strong>
+                          {pretty(event.event_type)} by {event.actor_name}
+                        </strong>
+                        <Copy>
+                          {event.created_at ? new Date(event.created_at).toLocaleString() : "Unknown time"}
+                        </Copy>
+                        {event.notes ? <Copy>{event.notes}</Copy> : null}
+                      </EventRow>
+                    ))}
+                  </EventList>
+                </div>
+              ) : null}
 
               <ActionRow>
                 <Button $tone="success" onClick={() => void handleReview(item.id, "approved")}>

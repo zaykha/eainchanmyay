@@ -87,6 +87,7 @@ function clearClientAuthCaches() {
         key.startsWith("ecm_account_tab_cache_") ||
         key.startsWith("ecm_account_tab_cache_v2:") ||
         key.startsWith("ecm_vendor_workspace_cache:") ||
+        key.startsWith("ecm_active_vendor_workspace_v1:") ||
         key === "kaiten_vendor_onboarding_pending" ||
         key === "kaiten_living_auth_resume" ||
         key === "kaiten_agent_registering"
