@@ -80,16 +80,6 @@ export async function PATCH(request: Request) {
     Object.entries(payload).filter(([, value]) => value !== undefined)
   );
 
-  if (typeof body.name === "string") {
-    if (!rawName) {
-      return NextResponse.json({ error: "Agency name cannot be empty." }, { status: 400 });
-    }
-    updates.name = rawName;
-    if (payload.slug === undefined && !identityLocked) {
-      updates.slug = slugifyVendorSlug(rawName) || null;
-    }
-  }
-
   if (!Object.keys(updates).length) {
     return NextResponse.json({ error: "No storefront changes were provided." }, { status: 400 });
   }
@@ -105,6 +95,17 @@ export async function PATCH(request: Request) {
   }
 
   const identityLocked = existingVendor.verification_status === "approved";
+
+  if (typeof body.name === "string") {
+    if (!rawName) {
+      return NextResponse.json({ error: "Agency name cannot be empty." }, { status: 400 });
+    }
+    updates.name = rawName;
+    if (payload.slug === undefined && !identityLocked) {
+      updates.slug = slugifyVendorSlug(rawName) || null;
+    }
+  }
+
   if (identityLocked) {
     if (typeof updates.slug === "string" && updates.slug !== (existingVendor.slug ?? null)) {
       return NextResponse.json({ error: "Verified agencies cannot change their public slug." }, { status: 403 });

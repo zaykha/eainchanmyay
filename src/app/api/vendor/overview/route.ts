@@ -52,6 +52,16 @@ export async function GET(request: Request) {
 
   const { supabase, vendor, membership, memberIds } = result.context;
 
+  if ((vendor.plan ?? "").trim().toLowerCase() === "free") {
+    return NextResponse.json(
+      {
+        error: "Analytics require a paid vendor plan.",
+        code: "analytics_upgrade_required",
+      },
+      { status: 403 }
+    );
+  }
+
   let properties: PropertyRow[] = [];
 
   if (memberIds.length) {

@@ -331,7 +331,7 @@ type WorkspacePayload = {
 
 export default function AgencySetupPage() {
   const router = useRouter();
-  const { authToken, user, profileReady } = useAppState();
+  const { authToken, user, profileReady, logout } = useAppState();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
@@ -442,6 +442,7 @@ export default function AgencySetupPage() {
   };
 
   const handleSave = async () => {
+
     if (!authToken || !workspace) return;
     setSaving(true);
     setError(null);
@@ -466,6 +467,13 @@ export default function AgencySetupPage() {
       if (!response.ok) {
         throw new Error(payload?.error || "Unable to save agency setup.");
       }
+
+      // Avoid /hub immediately redirecting back to /agency-setup while the updated storefront state
+      // is still propagating / being reloaded.
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("kaiten_skip_agency_setup_on_hub_once", "1");
+      }
+
       router.replace(nextHref);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to save agency setup.");
@@ -572,13 +580,37 @@ export default function AgencySetupPage() {
             </FieldGrid>
 
             <ActionRow>
-              <Secondary type="button" onClick={() => router.push("/")}>
+              <Secondary type="button" onClick={() => router.push("/" )}>
                 Later
               </Secondary>
               <Button type="button" onClick={() => void handleSave()} disabled={saving || !isComplete}>
                 {saving ? "Saving..." : "Continue"}
                 <ArrowRight size={18} />
               </Button>
+
+              <Secondary
+                type="button"
+                onClick={async () => {
+                  if (typeof window !== "undefined") {
+                    window.localStorage.removeItem("kaiten_skip_agency_setup_on_hub");
+                    window.localStorage.removeItem("kaiten_skip_agency_setup_on_hub_once");
+                  }
+
+                  try {
+                    await logout();
+                  } finally {
+                    // Ensure state is not reused on subsequent navigation
+                    if (typeof window !== "undefined") {
+                      window.localStorage.removeItem("kaiten_skip_agency_setup_on_hub");
+                      window.localStorage.removeItem("kaiten_skip_agency_setup_on_hub_once");
+                    }
+                  }
+
+                  router.replace("/");
+                }}
+              >
+                Sign out
+              </Secondary>
             </ActionRow>
           </Card>
 

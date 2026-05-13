@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import styled from "styled-components";
 import {
   Building2,
@@ -15,10 +15,12 @@ import {
   Plus,
   Settings,
   ShieldCheck,
+  Sparkles,
   Users2,
   X,
 } from "lucide-react";
 import { useAppState } from "@/app/living-site/lib/app-state";
+import { readActiveVendorWorkspace, withActiveVendorHeaders } from "@/app/living-site/lib/active-context";
 import { readWorkspaceCache, writeWorkspaceCache } from "@/app/living-site/lib/vendor-workspace-cache";
 import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
 import { isVendorStorefrontSetupComplete } from "@/lib/vendor-storefront";
@@ -208,6 +210,38 @@ const SecondaryAction = styled.button`
   cursor: pointer;
 `;
 
+const ModalOverlay = styled.div`
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(4, 7, 12, 0.56);
+  display: grid;
+  place-items: center;
+  padding: 16px;
+`;
+
+const ModalCard = styled.div`
+  width: min(720px, 100%);
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #141a28;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
+  padding: 22px;
+  display: grid;
+  gap: 14px;
+`;
+
+const ModalTitle = styled.h2`
+  margin: 0;
+  font-size: 1.35rem;
+`;
+
+const ModalText = styled.p`
+  margin: 0;
+  color: #9ba3b5;
+  line-height: 1.65;
+`;
+
 const navItems = [
   { href: "/vendor", label: "Dashboard", icon: LayoutDashboard },
   { href: "/vendor/properties", label: "Properties", icon: Building2 },
@@ -243,29 +277,35 @@ export function VendorShell({ children }: { children: React.ReactNode }) {
   const [workspace, setWorkspace] = useState<WorkspaceSummary | null>(null);
   const [workspaceLoading, setWorkspaceLoading] = useState(false);
   const [workspaceError, setWorkspaceError] = useState<string | null>(null);
+  const [showHubAgencySetupPopup, setShowHubAgencySetupPopup] = useState(false);
 
   useEffect(() => {
     if (!profileReady || !authToken || !user) return;
 
     let cancelled = false;
-    const cachedWorkspace = readWorkspaceCache<WorkspaceSummary>(user.id, "summary");
+
+    const activeVendorId = readActiveVendorWorkspace(user.id);
+    const cachedWorkspace = readWorkspaceCache<WorkspaceSummary>(user.id, "summary", activeVendorId);
     if (cachedWorkspace) {
       setWorkspace(cachedWorkspace);
       setWorkspaceLoading(false);
       setWorkspaceError(null);
     }
 
-      const fetchWorkspace = async () => {
-        if (!cachedWorkspace) {
-          setWorkspaceLoading(true);
-        }
-        setWorkspaceError(null);
+    const fetchWorkspace = async () => {
+      if (!cachedWorkspace) {
+        setWorkspaceLoading(true);
+      }
+      setWorkspaceError(null);
 
       const runWorkspaceFetch = async () => {
         const response = await fetch("/api/vendor/workspace?includeUsage=false", {
-          headers: {
-            Authorization: `Bearer ${authToken}`,
-          },
+          headers: withActiveVendorHeaders(
+            {
+              Authorization: `Bearer ${authToken}`,
+            },
+            activeVendorId
+          ),
         });
         const payload = (await response.json().catch(() => null)) as WorkspaceSummary & { error?: string } | null;
         return { response, payload };
@@ -283,9 +323,22 @@ export function VendorShell({ children }: { children: React.ReactNode }) {
           throw new Error(payload?.error ?? "Unable to load the vendor workspace.");
         }
 
-        if (!isVendorStorefrontSetupComplete(payload.vendor)) {
-          router.replace("/agency-setup");
-          return;
+        const hubRoute = pathname === "/hub" || pathname.startsWith("/hub/");
+        const storefrontComplete = isVendorStorefrontSetupComplete(payload.vendor);
+
+        if (!storefrontComplete) {
+          if (hubRoute) {
+            // On /hub: do not hard-redirect; show a popup to guide the user.
+            if (typeof window !== "undefined") setShowHubAgencySetupPopup(true);
+          } else {
+            router.replace("/agency-setup");
+            return;
+          }
+        } else {
+          if (typeof window !== "undefined") {
+            window.localStorage.removeItem("kaiten_skip_agency_setup_on_hub");
+            window.localStorage.removeItem("kaiten_skip_agency_setup_on_hub_once");
+          }
         }
 
         if (payload.vendor.plan === "free") {
@@ -301,14 +354,16 @@ export function VendorShell({ children }: { children: React.ReactNode }) {
 
         if (!cancelled) {
           setWorkspace(payload);
-          writeWorkspaceCache(user.id, "summary", payload);
+          writeWorkspaceCache(user.id, "summary", payload, payload.vendor?.id);
         }
       } catch (error) {
         if (!cancelled) {
           if (!cachedWorkspace) {
             setWorkspace(null);
           }
-          setWorkspaceError(error instanceof Error ? error.message : "Unable to load the vendor workspace.");
+          setWorkspaceError(
+            error instanceof Error ? error.message : "Unable to load the vendor workspace."
+          );
         }
       } finally {
         if (!cancelled) {
@@ -322,7 +377,7 @@ export function VendorShell({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [authToken, profileReady, router, user]);
+  }, [authToken, profileReady, router, user, pathname]);
 
   if (!profileReady) {
     return <LoadingOverlay message="Loading vendor workspace..." />;
@@ -439,7 +494,48 @@ export function VendorShell({ children }: { children: React.ReactNode }) {
           </MobileBrand>
           <div style={{ width: 42 }} />
         </MobileBar>
+
         {children}
+
+        {showHubAgencySetupPopup ? (
+          <ModalOverlay
+            role="dialog"
+            aria-modal="true"
+            onClick={() => setShowHubAgencySetupPopup(false)}
+          >
+            <ModalCard onClick={(e) => e.stopPropagation()}>
+              <ModalTitle>Set up your agency profile</ModalTitle>
+              <ModalText>
+                To show your agency properly in the Hub, finish your public storefront (name, contact, logo, and bio).
+                You can set it up now, or continue to view the Hub with the current agencies.
+              </ModalText>
+              <AccessActions>
+                <SecondaryAction
+                  type="button"
+                  onClick={() => {
+                    setShowHubAgencySetupPopup(false);
+                    // keep existing bypass flags for other flows; this is just a dismiss
+                    if (typeof window !== "undefined") {
+                      window.localStorage.setItem("kaiten_skip_agency_setup_on_hub_once", "1");
+                    }
+                  }}
+                >
+                  Continue to Hub
+                </SecondaryAction>
+                <PrimaryAction
+                  type="button"
+                  onClick={() => {
+                    setShowHubAgencySetupPopup(false);
+                    router.replace("/agency-setup");
+                  }}
+                >
+                  <Sparkles size={18} />
+                  Set up agency
+                </PrimaryAction>
+              </AccessActions>
+            </ModalCard>
+          </ModalOverlay>
+        ) : null}
       </Content>
     </Frame>
   );

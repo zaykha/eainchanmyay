@@ -6,11 +6,12 @@ type WorkspaceCacheValue<T> = {
 const WORKSPACE_CACHE_PREFIX = "ecm_vendor_workspace_v1";
 const WORKSPACE_CACHE_TTL_MS = 5 * 60 * 1000;
 
-function getWorkspaceCacheKey(userId: string, variant: string) {
-  return `${WORKSPACE_CACHE_PREFIX}:${variant}:${userId}`;
+function getWorkspaceCacheKey(userId: string, variant: string, vendorId?: string | null) {
+  const safeVendorId = vendorId ? String(vendorId) : "none";
+  return `${WORKSPACE_CACHE_PREFIX}:${variant}:${userId}:${safeVendorId}`;
 }
 
-export function readWorkspaceCache<T>(userId: string, variant: string): T | null {
+export function readWorkspaceCache<T>(userId: string, variant: string, vendorId?: string | null): T | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = window.localStorage.getItem(getWorkspaceCacheKey(userId, variant));
@@ -24,7 +25,7 @@ export function readWorkspaceCache<T>(userId: string, variant: string): T | null
   }
 }
 
-export function writeWorkspaceCache<T>(userId: string, variant: string, data: T) {
+export function writeWorkspaceCache<T>(userId: string, variant: string, data: T, vendorId?: string | null) {
   if (typeof window === "undefined") return;
   try {
     window.localStorage.setItem(

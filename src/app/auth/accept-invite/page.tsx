@@ -6,6 +6,7 @@ import styled from "styled-components";
 import { supabase, isSupabaseConfigured } from "@/app/living-site/lib/supabaseClient";
 import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
 import { AGENT_ONBOARDING_STORAGE_KEY } from "@/app/living-site/components/AuthScreen";
+import { writeActiveContext, writeActiveVendorWorkspace } from "@/app/living-site/lib/active-context";
 
 const Page = styled.main`
   min-height: 100vh;
@@ -103,6 +104,7 @@ type InvitePayload = {
     expires_at: string | null;
     is_expired: boolean;
     vendor: {
+      id?: string;
       name: string;
       slug: string | null;
       logo_url: string | null;
@@ -246,14 +248,42 @@ export default function AcceptInvitePage() {
         }),
       });
 
-      const payload = (await response.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
+      const payload = (await response.json().catch(() => null)) as
+        | { ok?: boolean; error?: string; vendor_id?: string }
+        | null;
       if (!response.ok || !payload?.ok) {
         throw new Error(payload?.error || "Unable to accept this invite.");
       }
 
+      const acceptedVendorId = typeof payload?.vendor_id === "string" ? payload.vendor_id : null;
+
       if (typeof window !== "undefined") {
+        // onboarding flags kept as-is
         window.localStorage.setItem(AGENT_ONBOARDING_STORAGE_KEY, "1");
+        window.localStorage.setItem("kaiten_skip_agency_setup_on_hub", "1");
+
+        // Persist active vendor workspace selection for /hub
+        writeActiveContext("vendor");
+
+        // We must not block the flow if vendor.id isn't present;
+        // VendorShell will fall back safely.
+        if (acceptedVendorId) {
+          const sessionUser = (await supabase.auth.getUser(session.access_token)).data.user;
+          if (sessionUser?.id) {
+            writeActiveVendorWorkspace(sessionUser.id, acceptedVendorId);
+          }
+          // Invalidate potentially stale workspace cache for this user+variant.
+          try {
+            // Old (pre-vendorId-key) cache entry
+            window.localStorage.removeItem(`ecm_vendor_workspace_v1:summary:${sessionUser?.id}`);
+            // New cache entry (vendorId included)
+            window.localStorage.removeItem(`ecm_vendor_workspace_v1:summary:${sessionUser?.id}:${acceptedVendorId}`);
+          } catch {
+            // ignore
+          }
+        }
       }
+
       setMessage("Invite accepted. Opening your agency workspace...");
       window.setTimeout(() => router.replace("/hub"), 400);
     } catch (acceptError) {

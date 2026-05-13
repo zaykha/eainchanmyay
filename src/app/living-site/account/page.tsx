@@ -27,6 +27,7 @@ import {
   Mail,
   Menu,
   MapPin,
+  MoreVertical,
   MessageSquareText,
   Phone,
   Plus,
@@ -36,6 +37,7 @@ import {
   Sparkles,
   Tag as TagIcon,
   Trash2,
+  UserCog,
   Users2,
   X,
 } from "lucide-react";
@@ -70,6 +72,7 @@ import {
 } from "@/app/living-site/components/vendor/VendorPropertiesView";
 import { VendorInquiriesView } from "@/app/living-site/components/vendor/VendorInquiriesView";
 import { VendorVerificationView } from "@/app/living-site/components/vendor/VendorVerificationView";
+import { HubAnalyticsContent } from "@/app/hub/analytics/page";
 
 const shimmer = keyframes`
   0% {
@@ -3035,6 +3038,52 @@ const TeamMemberCard = styled.div`
   padding: 12px 14px;
   display: grid;
   gap: 10px;
+  position: relative;
+  padding: 16px 14px;
+`;
+
+const MemberActionsButton = styled.button`
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  color: var(--color-muted);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  z-index: 1;
+  &:hover {
+    background: var(--color-surface-2);
+  }
+`;
+
+const ActionMenuItem = styled.button<{ $danger?: boolean }>`
+  width: 100%;
+  min-height: 52px;
+  padding: 0 16px;
+  border-radius: 14px;
+  border: 1px solid var(--color-outline);
+  background: var(--color-surface);
+  color: ${(props) => (props.$danger ? "var(--color-danger)" : "var(--color-text)")};
+  font-weight: 700;
+  font-size: 0.96rem;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--color-surface-2);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 `;
 
 const TeamMemberTop = styled.div`
@@ -3056,14 +3105,32 @@ const TeamMemberMeta = styled.div`
   line-height: 1.45;
 `;
 
-const TeamMemberControls = styled.div`
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
-  gap: 10px;
+const ToastMessage = styled.div<{ $type?: 'success' | 'error' }>`
+  background: ${(props) => (props.$type === "error" ? "var(--color-danger)" : "#10b981")};
+  color: white;
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin-bottom: 12px;
+`;
 
-  @media (max-width: 900px) {
-    grid-template-columns: 1fr;
-  }
+const ModalTitle = styled.h2`
+  margin: 0;
+  font-size: 1.35rem;
+  color: var(--color-text);
+`;
+
+const ModalText = styled.p`
+  margin: 0;
+  color: var(--color-muted);
+  line-height: 1.65;
+`;
+
+const PrimaryAction = styled(CTAButton)<{ $danger?: boolean }>`
+  ${(props) => props.$danger && `
+    background: var(--color-danger);
+  `}
 `;
 
 const ListingDetailHeader = styled.div`
@@ -4099,6 +4166,16 @@ const ModalOverlay = styled.div`
   padding: 16px;
 `;
 
+const GhostButton = styled.button`
+  border: 1px solid var(--color-outline);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  background: transparent;
+  color: var(--color-text);
+  font-weight: 600;
+  cursor: pointer;
+`;
+
 const ModalCard = styled(Panel)`
   max-width: 720px;
   width: min(720px, 94vw);
@@ -4142,16 +4219,6 @@ const ModalActions = styled.div`
   justify-content: flex-end;
   gap: 10px;
   flex-wrap: wrap;
-`;
-
-const GhostButton = styled.button`
-  border: 1px solid var(--color-outline);
-  border-radius: var(--radius-md);
-  padding: 10px 14px;
-  background: transparent;
-  color: var(--color-text);
-  font-weight: 600;
-  cursor: pointer;
 `;
 
 const formatEnum = (value: unknown) => {
@@ -4596,6 +4663,22 @@ export default function AccountPage() {
   const [appointmentUnreadCount, setAppointmentUnreadCount] = useState(0);
   const [appointmentUnreadVersion, setAppointmentUnreadVersion] = useState(0);
   const [appointmentComposerMode, setAppointmentComposerMode] = useState<"edit" | "create" | null>(null);
+
+  const [teamMembers, setTeamMembers] = useState<
+    Array<{
+      user_id: string;
+      role: string;
+      status: string;
+      created_at: string | null;
+      full_name: string | null;
+      email: string | null;
+      phone: string | null;
+    }>
+  >([]);
+  const [showMemberActionsMenuId, setShowMemberActionsMenuId] = useState<string | null>(null);
+  const [showChangeRoleModalId, setShowChangeRoleModalId] = useState<string | null>(null);
+  const [showRemoveMemberModalId, setShowRemoveMemberModalId] = useState<string | null>(null);
+  const [memberBeingEdited, setMemberBeingEdited] = useState<typeof teamMembers[number] | null>(null);
   const [appointmentComposerPropertyLocked, setAppointmentComposerPropertyLocked] = useState(false);
   const [vendorPropertyOptions, setVendorPropertyOptions] = useState<VendorPropertyItem[]>([]);
   const [vendorPropertyOptionsLoading, setVendorPropertyOptionsLoading] = useState(false);
@@ -4619,17 +4702,7 @@ export default function AccountPage() {
       setHubSection(section);
     }
   }, [searchParams]);
-  const [teamMembers, setTeamMembers] = useState<
-    Array<{
-      user_id: string;
-      role: string;
-      status: string;
-      created_at: string | null;
-      full_name: string | null;
-      email: string | null;
-      phone: string | null;
-    }>
-  >([]);
+  const [toastMessage, setToastMessage] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [teamInvites, setTeamInvites] = useState<
     Array<{
       id: string;
@@ -4643,6 +4716,7 @@ export default function AccountPage() {
       accepted_at: string | null;
     }>
   >([]);
+  const [newRoleForMember, setNewRoleForMember] = useState("");
   const [teamLoading, setTeamLoading] = useState(false);
   const [teamError, setTeamError] = useState<string | null>(null);
   const [teamInviteEmail, setTeamInviteEmail] = useState("");
@@ -5459,6 +5533,10 @@ export default function AccountPage() {
     setAppointmentEditorSaving(false);
   };
 
+  const showToast = (message: string, type: 'success' | 'error') => {
+    setToastMessage({ message, type });
+  };
+
   const openAppointmentEditor = (appointmentId: string) => {
     setAppointmentComposerMode("edit");
     setSelectedAppointmentId(appointmentId);
@@ -5604,10 +5682,12 @@ export default function AccountPage() {
     }
   };
 
-  const handleTeamMemberUpdate = async (memberUserId: string, role: string, status: string) => {
+  const handleTeamMemberUpdate = async (memberUserId: string, role: string, status: string, isRemoval: boolean = false) => {
     if (!authToken) return;
     setTeamSavingUserId(memberUserId);
     setTeamError(null);
+    const actionVerb = isRemoval ? "remove" : "update";
+
     try {
       const response = await fetch("/api/vendor/team", {
         method: "PATCH",
@@ -5619,9 +5699,11 @@ export default function AccountPage() {
         }),
       });
       const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+
       if (!response.ok) {
-        throw new Error(payload?.error || "Unable to update team member.");
+        throw new Error(payload?.error || `Unable to ${actionVerb} team member.`);
       }
+
       setTeamMembers((current) =>
         current.map((member) =>
           member.user_id === memberUserId
@@ -5633,9 +5715,12 @@ export default function AccountPage() {
             : member
         )
       );
+      showToast(`Team member ${isRemoval ? 'removed' : 'updated'} successfully!`, 'success');
     } catch (error) {
-      setTeamError(error instanceof Error ? error.message : "Unable to update team member.");
+      setTeamError(error instanceof Error ? error.message : `Unable to ${actionVerb} team member.`);
+      showToast(`Failed to ${actionVerb} team member.`, 'error');
     } finally {
+      setShowChangeRoleModalId(null);
       setTeamSavingUserId(null);
     }
   };
@@ -5644,6 +5729,40 @@ export default function AccountPage() {
   const suggestedUpgrade = getUpgradePlan(vendorWorkspace?.vendor.plan);
   const isFreeAgencyPlan = vendorWorkspace?.vendor.plan === "free";
   const storefrontReady = vendorWorkspace ? isVendorStorefrontSetupComplete(vendorWorkspace.vendor) : false;
+
+  const handleRoleChangeClick = (member: typeof teamMembers[number]) => {
+    setMemberBeingEdited(member);
+    setNewRoleForMember(member.role);
+    setShowChangeRoleModalId(member.user_id);
+    setShowMemberActionsMenuId(null);
+  };
+
+  const handleRemoveMemberClick = (member: typeof teamMembers[number]) => {
+    setMemberBeingEdited(member);
+    setShowRemoveMemberModalId(member.user_id);
+    setShowMemberActionsMenuId(null);
+  };
+
+  const handleConfirmRoleChange = async () => {
+    if (!memberBeingEdited || !newRoleForMember) return;
+    await handleTeamMemberUpdate(memberBeingEdited.user_id, newRoleForMember, memberBeingEdited.status);
+    setShowChangeRoleModalId(null);
+    setMemberBeingEdited(null);
+    setNewRoleForMember("");
+  };
+
+  const handleConfirmRemoveMember = async () => {
+    if (!memberBeingEdited) return;
+    await handleTeamMemberUpdate(memberBeingEdited.user_id, memberBeingEdited.role, 'inactive', true); // Set status to inactive for removal
+    setShowRemoveMemberModalId(null);
+    setMemberBeingEdited(null);
+  };
+
+  const isSoleOwner = (member: typeof teamMembers[number]) => {
+    return member.role === 'owner' && ownerCount === 1;
+  };
+  const isRemovingSelfAsSoleOwner = (member: typeof teamMembers[number]) => isSoleOwner(member) && member.user_id === user?.id;
+
   const hasAgencyBio = Boolean(vendorWorkspace?.vendor.description?.trim());
   const hasAgencyLogo = Boolean(vendorWorkspace?.vendor.logo_url?.trim());
   const hasAgencyContact = Boolean(
@@ -6023,11 +6142,8 @@ export default function AccountPage() {
     setAppointmentEditorError(null);
   }, [appointmentComposerMode, selectedAppointment]);
 
-  useEffect(() => {
-    if (pathname === "/hub" && vendorWorkspace && !storefrontReady) {
-      router.replace("/agency-setup");
-    }
-  }, [pathname, router, storefrontReady, vendorWorkspace]);
+  // Storefront completeness enforcement is handled in VendorShell.
+  // `/hub` now shows an agency-selection/setup popup instead of redirecting immediately.
 
   if (!user && (loading || !profileReady)) {
     return (
@@ -6450,27 +6566,21 @@ export default function AccountPage() {
                   </>
                 ) : (
                   <>
-                    {isFreeAgencyPlan || hubSection === "snapshot" || hubSection === "analytics" ? (
+                    {isFreeAgencyPlan || hubSection === "snapshot" ? (
                       <HubFeatureHeader>
                         <HubFeatureTitle>
                           {isFreeAgencyPlan
-                            ? hubSection === "analytics"
-                              ? "Premium analytics preview"
-                              : "Premium workspace preview"
-                            : hubSection === "analytics"
-                              ? "Analytics"
-                              : "Workspace snapshot"}
+                            ? "Premium workspace preview"
+                            : "Workspace snapshot"}
                         </HubFeatureTitle>
                         {isFreeAgencyPlan ? (
                           <HubFeatureCopy>
-                            {hubSection === "analytics"
-                              ? "Upgrade to unlock live analytics and sales insights inside your hub."
-                              : "Upgrade to unlock live sales and lead overview inside your hub."}
+                            Upgrade to unlock live sales and lead overview inside your hub.
                           </HubFeatureCopy>
                         ) : null}
                       </HubFeatureHeader>
                     ) : null}
-                    {isFreeAgencyPlan ? (
+                    {isFreeAgencyPlan && hubSection !== "analytics" ? (
                       <HubFeaturePreview>
                         <HubFeaturePreviewGrid>
                           <HubFeaturePreviewItem>
@@ -6514,6 +6624,12 @@ export default function AccountPage() {
                           </HubChecklistHint>
                           </HubFeatureUpsellCard>
                         </HubFeaturePreview>
+                    ) : hubSection === "analytics" ? (
+                      <WorkspaceSectionViewport>
+                        <WorkspaceSectionScroller>
+                          <HubAnalyticsContent embedded />
+                        </WorkspaceSectionScroller>
+                      </WorkspaceSectionViewport>
                     ) : hubSection === "manage-listings" ? (
                       <>
                         <VendorPropertiesView
@@ -7233,6 +7349,7 @@ export default function AccountPage() {
                               <WorkspacePanelTitle>Current team members</WorkspacePanelTitle>
                               <WorkspacePanelCopy>Review who is active in this workspace and adjust role or status as needed.</WorkspacePanelCopy>
                               <TeamMembersList>
+                                {toastMessage && <ToastMessage $type={toastMessage.type}>{toastMessage.message}</ToastMessage>}
                                 {teamLoading ? (
                                   <HubFeatureCopy>Loading team...</HubFeatureCopy>
                                 ) : teamMembers.length ? (
@@ -7244,62 +7361,22 @@ export default function AccountPage() {
                                           <TeamMemberMeta>{member.email || "No email"}</TeamMemberMeta>
                                           {member.phone ? <TeamMemberMeta>{member.phone}</TeamMemberMeta> : null}
                                         </div>
-                                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                                          <AppointmentPill>{labelize(member.role)}</AppointmentPill>
-                                          <AppointmentPill $tone={member.status === "active" ? "success" : "neutral"}>
-                                            {labelize(member.status)}
-                                          </AppointmentPill>
-                                        </div>
                                       </TeamMemberTop>
-                                      {canManageTeam && member.user_id !== userId ? (
-                                        <TeamMemberControls>
-                                          <CompactSelectWrap>
-                                            <CustomSelect
-                                              id={`team-role-${member.user_id}`}
-                                              name={`team-role-${member.user_id}`}
-                                              label="Role"
-                                              hideLabel
-                                              value={member.role}
-                                              onChange={(nextRole) => {
-                                                setTeamMembers((current) =>
-                                                  current.map((item) =>
-                                                    item.user_id === member.user_id ? { ...item, role: nextRole } : item
-                                                  )
-                                                );
-                                              }}
-                                            >
-                                              <option value="agent">Agent</option>
-                                              <option value="admin">Admin</option>
-                                              <option value="owner">Owner</option>
-                                            </CustomSelect>
-                                          </CompactSelectWrap>
-                                          <CompactSelectWrap>
-                                            <CustomSelect
-                                              id={`team-status-${member.user_id}`}
-                                              name={`team-status-${member.user_id}`}
-                                              label="Status"
-                                              hideLabel
-                                              value={member.status}
-                                              onChange={(nextStatus) => {
-                                                setTeamMembers((current) =>
-                                                  current.map((item) =>
-                                                    item.user_id === member.user_id ? { ...item, status: nextStatus } : item
-                                                  )
-                                                );
-                                              }}
-                                            >
-                                              <option value="active">Active</option>
-                                              <option value="inactive">Inactive</option>
-                                            </CustomSelect>
-                                          </CompactSelectWrap>
-                                          <CompactGhostButton
-                                            type="button"
-                                            onClick={() => void handleTeamMemberUpdate(member.user_id, member.role, member.status)}
-                                            disabled={teamSavingUserId === member.user_id}
-                                          >
-                                            {teamSavingUserId === member.user_id ? "Saving..." : "Save"}
-                                          </CompactGhostButton>
-                                        </TeamMemberControls>
+                                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", position: "absolute", top: 10, right: 48 }}>
+                                        <AppointmentPill>{labelize(member.role)}</AppointmentPill>
+                                        <AppointmentPill $tone={member.status === "active" ? "success" : "neutral"}>
+                                          {labelize(member.status)}
+                                        </AppointmentPill>
+                                      </div>
+                                      {canManageTeam && (member.user_id !== userId || ownerCount > 1) ? (
+                                        <MemberActionsButton
+                                          id={`member-actions-button-${member.user_id}`}
+                                          type="button"
+                                          onClick={() => setShowMemberActionsMenuId(member.user_id)}
+                                          aria-label="Member actions"
+                                        >
+                                          <MoreVertical size={18} />
+                                        </MemberActionsButton>
                                       ) : null}
                                     </TeamMemberCard>
                                   ))
@@ -7361,7 +7438,7 @@ export default function AccountPage() {
                               Listings by type
                             </HubInsightCardTitle>
                           </HubInsightCardTop>
-                          <HubInsightFooterLink href="/hub/analytics/listings-by-type">
+                          <HubInsightFooterLink href="/hub?section=analytics">
                             View full analytics <ArrowUpRight size={14} />
                           </HubInsightFooterLink>
                           <HubInsightBody>
@@ -7414,7 +7491,7 @@ export default function AccountPage() {
                               Sales by type
                             </HubInsightCardTitle>
                           </HubInsightCardTop>
-                          <HubInsightFooterLink href="/hub/analytics/sales-by-type">
+                          <HubInsightFooterLink href="/hub?section=analytics">
                             View full analytics <ArrowUpRight size={14} />
                           </HubInsightFooterLink>
                           <HubInsightBody>
@@ -7455,7 +7532,7 @@ export default function AccountPage() {
                               Price range by type
                             </HubInsightCardTitle>
                           </HubInsightCardTop>
-                          <HubInsightFooterLink href="/hub/analytics/price-range-by-type">
+                          <HubInsightFooterLink href="/hub?section=analytics">
                             View full analytics <ArrowUpRight size={14} />
                           </HubInsightFooterLink>
                           <HubInsightBody>
@@ -7499,7 +7576,7 @@ export default function AccountPage() {
                               Appointments by type
                             </HubInsightCardTitle>
                           </HubInsightCardTop>
-                          <HubInsightFooterLink href="/hub/analytics/appointments-by-type">
+                          <HubInsightFooterLink href="/hub?section=analytics">
                             View full analytics <ArrowUpRight size={14} />
                           </HubInsightFooterLink>
                           <HubInsightBody>
@@ -8033,7 +8110,7 @@ export default function AccountPage() {
       )}
       {(selectedAppointment || appointmentComposerMode === "create") && (
         <ModalOverlay onClick={closeAppointmentEditor}>
-          <AppointmentModalCard onClick={(event) => event.stopPropagation()}>
+          <AppointmentModalCard onClick={(event) => event.stopPropagation()} style={{ zIndex: 1000 }}>
             <ModalHeader>
               <div style={{ display: "grid", gap: 6 }}>
                 <strong>
@@ -8305,7 +8382,7 @@ export default function AccountPage() {
             </ModalActions>
           </AppointmentModalCard>
         </ModalOverlay>
-      )}
+      )} 
       {selectedStaffAssignment && (
         <ModalOverlay
           onClick={() => {
@@ -8313,7 +8390,7 @@ export default function AccountPage() {
             setShowPastStaffAppointments(false);
           }}
         >
-          <StaffAppointmentsModalCard onClick={(event) => event.stopPropagation()}>
+          <StaffAppointmentsModalCard onClick={(event) => event.stopPropagation()} style={{ zIndex: 1000 }}>
             <ModalHeader>
               <div style={{ display: "grid", gap: 6 }}>
                 <strong>{selectedStaffAssignment.name}</strong>
