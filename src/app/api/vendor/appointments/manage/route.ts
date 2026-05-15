@@ -1,24 +1,15 @@
 import { NextResponse } from "next/server";
 import { getVendorRequestContext } from "@/app/api/vendor/_lib/context";
-
-const allowedAppointmentStatuses = new Set(["scheduled", "completed", "canceled"]);
-const allowedLeadStatuses = new Set(["new", "contacted", "scheduled", "closed", "lost"]);
+import {
+  canTransitionAppointmentStatus,
+  canTransitionLeadStatus,
+  normalizeAppointmentStatus,
+  normalizeLeadStatus,
+} from "@/lib/lifecycle";
 
 function normalizeSource(value: unknown) {
   if (value === "appointment" || value === "viewing_request") return value;
   return null;
-}
-
-function normalizeAppointmentStatus(value: unknown) {
-  if (typeof value !== "string") return null;
-  const normalized = value.trim().toLowerCase();
-  return allowedAppointmentStatuses.has(normalized) ? normalized : null;
-}
-
-function normalizeLeadStatus(value: unknown) {
-  if (typeof value !== "string") return null;
-  const normalized = value.trim().toLowerCase();
-  return allowedLeadStatuses.has(normalized) ? normalized : null;
 }
 
 export async function PATCH(request: Request) {
@@ -101,9 +92,17 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "Appointment not found." }, { status: 404 });
     }
 
+    const currentStatus = normalizeAppointmentStatus(row.status) ?? "requested";
+    if (status && !canTransitionAppointmentStatus(currentStatus, status)) {
+      return NextResponse.json({ error: `Appointment status cannot transition from ${currentStatus} to ${status}.` }, { status: 400 });
+    }
+
     const updatePayload: Record<string, unknown> = {};
     if (status !== undefined) {
       updatePayload.status = status;
+      if (status === "completed") {
+        updatePayload.completed_at = new Date().toISOString();
+      }
     }
     if (assignedStaffId !== undefined) {
       updatePayload.assigned_staff_id = assignedStaffId;
@@ -139,7 +138,7 @@ export async function PATCH(request: Request) {
       item: {
         id,
         source,
-        status: String(updatedRow?.status ?? status ?? row.status ?? "scheduled"),
+        status: String(normalizeAppointmentStatus(updatedRow?.status) ?? status ?? currentStatus),
         assigned_staff_id:
           updatedRow?.assigned_staff_id === null
             ? null
@@ -185,12 +184,18 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Viewing request not found in this vendor workspace." }, { status: 404 });
   }
 
+  const currentLeadStatus = normalizeLeadStatus(requestRow.lead_status) ?? "new";
+  const nextLeadStatus = leadStatus ?? currentLeadStatus;
+  if (leadStatus && !canTransitionLeadStatus(currentLeadStatus, nextLeadStatus)) {
+    return NextResponse.json({ error: `Lead status cannot transition from ${currentLeadStatus} to ${nextLeadStatus}.` }, { status: 400 });
+  }
+
   const updatePayload: Record<string, unknown> = {
     updated_at: new Date().toISOString(),
     last_activity_at: new Date().toISOString(),
   };
   if (leadStatus !== undefined) {
-    updatePayload.lead_status = leadStatus;
+    updatePayload.lead_status = nextLeadStatus;
   }
   if (assignedStaffId !== undefined) {
     updatePayload.assigned_staff_id = assignedStaffId;
@@ -211,7 +216,7 @@ export async function PATCH(request: Request) {
     item: {
       id,
       source,
-      status: String(updatedRow?.lead_status ?? leadStatus ?? requestRow.lead_status ?? "new"),
+      status: String(normalizeLeadStatus(updatedRow?.lead_status) ?? nextLeadStatus),
       assigned_staff_id:
         updatedRow?.assigned_staff_id === null
           ? null
@@ -326,7 +331,7 @@ export async function POST(request: Request) {
     typeof raw?.assigned_staff_id === "string" && raw.assigned_staff_id.trim()
       ? raw.assigned_staff_id.trim()
       : null;
-  const status = normalizeAppointmentStatus(raw?.status ?? "scheduled");
+  const status = normalizeAppointmentStatus(raw?.status ?? "requested");
 
   if (!propertyId || !startAt) {
     return NextResponse.json({ error: "Property and appointment time are required." }, { status: 400 });

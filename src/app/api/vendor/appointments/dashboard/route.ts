@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getVendorRequestContext } from "@/app/api/vendor/_lib/context";
+import { normalizeAppointmentStatus, normalizeLeadStatus } from "@/lib/lifecycle";
 
 type AppointmentRow = {
   id: string;
@@ -55,7 +56,7 @@ export async function GET(request: Request) {
 
   const { data: propertiesData, error: propertiesLookupError } = await supabase
     .from("properties")
-    .select("id,title,district,township,city,created_by")
+    .select("id,title,district,township,created_by")
     .in("created_by", memberIds)
     .eq("is_deleted", false);
 
@@ -138,7 +139,7 @@ export async function GET(request: Request) {
       property.id,
       {
         title: property.title ?? "Untitled property",
-        location: [property.district, property.township, property.city].filter(Boolean).join(" / ") || "Unspecified",
+        location: [property.district, property.township].filter(Boolean).join(" / ") || "Unspecified",
       },
     ])
   );
@@ -188,7 +189,7 @@ export async function GET(request: Request) {
       id: request.id,
       title: property?.title ?? "Viewing request",
       start_at: startAt,
-      status: request.lead_status ?? "new",
+      status: normalizeLeadStatus(request.lead_status) ?? "new",
       client_name: request.name ?? "Buyer",
       client_phone: request.phone ?? null,
       notes: request.notes ?? null,
@@ -219,7 +220,7 @@ export async function GET(request: Request) {
       id: appointment.id,
       title: appointment.title ?? property?.title ?? "Appointment",
       start_at: appointment.start_at,
-      status: appointment.status ?? "scheduled",
+      status: normalizeAppointmentStatus(appointment.status) ?? "requested",
       client_name: appointment.client_name ?? "Buyer",
       client_phone: appointment.client_phone ?? null,
       notes: appointment.notes ?? null,

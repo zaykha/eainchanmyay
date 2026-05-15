@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getVendorRequestContext } from "@/app/api/vendor/_lib/context";
 import { resolveListingImage } from "@/app/living-site/lib/images";
+import { normalizeAppointmentStatus, normalizeLeadStatus, normalizeListingStatus } from "@/lib/lifecycle";
 
 type PropertyRow = {
   id: string;
@@ -73,18 +74,6 @@ function toIsoDateKey(value: string | null | undefined) {
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return null;
   return date.toISOString().slice(0, 10);
-}
-
-function normalizeListingStatus(value: string | null | undefined) {
-  return (value ?? "unknown").trim().toLowerCase() || "unknown";
-}
-
-function normalizePipelineStage(value: string | null | undefined) {
-  const normalized = (value ?? "").trim().toLowerCase();
-  if (normalized === "new_lead") return "new";
-  if (normalized === "negotiating") return "negotiation";
-  if (normalized === "won") return "closed";
-  return normalized || "new";
 }
 
 function labelFromProfile(profile: ProfileRow | undefined) {
@@ -281,8 +270,8 @@ export async function GET(request: Request) {
       leads: leads.map((lead) => ({
         id: lead.id,
         createdAt: lead.created_at,
-        status: normalizeListingStatus(lead.status),
-        pipelineStage: normalizePipelineStage(lead.pipeline_stage),
+        status: normalizeLeadStatus(lead.status) ?? normalizeLeadStatus(lead.pipeline_stage) ?? "new",
+        pipelineStage: normalizeLeadStatus(lead.pipeline_stage) ?? normalizeLeadStatus(lead.status) ?? "new",
         propertyType: (lead.property_type ?? "unknown").trim().toLowerCase() || "unknown",
         township: lead.township ?? null,
         agentId: lead.assigned_member_user_id ?? null,
@@ -296,7 +285,7 @@ export async function GET(request: Request) {
           propertyId: String(request.property_id ?? ""),
           createdAt: request.created_at,
           preferredDate: toIsoDateKey(request.preferred_date),
-          status: normalizeListingStatus(request.lead_status),
+          status: normalizeLeadStatus(request.lead_status) ?? "new",
           propertyType: (property?.property_type ?? "unknown").trim().toLowerCase() || "unknown",
           township: property?.township ?? null,
           listingStatus: normalizeListingStatus(property?.status),
@@ -311,7 +300,7 @@ export async function GET(request: Request) {
           id: appointment.id,
           propertyId: String(appointment.property_id ?? ""),
           startAt: appointment.start_at,
-          status: normalizeListingStatus(appointment.status),
+          status: normalizeAppointmentStatus(appointment.status) ?? "requested",
           propertyType: (property?.property_type ?? "unknown").trim().toLowerCase() || "unknown",
           township: property?.township ?? null,
           listingStatus: normalizeListingStatus(property?.status),

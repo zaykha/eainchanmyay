@@ -4,6 +4,11 @@ import { rateLimit } from "@/app/api/_lib/rate-limit";
 import { deletePropertyImages, uploadPropertyImages } from "@/app/api/_lib/property-image-upload";
 import type { PropertyType } from "@/lib/property-types";
 import { moderateListingText } from "@/lib/moderation-rules";
+import {
+  isLegacyPropertiesStatusConstraintError,
+  isMissingPropertyLifecycleColumnError,
+  stripUnsupportedPropertyLifecycleFields,
+} from "@/lib/property-lifecycle-persistence";
 
 export const runtime = "nodejs";
 
@@ -17,7 +22,6 @@ type Payload = {
   currency: "MMK" | "USD" | "CNY" | "THB";
   state_region: string;
   district: string;
-  city?: string | null;
   township: string;
   address_text?: string | null;
   bedrooms?: number | null;
@@ -167,7 +171,7 @@ export async function POST(req: Request) {
 
   if ((count ?? 0) >= 1) {
     return NextResponse.json(
-      { ok: false, message: "Only 1 published property listing is allowed per account." },
+      { ok: false, message: "Only 1 active property listing is allowed per account." },
       { status: 409 }
     );
   }
@@ -181,12 +185,12 @@ export async function POST(req: Request) {
   }
 
   const payload = {
-    city: body.district?.trim() || body.township?.trim() || body.state_region?.trim() || "Myanmar",
     title: body.title.trim(),
     description: toNullableString(body.description),
     deal_type: body.deal_type,
     property_type: body.property_type,
-    status: "published",
+    status: "active",
+    published_at: new Date().toISOString(),
     price: Number(body.price),
     currency: body.currency ?? "MMK",
     state_region: body.state_region?.trim(),
@@ -212,11 +216,34 @@ export async function POST(req: Request) {
     is_deleted: false,
   };
 
-  const { data: propertyRow, error } = await supabase
+  let propertyInsert = await supabase
     .from("properties")
     .insert(payload)
     .select("id")
     .maybeSingle();
+
+  if (isMissingPropertyLifecycleColumnError(propertyInsert.error)) {
+    const fallback = stripUnsupportedPropertyLifecycleFields(payload);
+    propertyInsert = await supabase
+      .from("properties")
+      .insert(fallback.payload)
+      .select("id")
+      .maybeSingle();
+  }
+
+  if (isLegacyPropertiesStatusConstraintError(propertyInsert.error)) {
+    const legacyPayload = stripUnsupportedPropertyLifecycleFields({
+      ...payload,
+      status: "published",
+    }).payload;
+    propertyInsert = await supabase
+      .from("properties")
+      .insert(legacyPayload)
+      .select("id")
+      .maybeSingle();
+  }
+
+  const { data: propertyRow, error } = propertyInsert;
 
   if (error || !propertyRow?.id) {
     return NextResponse.json({ ok: false, message: error?.message ?? "Unable to create listing." }, { status: 500 });

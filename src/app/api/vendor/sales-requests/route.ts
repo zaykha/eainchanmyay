@@ -4,6 +4,11 @@ import { getVendorPlanUsage } from "@/app/api/vendor/_lib/plan-limits";
 import { deletePropertyImages, uploadPropertyImages } from "@/app/api/_lib/property-image-upload";
 import type { PropertyType } from "@/lib/property-types";
 import { moderateListingText } from "@/lib/moderation-rules";
+import {
+  isLegacyPropertiesStatusConstraintError,
+  isMissingPropertyLifecycleColumnError,
+  stripUnsupportedPropertyLifecycleFields,
+} from "@/lib/property-lifecycle-persistence";
 import { getVendorPlan } from "@/lib/vendor-plans";
 
 export const runtime = "nodejs";
@@ -17,7 +22,6 @@ type Payload = {
   currency?: "MMK" | "USD" | "CNY" | "THB";
   state_region?: string;
   district?: string | null;
-  city?: string | null;
   township?: string;
   address_text?: string | null;
   bedrooms?: number | null;
@@ -72,7 +76,7 @@ export async function GET(request: Request) {
   const { data, error } = await supabase
     .from("sales_requests")
     .select(
-      "id,title,deal_type,property_type,price,currency,state_region,district,township,city,status,created_at,user_id"
+      "id,title,deal_type,property_type,price,currency,state_region,district,township,status,created_at,user_id"
     )
     .in("user_id", memberIds)
     .order("created_at", { ascending: false });
@@ -160,8 +164,8 @@ export async function POST(request: Request) {
     vendor_id: result.context.vendor.id,
     created_by: user.id,
     is_deleted: false,
-    status: "published",
-    city: body.district?.trim() || body.township?.trim() || body.state_region?.trim() || "Myanmar",
+    status: "active",
+    published_at: new Date().toISOString(),
     title: body.title.trim(),
     description: toNullableString(body.description),
     deal_type: body.deal_type,
@@ -189,11 +193,34 @@ export async function POST(request: Request) {
     owner_phone_secondary: toNullableString(body.owner_phone_secondary),
   };
 
-  const { data: propertyRow, error } = await supabase
+  let propertyInsert = await supabase
     .from("properties")
     .insert(payload)
     .select("id")
     .maybeSingle();
+
+  if (isMissingPropertyLifecycleColumnError(propertyInsert.error)) {
+    const fallback = stripUnsupportedPropertyLifecycleFields(payload);
+    propertyInsert = await supabase
+      .from("properties")
+      .insert(fallback.payload)
+      .select("id")
+      .maybeSingle();
+  }
+
+  if (isLegacyPropertiesStatusConstraintError(propertyInsert.error)) {
+    const legacyPayload = stripUnsupportedPropertyLifecycleFields({
+      ...payload,
+      status: "published",
+    }).payload;
+    propertyInsert = await supabase
+      .from("properties")
+      .insert(legacyPayload)
+      .select("id")
+      .maybeSingle();
+  }
+
+  const { data: propertyRow, error } = propertyInsert;
 
   if (error || !propertyRow?.id) {
     return NextResponse.json({ error: error?.message ?? "Unable to create listing." }, { status: 500 });

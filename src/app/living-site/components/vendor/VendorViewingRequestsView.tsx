@@ -69,23 +69,23 @@ const StatusPill = styled.span<{ $status: string }>`
   font-size: 0.82rem;
   font-weight: 700;
   color: ${(props) =>
-    props.$status === "closed"
+    props.$status === "closed_won"
       ? "#d6ffe2"
-      : props.$status === "lost"
+      : props.$status === "closed_lost" || props.$status === "spam"
         ? "#ffd8df"
-        : props.$status === "scheduled"
+        : props.$status === "appointment_scheduled" || props.$status === "viewed" || props.$status === "qualified"
           ? "#dce8ff"
-          : props.$status === "contacted"
+          : props.$status === "contacted" || props.$status === "assigned" || props.$status === "negotiation"
             ? "#fff2c7"
             : "#e7edf8"};
   background: ${(props) =>
-    props.$status === "closed"
+    props.$status === "closed_won"
       ? "rgba(84, 214, 113, 0.16)"
-      : props.$status === "lost"
+      : props.$status === "closed_lost" || props.$status === "spam"
         ? "rgba(255, 113, 144, 0.16)"
-        : props.$status === "scheduled"
+        : props.$status === "appointment_scheduled" || props.$status === "viewed" || props.$status === "qualified"
           ? "rgba(111, 155, 255, 0.16)"
-          : props.$status === "contacted"
+          : props.$status === "contacted" || props.$status === "assigned" || props.$status === "negotiation"
             ? "rgba(255, 210, 92, 0.16)"
             : "rgba(255, 255, 255, 0.08)"};
 `;
@@ -145,10 +145,16 @@ type ViewingRequestItem = {
 
 const leadStatusOptions = [
   { value: "new", label: "New" },
+  { value: "assigned", label: "Assigned" },
   { value: "contacted", label: "Contacted" },
-  { value: "scheduled", label: "Scheduled" },
-  { value: "closed", label: "Closed" },
-  { value: "lost", label: "Lost" },
+  { value: "qualified", label: "Qualified" },
+  { value: "appointment_scheduled", label: "Appointment scheduled" },
+  { value: "viewed", label: "Viewed" },
+  { value: "negotiation", label: "Negotiation" },
+  { value: "closed_won", label: "Closed won" },
+  { value: "closed_lost", label: "Closed lost" },
+  { value: "unresponsive", label: "Unresponsive" },
+  { value: "spam", label: "Spam" },
 ];
 
 function labelizeStatus(value: string | null | undefined) {
@@ -244,7 +250,7 @@ export function VendorViewingRequestsView() {
         <Title>Viewing requests</Title>
         <Subtitle>
           Buyer and renter viewing requests linked to properties created by your vendor workspace members. Use lead
-          statuses to track who is new, contacted, scheduled, closed, or lost.
+          statuses to track each customer from new through appointment, viewing, negotiation, and close.
         </Subtitle>
       </div>
 
@@ -256,7 +262,7 @@ export function VendorViewingRequestsView() {
             <CalendarRange size={16} />
             <span>No viewing requests yet.</span>
           </div>
-          Requests from interested clients will show up here as soon as they target your published properties.
+          Requests from interested clients will show up here as soon as they target your active or reserved properties.
         </Empty>
       ) : null}
 

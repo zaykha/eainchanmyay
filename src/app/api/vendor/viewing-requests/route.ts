@@ -1,13 +1,6 @@
 import { NextResponse } from "next/server";
 import { getVendorRequestContext } from "@/app/api/vendor/_lib/context";
-
-const allowedLeadStatuses = new Set(["new", "contacted", "scheduled", "closed", "lost"]);
-
-function normalizeLeadStatus(value: unknown) {
-  if (typeof value !== "string") return null;
-  const normalized = value.trim().toLowerCase();
-  return allowedLeadStatuses.has(normalized) ? normalized : null;
-}
+import { canTransitionLeadStatus, normalizeLeadStatus } from "@/lib/lifecycle";
 
 export async function GET(request: Request) {
   const result = await getVendorRequestContext(request);
@@ -23,7 +16,7 @@ export async function GET(request: Request) {
 
   const { data: properties, error: propertiesError } = await supabase
     .from("properties")
-    .select("id,title,district,township,city")
+    .select("id,title,district,township")
     .in("created_by", memberIds)
     .eq("is_deleted", false);
 
@@ -43,7 +36,7 @@ export async function GET(request: Request) {
         title: (property.title as string | null) ?? null,
         district: (property.district as string | null) ?? null,
         township: (property.township as string | null) ?? null,
-        city: (property.city as string | null) ?? null,
+        city: (property.district as string | null) ?? null,
       },
     ])
   );
@@ -144,8 +137,14 @@ export async function PATCH(request: Request) {
     last_activity_at: new Date().toISOString(),
   };
 
+  const currentLeadStatus = normalizeLeadStatus(requestRow.lead_status) ?? "new";
+  const nextLeadStatus = leadStatus ?? currentLeadStatus;
+  if (leadStatus && !canTransitionLeadStatus(currentLeadStatus, nextLeadStatus)) {
+    return NextResponse.json({ error: `Lead status cannot transition from ${currentLeadStatus} to ${nextLeadStatus}.` }, { status: 400 });
+  }
+
   if (leadStatus !== undefined) {
-    updatePayload.lead_status = leadStatus;
+    updatePayload.lead_status = nextLeadStatus;
   }
 
   if (assignedStaffId !== undefined) {
@@ -166,7 +165,7 @@ export async function PATCH(request: Request) {
   return NextResponse.json({
     item: {
       id: String(updatedRow?.id ?? requestId),
-      lead_status: String(updatedRow?.lead_status ?? leadStatus ?? requestRow.lead_status ?? "new"),
+      lead_status: String(normalizeLeadStatus(updatedRow?.lead_status) ?? nextLeadStatus),
       assigned_staff_id:
         updatedRow?.assigned_staff_id === null
           ? null

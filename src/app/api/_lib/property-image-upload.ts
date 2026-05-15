@@ -15,7 +15,7 @@ export async function uploadImportedPropertyImages(input: {
   supabase: SupabaseClient;
   vendorId: string;
   propertyId: string;
-  files: Array<{ filename: string; buffer: Buffer }>;
+  files: Array<{ filename: string; buffer: Buffer; sortOrder: number; isCover: boolean }>;
 }) {
   const rows: Array<{
     property_id: string;
@@ -23,37 +23,47 @@ export async function uploadImportedPropertyImages(input: {
     public_url: string;
     is_cover: boolean;
     sort_order: number;
+    size_bytes: number;
   }> = [];
   const storagePaths: string[] = [];
+  const failedFiles: Array<{ filename: string; reason: string }> = [];
 
-  for (const [index, file] of input.files.entries()) {
-    const optimizedFilename = getOptimizedImageFilename(file.filename);
-    const storagePath = `vendor-imports/${input.vendorId}/${input.propertyId}/${String(index + 1).padStart(2, "0")}-${sanitizeFilename(optimizedFilename)}`;
-    const optimizedBuffer = await optimizeImageBuffer({ buffer: file.buffer });
-    const { error: uploadError } = await input.supabase.storage
-      .from(propertyImageBucket)
-      .upload(storagePath, optimizedBuffer, {
-        contentType: optimizedImageContentType,
-        upsert: false,
+  for (const file of input.files) {
+    try {
+      const optimizedFilename = getOptimizedImageFilename(file.filename);
+      const storagePath = `vendors/${input.vendorId}/properties/${input.propertyId}/${String(file.sortOrder).padStart(2, "0")}-${sanitizeFilename(optimizedFilename)}`;
+      const optimizedBuffer = await optimizeImageBuffer({ buffer: file.buffer });
+      const { error: uploadError } = await input.supabase.storage
+        .from(propertyImageBucket)
+        .upload(storagePath, optimizedBuffer, {
+          contentType: optimizedImageContentType,
+          upsert: false,
+        });
+
+      if (uploadError) {
+        throw new Error(uploadError.message);
+      }
+
+      const { data: publicUrlData } = input.supabase.storage.from(propertyImageBucket).getPublicUrl(storagePath);
+
+      storagePaths.push(storagePath);
+      rows.push({
+        property_id: input.propertyId,
+        r2_key: storagePath,
+        public_url: publicUrlData.publicUrl,
+        is_cover: file.isCover,
+        sort_order: file.sortOrder,
+        size_bytes: optimizedBuffer.length,
       });
-
-    if (uploadError) {
-      throw new Error(uploadError.message);
+    } catch (error) {
+      failedFiles.push({
+        filename: file.filename,
+        reason: error instanceof Error ? error.message : "Unable to upload image.",
+      });
     }
-
-    const { data: publicUrlData } = input.supabase.storage.from(propertyImageBucket).getPublicUrl(storagePath);
-
-    storagePaths.push(storagePath);
-    rows.push({
-      property_id: input.propertyId,
-      r2_key: storagePath,
-      public_url: publicUrlData.publicUrl,
-      is_cover: index === 0,
-      sort_order: index,
-    });
   }
 
-  return { rows, storagePaths };
+  return { rows, storagePaths, failedFiles };
 }
 
 export async function uploadPropertyImages(input: {

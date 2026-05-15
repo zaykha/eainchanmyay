@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import styled from "styled-components";
+import styled, { keyframes } from "styled-components";
 import { formatPropertyTypeValue, propertyTypeDefinitions } from "@/lib/property-types";
 import Link from "next/link";
 import {
@@ -159,15 +159,47 @@ const EmbeddedScroller = styled.div`
   gap: 14px;
 `;
 
+const shimmer = keyframes`
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+`;
+
 const EmbeddedLoadingState = styled.div`
   min-height: 640px;
   border-radius: 24px;
   border: 1px solid var(--color-outline);
   background: color-mix(in srgb, var(--color-surface-2) 72%, white);
+  padding: 16px;
   display: grid;
-  place-items: center;
-  color: var(--color-text);
-  font-weight: 700;
+  gap: 14px;
+  align-content: start;
+`;
+
+const EmbeddedSkeletonCard = styled.div`
+  border-radius: 22px;
+  border: 1px solid var(--color-outline);
+  background: color-mix(in srgb, var(--color-surface-2) 84%, white);
+  padding: 14px;
+  display: grid;
+  gap: 12px;
+`;
+
+const SkeletonBlock = styled.div<{ $height?: number; $radius?: number }>`
+  width: 100%;
+  height: ${(props) => `${props.$height ?? 16}px`};
+  border-radius: ${(props) => `${props.$radius ?? 14}px`};
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--color-surface) 84%, transparent) 0%,
+    color-mix(in srgb, var(--color-outline) 38%, white) 50%,
+    color-mix(in srgb, var(--color-surface) 84%, transparent) 100%
+  );
+  background-size: 200% 100%;
+  animation: ${shimmer} 1.35s linear infinite;
 `;
 
 const EmbeddedCardButton = styled.button`
@@ -718,7 +750,28 @@ export function VendorPropertiesView({
   }
 
   if (loading) {
-    return embedded ? <EmbeddedLoadingState>Loading properties...</EmbeddedLoadingState> : <LoadingOverlay message="Loading properties..." />;
+    return embedded ? (
+      <EmbeddedLoadingState>
+        {Array.from({ length: 4 }, (_, index) => (
+          <EmbeddedSkeletonCard key={`properties-skeleton-${index}`}>
+            <div style={{ display: "grid", gridTemplateColumns: "156px minmax(0, 1fr)", gap: 12, alignItems: "center" }}>
+              <SkeletonBlock $height={104} $radius={16} />
+              <div style={{ display: "grid", gap: 10 }}>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <SkeletonBlock $height={26} $radius={999} style={{ width: 72 }} />
+                  <SkeletonBlock $height={26} $radius={999} style={{ width: 86 }} />
+                </div>
+                <SkeletonBlock $height={22} style={{ width: "56%" }} />
+                <SkeletonBlock $height={16} style={{ width: "72%" }} />
+                <SkeletonBlock $height={16} style={{ width: "42%" }} />
+              </div>
+            </div>
+          </EmbeddedSkeletonCard>
+        ))}
+      </EmbeddedLoadingState>
+    ) : (
+      <LoadingOverlay message="Loading properties..." />
+    );
   }
 
   return (
@@ -775,11 +828,15 @@ export function VendorPropertiesView({
           hideLabel
         >
           <option value="">All statuses</option>
-          <option value="published">Published</option>
           <option value="draft">Draft</option>
+          <option value="active">Active</option>
+          <option value="paused">Paused</option>
+          <option value="reserved">Reserved</option>
           <option value="sold">Sold</option>
           <option value="rented">Rented</option>
+          <option value="expired">Expired</option>
           <option value="archived">Archived</option>
+          <option value="rejected">Rejected</option>
         </CustomSelect>
         <CustomSelect
           id="vendor-property-deal"

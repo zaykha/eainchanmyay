@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import JSZip from "jszip";
 import { getVendorRequestContext } from "@/app/api/vendor/_lib/context";
-import { normalizeImportFilename } from "@/lib/vendor-import";
+import { normalizeImportFilename, vendorImportMaxZipBytes, vendorImportRecommendedImageBytes } from "@/lib/vendor-import";
+
+export const runtime = "nodejs";
 
 function uniqueSorted(values: string[]) {
   return Array.from(new Set(values.filter(Boolean))).sort((left, right) => left.localeCompare(right));
@@ -22,7 +24,11 @@ export async function POST(request: Request) {
   }
 
   if (!file.name.toLowerCase().endsWith(".zip")) {
-    return NextResponse.json({ error: "Only zip archives are supported for image upload right now." }, { status: 400 });
+    return NextResponse.json({ error: "Only ZIP archives are supported for image upload." }, { status: 400 });
+  }
+
+  if (file.size > vendorImportMaxZipBytes) {
+    return NextResponse.json({ error: "ZIP file is too large for bulk upload." }, { status: 400 });
   }
 
   let expectedFilenames: string[] = [];
@@ -38,11 +44,32 @@ export async function POST(request: Request) {
   }
 
   const zip = await JSZip.loadAsync(Buffer.from(await file.arrayBuffer()));
-  const archiveFilenames = uniqueSorted(
-    Object.values(zip.files)
-      .filter((entry) => !entry.dir)
-      .map((entry) => normalizeImportFilename(entry.name))
-      .filter((name) => /\.(jpg|jpeg|png|webp)$/i.test(name))
+  const archiveEntries = Object.values(zip.files).filter((entry) => !entry.dir);
+  const basenameCounts = new Map<string, number>();
+  const invalidArchiveEntries: string[] = [];
+  const oversizedFilenames: string[] = [];
+  const archiveFilenamesRaw: string[] = [];
+
+  for (const entry of archiveEntries) {
+    const filename = normalizeImportFilename(entry.name);
+    if (!/\.(jpg|jpeg|png|webp)$/i.test(filename)) {
+      if (filename) invalidArchiveEntries.push(filename);
+      continue;
+    }
+    basenameCounts.set(filename, (basenameCounts.get(filename) ?? 0) + 1);
+    const buffer = await entry.async("uint8array");
+    if (buffer.byteLength > vendorImportRecommendedImageBytes) {
+      oversizedFilenames.push(filename);
+    }
+    archiveFilenamesRaw.push(filename);
+  }
+
+  const archiveFilenames = uniqueSorted(archiveFilenamesRaw);
+
+  const duplicateArchiveFilenames = uniqueSorted(
+    Array.from(basenameCounts.entries())
+      .filter(([, count]) => count > 1)
+      .map(([filename]) => filename)
   );
 
   const expected = uniqueSorted(expectedFilenames);
@@ -68,7 +95,12 @@ export async function POST(request: Request) {
       missingCount: missingFilenames.length,
       extraCount: extraFilenames.length,
     },
+    duplicateArchiveFilenames,
+    invalidArchiveEntries: uniqueSorted(invalidArchiveEntries),
+    oversizedFilenames: uniqueSorted(oversizedFilenames),
     nextStep:
-      "Image filename matching is ready. The remaining bulk-import work is rehosting files and creating property/image records.",
+      duplicateArchiveFilenames.length > 0
+        ? "Resolve duplicate image filenames in the ZIP before importing."
+        : "ZIP validation passed. You can now import valid rows as draft listings.",
   });
 }

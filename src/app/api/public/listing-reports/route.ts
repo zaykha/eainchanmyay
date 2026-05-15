@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { rateLimit } from "@/app/api/_lib/rate-limit";
+import { publicListingQueryStatuses } from "@/lib/lifecycle";
 
 type Payload = {
   propertyId?: string;
@@ -61,7 +62,7 @@ export async function POST(request: Request) {
     .select("id")
     .eq("id", propertyId)
     .eq("is_deleted", false)
-    .eq("status", "published")
+    .in("status", publicListingQueryStatuses)
     .maybeSingle();
 
   if (propertyError || !propertyRow?.id) {

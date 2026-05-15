@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from "@/app/living-site/lib/supabase";
 import { resolveListingImage } from "@/app/living-site/lib/images";
+import { publicListingQueryStatuses } from "@/lib/lifecycle";
 import type { PropertyType } from "@/lib/property-types";
 
 export type Listing = {
@@ -13,7 +14,13 @@ export type Listing = {
   city?: string;
   township?: string;
   district?: string;
+  stateRegion?: string;
   areaSqft?: number;
+  bedrooms?: number;
+  bathrooms?: number;
+  latitude?: number;
+  longitude?: number;
+  verificationStatus?: string;
   imageUrl?: string;
   raw: Record<string, unknown>;
 };
@@ -208,7 +215,7 @@ function getListingLocation(property: Record<string, unknown>) {
     return pieces.join(", ");
   }
 
-  return getString(property.city) || "";
+  return "";
 }
 
 function getListingPrice(property: Record<string, unknown>) {
@@ -225,7 +232,6 @@ function applyLocationQuery(
   return listings.filter((listing) => {
     const fields = [
       listing.title,
-      listing.city,
       listing.state_region,
       listing.district,
       listing.township,
@@ -258,9 +264,9 @@ export async function getListings(filters?: string | ListingFilters) {
   let queryBuilder = supabase
     .from("properties")
     .select(
-      "id,title,deal_type,property_type,price,currency,state_region,district,township,city,bedrooms,bathrooms,area_sqft"
+      "id,title,deal_type,property_type,price,currency,state_region,district,township,bedrooms,bathrooms,area_sqft"
     )
-    .eq("status", "published")
+    .in("status", publicListingQueryStatuses)
     .eq("is_deleted", false);
 
   if (dealType) {
@@ -299,7 +305,7 @@ export async function getListings(filters?: string | ListingFilters) {
   if (query.trim()) {
     const escaped = query.trim().replace(/%/g, "");
     queryBuilder = queryBuilder.or(
-      `title.ilike.%${escaped}%,state_region.ilike.%${escaped}%,district.ilike.%${escaped}%,township.ilike.%${escaped}%,city.ilike.%${escaped}%`
+      `title.ilike.%${escaped}%,state_region.ilike.%${escaped}%,district.ilike.%${escaped}%,township.ilike.%${escaped}%`
     );
   }
 
@@ -349,7 +355,7 @@ export async function getListings(filters?: string | ListingFilters) {
       currency: getString(property.currency) || "MMK",
       dealType: getString(property.deal_type),
       propertyType: getString(property.property_type),
-      city: getString(property.city),
+      city: getString(property.district),
       township: getString(property.township),
       district: getString(property.district),
       areaSqft: getNumber(property.area_sqft),
@@ -367,10 +373,10 @@ export async function getListingDetail(propertyId: string) {
   const { data: property, error } = await supabase
     .from("properties")
     .select(
-      "id,title,description,deal_type,property_type,price,currency,state_region,district,township,city,address_text,bedrooms,bathrooms,area_sqft,latitude,longitude,created_by,vendor_id,verification_status,owner_name,owner_phone,owner_phone_secondary"
+      "id,title,description,deal_type,property_type,price,currency,state_region,district,township,address_text,bedrooms,bathrooms,area_sqft,latitude,longitude,created_by,vendor_id,verification_status,owner_name,owner_phone,owner_phone_secondary"
     )
     .eq("id", propertyId)
-    .eq("status", "published")
+    .in("status", publicListingQueryStatuses)
     .eq("is_deleted", false)
     .maybeSingle();
 
@@ -738,7 +744,7 @@ export async function getOwnedPropertiesForUser(userId: string) {
   const { data, error } = await supabase
     .from("properties")
     .select(
-      "id,title,description,deal_type,property_type,status,price,currency,state_region,district,township,city,address_text,bedrooms,bathrooms,area_sqft,floor_count,room_count,has_lift,has_backup_power,backup_power_type,has_parking,created_at"
+      "id,title,description,deal_type,property_type,status,price,currency,state_region,district,township,address_text,bedrooms,bathrooms,area_sqft,floor_count,room_count,has_lift,has_backup_power,backup_power_type,has_parking,created_at"
     )
     .eq("created_by", userId)
     .eq("is_deleted", false)
@@ -794,7 +800,7 @@ export async function getSalesRequestById(userId: string, requestId: string) {
   const { data, error } = await supabase
     .from("sales_requests")
     .select(
-      "id,title,description,deal_type,property_type,price,currency,state_region,district,city,township,address_text,bedrooms,bathrooms,area_sqft,floor_count,room_count,has_lift,has_backup_power,backup_power_type,has_parking,latitude,longitude,owner_name,owner_phone,owner_phone_secondary,review_status,created_at"
+      "id,title,description,deal_type,property_type,price,currency,state_region,district,township,address_text,bedrooms,bathrooms,area_sqft,floor_count,room_count,has_lift,has_backup_power,backup_power_type,has_parking,latitude,longitude,owner_name,owner_phone,owner_phone_secondary,review_status,created_at"
     )
     .eq("id", requestId)
     .eq("user_id", userId)
@@ -816,7 +822,7 @@ export async function getOwnedPropertyById(userId: string, propertyId: string) {
   const { data, error } = await supabase
     .from("properties")
     .select(
-      "id,title,description,deal_type,property_type,status,price,currency,state_region,district,city,township,address_text,bedrooms,bathrooms,area_sqft,floor_count,room_count,has_lift,has_backup_power,backup_power_type,has_parking,latitude,longitude,owner_name,owner_phone,owner_phone_secondary,created_at"
+      "id,title,description,deal_type,property_type,status,price,currency,state_region,district,township,address_text,bedrooms,bathrooms,area_sqft,floor_count,room_count,has_lift,has_backup_power,backup_power_type,has_parking,latitude,longitude,owner_name,owner_phone,owner_phone_secondary,created_at"
     )
     .eq("id", propertyId)
     .eq("created_by", userId)
@@ -873,7 +879,7 @@ export async function updateSalesRequest(input: {
     currency: input.currency,
     state_region: input.stateRegion,
     district: input.district,
-    city: input.city ?? input.district ?? input.township ?? input.stateRegion,
+    city: input.district ?? input.township ?? input.stateRegion,
     township: input.township,
     address_text: input.addressText,
     bedrooms: input.bedrooms,

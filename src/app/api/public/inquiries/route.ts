@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getInquiryDealAsPropertyDeal, pickVendorForInquiry, type RoutedVendorCandidate } from "@/lib/inquiry-routing";
+import { publicListingQueryStatuses } from "@/lib/lifecycle";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
@@ -123,11 +124,13 @@ export async function POST(request: Request) {
 
     const { error: directLeadError } = await supabase.from("vendor_inquiry_leads").insert({
       vendor_id: targetVendorRow.id,
+      property_id: null,
       inquiry_id: null,
       requester_user_id: requesterProfile?.id ?? user.id,
       contact_number: (requesterProfile?.phone as string | null) ?? null,
       status: "new",
-      source: "agency_direct",
+      source: "manual_entry",
+      priority: "normal",
       routing_score: null,
       deal_type: inquiryPayload.deal_type,
       property_type: inquiryPayload.property_type,
@@ -143,7 +146,7 @@ export async function POST(request: Request) {
       need_lift: inquiryPayload.need_lift,
       need_solar: inquiryPayload.need_solar,
       need_generator: inquiryPayload.need_generator,
-      pipeline_stage: "new_lead",
+      pipeline_stage: "new",
       last_activity_at: new Date().toISOString(),
       sla_due_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
     });
@@ -205,7 +208,7 @@ export async function POST(request: Request) {
     .select("created_by,state_region,district,township")
     .in("created_by", memberIds)
     .eq("is_deleted", false)
-    .eq("status", "published")
+    .in("status", publicListingQueryStatuses)
     .eq("deal_type", getInquiryDealAsPropertyDeal(body.dealType))
     .eq("property_type", body.propertyType);
 
@@ -236,11 +239,13 @@ export async function POST(request: Request) {
 
   const { error: routedLeadError } = await supabase.from("vendor_inquiry_leads").insert({
     vendor_id: selected.vendor.vendorId,
+    property_id: null,
     inquiry_id: null,
     requester_user_id: requesterProfile?.id ?? user.id,
     contact_number: (requesterProfile?.phone as string | null) ?? null,
     status: "new",
-    source: "marketplace_routed",
+    source: "manual_entry",
+    priority: "normal",
     routing_score: selected.routingScore,
     deal_type: inquiryPayload.deal_type,
     property_type: inquiryPayload.property_type,
@@ -256,7 +261,7 @@ export async function POST(request: Request) {
     need_lift: inquiryPayload.need_lift,
     need_solar: inquiryPayload.need_solar,
     need_generator: inquiryPayload.need_generator,
-    pipeline_stage: "new_lead",
+    pipeline_stage: "new",
     last_activity_at: new Date().toISOString(),
     sla_due_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
   });

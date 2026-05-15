@@ -8,7 +8,7 @@ import styled from "styled-components";
 import { ListingGrid } from "@/app/living-site/components/ListingGrid";
 import { CustomSelect } from "@/app/living-site/components/form-controls/CustomSelect";
 import { useLanguage } from "@/app/living-site/components/Providers";
-import { useInfiniteListings } from "@/app/living-site/hooks/useInfiniteListings";
+import { buildListingQuery, useInfiniteListings } from "@/app/living-site/hooks/useInfiniteListings";
 import { useAppState } from "@/app/living-site/lib/app-state";
 import { resolveHeaderAccountPresentation } from "@/app/living-site/lib/header-account";
 import { isBedBathPropertyType } from "@/lib/property-types";
@@ -1446,6 +1446,11 @@ export function HomePageClient() {
     setQuery(searchDraft);
   };
 
+  const openMapView = () => {
+    const queryString = buildListingQuery(filters, { view: "map", page: 1, pageSize: 120 });
+    router.push(queryString ? `/properties/map?${queryString}` : "/properties/map");
+  };
+
   return (
     <>
       <PageFrame>
@@ -1628,7 +1633,7 @@ export function HomePageClient() {
             <FloatCircleButton type="button" aria-label="Add">
               <Plus />
             </FloatCircleButton>
-            <FloatPillButton type="button" aria-label="Show map">
+            <FloatPillButton type="button" aria-label="Show map" onClick={openMapView}>
               <span>Show Map</span>
               <Map />
             </FloatPillButton>
@@ -1645,7 +1650,7 @@ export function HomePageClient() {
             </FloatCircleButton>
           </DesktopFloatActionLeft>
           <DesktopFloatActionCenter>
-            <FloatPillButton type="button" aria-label="Show map">
+            <FloatPillButton type="button" aria-label="Show map" onClick={openMapView}>
               <span>Show Map</span>
               <Map />
             </FloatPillButton>

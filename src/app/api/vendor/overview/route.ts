@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getVendorRequestContext } from "@/app/api/vendor/_lib/context";
 import { getVendorPlanUsage } from "@/app/api/vendor/_lib/plan-limits";
+import { isPublicListingStatus, normalizeLeadStatus, normalizeListingStatus } from "@/lib/lifecycle";
 
 type PropertyRow = {
   id: string;
@@ -129,18 +130,28 @@ export async function GET(request: Request) {
   const inquiryLeads = (inquiryLeadsResult.data ?? []) as InquiryLeadRow[];
   const memberProfiles = (memberProfilesResult.data ?? []) as Array<{ id: string | null; full_name: string | null; email: string | null }>;
 
-  const totalValue = properties.reduce((sum, property) => sum + (Number(property.price ?? 0) || 0), 0);
-  const publishedValue = properties
-    .filter((property) => property.status === "published")
+  const normalizedProperties = properties.map((property) => ({
+    ...property,
+    status: normalizeListingStatus(property.status) ?? "draft",
+  }));
+  const normalizedLeads = inquiryLeads.map((lead) => ({
+    ...lead,
+    status: normalizeLeadStatus(lead.status) ?? normalizeLeadStatus(lead.pipeline_stage) ?? "new",
+    pipeline_stage: normalizeLeadStatus(lead.pipeline_stage) ?? normalizeLeadStatus(lead.status) ?? "new",
+  }));
+
+  const totalValue = normalizedProperties.reduce((sum, property) => sum + (Number(property.price ?? 0) || 0), 0);
+  const publishedValue = normalizedProperties
+    .filter((property) => isPublicListingStatus(property.status))
     .reduce((sum, property) => sum + (Number(property.price ?? 0) || 0), 0);
 
-  const statusCounts = properties.reduce<Record<string, number>>((acc, property) => {
+  const statusCounts = normalizedProperties.reduce<Record<string, number>>((acc, property) => {
     const key = property.status || "unknown";
     acc[key] = (acc[key] ?? 0) + 1;
     return acc;
   }, {});
 
-  const typeCounts = properties.reduce<Record<string, number>>((acc, property) => {
+  const typeCounts = normalizedProperties.reduce<Record<string, number>>((acc, property) => {
     const key = property.property_type || "unknown";
     acc[key] = (acc[key] ?? 0) + 1;
     return acc;
@@ -157,16 +168,12 @@ export async function GET(request: Request) {
       .map((item) => item.viewer_user_id || item.session_id || "")
       .filter(Boolean)
   ).size;
-  const inquiryLeadCount = inquiryLeads.length;
-  const qualifiedLeadCount = inquiryLeads.filter(
-    (lead) => lead.status === "qualified" || lead.pipeline_stage === "qualified" || lead.pipeline_stage === "negotiating"
+  const inquiryLeadCount = normalizedLeads.length;
+  const qualifiedLeadCount = normalizedLeads.filter((lead) =>
+    ["qualified", "appointment_scheduled", "viewed", "negotiation"].includes(lead.status)
   ).length;
-  const closedLeadCount = inquiryLeads.filter(
-    (lead) => lead.status === "closed" || lead.pipeline_stage === "won"
-  ).length;
-  const lostLeadCount = inquiryLeads.filter(
-    (lead) => lead.status === "lost" || lead.pipeline_stage === "lost"
-  ).length;
+  const closedLeadCount = normalizedLeads.filter((lead) => lead.status === "closed_won").length;
+  const lostLeadCount = normalizedLeads.filter((lead) => lead.status === "closed_lost").length;
   const leadConversionRate = inquiryLeadCount ? Math.round((closedLeadCount / inquiryLeadCount) * 100) : 0;
   const viewToLeadRate = totalListingViews ? Math.round((inquiryLeadCount / totalListingViews) * 100) : 0;
 
@@ -194,15 +201,15 @@ export async function GET(request: Request) {
     return acc;
   }, {});
 
-  const leadsByAssignee = inquiryLeads.reduce<Record<string, { total: number; closed: number; qualified: number }>>((acc, lead) => {
+  const leadsByAssignee = normalizedLeads.reduce<Record<string, { total: number; closed: number; qualified: number }>>((acc, lead) => {
     const assigneeId = String(lead.assigned_member_user_id ?? "");
     if (!assigneeId) return acc;
     const bucket = acc[assigneeId] ?? { total: 0, closed: 0, qualified: 0 };
     bucket.total += 1;
-    if (lead.status === "closed" || lead.pipeline_stage === "won") {
+    if (lead.status === "closed_won") {
       bucket.closed += 1;
     }
-    if (lead.status === "qualified" || lead.pipeline_stage === "qualified" || lead.pipeline_stage === "negotiating") {
+    if (["qualified", "appointment_scheduled", "viewed", "negotiation"].includes(lead.status)) {
       bucket.qualified += 1;
     }
     acc[assigneeId] = bucket;
@@ -210,7 +217,7 @@ export async function GET(request: Request) {
   }, {});
 
   const agentPerformance = memberIds.map((memberId) => {
-    const memberProperties = properties.filter((property) => property.created_by === memberId);
+    const memberProperties = normalizedProperties.filter((property) => property.created_by === memberId);
     const totalViews = memberProperties.reduce((sum, property) => sum + (propertyViewsById[property.id] ?? 0), 0);
     const appointmentsCount = memberProperties.reduce((sum, property) => sum + (appointmentsByProperty[property.id] ?? 0), 0);
     const profile = profileMap.get(memberId);
@@ -220,7 +227,7 @@ export async function GET(request: Request) {
       user_id: memberId,
       name: profile?.full_name || profile?.email || "Agent",
       listings_count: memberProperties.length,
-      published_count: memberProperties.filter((property) => property.status === "published").length,
+      published_count: memberProperties.filter((property) => isPublicListingStatus(property.status)).length,
       total_views: totalViews,
       appointments_count: appointmentsCount,
       assigned_leads: assignedLeads.total,
@@ -229,7 +236,7 @@ export async function GET(request: Request) {
     };
   });
 
-  const townshipDemandCounts = inquiryLeads.reduce<Record<string, number>>((acc, lead) => {
+  const townshipDemandCounts = normalizedLeads.reduce<Record<string, number>>((acc, lead) => {
     const township = String(lead.township ?? "").trim();
     const district = String(lead.district ?? "").trim();
     const stateRegion = String(lead.state_region ?? "").trim();
@@ -239,13 +246,13 @@ export async function GET(request: Request) {
     return acc;
   }, {});
 
-  const propertyDemandCounts = inquiryLeads.reduce<Record<string, number>>((acc, lead) => {
+  const propertyDemandCounts = normalizedLeads.reduce<Record<string, number>>((acc, lead) => {
     const key = String(lead.property_type ?? "unknown");
     acc[key] = (acc[key] ?? 0) + 1;
     return acc;
   }, {});
 
-  const topViewedListings = properties
+  const topViewedListings = normalizedProperties
     .map((property) => ({
       property_id: property.id,
       title: property.title ?? "Untitled property",
@@ -256,14 +263,14 @@ export async function GET(request: Request) {
     .sort((left, right) => right.views - left.views)
     .slice(0, 5);
 
-  const salesByTypeCounts = properties.reduce<Record<string, number>>((acc, property) => {
+  const salesByTypeCounts = normalizedProperties.reduce<Record<string, number>>((acc, property) => {
     if (property.status !== "sold" && property.status !== "rented") return acc;
     const key = String(property.property_type ?? "unknown");
     acc[key] = (acc[key] ?? 0) + 1;
     return acc;
   }, {});
 
-  const priceBucketsByType = properties.reduce<
+  const priceBucketsByType = normalizedProperties.reduce<
     Record<string, { min: number; max: number; count: number; currency: string }>
   >((acc, property) => {
     const typeKey = String(property.property_type ?? "unknown");
@@ -285,7 +292,7 @@ export async function GET(request: Request) {
     return acc;
   }, {});
 
-  const propertyTypeById = new Map(properties.map((property) => [property.id, String(property.property_type ?? "unknown")]));
+  const propertyTypeById = new Map(normalizedProperties.map((property) => [property.id, String(property.property_type ?? "unknown")]));
   const appointmentsByTypeCounts = appointments.reduce<Record<string, number>>((acc, appointment) => {
     const propertyId = String(appointment.property_id ?? "");
     if (!propertyId) return acc;
@@ -313,8 +320,8 @@ export async function GET(request: Request) {
       },
     },
     metrics: {
-      totalProperties: properties.length,
-      publishedProperties: statusCounts.published ?? 0,
+      totalProperties: normalizedProperties.length,
+      publishedProperties: (statusCounts.active ?? 0) + (statusCounts.reserved ?? 0),
       draftProperties: statusCounts.draft ?? 0,
       soldProperties: statusCounts.sold ?? 0,
       rentedProperties: statusCounts.rented ?? 0,
@@ -364,6 +371,6 @@ export async function GET(request: Request) {
         .slice(0, 5),
       topViewedListings,
     },
-    recentProperties: properties.slice(0, 5),
+    recentProperties: normalizedProperties.slice(0, 5),
   });
 }

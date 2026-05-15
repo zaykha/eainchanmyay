@@ -1,20 +1,6 @@
 import { NextResponse } from "next/server";
 import { getVendorRequestContext } from "@/app/api/vendor/_lib/context";
-
-const allowedStatuses = new Set(["new", "contacted", "qualified", "closed", "lost"]);
-const allowedPipelineStages = new Set(["new_lead", "contacted", "qualified", "negotiating", "won", "lost"]);
-
-function normalizeStatus(value: unknown) {
-  if (typeof value !== "string") return null;
-  const normalized = value.trim().toLowerCase();
-  return allowedStatuses.has(normalized) ? normalized : null;
-}
-
-function normalizePipelineStage(value: unknown) {
-  if (typeof value !== "string") return null;
-  const normalized = value.trim().toLowerCase();
-  return allowedPipelineStages.has(normalized) ? normalized : null;
-}
+import { canTransitionLeadStatus, normalizeLeadStatus } from "@/lib/lifecycle";
 
 export async function GET(request: Request) {
   const result = await getVendorRequestContext(request);
@@ -126,12 +112,12 @@ export async function GET(request: Request) {
         lead_id: String(row.id ?? ""),
         inquiry_id: inquiryId,
         requester_user_id: row.requester_user_id ? String(row.requester_user_id) : null,
-        status: String(row.status ?? "new"),
+        status: String(normalizeLeadStatus(row.status) ?? normalizeLeadStatus(row.pipeline_stage) ?? "new"),
         source: String(row.source ?? "marketplace_routed"),
         routing_score: typeof row.routing_score === "number" ? row.routing_score : null,
         assigned_member_user_id: row.assigned_member_user_id ? String(row.assigned_member_user_id) : null,
         assigned_member_name: (assignee?.full_name as string | null) ?? null,
-        pipeline_stage: String(row.pipeline_stage ?? "new_lead"),
+        pipeline_stage: String(normalizeLeadStatus(row.pipeline_stage) ?? normalizeLeadStatus(row.status) ?? "new"),
         last_contacted_at: (row.last_contacted_at as string | null) ?? null,
         last_activity_at: (row.last_activity_at as string | null) ?? null,
         sla_due_at: (row.sla_due_at as string | null) ?? null,
@@ -198,8 +184,8 @@ export async function PATCH(request: Request) {
   }
 
   const leadId = body.lead_id?.trim();
-  const status = body.status ? normalizeStatus(body.status) : null;
-  const pipelineStage = body.pipeline_stage ? normalizePipelineStage(body.pipeline_stage) : null;
+  const status = body.status ? normalizeLeadStatus(body.status) : null;
+  const pipelineStage = body.pipeline_stage ? normalizeLeadStatus(body.pipeline_stage) : null;
   const assigneeId =
     typeof body.assigned_member_user_id === "string"
       ? body.assigned_member_user_id.trim()
@@ -211,7 +197,7 @@ export async function PATCH(request: Request) {
 
   const { data: existingLead, error: existingLeadError } = await supabase
     .from("vendor_inquiry_leads")
-    .select("id,vendor_id")
+    .select("id,vendor_id,status,pipeline_stage")
     .eq("id", leadId)
     .eq("vendor_id", vendor.id)
     .maybeSingle();
@@ -229,15 +215,25 @@ export async function PATCH(request: Request) {
     last_activity_at: new Date().toISOString(),
   };
 
-  if (status) {
-    updatePayload.status = status;
-    if (status === "contacted" || status === "qualified" || status === "closed") {
-      updatePayload.last_contacted_at = new Date().toISOString();
-    }
+  const currentLeadStatus = normalizeLeadStatus(existingLead.status) ?? normalizeLeadStatus(existingLead.pipeline_stage) ?? "new";
+  const nextLeadStatus = status ?? pipelineStage ?? currentLeadStatus;
+
+  if ((status || pipelineStage) && !canTransitionLeadStatus(currentLeadStatus, nextLeadStatus)) {
+    return NextResponse.json({ error: `Lead status cannot transition from ${currentLeadStatus} to ${nextLeadStatus}.` }, { status: 400 });
   }
 
-  if (pipelineStage) {
-    updatePayload.pipeline_stage = pipelineStage;
+  if (status || pipelineStage) {
+    updatePayload.status = nextLeadStatus;
+    updatePayload.pipeline_stage = nextLeadStatus;
+    if (["contacted", "qualified", "appointment_scheduled", "viewed", "negotiation", "closed_won"].includes(nextLeadStatus)) {
+      updatePayload.last_contacted_at = new Date().toISOString();
+    }
+    if (["assigned", "contacted", "qualified", "appointment_scheduled", "viewed", "negotiation", "closed_won"].includes(nextLeadStatus)) {
+      updatePayload.first_response_at = new Date().toISOString();
+    }
+    if (["closed_won", "closed_lost"].includes(nextLeadStatus)) {
+      updatePayload.closed_at = new Date().toISOString();
+    }
   }
 
   if (body.assigned_member_user_id !== undefined) {

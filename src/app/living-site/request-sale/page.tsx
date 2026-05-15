@@ -15,7 +15,6 @@ import {
   Hotel,
   MapPin,
   ParkingSquare,
-  Sparkles,
   Store,
   Sun,
   TowerControl,
@@ -33,12 +32,10 @@ import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
 import {
   getOwnedPropertiesForUser,
   getOwnedPropertyById,
-  getSalesRequestById,
   getSalesRequestsForUser,
   updateOwnedProperty,
-  updateSalesRequest,
 } from "@/app/living-site/lib/data";
-import { getVendorPlan, getUpgradePlan } from "@/lib/vendor-plans";
+import { getVendorPlan } from "@/lib/vendor-plans";
 import {
   formatPropertyTypeValue,
   isBedBathPropertyType,
@@ -148,8 +145,11 @@ const UploadHint = styled.div`
 
 const UploadStrip = styled.div`
   display: flex;
+  flex-wrap: nowrap;
   gap: 10px;
   overflow-x: auto;
+  overflow-y: hidden;
+  width: 100%;
   padding-bottom: 6px;
   scrollbar-width: thin;
 `;
@@ -329,40 +329,6 @@ const LimitNotice = styled.div<{ $danger?: boolean }>`
   line-height: 1.6;
 `;
 
-const PaidUpgradeSlot = styled.a`
-  border: 2px dashed var(--color-primary);
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
-  min-width: 120px;
-  width: 120px;
-  aspect-ratio: 4 / 3;
-  flex: 0 0 auto;
-  display: grid;
-  place-items: center;
-  padding: 0;
-  position: relative;
-  overflow: hidden;
-  cursor: pointer;
-  color: var(--color-primary);
-  text-decoration: none;
-`;
-
-const UpgradeSlotInner = styled.div`
-  display: grid;
-  justify-items: center;
-  gap: 6px;
-  padding: 10px;
-  text-align: center;
-  font-size: 0.76rem;
-`;
-
-const UpgradeLink = styled.span`
-  color: var(--color-primary);
-  font-weight: 700;
-  text-decoration: underline;
-  font-size: 0.75rem;
-`;
-
 const fadeIn = keyframes`
   from {
     opacity: 0;
@@ -397,7 +363,7 @@ const REQUEST_SALE_ENGLISH: Record<string, string> = {
   "common.submitting": "Submitting",
   "common.saveChanges": "Save changes",
   "listing.submitRequest": "Publish listing",
-  "requestSale.titleNew": "Request a sale listing",
+  "requestSale.titleNew": "Create listing",
   "requestSale.titleEdit": "Edit property request",
   "requestSale.subtitleNew": "Share your property details and publish to the marketplace.",
   "requestSale.subtitleEdit": "Update your property listing details.",
@@ -499,8 +465,6 @@ const isUsableMapCoordinate = (lat: number, lng: number) =>
   Number.isFinite(lng) &&
   Math.abs(lat) > 1 &&
   Math.abs(lng) > 1;
-const isReviewLocked = (value: unknown) => String(value ?? "").toLowerCase() === "pending";
-
 const MapFrame = styled.div<{ $status?: "default" | "error" | "success" }>`
   position: relative;
   border-radius: 16px;
@@ -674,6 +638,11 @@ const ToggleThumb = styled.div<{ $checked: boolean }>`
   box-shadow: var(--frame-shadow);
   transition: left 0.2s ease;
 `;
+
+type RequestSalePageContentProps = {
+  forcedEditId?: string | null;
+  vendorReturnPath?: string;
+};
 
 // NEW CONTACT STEP COMPONENTS
 const Badge = styled.span<{ $variant?: "public" | "internal" | "recommended" | "optional" }>`
@@ -1135,12 +1104,15 @@ const bathroomRequiredPropertyTypes = new Set<PropertyType>([
   "serviced_apartment",
 ]);
 
-function RequestSalePageContent() {
+export function RequestSalePageContent({
+  forcedEditId = null,
+  vendorReturnPath: vendorReturnPathProp = "/hub",
+}: RequestSalePageContentProps = {}) {
   const { user, profileRole, profileReady, authToken } = useAppState();
   const t = requestSaleText;
   const router = useRouter();
   const searchParams = useSearchParams();
-  const editId = searchParams.get("editId");
+  const editId = forcedEditId ?? searchParams.get("editId");
   const isEdit = Boolean(editId);
   const fieldId = useId();
   const imageInputRef = useRef<HTMLInputElement | null>(null);
@@ -1151,9 +1123,8 @@ function RequestSalePageContent() {
   const [success, setSuccess] = useState(false);
   const [successListingId, setSuccessListingId] = useState<string | null>(null);
   const [loadingEdit, setLoadingEdit] = useState(false);
-  const [editLockedMessage, setEditLockedMessage] = useState<string | null>(null);
   const [existingRequestCount, setExistingRequestCount] = useState(0);
-  const [workspaceLimits, setWorkspaceLimits] = useState<WorkspaceLimits["limits"] | null>(null);
+  const [workspaceLimits, setWorkspaceLimits] = useState<WorkspaceLimits | null>(null);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [mapActive, setMapActive] = useState(false);
   const [mapLoading, setMapLoading] = useState(false);
@@ -1221,17 +1192,16 @@ function RequestSalePageContent() {
     district: "",
     township: "",
   });
-  const vendorReturnPath = "/hub";
+  const vendorReturnPath = vendorReturnPathProp;
   const isVendorFlow =
     profileRole === "vendor_user" || profileRole === "staff" || profileRole === "admin" || profileRole === "master_admin";
-const currentPlan = getVendorPlan(workspaceLimits?.currentPlan?.name ?? 'free');
+  const currentPlan = getVendorPlan(workspaceLimits?.vendor?.plan ?? "free");
   const vendorImageLimit = currentPlan.imageLimit;
-  const upgradePlan = getUpgradePlan(currentPlan.key);
   const maxImageCount = isVendorFlow ? vendorImageLimit : 5;
   const customerLimitReached = !isVendorFlow && !isEdit && existingRequestCount >= 1;
 
   useEffect(() => {
-    if (!authToken || profileRole !== "vendor_user") return;
+    if (!authToken || !isVendorFlow) return;
 
     let cancelled = false;
     const loadWorkspaceLimits = async () => {
@@ -1242,7 +1212,7 @@ const currentPlan = getVendorPlan(workspaceLimits?.currentPlan?.name ?? 'free');
       });
       const payload = (await response.json().catch(() => null)) as WorkspaceLimits | null;
       if (!cancelled && response.ok) {
-        setWorkspaceLimits(payload?.limits ?? null);
+        setWorkspaceLimits(payload);
       }
     };
 
@@ -1250,15 +1220,14 @@ const currentPlan = getVendorPlan(workspaceLimits?.currentPlan?.name ?? 'free');
     return () => {
       cancelled = true;
     };
-  }, [authToken, profileRole]);
+  }, [authToken, isVendorFlow]);
 
   useEffect(() => {
     if (!editId || !user?.id) return;
     let active = true;
     setLoadingEdit(true);
-    setEditLockedMessage(null);
     const loader = isVendorFlow
-      ? getSalesRequestById(user.id, editId).then(({ request, error }) => ({ record: request, error }))
+      ? getOwnedPropertyById(user.id, editId).then(({ property, error }) => ({ record: property, error }))
       : getOwnedPropertyById(user.id, editId).then(({ property, error }) => ({ record: property, error }));
     loader.then(({ record, error: loadError }) => {
         if (!active) return;
@@ -1268,11 +1237,6 @@ const currentPlan = getVendorPlan(workspaceLimits?.currentPlan?.name ?? 'free');
         }
         if (!record) {
           setError(t("requestSale.error.load"));
-          return;
-        }
-        if (isVendorFlow && isReviewLocked(record.review_status)) {
-          setEditLockedMessage("This property request is under review and cannot be edited right now.");
-          router.replace("/account");
           return;
         }
         const requestCurrency = String(record.currency ?? "MMK");
@@ -1841,7 +1805,7 @@ const currentPlan = getVendorPlan(workspaceLimits?.currentPlan?.name ?? 'free');
         ownerPhone: toNullableString(form.owner_phone),
         ownerPhoneSecondary: toNullableString(form.owner_phone_secondary),
       };
-      const result = await (isVendorFlow ? updateSalesRequest(updateInput) : updateOwnedProperty(updateInput));
+      const result = await updateOwnedProperty(updateInput);
       setSubmitting(false);
       if (!result.ok) {
         setError(result.message ?? t("requestSale.error.updateFailed"));
@@ -1924,11 +1888,9 @@ const currentPlan = getVendorPlan(workspaceLimits?.currentPlan?.name ?? 'free');
         <TitleRow>
           <SectionTitle>
             {isEdit
-              ? profileRole === "vendor_user"
-                ? t("requestSale.titleEdit")
-                : "Edit listing"
+              ? "Edit listing"
               : profileRole === "vendor_user"
-                ? t("requestSale.titleNew")
+                ? "Create listing"
                 : "Create a listing"}
           </SectionTitle>
           <BackButton type="button" onClick={() => router.back()}>
@@ -1937,27 +1899,25 @@ const currentPlan = getVendorPlan(workspaceLimits?.currentPlan?.name ?? 'free');
         </TitleRow>
         <Muted>
           {isEdit
-            ? profileRole === "vendor_user"
-              ? t("requestSale.subtitleEdit")
-              : "Update your property listing details."
+            ? "Update your property listing details."
             : profileRole === "vendor_user"
-              ? t("requestSale.subtitleNew")
+              ? "Create and publish a property listing for your agency workspace."
               : "Publish your property directly to the marketplace."}
         </Muted>
         {!isVendorFlow ? (
           <LimitNotice $danger={customerLimitReached}>
             {customerLimitReached
-              ? "You already used your 1 published listing for this account."
-              : `1 published listing per account. Current usage: ${existingRequestCount}/1.`}
+              ? "You already used your 1 active listing for this account."
+              : `1 active listing per account. Current usage: ${existingRequestCount}/1.`}
           </LimitNotice>
         ) : null}
-        {workspaceLimits?.listingNearLimit ? (
-          <LimitNotice $danger={workspaceLimits.listingOverLimit}>
-            {workspaceLimits.listingOverLimit
+        {workspaceLimits?.limits?.listingNearLimit ? (
+          <LimitNotice $danger={workspaceLimits.limits.listingOverLimit}>
+            {workspaceLimits.limits.listingOverLimit
               ? "Your workspace is already above its current listing soft limit. Submission stays open for now, but the next billing phase should turn this into an upgrade or cleanup path."
-              : `You are close to your current ${workspaceLimits.currentPlan?.name || "plan"} limit: ${workspaceLimits.listingCount ?? 0}/${workspaceLimits.listingLimit ?? 0} listings. ${
-                  workspaceLimits.suggestedUpgrade
-                    ? `Recommended upgrade: ${workspaceLimits.suggestedUpgrade.name} (${workspaceLimits.suggestedUpgrade.priceLabel}).`
+              : `You are close to your current ${workspaceLimits.limits.currentPlan?.name || "plan"} limit: ${workspaceLimits.limits.listingCount ?? 0}/${workspaceLimits.limits.listingLimit ?? 0} listings. ${
+                  workspaceLimits.limits.suggestedUpgrade
+                    ? `Recommended upgrade: ${workspaceLimits.limits.suggestedUpgrade.name} (${workspaceLimits.limits.suggestedUpgrade.priceLabel}).`
                     : ""
                 }`}
           </LimitNotice>
@@ -1997,11 +1957,6 @@ const currentPlan = getVendorPlan(workspaceLimits?.currentPlan?.name ?? 'free');
                   <UploadHint>
                     Add at least 1 photo. Up to {maxImageCount} image{maxImageCount > 1 ? "s" : ""}. The first image is the cover.
                   </UploadHint>
-{isVendorFlow && vendorImageLimit === 5 && upgradePlan && imageFiles.length >= vendorImageLimit && (
-                    <UpgradeImageSlotNotice>
-                      +{upgradePlan.imageLimit - vendorImageLimit} more slots with <UpgradeLink href="/hub/upgrade">Pro upgrade</UpgradeLink>
-                    </UpgradeImageSlotNotice>
-                  )}
                   {stepAttempted[0] && imageError ? <ErrorText>{imageError}</ErrorText> : null}
   <UploadStrip>
     {Array.from({ length: maxImageCount }, (_, index) => {
@@ -2052,15 +2007,6 @@ const currentPlan = getVendorPlan(workspaceLimits?.currentPlan?.name ?? 'free');
         </UploadSlot>
       );
     })}
-    {isVendorFlow && vendorImageLimit === 5 && upgradePlan && (
-        <PaidUpgradeSlot href="/hub/upgrade">
-          <UpgradeSlotInner>
-            <Sparkles size={18} style={{ color: 'var(--color-primary)' }} />
-            <span>More slots</span>
-            <UpgradeLink>Upgrade →</UpgradeLink>
-          </UpgradeSlotInner>
-        </PaidUpgradeSlot>
-    )}
   </UploadStrip>
                 </>
               ) : null}
@@ -2535,8 +2481,6 @@ const currentPlan = getVendorPlan(workspaceLimits?.currentPlan?.name ?? 'free');
 )}
 
           {error && <ErrorText>{error}</ErrorText>}
-          {editLockedMessage && <ErrorText>{editLockedMessage}</ErrorText>}
-
           <Actions>
             <SecondaryButton
               type="button"

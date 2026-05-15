@@ -1,89 +1,231 @@
-import { propertyTypeValues } from "@/lib/property-types";
+import { getDistricts, getStates, getTownships } from "@/app/living-site/lib/myanmar-geo";
+
+const maxImagesPerProperty = 10;
+export const vendorImportMaxRows = 50;
+export const vendorImportMaxZipBytes = 100 * 1024 * 1024;
+export const vendorImportRecommendedImageBytes = 5 * 1024 * 1024;
 
 export const vendorImportTemplateColumns = [
-  "external_id",
   "title",
   "description",
   "deal_type",
   "property_type",
-  "status",
   "price",
-  "currency",
+  "status",
   "state_region",
   "district",
   "township",
-  "city",
+  "location_code",
   "address_text",
+  "latitude",
+  "longitude",
   "bedrooms",
   "bathrooms",
   "area_sqft",
+  "floor_count",
+  "room_count",
   "has_lift",
   "has_backup_power",
   "backup_power_type",
   "has_parking",
-  "latitude",
-  "longitude",
+  "commission_percent",
   "owner_name",
   "owner_phone",
   "owner_phone_secondary",
-  "image_1",
-  "image_2",
-  "image_3",
+  "image_file_1",
+  "image_file_2",
+  "image_file_3",
+  "image_file_4",
+  "image_file_5",
+  "image_file_6",
+  "image_file_7",
+  "image_file_8",
+  "image_file_9",
+  "image_file_10",
 ] as const;
 
-export const vendorImportRequiredColumns = [
-  "title",
-  "deal_type",
-  "property_type",
-  "state_region",
-  "township",
-] as const;
+export const vendorImportRequiredColumns = ["title", "deal_type", "property_type", "price"] as const;
 
 export type VendorImportTemplateColumn = (typeof vendorImportTemplateColumns)[number];
 
 export const vendorImportTemplateSampleRow: Record<VendorImportTemplateColumn, string> = {
-  external_id: "AGENCY-001",
-  title: "3 Bedroom Condo near Inya Road",
-  description: "Bright corner unit suitable for families.",
+  title: "Condo in Hlaing",
+  description: "Near main road condo unit",
   deal_type: "sale",
   property_type: "condo",
+  price: "250000000",
   status: "draft",
-  price: "350000000",
-  currency: "MMK",
   state_region: "Yangon",
-  district: "Western",
-  township: "Mayangone",
-  city: "Yangon",
-  address_text: "Inya Road",
-  bedrooms: "3",
+  district: "Yangon (West)",
+  township: "Hlaing",
+  location_code: "MMR013040",
+  address_text: "Near main road",
+  latitude: "16.8409",
+  longitude: "96.1242",
+  bedrooms: "2",
   bathrooms: "2",
-  area_sqft: "1250",
+  area_sqft: "950",
+  floor_count: "8",
+  room_count: "4",
   has_lift: "yes",
   has_backup_power: "yes",
   backup_power_type: "generator",
   has_parking: "yes",
-  latitude: "16.8409",
-  longitude: "96.1521",
-  owner_name: "Agency Desk",
-  owner_phone: "09xxxxxxxxx",
-  owner_phone_secondary: "09yyyyyyyyy",
-  image_1: "front.jpg",
-  image_2: "living-room.jpg",
-  image_3: "master-bed.jpg",
+  commission_percent: "2",
+  owner_name: "Daw Mya",
+  owner_phone: "09123456789",
+  owner_phone_secondary: "",
+  image_file_1: "condo-hlaing-1.jpg",
+  image_file_2: "condo-hlaing-2.jpg",
+  image_file_3: "",
+  image_file_4: "",
+  image_file_5: "",
+  image_file_6: "",
+  image_file_7: "",
+  image_file_8: "",
+  image_file_9: "",
+  image_file_10: "",
 };
 
-export const vendorImportAllowedDealTypes = new Set(["sale", "rent"]);
-export const vendorImportAllowedStatuses = new Set(["draft", "published", "sold", "rented", "archived"]);
-export const vendorImportAllowedPropertyTypes = new Set(propertyTypeValues);
+export const vendorImportGuideLines = [
+  "Fill listing data in the Properties Upload sheet.",
+  "Use dropdown values where available.",
+  "Use Excel search or Ctrl+F on the Location Reference sheet to find the correct state_region, district, township, and location_code.",
+  "Do not rename the column headers.",
+  "Put all property images inside an images folder.",
+  "Image file names in the ZIP must match image_file_1 to image_file_10.",
+  "Example: image_file_1 = condo-hlaing-1.jpg and ZIP contains images/condo-hlaing-1.jpg.",
+  "image_file_1 will become the cover image.",
+  "Use unique image names. Avoid generic names like photo1.jpg or image.jpg.",
+  "Recommended image size is under 1 MB each.",
+  "Maximum 10 images per property.",
+] as const;
+
+export const vendorImportAllowedDealTypes = ["sale", "rent"] as const;
+export const vendorImportAllowedStatuses = [
+  "draft",
+  "active",
+  "paused",
+  "reserved",
+  "sold",
+  "rented",
+  "expired",
+  "archived",
+  "rejected",
+] as const;
+export const vendorImportAllowedPropertyTypes = [
+  "land",
+  "house",
+  "apartment",
+  "mini_condo",
+  "condo",
+  "serviced_apartment",
+  "shop",
+  "office",
+  "shop_office",
+  "hotel",
+  "restaurant",
+  "marketplace",
+  "warehouse",
+  "industrial",
+  "project",
+  "hotel_restaurant",
+  "commercial",
+  "house_land",
+ ] as const;
+export const vendorImportAllowedStateRegions = [
+  "Yangon",
+  "Mandalay",
+  "Naypyidaw",
+  "Bago",
+  "Ayeyarwady",
+  "Sagaing",
+  "Magway",
+  "Tanintharyi",
+  "Mon",
+  "Kayin",
+  "Kayah",
+  "Shan",
+  "Kachin",
+  "Rakhine",
+  "Chin",
+] as const;
+export const vendorImportAllowedCities = [
+  "Yangon",
+  "Mandalay",
+  "Naypyidaw",
+  "Bago",
+  "Mawlamyine",
+  "Pathein",
+  "Taunggyi",
+  "Monywa",
+  "Magway",
+  "Myitkyina",
+  "Sittwe",
+  "Dawei",
+  "Hpa-An",
+  "Loikaw",
+  "Hakha",
+] as const;
+export const vendorImportAllowedBooleanValues = ["yes", "no"] as const;
+export const vendorImportAllowedBackupPowerTypes = ["generator", "inverter", "solar", "battery", "other"] as const;
+
+const vendorImportAllowedDealTypeSet = new Set(vendorImportAllowedDealTypes);
+const vendorImportAllowedStatusSet = new Set(vendorImportAllowedStatuses);
+const vendorImportAllowedPropertyTypeSet = new Set(vendorImportAllowedPropertyTypes);
+const vendorImportAllowedStateRegionSet = new Set(vendorImportAllowedStateRegions.map((value) => value.toLowerCase()));
+const vendorImportAllowedBackupPowerTypeSet = new Set(vendorImportAllowedBackupPowerTypes.map((value) => value.toLowerCase()));
+
+type LocationReferenceEntry = {
+  locationCode: string;
+  stateRegion: string;
+  district: string;
+  township: string;
+};
+
+const vendorImportLocationReferenceEntries: LocationReferenceEntry[] = getStates().flatMap((state) =>
+  getDistricts(state.name_en).flatMap((district) =>
+    getTownships(state.name_en, district.name_en).map((township) => ({
+      locationCode: township.pcode?.trim() || "",
+      stateRegion: state.name_en,
+      district: district.name_en,
+      township: township.name_en,
+    }))
+  )
+);
+
+const vendorImportLocationCodeMap = new Map(
+  vendorImportLocationReferenceEntries
+    .filter((entry) => entry.locationCode)
+    .map((entry) => [entry.locationCode.toLowerCase(), entry] as const)
+);
+
+const vendorImportLocationHierarchySet = new Set(
+  vendorImportLocationReferenceEntries.map((entry) => `${entry.stateRegion.toLowerCase()}||${entry.district.toLowerCase()}||${entry.township.toLowerCase()}`)
+);
+
+const vendorImportStateDistrictSet = new Set(
+  vendorImportLocationReferenceEntries.map((entry) => `${entry.stateRegion.toLowerCase()}||${entry.district.toLowerCase()}`)
+);
+
+const allowedImageExtensions = new Set(["jpg", "jpeg", "png", "webp"]);
+
+export type VendorImportFieldIssue = {
+  field: string;
+  message: string;
+};
 
 export type VendorImportPreviewRow = {
   rowNumber: number;
   title: string;
   dealType: string;
   propertyType: string;
+  sourceStatus: string;
+  importStatus: string;
   location: string;
   imageFilenames: string[];
-  errors: string[];
+  fieldErrors: VendorImportFieldIssue[];
+  warnings: string[];
 };
 
 export type VendorImportRecord = {
@@ -92,35 +234,73 @@ export type VendorImportRecord = {
   description: string | null;
   dealType: string;
   propertyType: string;
-  status: string;
-  price: number | null;
-  currency: string;
-  stateRegion: string;
-  district: string | null;
-  township: string;
-  city: string | null;
+  sourceStatus: string;
+  importStatus: string;
+  price: number;
+  locationCode: string | null;
+  township: string | null;
   addressText: string | null;
+  stateRegion: string | null;
+  district: string | null;
+  latitude: number | null;
+  longitude: number | null;
   bedrooms: number | null;
   bathrooms: number | null;
   areaSqft: number | null;
-  hasLift: boolean;
-  hasBackupPower: boolean;
+  floorCount: number | null;
+  roomCount: number | null;
+  hasLift: boolean | null;
+  hasBackupPower: boolean | null;
   backupPowerType: string | null;
-  hasParking: boolean;
-  latitude: number | null;
-  longitude: number | null;
+  hasParking: boolean | null;
+  commissionPercent: number | null;
   ownerName: string | null;
   ownerPhone: string | null;
   ownerPhoneSecondary: string | null;
-  imageFilenames: string[];
-  errors: string[];
+  verificationStatus: string | null;
+  verificationNotes: string | null;
+  imageFiles: Array<{
+    column: string;
+    originalValue: string;
+    normalizedFilename: string;
+    sortOrder: number;
+    isCover: boolean;
+  }>;
+  fieldErrors: VendorImportFieldIssue[];
+  warnings: string[];
 };
+
+export type VendorImportValidationResult = {
+  columns: string[];
+  records: VendorImportRecord[];
+  missingRequiredColumns: string[];
+  globalErrors: string[];
+  summary: {
+    totalRows: number;
+    validRows: number;
+    warningRows: number;
+    errorRows: number;
+  };
+  previewRows: VendorImportPreviewRow[];
+};
+
+export function getVendorImportLocationReferenceRows() {
+  return [
+    ["location_code", "state_region", "district", "township"],
+    ...vendorImportLocationReferenceEntries.map((entry) => [
+      entry.locationCode,
+      entry.stateRegion,
+      entry.district,
+      entry.township,
+    ]),
+  ];
+}
 
 function normalizeCellValue(value: unknown) {
   if (value === null || value === undefined) return "";
   if (typeof value === "string") return value.trim();
   if (typeof value === "number" && Number.isFinite(value)) return String(value);
-  if (typeof value === "boolean") return value ? "yes" : "no";
+  if (typeof value === "boolean") return value ? "true" : "false";
   return String(value).trim();
 }
 
@@ -144,101 +324,354 @@ function toNullableString(value: string | undefined) {
   return trimmed || null;
 }
 
-function toNullableNumber(value: string | undefined) {
+function toNumber(value: string | undefined) {
   const trimmed = (value ?? "").trim();
   if (!trimmed) return null;
   const parsed = Number(trimmed);
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function toBoolean(value: string | undefined) {
-  const normalized = (value ?? "").trim().toLowerCase();
-  return normalized === "true" || normalized === "yes" || normalized === "1";
+function hasSourceValue(value: string | undefined) {
+  return (value ?? "").trim() !== "";
 }
 
-export function toVendorImportRecords(rows: unknown[][]) {
+function toNullableBoolean(value: string | undefined) {
+  const normalized = (value ?? "").trim().toLowerCase();
+  if (!normalized) return null;
+  if (["true", "yes", "1"].includes(normalized)) return true;
+  if (["false", "no", "0"].includes(normalized)) return false;
+  return null;
+}
+
+function buildImageFiles(record: Record<string, string>) {
+  return Array.from({ length: maxImagesPerProperty }, (_, index) => {
+    const column = `image_file_${index + 1}`;
+    const originalValue = record[column] || "";
+    const normalizedFilename = normalizeImportFilename(originalValue);
+    return {
+      column,
+      originalValue,
+      normalizedFilename,
+      sortOrder: index,
+      isCover: index === 0,
+    };
+  }).filter((item) => item.normalizedFilename);
+}
+
+function pushFieldError(list: VendorImportFieldIssue[], field: string, message: string) {
+  list.push({ field, message });
+}
+
+function hasAllowedImageExtension(filename: string) {
+  const extension = filename.split(".").pop()?.toLowerCase() ?? "";
+  return allowedImageExtensions.has(extension);
+}
+
+export function toVendorImportRecords(rows: unknown[][]): VendorImportValidationResult {
   if (!rows.length) {
     return {
-      columns: [] as string[],
-      records: [] as VendorImportRecord[],
+      columns: [],
+      records: [],
       missingRequiredColumns: [...vendorImportRequiredColumns],
+      globalErrors: [],
+      summary: {
+        totalRows: 0,
+        validRows: 0,
+        warningRows: 0,
+        errorRows: 0,
+      },
+      previewRows: [],
     };
   }
 
   const [headerRow, ...bodyRows] = rows;
   const columns = headerRow.map(normalizeHeader);
   const missingRequiredColumns = vendorImportRequiredColumns.filter((column) => !columns.includes(column));
+  const globalErrors: string[] = [];
 
   const records = bodyRows
     .map((row, index) => {
-      const record = Object.fromEntries(columns.map((column, columnIndex) => [column, normalizeCellValue(row[columnIndex])])) as Record<
-        string,
-        string
-      >;
+      const source = Object.fromEntries(
+        columns.map((column, columnIndex) => [column, normalizeCellValue(row[columnIndex])])
+      ) as Record<string, string>;
 
-      const errors: string[] = [];
-      const title = record.title || "";
-      const dealType = record.deal_type || "";
-      const propertyType = record.property_type || "";
-      const status = record.status || "draft";
-      const stateRegion = record.state_region || "";
-      const township = record.township || "";
-      const imageFilenames = [record.image_1, record.image_2, record.image_3]
-        .map((value) => normalizeImportFilename(value))
-        .filter(Boolean);
+      const title = source.title || "";
+      const dealType = (source.deal_type || "").trim().toLowerCase();
+      const propertyType = (source.property_type || "").trim().toLowerCase();
+      const sourceStatus = (source.status || "").trim().toLowerCase();
+      const imageFiles = buildImageFiles(source);
+      const fieldErrors: VendorImportFieldIssue[] = [];
+      const warnings: string[] = [];
 
-      if (!title) errors.push("Missing title");
-      if (!dealType) errors.push("Missing deal type");
-      if (dealType && !vendorImportAllowedDealTypes.has(dealType)) errors.push("Invalid deal type");
-      if (!propertyType) errors.push("Missing property type");
-      if (propertyType && !vendorImportAllowedPropertyTypes.has(propertyType)) errors.push("Invalid property type");
-      if (!stateRegion) errors.push("Missing state / region");
-      if (!township) errors.push("Missing township");
-      if (status && !vendorImportAllowedStatuses.has(status)) errors.push("Invalid status");
-
-      const isLand = propertyType === "land";
-      const hasBackupPower = isLand ? false : toBoolean(record.has_backup_power);
-      const backupPowerType = isLand ? null : toNullableString(record.backup_power_type);
-      if (hasBackupPower && !backupPowerType) {
-        errors.push("Backup power type is required when backup power is enabled");
+      if (!title) pushFieldError(fieldErrors, "title", "title is required.");
+      const description = toNullableString(source.description);
+      if (!dealType) {
+        pushFieldError(fieldErrors, "deal_type", "deal_type is required.");
+      } else if (!vendorImportAllowedDealTypeSet.has(dealType as (typeof vendorImportAllowedDealTypes)[number])) {
+        pushFieldError(fieldErrors, "deal_type", "deal_type must be sale or rent.");
       }
 
+      if (!propertyType) {
+        pushFieldError(fieldErrors, "property_type", "property_type is required.");
+      } else if (!vendorImportAllowedPropertyTypeSet.has(propertyType as (typeof vendorImportAllowedPropertyTypes)[number])) {
+        pushFieldError(fieldErrors, "property_type", "property_type is not supported.");
+      }
+
+      const price = toNumber(source.price);
+      if ((source.price || "").trim() === "") {
+        pushFieldError(fieldErrors, "price", "price is required.");
+      } else if (price === null || price < 0) {
+        pushFieldError(fieldErrors, "price", "price must be numeric and greater than or equal to 0.");
+      }
+
+      const importStatus = sourceStatus || "draft";
+
+      if (sourceStatus && !vendorImportAllowedStatusSet.has(sourceStatus as (typeof vendorImportAllowedStatuses)[number])) {
+        pushFieldError(fieldErrors, "status", "status must use a supported listing lifecycle value.");
+      }
+
+      const stateRegion = toNullableString(source.state_region);
+      if (stateRegion && !vendorImportAllowedStateRegionSet.has(stateRegion.toLowerCase())) {
+        pushFieldError(fieldErrors, "state_region", "state_region must use a supported template value.");
+      }
+
+      const district = toNullableString(source.district);
+      const township = toNullableString(source.township);
+      const locationCode = toNullableString(source.location_code);
+
+      const locationFromCode = locationCode ? vendorImportLocationCodeMap.get(locationCode.toLowerCase()) ?? null : null;
+      if (locationCode && !locationFromCode) {
+        pushFieldError(fieldErrors, "location_code", "location_code was not found in the Location Reference sheet.");
+      }
+
+      if (locationFromCode) {
+        if (stateRegion && stateRegion.toLowerCase() !== locationFromCode.stateRegion.toLowerCase()) {
+          pushFieldError(fieldErrors, "state_region", "state_region does not match the provided location_code.");
+        }
+        if (district && district.toLowerCase() !== locationFromCode.district.toLowerCase()) {
+          pushFieldError(fieldErrors, "district", "district does not match the provided location_code.");
+        }
+        if (township && township.toLowerCase() !== locationFromCode.township.toLowerCase()) {
+          pushFieldError(fieldErrors, "township", "township does not match the provided location_code.");
+        }
+      }
+
+      const resolvedStateRegion = locationFromCode?.stateRegion ?? stateRegion;
+      const resolvedDistrict = locationFromCode?.district ?? district;
+      const resolvedTownship = locationFromCode?.township ?? township;
+
+      if (resolvedDistrict && !resolvedStateRegion) {
+        pushFieldError(fieldErrors, "state_region", "state_region is required when district is provided.");
+      }
+      if (resolvedTownship && !resolvedDistrict) {
+        pushFieldError(fieldErrors, "district", "district is required when township is provided.");
+      }
+      if (resolvedTownship && !resolvedStateRegion) {
+        pushFieldError(fieldErrors, "state_region", "state_region is required when township is provided.");
+      }
+
+      if (resolvedStateRegion && resolvedDistrict) {
+        const stateDistrictKey = `${resolvedStateRegion.toLowerCase()}||${resolvedDistrict.toLowerCase()}`;
+        if (!vendorImportStateDistrictSet.has(stateDistrictKey)) {
+          pushFieldError(fieldErrors, "district", "district does not belong to the selected state_region.");
+        }
+      }
+
+      if (resolvedStateRegion && resolvedDistrict && resolvedTownship) {
+        const hierarchyKey = `${resolvedStateRegion.toLowerCase()}||${resolvedDistrict.toLowerCase()}||${resolvedTownship.toLowerCase()}`;
+        if (!vendorImportLocationHierarchySet.has(hierarchyKey)) {
+          pushFieldError(fieldErrors, "township", "township does not belong to the selected district.");
+        }
+      }
+
+      const commissionPercent = toNumber(source.commission_percent);
+      if ((source.commission_percent || "").trim() && (commissionPercent === null || commissionPercent < 0 || commissionPercent > 100)) {
+        pushFieldError(fieldErrors, "commission_percent", "commission_percent must be between 0 and 100.");
+      }
+
+      const latitude = toNumber(source.latitude);
+      if ((source.latitude || "").trim() && latitude === null) {
+        pushFieldError(fieldErrors, "latitude", "latitude must be a valid number.");
+      }
+
+      const longitude = toNumber(source.longitude);
+      if ((source.longitude || "").trim() && longitude === null) {
+        pushFieldError(fieldErrors, "longitude", "longitude must be a valid number.");
+      }
+
+      const optionalNumericFields = [
+        ["bedrooms", toNumber(source.bedrooms)],
+        ["bathrooms", toNumber(source.bathrooms)],
+        ["area_sqft", toNumber(source.area_sqft)],
+        ["floor_count", toNumber(source.floor_count)],
+        ["room_count", toNumber(source.room_count)],
+      ] as const;
+
+      for (const [field, value] of optionalNumericFields) {
+        if (hasSourceValue(source[field]) && value === null) {
+          pushFieldError(fieldErrors, field, `${field} must be a valid number.`);
+        } else if (value !== null && value < 0) {
+          pushFieldError(fieldErrors, field, `${field} must be greater than or equal to 0.`);
+        }
+      }
+
+      const booleanFields = [
+        ["has_lift", toNullableBoolean(source.has_lift)],
+        ["has_backup_power", toNullableBoolean(source.has_backup_power)],
+        ["has_parking", toNullableBoolean(source.has_parking)],
+      ] as const;
+
+      for (const [field, value] of booleanFields) {
+        if ((source[field] || "").trim() && value === null) {
+          pushFieldError(fieldErrors, field, `${field} must be yes/no, true/false, or 1/0.`);
+        }
+      }
+
+      const backupPowerType = toNullableString(source.backup_power_type);
+      if (backupPowerType && !vendorImportAllowedBackupPowerTypeSet.has(backupPowerType.toLowerCase())) {
+        pushFieldError(fieldErrors, "backup_power_type", "backup_power_type must use a supported template value.");
+      }
+
+      if (backupPowerType && toNullableBoolean(source.has_backup_power) !== true) {
+        pushFieldError(fieldErrors, "backup_power_type", "backup_power_type should only be filled when has_backup_power is yes.");
+      }
+
+      if (propertyType === "land") {
+        const disallowedLandFields: Array<[string, string | null]> = [
+          ["bedrooms", source.bedrooms ?? ""],
+          ["bathrooms", source.bathrooms ?? ""],
+          ["floor_count", source.floor_count ?? ""],
+          ["room_count", source.room_count ?? ""],
+          ["has_lift", source.has_lift ?? ""],
+        ];
+
+        for (const [field, rawValue] of disallowedLandFields) {
+          if (hasSourceValue(rawValue ?? "")) {
+            pushFieldError(fieldErrors, field, `${field} should be empty when property_type is land.`);
+          }
+        }
+      }
+
+      if (imageFiles.length > maxImagesPerProperty) {
+        pushFieldError(fieldErrors, "images", `A maximum of ${maxImagesPerProperty} images is allowed per property.`);
+      }
+
+      const duplicateRowFilenames = imageFiles
+        .map((item) => item.normalizedFilename)
+        .filter((filename, idx, arr) => arr.indexOf(filename) !== idx);
+      if (duplicateRowFilenames.length) {
+        pushFieldError(
+          fieldErrors,
+          "images",
+          `Duplicate image references in row: ${Array.from(new Set(duplicateRowFilenames)).join(", ")}.`
+        );
+      }
+
+      const invalidImageNames = imageFiles
+        .map((item) => item.normalizedFilename)
+        .filter((filename) => !hasAllowedImageExtension(filename));
+      if (invalidImageNames.length) {
+        pushFieldError(fieldErrors, "images", `Unsupported image file types: ${Array.from(new Set(invalidImageNames)).join(", ")}.`);
+      }
+
+      if (source.verification_status) {
+        warnings.push("verification_status is ignored during bulk import.");
+      }
+
+      const rowNumber = index + 2;
+
       return {
-        rowNumber: index + 2,
+        rowNumber,
         title,
-        description: toNullableString(record.description),
+        description,
         dealType,
         propertyType,
-        status,
-        price: toNullableNumber(record.price),
-        currency: toNullableString(record.currency) ?? "MMK",
-        stateRegion,
-        district: toNullableString(record.district),
-        township,
-        city: toNullableString(record.city),
-        addressText: toNullableString(record.address_text),
-        bedrooms: isLand ? null : toNullableNumber(record.bedrooms),
-        bathrooms: isLand ? null : toNullableNumber(record.bathrooms),
-        areaSqft: toNullableNumber(record.area_sqft),
-        hasLift: isLand ? false : toBoolean(record.has_lift),
-        hasBackupPower,
+        sourceStatus: importStatus,
+        importStatus,
+        price: price ?? 0,
+        locationCode: locationFromCode?.locationCode ?? locationCode,
+        township: resolvedTownship,
+        addressText: toNullableString(source.address_text),
+        stateRegion: resolvedStateRegion,
+        district: resolvedDistrict,
+        latitude,
+        longitude,
+        bedrooms: toNumber(source.bedrooms),
+        bathrooms: toNumber(source.bathrooms),
+        areaSqft: toNumber(source.area_sqft),
+        floorCount: toNumber(source.floor_count),
+        roomCount: toNumber(source.room_count),
+        hasLift: toNullableBoolean(source.has_lift),
+        hasBackupPower: toNullableBoolean(source.has_backup_power),
         backupPowerType,
-        hasParking: isLand ? false : toBoolean(record.has_parking),
-        latitude: toNullableNumber(record.latitude),
-        longitude: toNullableNumber(record.longitude),
-        ownerName: toNullableString(record.owner_name),
-        ownerPhone: toNullableString(record.owner_phone),
-        ownerPhoneSecondary: toNullableString(record.owner_phone_secondary),
-        imageFilenames,
-        errors,
+        hasParking: toNullableBoolean(source.has_parking),
+        commissionPercent,
+        ownerName: toNullableString(source.owner_name),
+        ownerPhone: toNullableString(source.owner_phone),
+        ownerPhoneSecondary: toNullableString(source.owner_phone_secondary),
+        verificationStatus: toNullableString(source.verification_status),
+        verificationNotes: toNullableString(source.verification_notes),
+        imageFiles,
+        fieldErrors,
+        warnings,
       } satisfies VendorImportRecord;
     })
-    .filter((row) => row.title || row.dealType || row.propertyType || row.stateRegion || row.imageFilenames.length || row.errors.length);
+    .filter((record) => {
+      return (
+        record.title ||
+        record.dealType ||
+        record.propertyType ||
+        record.price ||
+        record.imageFiles.length > 0 ||
+        record.fieldErrors.length > 0 ||
+        record.warnings.length > 0
+      );
+    });
+
+  if (records.length > vendorImportMaxRows) {
+    globalErrors.push(`Maximum ${vendorImportMaxRows} rows are allowed per upload.`);
+  }
+
+  const previewRows = records.map((record) => ({
+    rowNumber: record.rowNumber,
+    title: record.title,
+    dealType: record.dealType,
+    propertyType: record.propertyType,
+    sourceStatus: record.sourceStatus,
+    importStatus: record.importStatus,
+    location: [record.township, record.district, record.stateRegion].filter(Boolean).join(", "),
+    imageFilenames: record.imageFiles.map((item) => item.normalizedFilename),
+    fieldErrors: record.fieldErrors,
+    warnings: record.warnings,
+  }));
+
+  const summary = previewRows.reduce(
+    (acc, row) => {
+      if (row.fieldErrors.length) {
+        acc.errorRows += 1;
+      } else if (row.warnings.length) {
+        acc.warningRows += 1;
+        acc.validRows += 1;
+      } else {
+        acc.validRows += 1;
+      }
+      return acc;
+    },
+    {
+      totalRows: records.length,
+      validRows: 0,
+      warningRows: 0,
+      errorRows: 0,
+    }
+  );
 
   return {
     columns,
     records,
     missingRequiredColumns,
+    globalErrors,
+    summary,
+    previewRows,
   };
 }
 
@@ -247,28 +680,5 @@ export function toTemplateRows() {
 }
 
 export function validateVendorImportRows(rows: unknown[][]) {
-  const { columns, records, missingRequiredColumns } = toVendorImportRecords(rows);
-
-  const previewRows = records.map((record) => ({
-    rowNumber: record.rowNumber,
-    title: record.title,
-    dealType: record.dealType,
-    propertyType: record.propertyType,
-    location: [record.township, record.district, record.stateRegion].filter(Boolean).join(", "),
-    imageFilenames: record.imageFilenames,
-    errors: record.errors,
-  }));
-
-  const invalidRows = previewRows.filter((row) => row.errors.length > 0).length;
-
-  return {
-    columns,
-    previewRows,
-    summary: {
-      totalRows: previewRows.length,
-      validRows: previewRows.length - invalidRows,
-      invalidRows,
-    },
-    missingRequiredColumns,
-  };
+  return toVendorImportRecords(rows);
 }

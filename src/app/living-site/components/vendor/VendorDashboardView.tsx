@@ -419,7 +419,7 @@ export function VendorDashboardView() {
             <FolderKanban size={18} color="#ff5d78" />
           </MetricTop>
           <MetricValue>{data.metrics.totalProperties}</MetricValue>
-          <BlockCopy>{data.metrics.publishedProperties} published listings live right now.</BlockCopy>
+          <BlockCopy>{data.metrics.publishedProperties} active or reserved listings live right now.</BlockCopy>
         </Card>
 
         <Card>
@@ -428,7 +428,7 @@ export function VendorDashboardView() {
             <Wallet size={18} color="#ff5d78" />
           </MetricTop>
           <MetricValue>{formatCurrency(data.metrics.totalValue, "MMK", "MMK 0")}</MetricValue>
-          <BlockCopy>{formatCurrency(data.metrics.publishedValue, "MMK", "MMK 0")} currently published.</BlockCopy>
+          <BlockCopy>{formatCurrency(data.metrics.publishedValue, "MMK", "MMK 0")} currently public.</BlockCopy>
         </Card>
 
         <Card>

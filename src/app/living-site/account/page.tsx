@@ -28,7 +28,9 @@ import {
   Menu,
   MapPin,
   MoreVertical,
+  Megaphone,
   MessageSquareText,
+  Pencil,
   Phone,
   Plus,
   Ruler,
@@ -37,6 +39,7 @@ import {
   Sparkles,
   Tag as TagIcon,
   Trash2,
+  Upload,
   UserCog,
   Users2,
   X,
@@ -63,6 +66,7 @@ import {
 } from "@/app/living-site/lib/data";
 import { useI18n } from "@/app/living-site/lib/i18n";
 import { getUpgradePlan, getVendorPlan } from "@/lib/vendor-plans";
+import { listingStatuses, normalizeListingStatus, type ListingStatus } from "@/lib/lifecycle";
 import { isVendorStorefrontSetupComplete } from "@/lib/vendor-storefront";
 import { formatPropertyTypeValue } from "@/lib/property-types";
 import { CustomSelect } from "@/app/living-site/components/form-controls/CustomSelect";
@@ -70,8 +74,10 @@ import {
   VendorPropertiesView,
   type VendorPropertyItem,
 } from "@/app/living-site/components/vendor/VendorPropertiesView";
+import { VendorImportView } from "@/app/living-site/components/vendor/VendorImportView";
 import { VendorInquiriesView } from "@/app/living-site/components/vendor/VendorInquiriesView";
 import { VendorVerificationView } from "@/app/living-site/components/vendor/VendorVerificationView";
+import { VendorPromotionsView } from "@/app/living-site/components/vendor/VendorPromotionsView";
 import { HubAnalyticsContent } from "@/app/hub/analytics/page";
 
 const shimmer = keyframes`
@@ -1380,6 +1386,30 @@ const VendorSkeletonActions = styled.div`
   }
 `;
 
+const HubSkeletonSection = styled.div`
+  display: grid;
+  gap: 14px;
+`;
+
+const HubSkeletonCard = styled.div`
+  border: 1px solid var(--color-outline);
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--color-surface-2) 78%, white);
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+`;
+
+const HubSkeletonGrid = styled.div`
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+
+  @media (max-width: 760px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
 const VendorCard = styled(Panel)`
   display: grid;
   gap: 14px;
@@ -1619,6 +1649,8 @@ const HubFeatureCard = styled.div`
 const HubSectionFooter = styled.div`
   display: flex;
   justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
   padding-top: 2px;
 `;
 
@@ -3201,13 +3233,6 @@ const ListingDetailInfo = styled.div`
   padding: 18px;
 `;
 
-const ListingDetailPills = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-`;
-
 const ListingDetailPrice = styled.div`
   color: var(--color-text);
   font-size: 1.5rem;
@@ -3242,6 +3267,83 @@ const ListingDetailMetaLabel = styled.span`
 const ListingDetailMetaValue = styled.strong`
   color: var(--color-text);
   font-size: 0.9rem;
+`;
+
+const ListingDetailPillRow = styled.div`
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+`;
+
+const ListingDetailPills = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+`;
+
+const ListingStatusSelectWrap = styled.div`
+  min-width: 220px;
+  max-width: 280px;
+`;
+
+const ListingStatusMessage = styled.div<{ $tone?: "danger" | "success" }>`
+  color: ${(props) => (props.$tone === "danger" ? "var(--color-danger)" : "#0f766e")};
+  font-size: 0.82rem;
+  font-weight: 600;
+`;
+
+const ListingStatusAction = styled.button`
+  min-height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(235, 35, 64, 0.18);
+  background: linear-gradient(135deg, #ff4b6b 0%, #df274c 100%);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 10px 22px rgba(223, 39, 76, 0.18);
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+`;
+
+const ListingDetailActions = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+`;
+
+const ListingDetailIconAction = styled.button<{ $tone?: "danger" }>`
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  border: 1px solid
+    ${(props) =>
+      props.$tone === "danger" ? "rgba(225, 29, 72, 0.18)" : "color-mix(in srgb, var(--color-primary) 18%, var(--color-outline))"};
+  background: ${(props) => (props.$tone === "danger" ? "#fff1f2" : "#fff1f3")};
+  color: ${(props) => (props.$tone === "danger" ? "#be123c" : "var(--color-primary)")};
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 10px 18px rgba(15, 23, 42, 0.08);
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
 `;
 
 const ListingDetailLower = styled.div`
@@ -4523,7 +4625,7 @@ const formatArea = (value: unknown, locale: string, unitLabel: string) => {
 
 const getListingStatusLabel = (value: unknown) => {
   const normalized = String(value ?? "").toLowerCase();
-  if (normalized === "published") return "Live";
+  if (normalized === "published") return "Active";
   if (!normalized) return "Listing";
   return normalized
     .split("_")
@@ -4634,13 +4736,30 @@ export default function AccountPage() {
   const [onboardingPending, setOnboardingPending] = useState(false);
   const [hubRailExpanded, setHubRailExpanded] = useState(false);
   const [hubSection, setHubSection] = useState<
-    "snapshot" | "analytics" | "manage-listings" | "lead-inbox" | "appointments" | "listing-detail" | "team" | "settings" | "verification"
+    | "snapshot"
+    | "analytics"
+    | "boostings"
+    | "manage-listings"
+    | "bulk-upload"
+    | "lead-inbox"
+    | "appointments"
+    | "listing-detail"
+    | "team"
+    | "settings"
+    | "verification"
   >("snapshot");
   const searchParams = useSearchParams();
   const [selectedHubProperty, setSelectedHubProperty] = useState<VendorPropertyItem | null>(null);
   const [selectedHubPropertyDetail, setSelectedHubPropertyDetail] = useState<HubPropertyDetailPayload | null>(null);
   const [selectedHubPropertyLoading, setSelectedHubPropertyLoading] = useState(false);
   const [selectedHubPropertyError, setSelectedHubPropertyError] = useState<string | null>(null);
+  const [selectedHubPropertyStatus, setSelectedHubPropertyStatus] = useState<ListingStatus | "">("");
+  const [selectedHubPropertyStatusSaving, setSelectedHubPropertyStatusSaving] = useState(false);
+  const [selectedHubPropertyDeleting, setSelectedHubPropertyDeleting] = useState(false);
+  const [selectedHubPropertyStatusError, setSelectedHubPropertyStatusError] = useState<string | null>(null);
+  const [selectedHubPropertyStatusNotice, setSelectedHubPropertyStatusNotice] = useState<string | null>(null);
+  const [listingStatusModalOpen, setListingStatusModalOpen] = useState(false);
+  const [listingDeleteModalOpen, setListingDeleteModalOpen] = useState(false);
   const [appointmentCalendarView, setAppointmentCalendarView] = useState<"week" | "month">("week");
   const [appointmentMonthOffset, setAppointmentMonthOffset] = useState(0);
   const [appointmentPopupDay, setAppointmentPopupDay] = useState<string | null>(null);
@@ -4692,6 +4811,7 @@ export default function AccountPage() {
     if (
       section === "snapshot" ||
       section === "analytics" ||
+      section === "boostings" ||
       section === "manage-listings" ||
       section === "lead-inbox" ||
       section === "appointments" ||
@@ -5052,6 +5172,9 @@ export default function AccountPage() {
         }
         if (active) {
           setSelectedHubPropertyDetail(payload);
+          setSelectedHubPropertyStatus(normalizeListingStatus(payload.property.status) ?? "");
+          setSelectedHubPropertyStatusError(null);
+          setSelectedHubPropertyStatusNotice(null);
         }
       })
       .catch((error) => {
@@ -5069,6 +5192,87 @@ export default function AccountPage() {
       active = false;
     };
   }, [activeVendorId, authToken, hubSection, selectedHubProperty?.id]);
+
+  const availableListingStatusOptions = useMemo(() => [...listingStatuses], []);
+
+  const handleHubPropertyStatusUpdate = async () => {
+    if (!selectedHubPropertyDetail?.property.id || !selectedHubPropertyStatus) return;
+
+    setSelectedHubPropertyStatusSaving(true);
+    setSelectedHubPropertyStatusError(null);
+    setSelectedHubPropertyStatusNotice(null);
+
+    try {
+      const response = await fetch(`/api/vendor/properties/${selectedHubPropertyDetail.property.id}`, {
+        method: "PATCH",
+        headers: buildVendorHeaders(),
+        body: JSON.stringify({
+          status: selectedHubPropertyStatus,
+        }),
+      });
+
+      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+      if (!response.ok) {
+        throw new Error(payload?.error || "Unable to update listing status.");
+      }
+
+      setSelectedHubPropertyDetail((current) =>
+        current
+          ? {
+              ...current,
+              property: {
+                ...current.property,
+                status: selectedHubPropertyStatus,
+              },
+            }
+          : current
+      );
+      setSelectedHubProperty((current) =>
+        current
+          ? {
+              ...current,
+              status: selectedHubPropertyStatus,
+            }
+          : current
+      );
+      setSelectedHubPropertyStatusNotice("Listing status updated.");
+      setListingStatusModalOpen(false);
+    } catch (error) {
+      setSelectedHubPropertyStatusError(error instanceof Error ? error.message : "Unable to update listing status.");
+    } finally {
+      setSelectedHubPropertyStatusSaving(false);
+    }
+  };
+
+  const handleHubPropertyDelete = async () => {
+    if (!selectedHubPropertyDetail?.property.id || !authToken) return;
+
+    setSelectedHubPropertyDeleting(true);
+    setSelectedHubPropertyStatusError(null);
+    setSelectedHubPropertyStatusNotice(null);
+
+    try {
+      const response = await fetch(`/api/vendor/properties/${selectedHubPropertyDetail.property.id}`, {
+        method: "DELETE",
+        headers: buildVendorHeaders(),
+      });
+
+      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+      if (!response.ok) {
+        throw new Error(payload?.error || "Unable to delete listing.");
+      }
+
+      setSelectedHubPropertyStatusNotice("Listing deleted.");
+      setListingDeleteModalOpen(false);
+      setSelectedHubPropertyDetail(null);
+      setSelectedHubProperty(null);
+      setHubSection("manage-listings");
+    } catch (error) {
+      setSelectedHubPropertyStatusError(error instanceof Error ? error.message : "Unable to delete listing.");
+    } finally {
+      setSelectedHubPropertyDeleting(false);
+    }
+  };
 
   useEffect(() => {
     if (!authToken || hubSection !== "team") {
@@ -5547,7 +5751,7 @@ export default function AccountPage() {
     setAppointmentComposerMode("create");
     setAppointmentComposerPropertyLocked(Boolean(propertyId));
     setSelectedAppointmentId(null);
-    setAppointmentEditorStatus("scheduled");
+    setAppointmentEditorStatus("requested");
     setAppointmentEditorAssignee("");
     setAppointmentEditorPropertyId(propertyId ?? "");
     setAppointmentEditorTitle("");
@@ -6129,7 +6333,7 @@ export default function AccountPage() {
       setAppointmentEditorSaving(false);
       return;
     }
-    setAppointmentEditorStatus(selectedAppointment.status || (selectedAppointment.source === "viewing_request" ? "new" : "scheduled"));
+    setAppointmentEditorStatus(selectedAppointment.status || (selectedAppointment.source === "viewing_request" ? "new" : "requested"));
     setAppointmentEditorAssignee(selectedAppointment.assigned_staff_id || "");
     setAppointmentEditorPropertyId(selectedAppointment.property_id || "");
     setAppointmentEditorTitle(selectedAppointment.title || "");
@@ -6268,16 +6472,16 @@ export default function AccountPage() {
                     </HubNavItem>
                   ) : (
                     <HubNavButton
-                      $active={hubSection === "manage-listings" || hubSection === "listing-detail"}
+                      $active={hubSection === "manage-listings" || hubSection === "listing-detail" || hubSection === "bulk-upload"}
                       $expanded={hubRailExpanded}
                       type="button"
                       onClick={() => setHubSection("manage-listings")}
                     >
-                      <HubNavIcon $active={hubSection === "manage-listings" || hubSection === "listing-detail"}>
+                      <HubNavIcon $active={hubSection === "manage-listings" || hubSection === "listing-detail" || hubSection === "bulk-upload"}>
                         <Plus />
                       </HubNavIcon>
                       <HubNavBody $expanded={hubRailExpanded}>
-                        <HubNavTitle $active={hubSection === "manage-listings" || hubSection === "listing-detail"}>
+                        <HubNavTitle $active={hubSection === "manage-listings" || hubSection === "listing-detail" || hubSection === "bulk-upload"}>
                           Manage listings
                         </HubNavTitle>
                       </HubNavBody>
@@ -6320,6 +6524,23 @@ export default function AccountPage() {
                       </HubNavArrow>
                     </HubNavButton>
                   )}
+
+                  <HubNavButton
+                    $active={hubSection === "boostings"}
+                    $expanded={hubRailExpanded}
+                    type="button"
+                    onClick={() => setHubSection("boostings")}
+                  >
+                    <HubNavIcon $active={hubSection === "boostings"}>
+                      <Megaphone />
+                    </HubNavIcon>
+                    <HubNavBody $expanded={hubRailExpanded}>
+                      <HubNavTitle $active={hubSection === "boostings"}>Boostings</HubNavTitle>
+                    </HubNavBody>
+                    <HubNavArrow $expanded={hubRailExpanded}>
+                      <ArrowUpRight size={18} />
+                    </HubNavArrow>
+                  </HubNavButton>
 
                   <HubNavButton
                     $active={hubSection === "analytics"}
@@ -6624,6 +6845,17 @@ export default function AccountPage() {
                           </HubChecklistHint>
                           </HubFeatureUpsellCard>
                         </HubFeaturePreview>
+                    ) : hubSection === "boostings" ? (
+                      <WorkspaceSectionViewport>
+                        <WorkspaceSectionScroller>
+                          <VendorPromotionsView
+                            embedded
+                            vendorId={activeVendorId ?? vendorWorkspace?.vendor.id ?? null}
+                            verified={vendorWorkspace?.vendor.verified_status === "approved"}
+                            verificationHref="/hub?section=verification"
+                          />
+                        </WorkspaceSectionScroller>
+                      </WorkspaceSectionViewport>
                     ) : hubSection === "analytics" ? (
                       <WorkspaceSectionViewport>
                         <WorkspaceSectionScroller>
@@ -6644,12 +6876,33 @@ export default function AccountPage() {
                           }}
                         />
                         <HubSectionFooter>
+                          <CompactGhostButton
+                            type="button"
+                            onClick={() => {
+                              setHubSection("bulk-upload");
+                            }}
+                          >
+                            <Upload size={16} />
+                            <span>Bulk upload</span>
+                          </CompactGhostButton>
                           <HubSectionAction href="/request-sale">
                             <Plus size={16} />
                             <span>Add property listing</span>
                           </HubSectionAction>
                         </HubSectionFooter>
                       </>
+                    ) : hubSection === "bulk-upload" ? (
+                      <WorkspaceSectionViewport>
+                        <WorkspaceSectionScroller>
+                          <VendorImportView
+                            embedded
+                            vendorId={activeVendorId ?? vendorWorkspace?.vendor.id ?? null}
+                            onBack={() => {
+                              setHubSection("manage-listings");
+                            }}
+                          />
+                        </WorkspaceSectionScroller>
+                      </WorkspaceSectionViewport>
                     ) : hubSection === "listing-detail" && selectedHubProperty ? (
                       <ListingDetailViewport>
                         <ListingDetailScroller>
@@ -6678,7 +6931,27 @@ export default function AccountPage() {
 
                           <ListingDetailHero>
                             {selectedHubPropertyLoading ? (
-                              <HubFeatureCopy>Loading listing detail...</HubFeatureCopy>
+                              <>
+                                <SkeletonBlock $height={260} $radius={24} />
+                                <ListingDetailInfo>
+                                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                      <SkeletonBlock $height={28} $radius={999} style={{ width: 88 }} />
+                                      <SkeletonBlock $height={28} $radius={999} style={{ width: 82 }} />
+                                      <SkeletonBlock $height={28} $radius={999} style={{ width: 104 }} />
+                                    </div>
+                                    <SkeletonBlock $height={30} $radius={999} style={{ width: 118 }} />
+                                  </div>
+                                  <SkeletonBlock $height={28} style={{ width: "58%" }} />
+                                  <SkeletonBlock $height={22} style={{ width: "34%" }} />
+                                  <ListingDetailMetaGrid>
+                                    <SkeletonBlock $height={78} $radius={18} />
+                                    <SkeletonBlock $height={78} $radius={18} />
+                                    <SkeletonBlock $height={78} $radius={18} />
+                                    <SkeletonBlock $height={78} $radius={18} />
+                                  </ListingDetailMetaGrid>
+                                </ListingDetailInfo>
+                              </>
                             ) : selectedHubPropertyError || !selectedHubPropertyDetail ? (
                               <HubFeatureCopy>{selectedHubPropertyError ?? "Unable to load listing detail."}</HubFeatureCopy>
                             ) : (
@@ -6687,11 +6960,55 @@ export default function AccountPage() {
                                   {!selectedHubPropertyDetail.property.cover_image_url ? <Building2 size={24} /> : null}
                                 </ListingDetailImage>
                                 <ListingDetailInfo>
-                                  <ListingDetailPills>
-                                    <AppointmentPill>{labelize(selectedHubPropertyDetail.property.status)}</AppointmentPill>
-                                    <AppointmentPill $tone="warning">{labelize(selectedHubPropertyDetail.property.deal_type)}</AppointmentPill>
-                                    <AppointmentPill>{formatPropertyTypeValue(selectedHubPropertyDetail.property.property_type)}</AppointmentPill>
-                                  </ListingDetailPills>
+                                  <ListingDetailPillRow>
+                                    <ListingDetailPills>
+                                      <AppointmentPill>{labelize(selectedHubPropertyDetail.property.status)}</AppointmentPill>
+                                      <AppointmentPill $tone="warning">{labelize(selectedHubPropertyDetail.property.deal_type)}</AppointmentPill>
+                                      <AppointmentPill>{formatPropertyTypeValue(selectedHubPropertyDetail.property.property_type)}</AppointmentPill>
+                                    </ListingDetailPills>
+                                    <ListingDetailActions>
+                                      <ListingStatusAction
+                                        type="button"
+                                        onClick={() => {
+                                          setListingStatusModalOpen(true);
+                                          setSelectedHubPropertyStatusError(null);
+                                          setSelectedHubPropertyStatusNotice(null);
+                                        }}
+                                        disabled={!availableListingStatusOptions.length || selectedHubPropertyDeleting}
+                                      >
+                                        Update status
+                                      </ListingStatusAction>
+                                      <ListingDetailIconAction
+                                        type="button"
+                                        aria-label="Edit listing"
+                                        title="Edit listing"
+                                        onClick={() => router.push(`/hub/${selectedHubPropertyDetail.property.id}/edit`)}
+                                        disabled={selectedHubPropertyDeleting}
+                                      >
+                                        <Pencil size={14} />
+                                      </ListingDetailIconAction>
+                                      <ListingDetailIconAction
+                                        type="button"
+                                        $tone="danger"
+                                        aria-label="Delete listing"
+                                        title="Delete listing"
+                                        onClick={() => {
+                                          setListingDeleteModalOpen(true);
+                                          setSelectedHubPropertyStatusError(null);
+                                          setSelectedHubPropertyStatusNotice(null);
+                                        }}
+                                        disabled={selectedHubPropertyDeleting || selectedHubPropertyStatusSaving}
+                                      >
+                                        <Trash2 size={14} />
+                                      </ListingDetailIconAction>
+                                    </ListingDetailActions>
+                                  </ListingDetailPillRow>
+                                  {selectedHubPropertyStatusError ? (
+                                    <ListingStatusMessage $tone="danger">{selectedHubPropertyStatusError}</ListingStatusMessage>
+                                  ) : null}
+                                  {selectedHubPropertyStatusNotice ? (
+                                    <ListingStatusMessage $tone="success">{selectedHubPropertyStatusNotice}</ListingStatusMessage>
+                                  ) : null}
                                   <ListingDetailTitle>{selectedHubPropertyDetail.property.title || "Untitled property"}</ListingDetailTitle>
                                   <ListingDetailPrice>
                                     {formatCurrency(
@@ -6738,7 +7055,13 @@ export default function AccountPage() {
                             <ListingDetailCard>
                               <ListingDetailSectionTitle>Scheduled appointments</ListingDetailSectionTitle>
                               <ListingAppointmentList>
-                                {selectedPropertyAppointments.length ? (
+                                {selectedHubPropertyLoading ? (
+                                  <>
+                                    <SkeletonBlock $height={84} $radius={18} />
+                                    <SkeletonBlock $height={84} $radius={18} />
+                                    <SkeletonBlock $height={84} $radius={18} />
+                                  </>
+                                ) : selectedPropertyAppointments.length ? (
                                   selectedPropertyAppointments.map((appointment) => (
                                     <ListingAppointmentRow
                                       key={appointment.id}
@@ -6767,7 +7090,13 @@ export default function AccountPage() {
                             <ListingDetailCard>
                               <ListingDetailSectionTitle>Staff assignment</ListingDetailSectionTitle>
                               <ListingStaffList>
-                                {selectedPropertyStaff.length ? (
+                                {selectedHubPropertyLoading ? (
+                                  <>
+                                    <SkeletonBlock $height={62} $radius={16} />
+                                    <SkeletonBlock $height={62} $radius={16} />
+                                    <SkeletonBlock $height={62} $radius={16} />
+                                  </>
+                                ) : selectedPropertyStaff.length ? (
                                   selectedPropertyStaff.map((staff) => (
                                     <ListingStaffRow key={staff.id}>
                                       <ListingStaffName>{staff.name}</ListingStaffName>
@@ -7032,7 +7361,11 @@ export default function AccountPage() {
                               </AppointmentCardHeader>
                               <AppointmentQueueList>
                                 {appointmentDashboardLoading && !appointmentDashboard ? (
-                                  <HubFeatureCopy>Loading appointments...</HubFeatureCopy>
+                                  <>
+                                    <SkeletonBlock $height={92} $radius={18} />
+                                    <SkeletonBlock $height={92} $radius={18} />
+                                    <SkeletonBlock $height={92} $radius={18} />
+                                  </>
                                 ) : appointmentDashboardError ? (
                                   <HubFeatureCopy>{appointmentDashboardError}</HubFeatureCopy>
                                 ) : appointmentQueue.length ? (
@@ -7351,7 +7684,23 @@ export default function AccountPage() {
                               <TeamMembersList>
                                 {toastMessage && <ToastMessage $type={toastMessage.type}>{toastMessage.message}</ToastMessage>}
                                 {teamLoading ? (
-                                  <HubFeatureCopy>Loading team...</HubFeatureCopy>
+                                  <>
+                                    <TeamMemberCard>
+                                      <SkeletonBlock $height={18} style={{ width: "40%" }} />
+                                      <SkeletonBlock $height={14} style={{ width: "52%" }} />
+                                      <SkeletonBlock $height={14} style={{ width: "30%" }} />
+                                    </TeamMemberCard>
+                                    <TeamMemberCard>
+                                      <SkeletonBlock $height={18} style={{ width: "36%" }} />
+                                      <SkeletonBlock $height={14} style={{ width: "46%" }} />
+                                      <SkeletonBlock $height={14} style={{ width: "28%" }} />
+                                    </TeamMemberCard>
+                                    <TeamMemberCard>
+                                      <SkeletonBlock $height={18} style={{ width: "44%" }} />
+                                      <SkeletonBlock $height={14} style={{ width: "42%" }} />
+                                      <SkeletonBlock $height={14} style={{ width: "32%" }} />
+                                    </TeamMemberCard>
+                                  </>
                                 ) : teamMembers.length ? (
                                   teamMembers.map((member) => (
                                     <TeamMemberCard key={member.user_id}>
@@ -7389,7 +7738,22 @@ export default function AccountPage() {
                         </WorkspaceSectionScroller>
                       </WorkspaceSectionViewport>
                     ) : vendorOverviewLoading && !vendorOverview ? (
-                      <HubFeatureCopy>Loading workspace insights...</HubFeatureCopy>
+                      <HubInsightGrid>
+                        {Array.from({ length: 6 }, (_, index) => (
+                          <HubInsightCard key={`hub-insight-skeleton-${index}`}>
+                            <HubInsightCardTop>
+                              <SkeletonBlock $height={30} $radius={999} style={{ width: 132 }} />
+                            </HubInsightCardTop>
+                            <HubInsightBody>
+                              <HubInsightCardInner>
+                                <SkeletonBlock $height={26} style={{ width: index % 2 === 0 ? "48%" : "66%" }} />
+                                <SkeletonBlock $height={16} style={{ width: "72%" }} />
+                                <SkeletonBlock $height={16} style={{ width: "58%" }} />
+                              </HubInsightCardInner>
+                            </HubInsightBody>
+                          </HubInsightCard>
+                        ))}
+                      </HubInsightGrid>
                     ) : vendorOverviewError || !vendorOverview ? (
                       <HubFeatureCopy>{vendorOverviewError ?? "Workspace insights are unavailable right now."}</HubFeatureCopy>
                     ) : (
@@ -8040,6 +8404,128 @@ export default function AccountPage() {
           </>
         )}
       </PageShell>
+      {listingStatusModalOpen && selectedHubPropertyDetail ? (
+        <ModalOverlay
+          onClick={() => {
+            if (selectedHubPropertyStatusSaving) return;
+            setListingStatusModalOpen(false);
+          }}
+        >
+          <ModalCard onClick={(event) => event.stopPropagation()}>
+            <ModalHeader>
+              <div>
+                <ModalTitle>Update listing status</ModalTitle>
+                <ModalText>Choose the listing status you want to apply. All listing lifecycle statuses are available here.</ModalText>
+              </div>
+              <GhostButton
+                type="button"
+                onClick={() => setListingStatusModalOpen(false)}
+                aria-label={t("account.close")}
+                disabled={selectedHubPropertyStatusSaving}
+              >
+                <X size={16} />
+              </GhostButton>
+            </ModalHeader>
+
+            <ListingStatusSelectWrap>
+              <CustomSelect
+                id="hub-listing-status-modal"
+                name="hub-listing-status-modal"
+                label="Listing status"
+                hideLabel
+                value={selectedHubPropertyStatus}
+                onChange={(value) => {
+                  setSelectedHubPropertyStatus(value as ListingStatus);
+                  setSelectedHubPropertyStatusError(null);
+                  setSelectedHubPropertyStatusNotice(null);
+                }}
+                disabled={selectedHubPropertyStatusSaving || !availableListingStatusOptions.length}
+              >
+                {availableListingStatusOptions.map((status) => (
+                  <option key={status} value={status}>
+                    {labelize(status)}
+                  </option>
+                ))}
+              </CustomSelect>
+            </ListingStatusSelectWrap>
+
+            {selectedHubPropertyStatusError ? (
+              <ListingStatusMessage $tone="danger">{selectedHubPropertyStatusError}</ListingStatusMessage>
+            ) : null}
+
+            <ModalActions>
+              <GhostButton
+                type="button"
+                onClick={() => setListingStatusModalOpen(false)}
+                disabled={selectedHubPropertyStatusSaving}
+              >
+                Cancel
+              </GhostButton>
+              <PrimaryAction
+                type="button"
+                onClick={() => void handleHubPropertyStatusUpdate()}
+                disabled={
+                  selectedHubPropertyStatusSaving ||
+                  !selectedHubPropertyStatus ||
+                  selectedHubPropertyStatus === normalizeListingStatus(selectedHubPropertyDetail.property.status)
+                }
+              >
+                {selectedHubPropertyStatusSaving ? "Saving..." : "Update status"}
+              </PrimaryAction>
+            </ModalActions>
+          </ModalCard>
+        </ModalOverlay>
+      ) : null}
+      {listingDeleteModalOpen && selectedHubPropertyDetail ? (
+        <ModalOverlay
+          onClick={() => {
+            if (selectedHubPropertyDeleting) return;
+            setListingDeleteModalOpen(false);
+          }}
+        >
+          <ModalCard onClick={(event) => event.stopPropagation()}>
+            <ModalHeader>
+              <div>
+                <ModalTitle>Delete listing</ModalTitle>
+                <ModalText>
+                  Permanently delete <strong>{selectedHubPropertyDetail.property.title || "this listing"}</strong> and its
+                  attached property images.
+                </ModalText>
+              </div>
+              <GhostButton
+                type="button"
+                onClick={() => setListingDeleteModalOpen(false)}
+                aria-label={t("account.close")}
+                disabled={selectedHubPropertyDeleting}
+              >
+                <X size={16} />
+              </GhostButton>
+            </ModalHeader>
+
+            {selectedHubPropertyStatusError ? (
+              <ListingStatusMessage $tone="danger">{selectedHubPropertyStatusError}</ListingStatusMessage>
+            ) : null}
+
+            <ModalActions>
+              <GhostButton
+                type="button"
+                onClick={() => setListingDeleteModalOpen(false)}
+                disabled={selectedHubPropertyDeleting}
+              >
+                Cancel
+              </GhostButton>
+              <PrimaryAction
+                type="button"
+                $danger
+                onClick={() => void handleHubPropertyDelete()}
+                disabled={selectedHubPropertyDeleting}
+              >
+                {selectedHubPropertyDeleting ? "Deleting..." : "Delete listing"}
+              </PrimaryAction>
+            </ModalActions>
+          </ModalCard>
+        </ModalOverlay>
+      ) : null}
       {activeInquiry && (
         <ModalOverlay onClick={closeDetails}>
           <ModalCard onClick={(event) => event.stopPropagation()}>
@@ -8177,7 +8663,7 @@ export default function AccountPage() {
                       disabled={appointmentComposerMode === "edit" || appointmentComposerPropertyLocked}
                     >
                       <option value="">
-                        {vendorPropertyOptionsLoading ? "Loading properties..." : "Select property"}
+                        {vendorPropertyOptionsLoading ? "Select property" : "Select property"}
                       </option>
                       {vendorPropertyOptions.map((property) => (
                         <option key={property.id} value={property.id}>
@@ -8199,15 +8685,23 @@ export default function AccountPage() {
                       {((appointmentComposerMode === "edit" && selectedAppointment?.source === "viewing_request")
                         ? [
                             { value: "new", label: "New" },
+                            { value: "assigned", label: "Assigned" },
                             { value: "contacted", label: "Contacted" },
-                            { value: "scheduled", label: "Scheduled" },
-                            { value: "closed", label: "Closed" },
-                            { value: "lost", label: "Lost" },
+                            { value: "qualified", label: "Qualified" },
+                            { value: "appointment_scheduled", label: "Appointment scheduled" },
+                            { value: "viewed", label: "Viewed" },
+                            { value: "negotiation", label: "Negotiation" },
+                            { value: "closed_won", label: "Closed won" },
+                            { value: "closed_lost", label: "Closed lost" },
+                            { value: "unresponsive", label: "Unresponsive" },
+                            { value: "spam", label: "Spam" },
                           ]
                         : [
-                            { value: "scheduled", label: "Scheduled" },
+                            { value: "requested", label: "Requested" },
+                            { value: "confirmed", label: "Confirmed" },
                             { value: "completed", label: "Completed" },
-                            { value: "canceled", label: "Canceled" },
+                            { value: "cancelled", label: "Cancelled" },
+                            { value: "no_show", label: "No-show" },
                           ]
                       ).map((option) => (
                         <option key={option.value} value={option.value}>
@@ -8444,7 +8938,7 @@ export default function AccountPage() {
                               <span>{appointment.client_name || "Buyer"}</span>
                             </StaffAppointmentsRowMeta>
                           </div>
-                          <AppointmentPill $tone={appointment.status === "completed" || appointment.status === "closed" ? "success" : appointment.status === "canceled" || appointment.status === "lost" ? "danger" : "warning"}>
+                          <AppointmentPill $tone={appointment.status === "completed" || appointment.status === "closed_won" ? "success" : appointment.status === "cancelled" || appointment.status === "closed_lost" || appointment.status === "no_show" || appointment.status === "spam" ? "danger" : "warning"}>
                             {labelize(appointment.status)}
                           </AppointmentPill>
                         </StaffAppointmentsRowTop>

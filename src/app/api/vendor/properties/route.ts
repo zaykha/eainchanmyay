@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getVendorRequestContext } from "@/app/api/vendor/_lib/context";
 import { resolveListingImage } from "@/app/living-site/lib/images";
+import { normalizeListingStatus } from "@/lib/lifecycle";
 
 type PropertyRow = {
   id: string;
@@ -12,7 +13,6 @@ type PropertyRow = {
   status: string | null;
   district: string | null;
   township: string | null;
-  city: string | null;
   created_at: string | null;
   verification_status: string | null;
 };
@@ -44,13 +44,17 @@ export async function GET(request: Request) {
 
   let queryBuilder = supabase
     .from("properties")
-    .select("id,title,deal_type,property_type,price,currency,status,district,township,city,created_at,verification_status")
+    .select("id,title,deal_type,property_type,price,currency,status,district,township,created_at,verification_status")
     .in("created_by", memberIds)
     .eq("is_deleted", false)
     .order("created_at", { ascending: false });
 
   if (status) {
-    queryBuilder = queryBuilder.eq("status", status);
+    if (status === "active") {
+      queryBuilder = queryBuilder.in("status", ["active", "published"]);
+    } else {
+      queryBuilder = queryBuilder.eq("status", status);
+    }
   }
   if (dealType) {
     queryBuilder = queryBuilder.eq("deal_type", dealType);
@@ -61,7 +65,7 @@ export async function GET(request: Request) {
   if (query) {
     const escaped = query.replace(/%/g, "");
     queryBuilder = queryBuilder.or(
-      `title.ilike.%${escaped}%,district.ilike.%${escaped}%,township.ilike.%${escaped}%,city.ilike.%${escaped}%`
+      `title.ilike.%${escaped}%,district.ilike.%${escaped}%,township.ilike.%${escaped}%`
     );
   }
 
@@ -111,6 +115,8 @@ export async function GET(request: Request) {
   return NextResponse.json({
     items: rows.map((property) => ({
       ...property,
+      city: property.district ?? null,
+      status: normalizeListingStatus(property.status) ?? property.status,
       appointments_count: appointmentCountMap.get(property.id) ?? 0,
       cover_image_url: resolveListingImage(
         property as unknown as Record<string, unknown>,

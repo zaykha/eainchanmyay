@@ -261,23 +261,23 @@ const StatusPill = styled.span<{ $status: string }>`
   font-size: 0.78rem;
   font-weight: 800;
   background: ${(props) =>
-    props.$status === "closed"
+    props.$status === "closed_won"
       ? "rgba(16, 185, 129, 0.14)"
-      : props.$status === "lost"
+      : props.$status === "closed_lost" || props.$status === "spam"
         ? "rgba(239, 68, 68, 0.12)"
-        : props.$status === "qualified"
+        : props.$status === "qualified" || props.$status === "appointment_scheduled" || props.$status === "viewed"
           ? "rgba(59, 130, 246, 0.12)"
-          : props.$status === "contacted"
+          : props.$status === "contacted" || props.$status === "assigned" || props.$status === "negotiation"
             ? "rgba(245, 158, 11, 0.14)"
             : "color-mix(in srgb, var(--color-surface-2) 88%, white)"};
   color: ${(props) =>
-    props.$status === "closed"
+    props.$status === "closed_won"
       ? "#047857"
-      : props.$status === "lost"
+      : props.$status === "closed_lost" || props.$status === "spam"
         ? "#b91c1c"
-        : props.$status === "qualified"
+        : props.$status === "qualified" || props.$status === "appointment_scheduled" || props.$status === "viewed"
           ? "#1d4ed8"
-          : props.$status === "contacted"
+          : props.$status === "contacted" || props.$status === "assigned" || props.$status === "negotiation"
             ? "#b45309"
             : "var(--color-text)"};
 `;
@@ -624,20 +624,19 @@ function buildRequirementChips(item: InquiryItem) {
 
 const statusOptions = [
   { value: "new", label: "New" },
+  { value: "assigned", label: "Assigned" },
   { value: "contacted", label: "Contacted" },
   { value: "qualified", label: "Qualified" },
-  { value: "closed", label: "Closed" },
-  { value: "lost", label: "Lost" },
+  { value: "appointment_scheduled", label: "Appointment scheduled" },
+  { value: "viewed", label: "Viewed" },
+  { value: "negotiation", label: "Negotiation" },
+  { value: "closed_won", label: "Closed won" },
+  { value: "closed_lost", label: "Closed lost" },
+  { value: "unresponsive", label: "Unresponsive" },
+  { value: "spam", label: "Spam" },
 ];
 
-const pipelineStageOptions = [
-  { value: "new_lead", label: "New Lead" },
-  { value: "contacted", label: "Contacted" },
-  { value: "qualified", label: "Qualified" },
-  { value: "negotiating", label: "Negotiating" },
-  { value: "won", label: "Won" },
-  { value: "lost", label: "Lost" },
-];
+const pipelineStageOptions = statusOptions;
 
 const inboxTabs: Array<{ key: InquiryTabKey; label: string }> = [
   { key: "all", label: "All leads" },
@@ -653,7 +652,7 @@ function formatStatus(value: string | null | undefined) {
 }
 
 function formatPipelineStage(value: string | null | undefined) {
-  return pipelineStageOptions.find((option) => option.value === value)?.label ?? "New Lead";
+  return pipelineStageOptions.find((option) => option.value === value)?.label ?? "New";
 }
 
 function formatLocation(item: InquiryItem) {
@@ -663,7 +662,7 @@ function formatLocation(item: InquiryItem) {
 function isOverdue(item: InquiryItem) {
   if (!item.sla_due_at) return false;
   const due = new Date(item.sla_due_at).getTime();
-  return !Number.isNaN(due) && due < Date.now() && !["closed", "lost"].includes(item.status);
+  return !Number.isNaN(due) && due < Date.now() && !["closed_won", "closed_lost", "spam"].includes(item.status);
 }
 
 export function VendorInquiriesView({

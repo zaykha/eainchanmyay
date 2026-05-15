@@ -95,15 +95,14 @@ function normalizeDocuments(value: unknown) {
     );
 }
 
+// Supabase query builder typing collapses to `never` due to context inference.
+// Keep runtime behavior while avoiding TS `never` cascades.
 async function loadVerificationPayload(
-  supabase: Awaited<ReturnType<typeof getVendorRequestContext>> extends { ok: true; context: infer C }
-    ? C["supabase"]
-    : never,
-  vendor: Awaited<ReturnType<typeof getVendorRequestContext>> extends { ok: true; context: infer C }
-    ? C["vendor"]
-    : never,
-  currentPlan = getVendorPlan(vendor.plan)
+  supabase: any,
+  vendor: any,
+  currentPlan: ReturnType<typeof getVendorPlan>
 ) {
+
   const { data: requestRows, error: requestError } = await supabase
     .from("vendor_verification_requests")
     .select(
@@ -195,7 +194,8 @@ async function loadVerificationPayload(
             checklist_json: (latestRequest.checklist_json as Record<string, unknown> | null) ?? {},
           }
         : null,
-      documents: (documentsResult.data ?? []).map((item) => ({
+      documents: (documentsResult.data ?? []).map((item: any) => ({
+
         id: String(item.id ?? ""),
         document_type: String(item.document_type ?? ""),
         document_name: String(item.document_name ?? ""),
@@ -214,7 +214,8 @@ async function loadVerificationPayload(
         created_at: (item.created_at as string | null) ?? null,
       })),
       properties: [],
-      events: (eventsResult.data ?? []).map((item) => {
+      events: (eventsResult.data ?? []).map((item: any) => {
+
         const actorRaw = Array.isArray(item.actor) ? item.actor[0] : item.actor;
         return {
           id: String(item.id ?? ""),

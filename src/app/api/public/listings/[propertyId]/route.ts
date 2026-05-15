@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { publicListingQueryStatuses } from "@/lib/lifecycle";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
@@ -36,10 +37,10 @@ export async function GET(_request: Request, context: RouteContext) {
   const { data: property, error: propertyError } = await supabase
     .from("properties")
     .select(
-      "id,title,description,deal_type,property_type,price,currency,state_region,district,township,city,address_text,bedrooms,bathrooms,area_sqft,latitude,longitude,created_by,vendor_id,verification_status,owner_name,owner_phone,owner_phone_secondary"
+      "id,title,description,deal_type,property_type,price,currency,state_region,district,township,address_text,bedrooms,bathrooms,area_sqft,latitude,longitude,created_by,vendor_id,verification_status,owner_name,owner_phone,owner_phone_secondary"
     )
     .eq("id", id)
-    .eq("status", "published")
+    .in("status", publicListingQueryStatuses)
     .eq("is_deleted", false)
     .maybeSingle();
 
@@ -87,11 +88,10 @@ export async function GET(_request: Request, context: RouteContext) {
     return NextResponse.json({ error: agencyResult.error.message }, { status: 500 });
   }
 
-  const agencySource = vendorId
-    ? agencyResult.data
-    : Array.isArray(agencyResult.data?.vendor)
-    ? agencyResult.data?.vendor[0]
-    : agencyResult.data?.vendor;
+  // Normalize agency shape regardless of whether Supabase returns the joined vendor as an array or a single object.
+  const agencyData = agencyResult.data as any;
+  const agencySource = vendorId ? agencyData : Array.isArray(agencyData?.vendor) ? agencyData?.vendor?.[0] : agencyData?.vendor;
+
 
   const agency =
     agencySource?.id && agencySource?.name
@@ -110,7 +110,10 @@ export async function GET(_request: Request, context: RouteContext) {
       : null;
 
   return NextResponse.json({
-    property,
+    property: {
+      ...property,
+      city: (property.district as string | null) ?? null,
+    },
     images: imagesResult.data ?? [],
     agency,
   });

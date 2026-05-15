@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import styled from "styled-components";
+import styled, { keyframes } from "styled-components";
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -156,6 +156,15 @@ type DatePreset = "30d" | "90d" | "365d" | "all" | "custom";
 const PAGE_ACCENT = "#e93d5d";
 const SOFT_ACCENT = "#fff1f3";
 const CHIP_TINT = "#ffe4e8";
+
+const shimmer = keyframes`
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+`;
 
 const Page = styled.main`
   min-height: 100vh;
@@ -802,6 +811,20 @@ const EmptyState = styled(Section)`
   justify-items: start;
 `;
 
+const SkeletonBlock = styled.div<{ $height?: number; $radius?: number }>`
+  width: 100%;
+  height: ${(props) => `${props.$height ?? 16}px`};
+  border-radius: ${(props) => `${props.$radius ?? 14}px`};
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--color-surface-2) 92%, transparent) 0%,
+    color-mix(in srgb, var(--color-outline) 34%, white) 50%,
+    color-mix(in srgb, var(--color-surface-2) 92%, transparent) 100%
+  );
+  background-size: 200% 100%;
+  animation: ${shimmer} 1.35s linear infinite;
+`;
+
 const LockCard = styled(Section)`
   padding: 32px;
   text-align: left;
@@ -1262,7 +1285,7 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
       savedProperties: savedProperties.length,
       appointmentRequests: appointmentRequests.length,
       conversionRate: viewEvents.length ? (leads.length / viewEvents.length) * 100 : 0,
-      activeListings: properties.filter((property) => property.status === "published").length,
+      activeListings: properties.filter((property) => property.status === "active" || property.status === "reserved").length,
     };
 
     const funnel = [
@@ -1291,12 +1314,16 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
 
     const pipelineCounts = {
       new: 0,
+      assigned: 0,
       contacted: 0,
       qualified: 0,
-      appointment: appointmentRequests.length,
+      appointment_scheduled: 0,
+      viewed: 0,
       negotiation: 0,
-      closed: 0,
-      lost: 0,
+      closed_won: 0,
+      closed_lost: 0,
+      unresponsive: 0,
+      spam: 0,
     };
 
     for (const lead of leads) {
@@ -1336,9 +1363,9 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
       pipelineCounts,
       appointmentStats: {
         totalRequests: appointmentRequests.length,
-        confirmed: appointments.length,
+        confirmed: appointments.filter((appointment) => appointment.status === "confirmed" || appointment.status === "completed").length,
         completed: appointments.filter((appointment) => appointment.status === "completed").length,
-        cancelled: appointments.filter((appointment) => appointment.status === "canceled").length,
+        cancelled: appointments.filter((appointment) => appointment.status === "cancelled").length,
         noShows: null as number | null,
       },
       appointmentsByType,
@@ -1381,14 +1408,43 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
 
   if (!profileReady || loading) {
     return embedded ? (
-      <EmptyState>
-        <SectionHead>
-          <div>
-            <SectionTitle>Loading analytics</SectionTitle>
-            <SectionCopy>Preparing agency performance data for this workspace.</SectionCopy>
-          </div>
-        </SectionHead>
-      </EmptyState>
+      <EmbeddedStack>
+        <Section>
+          <SectionHead>
+            <div style={{ display: "grid", gap: 10, width: "100%" }}>
+              <SkeletonBlock $height={24} style={{ width: "28%" }} />
+              <SkeletonBlock $height={16} style={{ width: "46%" }} />
+            </div>
+          </SectionHead>
+          <FilterGrid>
+            {Array.from({ length: 6 }, (_, index) => (
+              <SkeletonBlock key={`analytics-filter-skeleton-${index}`} $height={46} $radius={16} />
+            ))}
+          </FilterGrid>
+        </Section>
+        <Section>
+          <SkeletonBlock $height={20} style={{ width: "22%" }} />
+          <KpiGrid>
+            {Array.from({ length: 6 }, (_, index) => (
+              <SkeletonBlock key={`analytics-kpi-skeleton-${index}`} $height={118} $radius={20} />
+            ))}
+          </KpiGrid>
+        </Section>
+        <SplitGrid>
+          <Section>
+            <SkeletonBlock $height={20} style={{ width: "34%" }} />
+            {Array.from({ length: 5 }, (_, index) => (
+              <SkeletonBlock key={`analytics-funnel-skeleton-${index}`} $height={54} $radius={16} />
+            ))}
+          </Section>
+          <Section>
+            <SkeletonBlock $height={20} style={{ width: "30%" }} />
+            {Array.from({ length: 4 }, (_, index) => (
+              <SkeletonBlock key={`analytics-side-skeleton-${index}`} $height={72} $radius={18} />
+            ))}
+          </Section>
+        </SplitGrid>
+      </EmbeddedStack>
     ) : (
       <LoadingOverlay message="Loading agency analytics..." />
     );
@@ -1987,12 +2043,16 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
                   {(
                     [
                       ["new", fullView.pipelineCounts.new],
+                      ["assigned", fullView.pipelineCounts.assigned],
                       ["contacted", fullView.pipelineCounts.contacted],
                       ["qualified", fullView.pipelineCounts.qualified],
-                      ["appointment", fullView.pipelineCounts.appointment],
+                      ["appointment_scheduled", fullView.pipelineCounts.appointment_scheduled],
+                      ["viewed", fullView.pipelineCounts.viewed],
                       ["negotiation", fullView.pipelineCounts.negotiation],
-                      ["closed", fullView.pipelineCounts.closed],
-                      ["lost", fullView.pipelineCounts.lost],
+                      ["closed_won", fullView.pipelineCounts.closed_won],
+                      ["closed_lost", fullView.pipelineCounts.closed_lost],
+                      ["unresponsive", fullView.pipelineCounts.unresponsive],
+                      ["spam", fullView.pipelineCounts.spam],
                     ] as Array<[string, number]>
                   ).map(([key, count]) => {
                     const max = Math.max(1, ...Object.values(fullView.pipelineCounts));

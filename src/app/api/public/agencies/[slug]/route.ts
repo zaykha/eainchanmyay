@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { resolveListingImage } from "@/app/living-site/lib/images";
+import { publicListingQueryStatuses } from "@/lib/lifecycle";
 import { getVendorPlan } from "@/lib/vendor-plans";
 import { getVendorStorefrontBadges } from "@/lib/vendor-storefront";
 
@@ -71,10 +72,10 @@ export async function GET(_request: Request, context: RouteContext) {
     const { data: properties, error: propertiesError } = await supabase
       .from("properties")
       .select(
-        "id,title,deal_type,property_type,price,currency,state_region,district,township,city,bedrooms,bathrooms,area_sqft,created_at"
+        "id,title,deal_type,property_type,price,currency,state_region,district,township,bedrooms,bathrooms,area_sqft,created_at"
       )
       .in("created_by", memberIds)
-      .eq("status", "published")
+      .in("status", publicListingQueryStatuses)
       .eq("is_deleted", false)
       .order("created_at", { ascending: false })
       .limit(24);
@@ -151,7 +152,7 @@ export async function GET(_request: Request, context: RouteContext) {
         state_region: (row.state_region as string | null) ?? null,
         district: (row.district as string | null) ?? null,
         township: (row.township as string | null) ?? null,
-        city: (row.city as string | null) ?? null,
+        city: (row.district as string | null) ?? null,
         bedrooms: typeof row.bedrooms === "number" ? row.bedrooms : row.bedrooms ? Number(row.bedrooms) : null,
         bathrooms:
           typeof row.bathrooms === "number" ? row.bathrooms : row.bathrooms ? Number(row.bathrooms) : null,

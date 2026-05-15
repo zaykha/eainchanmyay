@@ -350,10 +350,14 @@ export function VendorPropertyEditView({ propertyId }: { propertyId: string }) {
             Status
             <Select value={form.status} onChange={(event) => setField("status", event.target.value)}>
               <option value="draft">Draft</option>
-              <option value="published">Published</option>
+              <option value="active">Active</option>
+              <option value="paused">Paused</option>
+              <option value="reserved">Reserved</option>
               <option value="sold">Sold</option>
               <option value="rented">Rented</option>
+              <option value="expired">Expired</option>
               <option value="archived">Archived</option>
+              <option value="rejected">Rejected</option>
             </Select>
           </Label>
           <Label>

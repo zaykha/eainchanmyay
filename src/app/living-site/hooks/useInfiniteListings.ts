@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Listing, ListingFilters } from "@/app/living-site/lib/data";
 
 const pageSize = 6;
+const mapPageSize = 120;
 
 type ApiResponse = {
   data: Listing[];
@@ -16,7 +17,24 @@ type ApiResponse = {
 const cachePrefix = "ecm_listings_cache_v1";
 const cacheTtlMs = 5 * 60 * 1000;
 
-const buildQuery = (filters?: ListingFilters, page?: number) => {
+export type ListingQueryBounds = {
+  south: number;
+  north: number;
+  west: number;
+  east: number;
+};
+
+export type BuildListingQueryOptions = {
+  page?: number;
+  pageSize?: number;
+  bounds?: ListingQueryBounds | null;
+  view?: "default" | "map";
+};
+
+export const buildListingQuery = (
+  filters?: ListingFilters,
+  options?: BuildListingQueryOptions
+) => {
   const params = new URLSearchParams();
   if (filters?.query?.trim()) params.set("q", filters.query.trim());
   if (filters?.dealType) params.set("deal", filters.dealType);
@@ -30,8 +48,20 @@ const buildQuery = (filters?: ListingFilters, page?: number) => {
   if (typeof filters?.bathrooms === "number") params.set("baths", String(filters.bathrooms));
   if (typeof filters?.minAreaSqft === "number") params.set("minArea", String(filters.minAreaSqft));
   if (typeof filters?.maxAreaSqft === "number") params.set("maxArea", String(filters.maxAreaSqft));
-  params.set("page", String(page ?? 1));
-  params.set("pageSize", String(pageSize));
+  if (options?.bounds) {
+    params.set("south", String(options.bounds.south));
+    params.set("north", String(options.bounds.north));
+    params.set("west", String(options.bounds.west));
+    params.set("east", String(options.bounds.east));
+  }
+  if (options?.view === "map") {
+    params.set("view", "map");
+  }
+  params.set("page", String(options?.page ?? 1));
+  params.set(
+    "pageSize",
+    String(options?.pageSize ?? (options?.view === "map" ? mapPageSize : pageSize))
+  );
   return params.toString();
 };
 
@@ -72,7 +102,7 @@ export function useInfiniteListings(filters?: ListingFilters) {
 
   const fetchPage = useCallback(
     async (pageToLoad: number) => {
-      const query = buildQuery(filters, pageToLoad);
+      const query = buildListingQuery(filters, { page: pageToLoad });
       const response = await fetch(`/api/listings?${query}`);
       if (!response.ok) {
         throw new Error("Unable to load listings.");
