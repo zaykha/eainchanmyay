@@ -56,6 +56,14 @@ textarea.Control {
   padding: 0 4px 0 4px
 }
 
+.Field[data-control="select"] .Label {
+  top: -8px;
+  font-size: 11px;
+  color: var(--primary);
+  background-color: var(--surface2);
+  padding: 0 4px 0 4px;
+}
+
 html[lang="mm"] .Field[data-filled="true"] .Label,
 html[lang="mm"] .Field:focus-within .Label {
   top: -10px;

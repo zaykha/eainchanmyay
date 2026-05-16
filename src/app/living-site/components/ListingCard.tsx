@@ -8,6 +8,7 @@ import {
   Landmark,
   MapPin,
   Ruler,
+  Sparkles,
   Store,
   TowerControl,
   Warehouse,
@@ -78,6 +79,23 @@ const DealRibbon = styled.span<{ $dealType?: string }>`
         ? "var(--color-primary)"
         : "var(--color-muted)"};
   box-shadow: var(--shadow-soft);
+`;
+
+const BoostBadge = styled.span`
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 800;
+  color: #9f1239;
+  background: rgba(255, 241, 245, 0.96);
+  border: 1px solid rgba(244, 114, 182, 0.28);
+  box-shadow: var(--shadow-soft);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 `;
 
 const PricePill = styled.span`
@@ -213,6 +231,12 @@ export function ListingCard({ listing }: ListingCardProps) {
           ) : (
             <span>{t("listing.noPhoto")}</span>
           )}
+          {listing.isBoosted ? (
+            <BoostBadge>
+              <Sparkles size={13} />
+              <span>Boosted</span>
+            </BoostBadge>
+          ) : null}
           <DealRibbon $dealType={normalizedDealType}>{dealLabel}</DealRibbon>
           <PricePill>
             {formatCurrency(listing.price, listing.currency, t("listing.contactPrice"))}

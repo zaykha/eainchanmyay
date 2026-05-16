@@ -25,6 +25,8 @@ type PropertyRow = {
   bedrooms: number | null;
   bathrooms: number | null;
   area_sqft: number | null;
+  floor_count: number | null;
+  room_count: number | null;
   has_lift: boolean | null;
   has_backup_power: boolean | null;
   backup_power_type: string | null;
@@ -88,7 +90,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ prop
 
   const { data: property, error: propertyError } = await supabase
     .from("properties")
-    .select("id,title,description,deal_type,property_type,price,currency,status,state_region,district,township,address_text,bedrooms,bathrooms,area_sqft,has_lift,has_backup_power,backup_power_type,has_parking,latitude,longitude,verification_status,created_by,created_at,updated_at")
+    .select("id,title,description,deal_type,property_type,price,currency,status,state_region,district,township,address_text,bedrooms,bathrooms,area_sqft,floor_count,room_count,has_lift,has_backup_power,backup_power_type,has_parking,latitude,longitude,verification_status,created_by,created_at,updated_at")
     .eq("id", propertyId)
     .eq("is_deleted", false)
     .maybeSingle();

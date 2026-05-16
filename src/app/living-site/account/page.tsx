@@ -3204,8 +3204,8 @@ const ListingDetailCopy = styled.p`
 
 const ListingDetailHero = styled.div`
   display: grid;
-  grid-template-columns: minmax(260px, 0.95fr) minmax(0, 1.05fr);
-  gap: 16px;
+  grid-template-columns: minmax(228px, 0.88fr) minmax(0, 1.12fr);
+  gap: 12px;
 
   @media (max-width: 980px) {
     grid-template-columns: 1fr;
@@ -3213,8 +3213,8 @@ const ListingDetailHero = styled.div`
 `;
 
 const ListingDetailImage = styled.div<{ $image?: string }>`
-  min-height: 260px;
-  border-radius: 24px;
+  min-height: 220px;
+  border-radius: 20px;
   border: 1px solid var(--color-outline);
   background: ${(props) =>
     props.$image ? `center / cover no-repeat url(${props.$image})` : "color-mix(in srgb, var(--color-surface) 92%, white)"};
@@ -3226,53 +3226,85 @@ const ListingDetailImage = styled.div<{ $image?: string }>`
 
 const ListingDetailInfo = styled.div`
   display: grid;
-  gap: 14px;
+  gap: 10px;
   border: 1px solid var(--color-outline);
-  border-radius: 24px;
+  border-radius: 20px;
   background: color-mix(in srgb, var(--color-surface-2) 72%, white);
-  padding: 18px;
+  padding: 14px;
 `;
 
 const ListingDetailPrice = styled.div`
   color: var(--color-text);
-  font-size: 1.5rem;
+  font-size: 1.2rem;
   font-weight: 800;
   line-height: 1.1;
 `;
 
 const ListingDetailMetaGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
 
-  @media (max-width: 720px) {
+  @media (max-width: 980px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (max-width: 600px) {
     grid-template-columns: 1fr;
   }
 `;
 
-const ListingDetailMetaCard = styled.div`
+const ListingDetailMetaCard = styled.div<{ $wide?: boolean }>`
   border: 1px solid var(--color-outline);
-  border-radius: 18px;
+  border-radius: 16px;
   background: var(--color-surface);
-  padding: 12px 14px;
+  padding: 10px 12px;
   display: grid;
-  gap: 5px;
+  gap: 4px;
+  align-content: start;
+  min-height: 76px;
+  ${(props) => (props.$wide ? "grid-column: span 2;" : "")}
+
+  @media (max-width: 600px) {
+    grid-column: auto;
+  }
 `;
 
 const ListingDetailMetaLabel = styled.span`
   color: var(--color-muted);
-  font-size: 0.76rem;
+  font-size: 0.72rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 `;
 
 const ListingDetailMetaValue = styled.strong`
   color: var(--color-text);
-  font-size: 0.9rem;
+  font-size: 0.8rem;
+  line-height: 1.3;
+`;
+
+const ListingDetailLocationValue = styled.div`
+  display: grid;
+  gap: 4px;
+`;
+
+const ListingDetailLocationPrimary = styled.strong`
+  color: var(--color-text);
+  font-size: 0.86rem;
+  line-height: 1.25;
+`;
+
+const ListingDetailLocationSecondary = styled.span`
+  color: var(--color-muted);
+  font-size: 0.74rem;
+  line-height: 1.25;
 `;
 
 const ListingDetailPillRow = styled.div`
   display: flex;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
   align-items: center;
 `;
@@ -3280,7 +3312,7 @@ const ListingDetailPillRow = styled.div`
 const ListingDetailPills = styled.div`
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
 `;
 
@@ -3296,8 +3328,8 @@ const ListingStatusMessage = styled.div<{ $tone?: "danger" | "success" }>`
 `;
 
 const ListingStatusAction = styled.button`
-  min-height: 28px;
-  padding: 0 12px;
+  min-height: 24px;
+  padding: 0 10px;
   border-radius: 999px;
   border: 1px solid rgba(235, 35, 64, 0.18);
   background: linear-gradient(135deg, #ff4b6b 0%, #df274c 100%);
@@ -3305,10 +3337,10 @@ const ListingStatusAction = styled.button`
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.76rem;
+  font-size: 0.72rem;
   font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 10px 22px rgba(223, 39, 76, 0.18);
+  box-shadow: 0 8px 16px rgba(223, 39, 76, 0.14);
 
   &:disabled {
     opacity: 0.6;
@@ -3317,16 +3349,36 @@ const ListingStatusAction = styled.button`
   }
 `;
 
+const ListingPromoteAction = styled.button`
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(236, 72, 153, 0.18);
+  background: linear-gradient(135deg, #fff1f7 0%, #ffe4ef 100%);
+  color: #be185d;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+`;
+
 const ListingDetailActions = styled.div`
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
 `;
 
 const ListingDetailIconAction = styled.button<{ $tone?: "danger" }>`
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   border-radius: 999px;
   border: 1px solid
     ${(props) =>
@@ -4904,6 +4956,45 @@ export default function AccountPage() {
   const hasVendorWorkspaceAccess =
     profileRole === "vendor_user" || onboardingPending || Boolean(vendorWorkspace?.vendor.id);
 
+  const updateHubSection = (
+    section:
+      | "snapshot"
+      | "analytics"
+      | "boostings"
+      | "manage-listings"
+      | "bulk-upload"
+      | "lead-inbox"
+      | "appointments"
+      | "listing-detail"
+      | "team"
+      | "settings"
+      | "verification",
+    options?: {
+      listingId?: string | null;
+    }
+  ) => {
+    setHubSection(section);
+    if (!isHubPath) return;
+
+    const nextParams = new URLSearchParams(searchParams.toString());
+    if (section === "snapshot") {
+      nextParams.delete("section");
+    } else if (section === "listing-detail" || section === "bulk-upload") {
+      nextParams.delete("section");
+    } else {
+      nextParams.set("section", section);
+    }
+
+    if (section === "boostings" && options?.listingId) {
+      nextParams.set("listingId", options.listingId);
+    } else {
+      nextParams.delete("listingId");
+    }
+
+    const query = nextParams.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  };
+
   useEffect(() => {
     const pathContext = deriveActiveContextFromPath(pathname);
     if (pathContext) {
@@ -5266,7 +5357,7 @@ export default function AccountPage() {
       setListingDeleteModalOpen(false);
       setSelectedHubPropertyDetail(null);
       setSelectedHubProperty(null);
-      setHubSection("manage-listings");
+      updateHubSection("manage-listings");
     } catch (error) {
       setSelectedHubPropertyStatusError(error instanceof Error ? error.message : "Unable to delete listing.");
     } finally {
@@ -6445,7 +6536,7 @@ export default function AccountPage() {
                     $active={hubSection === "snapshot"}
                     $expanded={hubRailExpanded}
                     type="button"
-                    onClick={() => setHubSection("snapshot")}
+                    onClick={() => updateHubSection("snapshot")}
                   >
                     <HubNavIcon $active={hubSection === "snapshot"} $image={vendorWorkspace?.vendor.logo_url || undefined}>
                       {!vendorWorkspace?.vendor.logo_url ? <Home /> : null}
@@ -6475,7 +6566,7 @@ export default function AccountPage() {
                       $active={hubSection === "manage-listings" || hubSection === "listing-detail" || hubSection === "bulk-upload"}
                       $expanded={hubRailExpanded}
                       type="button"
-                      onClick={() => setHubSection("manage-listings")}
+                      onClick={() => updateHubSection("manage-listings")}
                     >
                       <HubNavIcon $active={hubSection === "manage-listings" || hubSection === "listing-detail" || hubSection === "bulk-upload"}>
                         <Plus />
@@ -6508,7 +6599,7 @@ export default function AccountPage() {
                       $active={hubSection === "appointments"}
                       $expanded={hubRailExpanded}
                       type="button"
-                      onClick={() => setHubSection("appointments")}
+                      onClick={() => updateHubSection("appointments")}
                     >
                       <HubNavIcon $active={hubSection === "appointments"}>
                         <Calendar />
@@ -6529,7 +6620,7 @@ export default function AccountPage() {
                     $active={hubSection === "boostings"}
                     $expanded={hubRailExpanded}
                     type="button"
-                    onClick={() => setHubSection("boostings")}
+                    onClick={() => updateHubSection("boostings")}
                   >
                     <HubNavIcon $active={hubSection === "boostings"}>
                       <Megaphone />
@@ -6546,7 +6637,7 @@ export default function AccountPage() {
                     $active={hubSection === "analytics"}
                     $expanded={hubRailExpanded}
                     type="button"
-                    onClick={() => setHubSection("analytics")}
+                    onClick={() => updateHubSection("analytics")}
                   >
                     <HubNavIcon $active={hubSection === "analytics"}>
                       <BarChart3 />
@@ -6564,7 +6655,7 @@ export default function AccountPage() {
                       $active={hubSection === "lead-inbox"}
                       $expanded={hubRailExpanded}
                       type="button"
-                      onClick={() => setHubSection("lead-inbox")}
+                      onClick={() => updateHubSection("lead-inbox")}
                     >
                       <HubNavIcon $active={hubSection === "lead-inbox"}>
                         <MessageSquareText />
@@ -6585,7 +6676,7 @@ export default function AccountPage() {
                     $active={hubSection === "settings"}
                     $expanded={hubRailExpanded}
                     type="button"
-                    onClick={() => setHubSection("settings")}
+                    onClick={() => updateHubSection("settings")}
                   >
                     <HubNavIcon $active={hubSection === "settings"}>
                       <Settings />
@@ -6615,7 +6706,7 @@ export default function AccountPage() {
                       $active={hubSection === "team"}
                       $expanded={hubRailExpanded}
                       type="button"
-                      onClick={() => setHubSection("team")}
+                      onClick={() => updateHubSection("team")}
                     >
                       <HubNavIcon $active={hubSection === "team"}>
                         <Users2 />
@@ -6809,28 +6900,28 @@ export default function AccountPage() {
                               <span>Lead overview</span>
                               <MessageSquareText />
                             </HubFeaturePreviewTop>
-                            <HubFeaturePreviewValue>24 active conversations</HubFeaturePreviewValue>
+                            <HubFeaturePreviewValue>Locked until upgrade</HubFeaturePreviewValue>
                           </HubFeaturePreviewItem>
                           <HubFeaturePreviewItem>
                             <HubFeaturePreviewTop>
                               <span>Sales performance</span>
                               <BarChart3 />
                             </HubFeaturePreviewTop>
-                            <HubFeaturePreviewValue>MMK 180L pipeline</HubFeaturePreviewValue>
+                            <HubFeaturePreviewValue>Locked until upgrade</HubFeaturePreviewValue>
                           </HubFeaturePreviewItem>
                           <HubFeaturePreviewItem>
                             <HubFeaturePreviewTop>
                               <span>Viewing demand</span>
                               <Calendar />
                             </HubFeaturePreviewTop>
-                            <HubFeaturePreviewValue>12 appointments this week</HubFeaturePreviewValue>
+                            <HubFeaturePreviewValue>Locked until upgrade</HubFeaturePreviewValue>
                           </HubFeaturePreviewItem>
                           <HubFeaturePreviewItem>
                             <HubFeaturePreviewTop>
                               <span>Team response</span>
                               <Users2 />
                             </HubFeaturePreviewTop>
-                            <HubFeaturePreviewValue>2h average first reply</HubFeaturePreviewValue>
+                            <HubFeaturePreviewValue>Locked until upgrade</HubFeaturePreviewValue>
                           </HubFeaturePreviewItem>
                         </HubFeaturePreviewGrid>
                         <HubFeatureUpsellCard href={freeUpgradeHref}>
@@ -6853,6 +6944,7 @@ export default function AccountPage() {
                             vendorId={activeVendorId ?? vendorWorkspace?.vendor.id ?? null}
                             verified={vendorWorkspace?.vendor.verified_status === "approved"}
                             verificationHref="/hub?section=verification"
+                            initialListingId={searchParams.get("listingId")}
                           />
                         </WorkspaceSectionScroller>
                       </WorkspaceSectionViewport>
@@ -6872,14 +6964,14 @@ export default function AccountPage() {
                           vendorId={activeVendorId ?? vendorWorkspace?.vendor.id ?? null}
                           onSelectProperty={(property) => {
                             setSelectedHubProperty(property);
-                            setHubSection("listing-detail");
+                            updateHubSection("listing-detail");
                           }}
                         />
                         <HubSectionFooter>
                           <CompactGhostButton
                             type="button"
                             onClick={() => {
-                              setHubSection("bulk-upload");
+                              updateHubSection("bulk-upload");
                             }}
                           >
                             <Upload size={16} />
@@ -6898,7 +6990,7 @@ export default function AccountPage() {
                             embedded
                             vendorId={activeVendorId ?? vendorWorkspace?.vendor.id ?? null}
                             onBack={() => {
-                              setHubSection("manage-listings");
+                              updateHubSection("manage-listings");
                             }}
                           />
                         </WorkspaceSectionScroller>
@@ -6921,7 +7013,7 @@ export default function AccountPage() {
                               <ListingDetailBack
                                 type="button"
                                 onClick={() => {
-                                  setHubSection("manage-listings");
+                                  updateHubSection("manage-listings");
                                 }}
                               >
                                 Back to listings
@@ -7017,35 +7109,133 @@ export default function AccountPage() {
                                       "Contact"
                                     )}
                                   </ListingDetailPrice>
+                                  {vendorWorkspace?.vendor.verified_status === "approved" &&
+                                  normalizeListingStatus(selectedHubPropertyDetail.property.status) === "active" ? (
+                                    <div style={{ display: "flex", justifyContent: "flex-start" }}>
+                                      <ListingPromoteAction
+                                        type="button"
+                                        onClick={() => updateHubSection("boostings", { listingId: selectedHubPropertyDetail.property.id })}
+                                        disabled={selectedHubPropertyDeleting || selectedHubPropertyStatusSaving}
+                                      >
+                                        <Megaphone size={13} />
+                                        <span>Boost this listing</span>
+                                      </ListingPromoteAction>
+                                    </div>
+                                  ) : null}
+                                  {(() => {
+                                    const property = selectedHubPropertyDetail.property;
+                                    const area = formatArea(property.area_sqft, locale, t("listing.areaSqft"));
+                                    const township = property.township?.trim() || "";
+                                    const district = (property.district || property.city || "").trim();
+                                    const stateRegion = property.state_region?.trim() || "";
+                                    const locationSecondary = [district, stateRegion].filter(Boolean).join(" • ");
+                                    const featureValue = [property.has_parking ? "Parking" : null, property.has_lift ? "Lift" : null]
+                                      .filter(Boolean)
+                                      .join(" • ");
+                                    const factCards = [
+                                      township || locationSecondary
+                                        ? {
+                                            key: "location",
+                                            label: "Location",
+                                            icon: <MapPin size={14} />,
+                                            value: "",
+                                            renderValue: (
+                                              <ListingDetailLocationValue>
+                                                {township ? (
+                                                  <ListingDetailLocationPrimary>{township}</ListingDetailLocationPrimary>
+                                                ) : null}
+                                                {locationSecondary ? (
+                                                  <ListingDetailLocationSecondary>{locationSecondary}</ListingDetailLocationSecondary>
+                                                ) : null}
+                                              </ListingDetailLocationValue>
+                                            ),
+                                            wide: true,
+                                          }
+                                        : null,
+                                      area
+                                        ? {
+                                            key: "area",
+                                            label: "Area",
+                                            icon: <Ruler size={14} />,
+                                            value: area,
+                                            wide: true,
+                                          }
+                                        : null,
+                                      typeof property.bedrooms === "number"
+                                        ? {
+                                            key: "bedrooms",
+                                            label: "Bedrooms",
+                                            icon: <BedDouble size={14} />,
+                                            value: String(property.bedrooms),
+                                          }
+                                        : null,
+                                      typeof property.bathrooms === "number"
+                                        ? {
+                                            key: "bathrooms",
+                                            label: "Bathrooms",
+                                            icon: <Bath size={14} />,
+                                            value: String(property.bathrooms),
+                                          }
+                                        : null,
+                                      typeof property.room_count === "number"
+                                        ? {
+                                            key: "rooms",
+                                            label: "Rooms",
+                                            icon: <Home size={14} />,
+                                            value: String(property.room_count),
+                                          }
+                                        : null,
+                                      typeof property.floor_count === "number"
+                                        ? {
+                                            key: "floors",
+                                            label: "Floors",
+                                            icon: <Building2 size={14} />,
+                                            value: String(property.floor_count),
+                                          }
+                                        : null,
+                                      property.appointments_count > 0
+                                        ? {
+                                            key: "appointments",
+                                            label: "Appointments",
+                                            icon: <Calendar size={14} />,
+                                            value: `${property.appointments_count} scheduled`,
+                                          }
+                                        : null,
+                                      featureValue
+                                        ? {
+                                            key: "features",
+                                            label: "Features",
+                                            icon: <ShieldCheck size={14} />,
+                                            value: featureValue,
+                                          }
+                                        : null,
+                                    ].filter(Boolean) as Array<{
+                                      key: string;
+                                      label: string;
+                                      icon: JSX.Element;
+                                      value: string;
+                                      renderValue?: JSX.Element;
+                                      wide?: boolean;
+                                    }>;
+
+                                    return (
                                   <ListingDetailMetaGrid>
-                                    <ListingDetailMetaCard>
-                                      <ListingDetailMetaLabel>Location</ListingDetailMetaLabel>
-                                      <ListingDetailMetaValue>
-                                        {[
-                                          selectedHubPropertyDetail.property.district || selectedHubPropertyDetail.property.city,
-                                          selectedHubPropertyDetail.property.township,
-                                        ]
-                                          .filter(Boolean)
-                                          .join(" / ") || "Unspecified"}
-                                      </ListingDetailMetaValue>
-                                    </ListingDetailMetaCard>
-                                    <ListingDetailMetaCard>
-                                      <ListingDetailMetaLabel>Appointments</ListingDetailMetaLabel>
-                                      <ListingDetailMetaValue>
-                                        {selectedHubPropertyDetail.property.appointments_count} scheduled
-                                      </ListingDetailMetaValue>
-                                    </ListingDetailMetaCard>
-                                    <ListingDetailMetaCard>
-                                      <ListingDetailMetaLabel>Verification</ListingDetailMetaLabel>
-                                      <ListingDetailMetaValue>
-                                        {labelize(selectedHubPropertyDetail.property.verification_status)}
-                                      </ListingDetailMetaValue>
-                                    </ListingDetailMetaCard>
-                                    <ListingDetailMetaCard>
-                                      <ListingDetailMetaLabel>Listing ID</ListingDetailMetaLabel>
-                                      <ListingDetailMetaValue>{selectedHubPropertyDetail.property.id.slice(0, 8)}</ListingDetailMetaValue>
-                                    </ListingDetailMetaCard>
+                                    {factCards.map((card) => (
+                                      <ListingDetailMetaCard key={card.key} $wide={card.wide}>
+                                        <ListingDetailMetaLabel>
+                                          {card.icon}
+                                          {card.label}
+                                        </ListingDetailMetaLabel>
+                                        {card.renderValue ? (
+                                          card.renderValue
+                                        ) : (
+                                          <ListingDetailMetaValue>{card.value}</ListingDetailMetaValue>
+                                        )}
+                                      </ListingDetailMetaCard>
+                                    ))}
                                   </ListingDetailMetaGrid>
+                                    );
+                                  })()}
                                 </ListingDetailInfo>
                               </>
                             )}
@@ -7451,7 +7641,7 @@ export default function AccountPage() {
                                 </SettingsIndexRow>
                               </SettingsIndexRows>
                               <SettingsIndexActions>
-                                <GhostButton type="button" onClick={() => setHubSection("team")}>
+                                <GhostButton type="button" onClick={() => updateHubSection("team")}>
                                   Team
                                 </GhostButton>
                                 {vendorWorkspace?.limits?.suggestedUpgrade ? (
@@ -7531,7 +7721,7 @@ export default function AccountPage() {
                                 </SettingsIndexBullet>
                               </SettingsIndexBullets>
                               <SettingsIndexActions>
-                                <GhostButton type="button" onClick={() => setHubSection("team")}>
+                                <GhostButton type="button" onClick={() => updateHubSection("team")}>
                                   Team
                                 </GhostButton>
                               </SettingsIndexActions>

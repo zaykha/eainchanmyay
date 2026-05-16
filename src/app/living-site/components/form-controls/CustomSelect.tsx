@@ -101,7 +101,7 @@ export function CustomSelect({
   const activeOption = flatOptions.find((option) => option.value === value);
 
   return (
-    <div className="Field" data-filled={filled} data-status={error ? "error" : status}>
+    <div className="Field" data-filled={filled} data-status={error ? "error" : status} data-control="select">
       {!hideLabel ? (
         <label className="Label" htmlFor={id}>
           {label}

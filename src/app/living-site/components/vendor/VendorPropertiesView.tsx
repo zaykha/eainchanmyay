@@ -303,49 +303,48 @@ const EmbeddedPrice = styled.div`
   line-height: 1.2;
 `;
 
-const Pill = styled.span<{ $embedded?: boolean }>`
+const Pill = styled.span<{ $embedded?: boolean; $tone?: "neutral" | "deal" | "price" | "status-success" | "status-warning" | "status-danger" | "status-muted" }>`
   min-height: 28px;
   padding: 0 10px;
   border-radius: 999px;
-  background: ${(props) => (props.$embedded ? "color-mix(in srgb, var(--color-surface) 92%, white)" : "rgba(255, 255, 255, 0.06)")};
-  color: ${(props) => (props.$embedded ? "var(--color-text)" : "#d9dfeb")};
+  border: 1px solid
+    ${(props) => {
+      if (props.$tone === "deal") return props.$embedded ? "rgba(235, 35, 64, 0.14)" : "rgba(255, 146, 165, 0.18)";
+      if (props.$tone === "price") return props.$embedded ? "rgba(59, 130, 246, 0.14)" : "rgba(120, 167, 255, 0.18)";
+      if (props.$tone === "status-success") return props.$embedded ? "rgba(16, 185, 129, 0.14)" : "rgba(111, 232, 192, 0.18)";
+      if (props.$tone === "status-warning") return props.$embedded ? "rgba(245, 158, 11, 0.18)" : "rgba(255, 210, 92, 0.2)";
+      if (props.$tone === "status-danger") return props.$embedded ? "rgba(235, 35, 64, 0.14)" : "rgba(255, 146, 165, 0.18)";
+      if (props.$tone === "status-muted") return props.$embedded ? "rgba(148, 163, 184, 0.2)" : "rgba(173, 184, 201, 0.16)";
+      return props.$embedded ? "var(--color-outline)" : "rgba(255, 255, 255, 0.08)";
+    }};
+  background: ${(props) => {
+    if (props.$tone === "deal") return props.$embedded ? "#fff1f3" : "rgba(255, 90, 118, 0.12)";
+    if (props.$tone === "price") return props.$embedded ? "#eff6ff" : "rgba(59, 130, 246, 0.12)";
+    if (props.$tone === "status-success") return props.$embedded ? "#ecfdf5" : "rgba(16, 185, 129, 0.12)";
+    if (props.$tone === "status-warning") return props.$embedded ? "#fff7ed" : "rgba(245, 158, 11, 0.12)";
+    if (props.$tone === "status-danger") return props.$embedded ? "#fff1f3" : "rgba(235, 35, 64, 0.12)";
+    if (props.$tone === "status-muted") return props.$embedded ? "#f8fafc" : "rgba(148, 163, 184, 0.12)";
+    return props.$embedded ? "color-mix(in srgb, var(--color-surface) 92%, white)" : "rgba(255, 255, 255, 0.06)";
+  }};
+  color: ${(props) => {
+    if (props.$tone === "deal") return props.$embedded ? "#b4233a" : "#ffd6dd";
+    if (props.$tone === "price") return props.$embedded ? "#1d4ed8" : "#dbeafe";
+    if (props.$tone === "status-success") return props.$embedded ? "#0f766e" : "#d1fae5";
+    if (props.$tone === "status-warning") return props.$embedded ? "#b45309" : "#fde68a";
+    if (props.$tone === "status-danger") return props.$embedded ? "#b4233a" : "#ffd6dd";
+    if (props.$tone === "status-muted") return props.$embedded ? "#64748b" : "#cbd5e1";
+    return props.$embedded ? "var(--color-text)" : "#d9dfeb";
+  }};
   display: inline-flex;
   align-items: center;
   font-size: ${(props) => (props.$embedded ? "0.75rem" : "0.82rem")};
   font-weight: 600;
 `;
 
-const EmbeddedPill = styled(Pill)<{ $tone?: "neutral" | "deal" | "price" | "status" }>`
+const EmbeddedPill = styled(Pill)<{ $tone?: "neutral" | "deal" | "price" | "status-success" | "status-warning" | "status-danger" | "status-muted" }>`
   min-height: 24px;
   padding: 0 8px;
   font-size: 0.72rem;
-  border: 1px solid
-    ${(props) =>
-      props.$tone === "deal"
-        ? "rgba(235, 35, 64, 0.14)"
-        : props.$tone === "price"
-        ? "rgba(59, 130, 246, 0.14)"
-        : props.$tone === "status"
-        ? "rgba(16, 185, 129, 0.14)"
-        : "var(--color-outline)"};
-  background:
-    ${(props) =>
-      props.$tone === "deal"
-        ? "#fff1f3"
-        : props.$tone === "price"
-        ? "#eff6ff"
-        : props.$tone === "status"
-        ? "#ecfdf5"
-        : "var(--color-surface)"};
-  color:
-    ${(props) =>
-      props.$tone === "deal"
-        ? "#b4233a"
-        : props.$tone === "price"
-        ? "#1d4ed8"
-        : props.$tone === "status"
-        ? "#0f766e"
-        : "var(--color-text)"};
 `;
 
 const IconPill = styled(Pill)`
@@ -494,6 +493,15 @@ export type VendorPropertyItem = {
   appointments_count: number;
   verification_status: string | null;
   cover_image_url?: string | null;
+  state_region?: string | null;
+  address_text?: string | null;
+  bedrooms?: number | null;
+  bathrooms?: number | null;
+  area_sqft?: number | null;
+  floor_count?: number | null;
+  room_count?: number | null;
+  has_lift?: boolean | null;
+  has_parking?: boolean | null;
 };
 
 type WorkspaceLimits = {
@@ -520,98 +528,20 @@ function labelize(value: string | null | undefined) {
     .join(" ");
 }
 
-const SIMULATED_VARIANTS: Array<Partial<VendorPropertyItem> & { title: string }> = [
-  {
-    title: "Corner condo near Kandawgyi",
-    deal_type: "sale",
-    property_type: "condo",
-    district: "Yangon East",
-    township: "Tamwe",
-    city: "Yangon",
-    appointments_count: 6,
-    price: 420000000,
-  },
-  {
-    title: "Family house with quiet street access",
-    deal_type: "sale",
-    property_type: "house",
-    district: "Yangon North",
-    township: "Mayangone",
-    city: "Yangon",
-    appointments_count: 4,
-    price: 950000000,
-  },
-  {
-    title: "Main-road land plot for future development",
-    deal_type: "sale",
-    property_type: "land",
-    district: "Bago",
-    township: "Bago",
-    city: "Bago",
-    appointments_count: 3,
-    price: 600000000,
-  },
-  {
-    title: "Compact shop office for daily foot traffic",
-    deal_type: "rent",
-    property_type: "shop_office",
-    district: "Downtown",
-    township: "Lanmadaw",
-    city: "Yangon",
-    appointments_count: 2,
-    price: 3500000,
-    currency: "MMK",
-  },
-  {
-    title: "Warehouse with truck access and high ceiling",
-    deal_type: "rent",
-    property_type: "warehouse",
-    district: "Industrial Zone",
-    township: "Hlaing Tharyar",
-    city: "Yangon",
-    appointments_count: 1,
-    price: 7800000,
-    currency: "MMK",
-  },
-  {
-    title: "Mini condo with city-facing balcony",
-    deal_type: "sale",
-    property_type: "mini_condo",
-    district: "Yangon Central",
-    township: "Sanchaung",
-    city: "Yangon",
-    appointments_count: 5,
-    price: 265000000,
-  },
-  {
-    title: "Serviced apartment close to embassy row",
-    deal_type: "rent",
-    property_type: "serviced_apartment",
-    district: "Golden Valley",
-    township: "Bahan",
-    city: "Yangon",
-    appointments_count: 2,
-    price: 4200000,
-    currency: "MMK",
-  },
-  {
-    title: "Restaurant space with ready kitchen layout",
-    deal_type: "rent",
-    property_type: "restaurant",
-    district: "City Fringe",
-    township: "Kamayut",
-    city: "Yangon",
-    appointments_count: 3,
-    price: 6800000,
-    currency: "MMK",
-  },
-];
-
 function getDealTypeLabel(value: string | null | undefined) {
   const normalized = String(value ?? "").trim().toLowerCase();
   if (normalized === "sale") return "Sale";
   if (normalized === "rent") return "Rent";
   return labelize(value);
+}
+
+function getListingStatusTone(status: string | null | undefined) {
+  const normalized = String(status ?? "").trim().toLowerCase();
+  if (normalized === "active") return "status-success" as const;
+  if (normalized === "reserved" || normalized === "paused" || normalized === "expired") return "status-warning" as const;
+  if (normalized === "sold" || normalized === "rented" || normalized === "rejected") return "status-danger" as const;
+  if (normalized === "draft" || normalized === "archived") return "status-muted" as const;
+  return "neutral" as const;
 }
 
 function PropertyTypeIcon({ type }: { type: string | null | undefined }) {
@@ -631,7 +561,6 @@ type VendorPropertiesViewProps = {
   hideHeader?: boolean;
   title?: string;
   subtitle?: string;
-  simulateCount?: number;
   onSelectProperty?: (property: VendorPropertyItem) => void;
   vendorId?: string | null;
 };
@@ -641,7 +570,6 @@ export function VendorPropertiesView({
   hideHeader = false,
   title = "Properties",
   subtitle = "Manage the live properties linked to this vendor workspace, then open each one for workspace-specific detail and editing.",
-  simulateCount,
   onSelectProperty,
   vendorId = null,
 }: VendorPropertiesViewProps = {}) {
@@ -656,22 +584,9 @@ export function VendorPropertiesView({
   const [dealType, setDealType] = useState("");
   const [propertyType, setPropertyType] = useState("");
 
-  const renderedItems = useMemo(() => {
-    if (!embedded || !simulateCount || simulateCount <= 0 || items.length === 0) return items;
-    return Array.from({ length: simulateCount }, (_, index) => {
-      const source = items[index % items.length];
-      const variant = SIMULATED_VARIANTS[index % SIMULATED_VARIANTS.length];
-      return {
-        ...source,
-        ...variant,
-        id: `${source.id}-sim-${index}`,
-      };
-    });
-  }, [embedded, items, simulateCount]);
-
   const filteredItems = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    return renderedItems.filter((property) => {
+    return items.filter((property) => {
       if (status && property.status !== status) return false;
       if (dealType && property.deal_type !== dealType) return false;
       if (propertyType && property.property_type !== propertyType) return false;
@@ -688,7 +603,7 @@ export function VendorPropertiesView({
         .toLowerCase();
       return haystack.includes(normalizedQuery);
     });
-  }, [dealType, propertyType, query, renderedItems, status]);
+  }, [dealType, items, propertyType, query, status]);
 
   useEffect(() => {
     if (!authToken) return;
@@ -903,7 +818,7 @@ export function VendorPropertiesView({
                       aria-label={`Open ${property.title || "property"} details`}
                     >
                       <EmbeddedFloatingPills>
-                        <EmbeddedPill $embedded $tone="status">
+                        <EmbeddedPill $embedded $tone={getListingStatusTone(property.status)}>
                           {labelize(property.status)}
                         </EmbeddedPill>
                         <EmbeddedPill $embedded $tone="deal">
@@ -966,12 +881,14 @@ export function VendorPropertiesView({
                 <Card key={property.id}>
                   <CardTop>
                     <CardTitle>{property.title || "Untitled property"}</CardTitle>
-                    <Pill>{labelize(property.status)}</Pill>
+                    <Pill $tone={getListingStatusTone(property.status)}>{labelize(property.status)}</Pill>
                   </CardTop>
                   <Meta>
-                    <Pill>{labelize(property.deal_type)}</Pill>
+                    <Pill $tone="deal">{labelize(property.deal_type)}</Pill>
                     <Pill>{labelize(property.property_type)}</Pill>
-                    <Pill>{`Verification: ${labelize(property.verification_status)}`}</Pill>
+                    <Pill $tone={property.verification_status === "verified" || property.verification_status === "approved" ? "status-success" : "status-muted"}>
+                      {`Verification: ${labelize(property.verification_status)}`}
+                    </Pill>
                   </Meta>
                   <Row>
                     <span>Price</span>

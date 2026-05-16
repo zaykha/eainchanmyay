@@ -141,12 +141,16 @@ type FullAnalyticsPayload = {
       listingStatus: string;
       agentId: string | null;
     }>;
-  };
-  placeholders: {
-    promotionPerformance: Array<{
-      key: string;
-      label: string;
+    promotions: Array<{
+      id: string;
+      listingId: string | null;
+      promotionType: string;
+      targetType: string;
       status: string;
+      title: string;
+      pricePer24h: number | null;
+      startsAt: string | null;
+      endsAt: string | null;
     }>;
   };
 };
@@ -896,6 +900,17 @@ function formatDatePickerLabel(value: string | undefined) {
   if (!value) return "";
   const parsed = parseDateOnly(value);
   if (!parsed) return "";
+  return parsed.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function formatDateLabel(value: string | null | undefined) {
+  if (!value) return "N/A";
+  const parsed = new Date(value);
+  if (!Number.isFinite(parsed.getTime())) return "N/A";
   return parsed.toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
@@ -2131,49 +2146,55 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
                   <div>
                     <SectionTitle>Promotion performance</SectionTitle>
                     <SectionCopy>
-                      Promotion inventory is present so the layout is ready, but impressions, clicks, CTR, and generated leads remain unavailable until
-                      paid placement tracking is implemented.
+                      Promotion records are shown from the live agency promotion table. Performance metrics like impressions, clicks, CTR, and generated
+                      leads remain unavailable until paid placement tracking is implemented.
                     </SectionCopy>
                   </div>
                   <NotePill>
                     <Users2 size={14} />
-                    Placeholder section, no fake metrics
+                    {fullAnalytics.items.promotions.length} live promotion record{fullAnalytics.items.promotions.length === 1 ? "" : "s"}
                   </NotePill>
                 </SectionHead>
-                <TableWrap>
-                  <Table>
-                    <thead>
-                      <tr>
-                        <th>Promotion</th>
-                        <th>Impressions</th>
-                        <th>Clicks</th>
-                        <th>CTR</th>
-                        <th>Leads generated</th>
-                        <th>Appointments generated</th>
-                        <th>Status</th>
-                        <th>Start date</th>
-                        <th>End date</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {fullAnalytics.placeholders.promotionPerformance.map((item) => (
-                        <tr key={item.key}>
-                          <td>{item.label}</td>
-                          <td>N/A</td>
-                          <td>N/A</td>
-                          <td>N/A</td>
-                          <td>N/A</td>
-                          <td>N/A</td>
-                          <td>
-                            <Pill>N/A</Pill>
-                          </td>
-                          <td>N/A</td>
-                          <td>N/A</td>
+                {fullAnalytics.items.promotions.length ? (
+                  <TableWrap>
+                    <Table>
+                      <thead>
+                        <tr>
+                          <th>Promotion</th>
+                          <th>Impressions</th>
+                          <th>Clicks</th>
+                          <th>CTR</th>
+                          <th>Leads generated</th>
+                          <th>Appointments generated</th>
+                          <th>Status</th>
+                          <th>Start date</th>
+                          <th>End date</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </Table>
-                </TableWrap>
+                      </thead>
+                      <tbody>
+                        {fullAnalytics.items.promotions.map((item) => (
+                          <tr key={item.id}>
+                            <td>{item.title}</td>
+                            <td>N/A</td>
+                            <td>N/A</td>
+                            <td>N/A</td>
+                            <td>N/A</td>
+                            <td>N/A</td>
+                            <td>
+                              <Pill>{labelize(item.status)}</Pill>
+                            </td>
+                            <td>{formatDateLabel(item.startsAt)}</td>
+                            <td>{formatDateLabel(item.endsAt)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </Table>
+                  </TableWrap>
+                ) : (
+                  <EmptyState>
+                    No promotion records yet. Once this agency creates boostings, they will appear here with live status and schedule details.
+                  </EmptyState>
+                )}
               </Section>
             </>
           )}

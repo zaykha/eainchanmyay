@@ -348,6 +348,29 @@ const Fact = styled.span`
   gap: 6px;
 `;
 
+const CardActions = styled.div`
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+  padding-top: 2px;
+`;
+
+const CardLink = styled(Link)<{ $accent?: boolean }>`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 10px;
+  font-weight: 800;
+  font-size: 0.82rem;
+  border: 1px solid
+    ${(props) => (props.$accent ? "rgba(225, 29, 72, 0.86)" : "rgba(148, 163, 184, 0.22)")};
+  background: ${(props) => (props.$accent ? "linear-gradient(135deg, #ff4d73, #e11d48)" : "#fff")};
+  color: ${(props) => (props.$accent ? "#fff" : "#172033")};
+`;
+
 const MapCanvas = styled.div`
   position: absolute;
   inset: 0;
@@ -650,13 +673,22 @@ function MapListingCard({
   ].filter(Boolean) as Array<{ key: string; icon: ReactNode; label: string }>;
 
   return (
-    <Link
-      href={`/listing/${listing.id}`}
+    <div
       ref={registerRef}
-      onClick={() => onSelect()}
       style={{ display: "block", width: "100%" }}
     >
-      <ListingButton $selected={selected}>
+      <ListingButton
+        $selected={selected}
+        onClick={onSelect}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            onSelect();
+          }
+        }}
+      >
         <ListingImage>
           {listing.imageUrl ? <img src={listing.imageUrl} alt={listing.title} /> : null}
         </ListingImage>
@@ -691,9 +723,15 @@ function MapListingCard({
               ))}
             </FactsRow>
           ) : null}
+          <CardActions onClick={(event) => event.stopPropagation()}>
+            <CardLink href={`/listing/${listing.id}`}>View details</CardLink>
+            <CardLink href={`/listing/${listing.id}#contact`} $accent>
+              Contact
+            </CardLink>
+          </CardActions>
         </ListingContent>
       </ListingButton>
-    </Link>
+    </div>
   );
 }
 
@@ -951,6 +989,12 @@ export default function PropertyMapView() {
             </Fact>
           ) : null}
         </FactsRow>
+        <CardActions>
+          <CardLink href={`/listing/${selectedListing.id}`}>View details</CardLink>
+          <CardLink href={`/listing/${selectedListing.id}#contact`} $accent>
+            Contact
+          </CardLink>
+        </CardActions>
       </ListingContent>
     </MapPreviewCard>
   ) : null;

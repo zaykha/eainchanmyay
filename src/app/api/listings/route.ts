@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { resolveListingImage } from "@/app/living-site/lib/images";
 import { rateLimit } from "@/app/api/_lib/rate-limit";
 import { publicListingQueryStatuses } from "@/lib/lifecycle";
+import { selectActiveBoostedListingPromotions } from "@/lib/vendor-promotions";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
@@ -30,7 +31,14 @@ const isMissingColumnError = (message: string) => {
   return normalized.includes("schema cache") || normalized.includes("could not find the") || normalized.includes("column");
 };
 
+const isMissingRelationError = (message: string) => {
+  const normalized = message.toLowerCase();
+  return normalized.includes("schema cache") || normalized.includes("could not find the table") || normalized.includes("relation");
+};
+
 const propertyImageSelect = "property_id,public_url,r2_key,is_cover,sort_order";
+
+const createIdFilterValue = (ids: string[]) => `(${ids.map((id) => `"${id}"`).join(",")})`;
 
 export async function GET(request: Request) {
   const isLocalRequest =
@@ -112,12 +120,29 @@ export async function GET(request: Request) {
   );
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
-  const buildQuery = (selectColumns: string, withBounds: boolean) => {
+  const buildQuery = (
+    selectColumns: string,
+    withBounds: boolean,
+    options?: {
+      includeIds?: string[];
+      excludeIds?: string[];
+      from?: number;
+      to?: number;
+    }
+  ) => {
     let queryBuilder = supabase
       .from("properties")
       .select(selectColumns, { count: "exact" })
       .in("status", statusScope)
-      .eq("is_deleted", false);
+      .eq("is_deleted", false)
+      .order("created_at", { ascending: false });
+
+    if (options?.includeIds?.length) {
+      queryBuilder = queryBuilder.in("id", options.includeIds);
+    }
+    if (options?.excludeIds?.length) {
+      queryBuilder = queryBuilder.not("id", "in", createIdFilterValue(options.excludeIds));
+    }
 
     if (dealType.trim()) {
       queryBuilder = queryBuilder.eq("deal_type", dealType.trim());
@@ -166,23 +191,96 @@ export async function GET(request: Request) {
       );
     }
 
-    return queryBuilder.range(from, to);
+    return queryBuilder.range(options?.from ?? from, options?.to ?? to);
   };
 
-  let { data: properties, error, count } = await buildQuery(
-    "id,title,deal_type,property_type,price,currency,state_region,district,township,bedrooms,bathrooms,area_sqft,latitude,longitude",
-    true
-  );
+  let activeBoostedListingIds: string[] = [];
+  const promotionsResult = await supabase
+    .from("vendor_promotions")
+    .select("id,listing_id,promotion_type,status,price_per_24h,starts_at,ends_at");
 
-  if (error && isMissingColumnError(error.message)) {
-    ({ data: properties, error, count } = await buildQuery(
-      "id,title,deal_type,property_type,price,currency,state_region,district,township,bedrooms,bathrooms,area_sqft",
-      false
-    ));
+  if (promotionsResult.error) {
+    if (!isMissingRelationError(promotionsResult.error.message)) {
+      console.warn("Failed to load active boost promotions", promotionsResult.error);
+    }
+  } else if (promotionsResult.data) {
+    activeBoostedListingIds = selectActiveBoostedListingPromotions(
+      promotionsResult.data.map((item) => ({
+        id: String(item.id ?? ""),
+        listing_id: typeof item.listing_id === "string" ? item.listing_id : null,
+        promotion_type: typeof item.promotion_type === "string" ? item.promotion_type : null,
+        status: typeof item.status === "string" ? item.status : null,
+        price_per_24h: typeof item.price_per_24h === "number" ? item.price_per_24h : null,
+        starts_at: typeof item.starts_at === "string" ? item.starts_at : null,
+        ends_at: typeof item.ends_at === "string" ? item.ends_at : null,
+      })),
+      new Date(),
+      500
+    )
+      .map((item) => item.listing_id)
+      .filter((value): value is string => typeof value === "string" && value.length > 0);
   }
 
-  if (error || !properties) {
-    console.warn("Failed to load listings", error);
+  const boostedPriorityMap = new Map(activeBoostedListingIds.map((id, index) => [id, index]));
+  const baseColumnsWithCoords =
+    "id,title,deal_type,property_type,price,currency,state_region,district,township,bedrooms,bathrooms,area_sqft,latitude,longitude,created_at";
+  const baseColumnsWithoutCoords =
+    "id,title,deal_type,property_type,price,currency,state_region,district,township,bedrooms,bathrooms,area_sqft,created_at";
+
+  let usesCoordinates = true;
+  let boostedProperties: Record<string, unknown>[] = [];
+  let normalProperties: Record<string, unknown>[] = [];
+  let boostedTotal = 0;
+  let normalTotal = 0;
+
+  if (activeBoostedListingIds.length) {
+    let boostedResult = await buildQuery(baseColumnsWithCoords, true, {
+      includeIds: activeBoostedListingIds,
+      from: 0,
+      to: Math.max(activeBoostedListingIds.length - 1, 0),
+    });
+    if (boostedResult.error && isMissingColumnError(boostedResult.error.message)) {
+      usesCoordinates = false;
+      boostedResult = await buildQuery(baseColumnsWithoutCoords, false, {
+        includeIds: activeBoostedListingIds,
+        from: 0,
+        to: Math.max(activeBoostedListingIds.length - 1, 0),
+      });
+    }
+    if (boostedResult.error) {
+      console.warn("Failed to load boosted listings", boostedResult.error);
+    } else {
+      boostedProperties = (boostedResult.data ?? []) as Record<string, unknown>[];
+      boostedProperties.sort((left, right) => {
+        const leftRank = boostedPriorityMap.get(String(left.id ?? "")) ?? Number.MAX_SAFE_INTEGER;
+        const rightRank = boostedPriorityMap.get(String(right.id ?? "")) ?? Number.MAX_SAFE_INTEGER;
+        return leftRank - rightRank;
+      });
+      boostedTotal = boostedProperties.length;
+    }
+  }
+
+  const normalOffset = Math.max(0, from - boostedTotal);
+  const boostedSlice = from < boostedTotal ? boostedProperties.slice(from, Math.min(to + 1, boostedTotal)) : [];
+  const remainingSlots = Math.max(0, pageSize - boostedSlice.length);
+
+  let normalResult = await buildQuery(usesCoordinates ? baseColumnsWithCoords : baseColumnsWithoutCoords, usesCoordinates, {
+    excludeIds: activeBoostedListingIds,
+    from: normalOffset,
+    to: normalOffset + Math.max(remainingSlots - 1, 0),
+  });
+
+  if (usesCoordinates && normalResult.error && isMissingColumnError(normalResult.error.message)) {
+    usesCoordinates = false;
+    normalResult = await buildQuery(baseColumnsWithoutCoords, false, {
+      excludeIds: activeBoostedListingIds,
+      from: normalOffset,
+      to: normalOffset + Math.max(remainingSlots - 1, 0),
+    });
+  }
+
+  if (normalResult.error) {
+    console.warn("Failed to load listings", normalResult.error);
     return NextResponse.json({
       data: [],
       page,
@@ -192,19 +290,24 @@ export async function GET(request: Request) {
     });
   }
 
+  normalProperties = (normalResult.data ?? []) as Record<string, unknown>[];
+  normalTotal = normalResult.count ?? normalProperties.length;
+  const properties = [...boostedSlice, ...normalProperties];
+
   const ids = properties.map((property) => property.id).filter(Boolean);
   let photosByProperty = new Map<string, Record<string, unknown>[]>();
+  const boostedListingIds = new Set(activeBoostedListingIds);
 
   if (ids.length) {
-    const { data: photos, error: photoError } = await supabase
+    const { data: photos, error: photosError } = await supabase
       .from("property_images")
       .select(propertyImageSelect)
       .in("property_id", ids)
       .order("is_cover", { ascending: false })
       .order("sort_order", { ascending: true });
 
-    if (photoError) {
-      console.warn("Failed to load listing images", photoError);
+    if (photosError) {
+      console.warn("Failed to load listing images", photosError);
     } else if (photos) {
       photosByProperty = photos.reduce((map, photo) => {
         const propertyId = String(photo.property_id ?? "");
@@ -238,6 +341,7 @@ export async function GET(request: Request) {
       areaSqft: getNumber(property.area_sqft),
       bedrooms: getNumber(property.bedrooms),
       bathrooms: getNumber(property.bathrooms),
+      isBoosted: boostedListingIds.has(id),
       latitude: isValidCoordinate(getNumber(property.latitude), "latitude")
         ? getNumber(property.latitude)
         : undefined,
@@ -249,7 +353,7 @@ export async function GET(request: Request) {
     };
   });
 
-  const total = count ?? listings.length;
+  const total = boostedTotal + normalTotal;
   const hasMore = from + listings.length < total;
 
   return NextResponse.json(

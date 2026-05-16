@@ -29,6 +29,11 @@ export async function uploadVendorVerificationDocument(input: {
     });
 
   if (uploadError) {
+    if (uploadError.message.toLowerCase().includes("bucket not found")) {
+      throw new Error(
+        `Verification document storage is not configured. Create the Supabase bucket "${vendorVerificationBucket}" or run supabase/vendor_verification_documents_storage_bucket.sql.`
+      );
+    }
     throw new Error(uploadError.message);
   }
 

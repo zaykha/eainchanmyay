@@ -204,10 +204,30 @@ function BaseTileLayer() {
     const layer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: "&copy; OpenStreetMap contributors",
     });
-    layer.addTo(map);
+    let disposed = false;
+
+    const attachLayer = () => {
+      if (disposed) return;
+      const container = typeof map.getContainer === "function" ? map.getContainer() : null;
+      if (!container) return;
+      try {
+        layer.addTo(map);
+      } catch {
+        return;
+      }
+    };
+
+    map.whenReady(attachLayer);
 
     return () => {
-      map.removeLayer(layer);
+      disposed = true;
+      try {
+        if (map.hasLayer(layer)) {
+          map.removeLayer(layer);
+        }
+      } catch {
+        return;
+      }
     };
   }, [map]);
 

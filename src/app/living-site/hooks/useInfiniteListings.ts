@@ -14,7 +14,7 @@ type ApiResponse = {
   hasMore: boolean;
 };
 
-const cachePrefix = "ecm_listings_cache_v1";
+const cachePrefix = "ecm_listings_cache_v2";
 const cacheTtlMs = 5 * 60 * 1000;
 
 export type ListingQueryBounds = {

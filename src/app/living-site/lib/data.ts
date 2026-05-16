@@ -20,6 +20,7 @@ export type Listing = {
   bathrooms?: number;
   latitude?: number;
   longitude?: number;
+  isBoosted?: boolean;
   verificationStatus?: string;
   imageUrl?: string;
   raw: Record<string, unknown>;

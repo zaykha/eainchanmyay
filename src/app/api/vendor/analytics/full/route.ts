@@ -65,6 +65,18 @@ type SavedPropertyRow = {
   created_at: string | null;
 };
 
+type PromotionRow = {
+  id: string;
+  listing_id: string | null;
+  promotion_type: string | null;
+  target_type: string | null;
+  status: string | null;
+  title: string | null;
+  price_per_24h: number | null;
+  starts_at: string | null;
+  ends_at: string | null;
+};
+
 function normalizePlan(value: string | null | undefined) {
   return (value ?? "").trim().toLowerCase();
 }
@@ -78,6 +90,11 @@ function toIsoDateKey(value: string | null | undefined) {
 
 function labelFromProfile(profile: ProfileRow | undefined) {
   return profile?.full_name || profile?.email || "Agent";
+}
+
+function isMissingRelationError(message: string | null | undefined) {
+  const normalized = (message ?? "").toLowerCase();
+  return normalized.includes("could not find the table") || normalized.includes("relation") && normalized.includes("does not exist");
 }
 
 export async function GET(request: Request) {
@@ -133,7 +150,7 @@ export async function GET(request: Request) {
   const leads = (leadsResult.data ?? []) as LeadRow[];
   const propertyIds = properties.map((property) => property.id).filter(Boolean);
 
-  const [viewsResult, appointmentsResult, viewingRequestsResult, savedPropertiesResult, propertyImagesResult] = await Promise.all([
+  const [viewsResult, appointmentsResult, viewingRequestsResult, savedPropertiesResult, propertyImagesResult, promotionsResult] = await Promise.all([
     propertyIds.length
       ? supabase
           .from("property_view_events")
@@ -166,6 +183,11 @@ export async function GET(request: Request) {
           .order("is_cover", { ascending: false })
           .order("sort_order", { ascending: true })
       : Promise.resolve({ data: [], error: null }),
+    supabase
+      .from("vendor_promotions")
+      .select("id,listing_id,promotion_type,target_type,status,title,price_per_24h,starts_at,ends_at")
+      .eq("vendor_id", vendor.id)
+      .order("created_at", { ascending: false }),
   ]);
 
   if (viewsResult.error) {
@@ -183,12 +205,16 @@ export async function GET(request: Request) {
   if (propertyImagesResult.error) {
     return NextResponse.json({ error: propertyImagesResult.error.message }, { status: 500 });
   }
+  if (promotionsResult.error && !isMissingRelationError(promotionsResult.error.message)) {
+    return NextResponse.json({ error: promotionsResult.error.message }, { status: 500 });
+  }
 
   const viewEvents = (viewsResult.data ?? []) as ViewEventRow[];
   const appointments = (appointmentsResult.data ?? []) as AppointmentRow[];
   const viewingRequests = (viewingRequestsResult.data ?? []) as ViewingRequestRow[];
   const savedProperties = (savedPropertiesResult.data ?? []) as SavedPropertyRow[];
   const propertyImages = (propertyImagesResult.data ?? []) as PropertyImageRow[];
+  const promotions = promotionsResult.error ? [] : ((promotionsResult.data ?? []) as PromotionRow[]);
 
   const profileMap = new Map(profiles.map((profile) => [String(profile.id ?? ""), profile]));
   const propertyMap = new Map(properties.map((property) => [property.id, property]));
@@ -319,25 +345,23 @@ export async function GET(request: Request) {
           agentId: property?.created_by ?? null,
         };
       }),
-    },
-    placeholders: {
-      promotionPerformance: [
-        {
-          key: "search_boost",
-          label: "Search boost",
-          status: "tracking_pending",
-        },
-        {
-          key: "category_ranking_boost",
-          label: "Category ranking boost",
-          status: "tracking_pending",
-        },
-        {
-          key: "hero_section_ads",
-          label: "Hero section ads",
-          status: "tracking_pending",
-        },
-      ],
+      promotions: promotions.map((item) => {
+        const property = item.listing_id ? propertyMap.get(String(item.listing_id)) : null;
+        return {
+          id: item.id,
+          listingId: item.listing_id ? String(item.listing_id) : null,
+          promotionType: (item.promotion_type ?? "").trim().toLowerCase() || "unknown",
+          targetType: (item.target_type ?? "").trim().toLowerCase() || "listing",
+          status: (item.status ?? "").trim().toLowerCase() || "draft",
+          title:
+            item.title?.trim() ||
+            property?.title ||
+            ((item.promotion_type ?? "").trim().toLowerCase() === "hero_ad" ? "Hero Section Ad" : "Promotion"),
+          pricePer24h: item.price_per_24h,
+          startsAt: item.starts_at,
+          endsAt: item.ends_at,
+        };
+      }),
     },
   });
 }

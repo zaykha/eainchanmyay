@@ -31,7 +31,6 @@ import { resolvePhotoUrl } from "@/app/living-site/lib/images";
 import { formatCurrency } from "@/app/living-site/lib/format";
 import { EAIN_CONTACT_PHONE } from "@/app/living-site/lib/constants";
 import { useAppState } from "@/app/living-site/lib/app-state";
-import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
 import { CustomInput } from "@/app/living-site/components/form-controls/CustomInput";
 import { CustomSelect } from "@/app/living-site/components/form-controls/CustomSelect";
 import { CustomTextarea } from "@/app/living-site/components/form-controls/CustomTextarea";
@@ -99,6 +98,68 @@ const ImagePlaceholder = styled.div`
   display: grid;
   place-items: center;
   box-shadow: var(--shadow-soft);
+`;
+
+const shimmer = keyframes`
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+`;
+
+const DetailSkeleton = styled.div`
+  max-width: 1140px;
+  margin: 0 auto;
+  padding: 16px;
+  display: grid;
+  gap: 16px;
+`;
+
+const SkeletonBlock = styled.div<{ $height: number; $radius?: number; $width?: string }>`
+  width: ${(props) => props.$width ?? "100%"};
+  height: ${(props) => `${props.$height}px`};
+  border-radius: ${(props) => `${props.$radius ?? 16}px`};
+  background: linear-gradient(
+    90deg,
+    rgba(226, 232, 240, 0.7),
+    rgba(241, 245, 249, 0.98),
+    rgba(226, 232, 240, 0.7)
+  );
+  background-size: 200% 100%;
+  animation: ${shimmer} 1.3s linear infinite;
+`;
+
+const SkeletonHeader = styled.div`
+  display: grid;
+  gap: 10px;
+`;
+
+const SkeletonTagRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+`;
+
+const SkeletonFeatureGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+
+  @media (max-width: 720px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const SkeletonTwoColumn = styled.div`
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(280px, 0.9fr);
+  gap: 16px;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
 `;
 
 const CarouselShell = styled.div`
@@ -1219,11 +1280,32 @@ export default function ListingDetailPage() {
     }).catch(() => undefined);
   }, [authToken, detail, propertyId]);
 
-  if (loading) {
+  if (!propertyId || loading) {
     return (
       <div>
         <MarketplaceHeader />
-        <LoadingOverlay message={t("listing.loadingProperty")} />
+        <DetailSkeleton aria-hidden="true">
+          <SkeletonHeader>
+            <SkeletonBlock $height={18} $radius={999} $width="132px" />
+            <SkeletonBlock $height={34} $width="42%" />
+            <SkeletonBlock $height={18} $width="58%" />
+            <SkeletonTagRow>
+              <SkeletonBlock $height={30} $radius={999} $width="84px" />
+              <SkeletonBlock $height={30} $radius={999} $width="98px" />
+              <SkeletonBlock $height={30} $radius={999} $width="110px" />
+            </SkeletonTagRow>
+          </SkeletonHeader>
+          <SkeletonBlock $height={460} $radius={18} />
+          <SkeletonFeatureGrid>
+            <SkeletonBlock $height={88} $radius={18} />
+            <SkeletonBlock $height={88} $radius={18} />
+            <SkeletonBlock $height={88} $radius={18} />
+          </SkeletonFeatureGrid>
+          <SkeletonTwoColumn>
+            <SkeletonBlock $height={220} $radius={18} />
+            <SkeletonBlock $height={220} $radius={18} />
+          </SkeletonTwoColumn>
+        </DetailSkeleton>
       </div>
     );
   }

@@ -40,7 +40,7 @@ export function useListingDetail(propertyId?: string) {
   useEffect(() => {
     if (!propertyId) {
       setDetail(null);
-      setLoading(false);
+      setLoading(true);
       return;
     }
 
