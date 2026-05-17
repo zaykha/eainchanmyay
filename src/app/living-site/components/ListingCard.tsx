@@ -8,6 +8,7 @@ import {
   Landmark,
   MapPin,
   Ruler,
+  Search,
   Sparkles,
   Store,
   TowerControl,
@@ -81,17 +82,24 @@ const DealRibbon = styled.span<{ $dealType?: string }>`
   box-shadow: var(--shadow-soft);
 `;
 
-const BoostBadge = styled.span`
+const CoverBadges = styled.div`
   position: absolute;
   top: 10px;
   left: 10px;
+  display: grid;
+  gap: 6px;
+`;
+
+const CoverBadge = styled.span<{ $tone?: "boost" | "search" }>`
   padding: 4px 10px;
   border-radius: 999px;
   font-size: 0.74rem;
   font-weight: 800;
-  color: #9f1239;
-  background: rgba(255, 241, 245, 0.96);
-  border: 1px solid rgba(244, 114, 182, 0.28);
+  color: ${(props) => (props.$tone === "search" ? "#1d4ed8" : "#9f1239")};
+  background: ${(props) =>
+    props.$tone === "search" ? "rgba(239, 246, 255, 0.96)" : "rgba(255, 241, 245, 0.96)"};
+  border: 1px solid
+    ${(props) => (props.$tone === "search" ? "rgba(96, 165, 250, 0.28)" : "rgba(244, 114, 182, 0.28)")};
   box-shadow: var(--shadow-soft);
   display: inline-flex;
   align-items: center;
@@ -231,11 +239,21 @@ export function ListingCard({ listing }: ListingCardProps) {
           ) : (
             <span>{t("listing.noPhoto")}</span>
           )}
-          {listing.isBoosted ? (
-            <BoostBadge>
-              <Sparkles size={13} />
-              <span>Boosted</span>
-            </BoostBadge>
+          {listing.isBoosted || listing.isSearchRanked ? (
+            <CoverBadges>
+              {listing.isBoosted ? (
+                <CoverBadge $tone="boost">
+                  <Sparkles size={13} />
+                  <span>Boosted</span>
+                </CoverBadge>
+              ) : null}
+              {listing.isSearchRanked ? (
+                <CoverBadge $tone="search">
+                  <Search size={13} />
+                  <span>Search ranked</span>
+                </CoverBadge>
+              ) : null}
+            </CoverBadges>
           ) : null}
           <DealRibbon $dealType={normalizedDealType}>{dealLabel}</DealRibbon>
           <PricePill>

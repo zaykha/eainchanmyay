@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { resolveListingImage } from "@/app/living-site/lib/images";
 import { rateLimit } from "@/app/api/_lib/rate-limit";
 import { publicListingQueryStatuses } from "@/lib/lifecycle";
-import { selectActiveBoostedListingPromotions } from "@/lib/vendor-promotions";
+import { getSearchRankingPromotionBonus, selectActiveBoostedListingPromotions } from "@/lib/vendor-promotions";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
@@ -195,6 +195,7 @@ export async function GET(request: Request) {
   };
 
   let activeBoostedListingIds: string[] = [];
+  let activeSearchRankedListingIds = new Set<string>();
   const promotionsResult = await supabase
     .from("vendor_promotions")
     .select("id,listing_id,promotion_type,status,price_per_24h,starts_at,ends_at");
@@ -204,8 +205,7 @@ export async function GET(request: Request) {
       console.warn("Failed to load active boost promotions", promotionsResult.error);
     }
   } else if (promotionsResult.data) {
-    activeBoostedListingIds = selectActiveBoostedListingPromotions(
-      promotionsResult.data.map((item) => ({
+    const normalizedPromotions = promotionsResult.data.map((item) => ({
         id: String(item.id ?? ""),
         listing_id: typeof item.listing_id === "string" ? item.listing_id : null,
         promotion_type: typeof item.promotion_type === "string" ? item.promotion_type : null,
@@ -213,12 +213,20 @@ export async function GET(request: Request) {
         price_per_24h: typeof item.price_per_24h === "number" ? item.price_per_24h : null,
         starts_at: typeof item.starts_at === "string" ? item.starts_at : null,
         ends_at: typeof item.ends_at === "string" ? item.ends_at : null,
-      })),
+      }));
+    activeBoostedListingIds = selectActiveBoostedListingPromotions(
+      normalizedPromotions,
       new Date(),
       500
     )
       .map((item) => item.listing_id)
       .filter((value): value is string => typeof value === "string" && value.length > 0);
+    activeSearchRankedListingIds = new Set(
+      normalizedPromotions
+        .map((item) => item.listing_id)
+        .filter((value): value is string => typeof value === "string" && value.length > 0)
+        .filter((listingId) => getSearchRankingPromotionBonus(normalizedPromotions, listingId, new Date()) > 0)
+    );
   }
 
   const boostedPriorityMap = new Map(activeBoostedListingIds.map((id, index) => [id, index]));
@@ -342,6 +350,7 @@ export async function GET(request: Request) {
       bedrooms: getNumber(property.bedrooms),
       bathrooms: getNumber(property.bathrooms),
       isBoosted: boostedListingIds.has(id),
+      isSearchRanked: activeSearchRankedListingIds.has(id),
       latitude: isValidCoordinate(getNumber(property.latitude), "latitude")
         ? getNumber(property.latitude)
         : undefined,

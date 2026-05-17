@@ -3,15 +3,16 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Map, MapPin, Menu, MessageCircleMore, Plus, Search, SlidersHorizontal, X } from "lucide-react";
-import styled from "styled-components";
+import { ArrowUpRight, Bath, BedDouble, Building2, House, Map, MapPin, Menu, MessageCircleMore, Phone, Plus, Search, ShieldCheck, SlidersHorizontal, Sparkles, Star, X } from "lucide-react";
+import styled, { keyframes } from "styled-components";
 import { ListingGrid } from "@/app/living-site/components/ListingGrid";
 import { CustomSelect } from "@/app/living-site/components/form-controls/CustomSelect";
 import { useLanguage } from "@/app/living-site/components/Providers";
 import { buildListingQuery, useInfiniteListings } from "@/app/living-site/hooks/useInfiniteListings";
 import { useAppState } from "@/app/living-site/lib/app-state";
+import { formatCurrency } from "@/app/living-site/lib/format";
 import { resolveHeaderAccountPresentation } from "@/app/living-site/lib/header-account";
-import { isBedBathPropertyType } from "@/lib/property-types";
+import { formatPropertyTypeValue, isBedBathPropertyType } from "@/lib/property-types";
 import { getDistricts, getStates, getTownships } from "@/app/living-site/lib/myanmar-geo";
 
 const PageFrame = styled.div`
@@ -381,7 +382,7 @@ const LanguageCheck = styled.span<{ $active: boolean }>`
 
 const HeroSection = styled.section`
   position: relative;
-  min-height: 520px;
+  height: 620px;
   padding: 23px 44px 86px;
   border-radius: 0 0 0 0;
   overflow: visible;
@@ -397,24 +398,24 @@ const HeroSection = styled.section`
   box-shadow: 0 28px 54px rgba(15, 23, 42, 0.14);
 
   @media (max-width: 960px) {
-    min-height: 460px;
+    height: 700px;
     padding: 23px 24px 112px;
   }
 
   @media (max-width: 720px) {
     border-radius: 0;
     padding: 21px 16px 144px;
-    min-height: 420px;
+    height: 760px;
   }
 `;
 
 const DealTabsWrap = styled.div`
   display: flex;
   justify-content: center;
-  margin-bottom: 72px;
+  margin-bottom: 34px;
 
   @media (max-width: 720px) {
-    margin-bottom: 28px;
+    margin-bottom: 20px;
   }
 `;
 
@@ -445,29 +446,433 @@ const DealTab = styled.button<{ $active: boolean }>`
 `;
 
 const HeroBody = styled.div`
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  display: block;
+  overflow: visible;
+`;
+
+const heroSlideIn = keyframes`
+  from {
+    opacity: 0;
+    transform: translateX(68px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+`;
+
+const HeroMotionFrame = styled.div`
+  width: 100%;
+  height: 398px;
+  animation: ${heroSlideIn} 0.58s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform, opacity;
+  overflow: hidden;
+  border-radius: 30px;
+
+  @media (max-width: 960px) {
+    height: 430px;
+  }
+
+  @media (max-width: 720px) {
+    height: 446px;
+    border-radius: 24px;
+  }
+`;
+
+const HeroScene = styled.section<{ $tone?: "listing" | "agency" }>`
+  height: 100%;
+  border-radius: 30px;
+  padding: 20px 24px;
+  background:
+    ${(props) =>
+      props.$tone === "agency"
+        ? "linear-gradient(90deg, rgba(64, 18, 39, 0.98), rgba(86, 28, 52, 0.94) 58%, rgba(56, 20, 41, 0.98) 100%)"
+        : "linear-gradient(90deg, rgba(68, 10, 18, 0.98), rgba(86, 12, 22, 0.95) 52%, rgba(47, 11, 18, 0.98) 100%)"};
+  border: 1px solid
+    ${(props) => (props.$tone === "agency" ? "rgba(214, 148, 174, 0.2)" : "rgba(255, 130, 140, 0.16)")};
+  box-shadow: 0 24px 60px rgba(9, 14, 26, 0.28);
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(360px, 0.9fr);
   gap: 24px;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(circle at top right, rgba(255, 255, 255, 0.12), transparent 28%),
+      repeating-linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0.03) 0 2px,
+        rgba(255, 255, 255, 0) 2px 18px
+      );
+    pointer-events: none;
+  }
+
+  @media (max-width: 960px) {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1fr) 188px;
+    padding: 18px;
+  }
 `;
 
-const HeroCopy = styled.div`
-  max-width: 520px;
-  color: #fff;
+const HeroSceneCopy = styled.div`
+  position: relative;
+  z-index: 1;
+  display: grid;
+  align-content: center;
+  gap: 10px;
+  min-height: 0;
 `;
 
-const HeroTitle = styled.h1`
+const HeroSceneEyebrow = styled.div<{ $tone?: "listing" | "agency" }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: ${(props) =>
+    props.$tone === "agency" ? "rgba(214, 110, 152, 0.18)" : "rgba(255, 93, 108, 0.18)"};
+  border: 1px solid
+    ${(props) =>
+      props.$tone === "agency" ? "rgba(231, 168, 193, 0.24)" : "rgba(255, 126, 138, 0.2)"};
+  color: rgba(255, 247, 249, 0.98);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+`;
+
+const HeroSceneTitle = styled.h2<{ $accent?: boolean }>`
   margin: 0;
-  font-size: clamp(3rem, 5vw, 4.4rem);
-  line-height: 0.95;
-  font-weight: 700;
+  color: ${(props) => (props.$accent ? "#ff4b65" : "#fff")};
+  font-size: clamp(2rem, 3.6vw, 3.1rem);
+  line-height: 0.94;
+  font-weight: 800;
   letter-spacing: -0.04em;
 
   @media (max-width: 720px) {
-    font-size: 2.4rem;
-    line-height: 1;
-    max-width: 300px;
+    font-size: 1.8rem;
   }
+`;
+
+const HeroSceneLocation = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(255, 242, 245, 0.88);
+  font-size: 0.94rem;
+  min-height: 22px;
+`;
+
+const HeroScenePrice = styled.div`
+  color: #fff;
+  font-size: clamp(1.55rem, 2.3vw, 2.2rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+`;
+
+const HeroSceneSummary = styled.p`
+  margin: 0;
+  max-width: 520px;
+  color: rgba(255, 239, 243, 0.84);
+  font-size: 0.92rem;
+  line-height: 1.48;
+  min-height: 2.96em;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+`;
+
+const HeroSceneActions = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+`;
+
+const HeroSceneAction = styled.button<{ $primary?: boolean; $tone?: "listing" | "agency" }>`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 20px;
+  border-radius: 18px;
+  border: 1px solid
+    ${(props) =>
+      props.$primary
+        ? "transparent"
+        : props.$tone === "agency"
+          ? "rgba(203, 190, 255, 0.42)"
+          : "rgba(255, 214, 220, 0.38)"};
+  background: ${(props) =>
+      props.$primary
+        ? props.$tone === "agency"
+          ? "linear-gradient(135deg, #c04b79, #a03661)"
+        : "linear-gradient(135deg, #ff5b73, #f43f5e)"
+      : "transparent"};
+  color: #fff;
+  font-size: 0.94rem;
+  font-weight: 800;
+  box-shadow: ${(props) => (props.$primary ? "0 18px 34px rgba(15, 23, 42, 0.2)" : "none")};
+`;
+
+const HeroSceneFactRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  color: rgba(255, 242, 245, 0.92);
+`;
+
+const HeroSceneFact = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.86rem;
+  font-weight: 700;
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+`;
+
+const HeroSceneCard = styled.div<{ $agency?: boolean; $image?: string }>`
+  position: relative;
+  z-index: 1;
+  min-height: 0;
+  border-radius: 28px;
+  overflow: hidden;
+  background:
+    ${(props) =>
+      props.$image
+        ? `linear-gradient(180deg, rgba(19, 15, 20, 0.05), rgba(19, 15, 20, 0.75)), url("${props.$image}") center/cover no-repeat`
+        : props.$agency
+          ? "linear-gradient(145deg, rgba(190, 86, 129, 0.34), rgba(58, 18, 38, 0.92))"
+          : "linear-gradient(145deg, rgba(255, 93, 108, 0.42), rgba(56, 16, 20, 0.94))"};
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  display: grid;
+  align-content: ${(props) => (props.$agency ? "stretch" : "end")};
+  grid-template-rows: ${(props) => (props.$agency ? "1fr" : "auto")};
+  padding: ${(props) => (props.$agency ? "0" : "14px")};
+`;
+
+const HeroSceneCardBadges = styled.div`
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+`;
+
+const HeroSceneCardBadge = styled.span<{ $dark?: boolean }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: ${(props) => (props.$dark ? "rgba(31, 41, 55, 0.9)" : "rgba(255, 255, 255, 0.96)")};
+  color: ${(props) => (props.$dark ? "#fff" : "#ef4444")};
+  font-size: 0.78rem;
+  font-weight: 800;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.2);
+`;
+
+const HeroSceneCardOverlay = styled.div<{ $fill?: boolean }>`
+  display: grid;
+  gap: 10px;
+  height: ${(props) => (props.$fill ? "100%" : "auto")};
+  min-height: ${(props) => (props.$fill ? "100%" : "0")};
+  padding: ${(props) => (props.$fill ? "22px" : "14px")};
+  border-radius: ${(props) => (props.$fill ? "28px" : "22px")};
+  background: ${(props) =>
+    props.$fill
+      ? "linear-gradient(180deg, rgba(74, 27, 49, 0.44), rgba(37, 16, 26, 0.92))"
+      : "linear-gradient(180deg, rgba(22, 17, 22, 0.16), rgba(22, 17, 22, 0.66))"};
+  border: 1px solid
+    ${(props) => (props.$fill ? "rgba(223, 171, 193, 0.14)" : "rgba(255, 255, 255, 0.12)")};
+  backdrop-filter: blur(10px);
+  color: #fff;
+  align-content: ${(props) => (props.$fill ? "stretch" : "center")};
+  grid-template-rows: ${(props) => (props.$fill ? "auto auto 1fr auto" : "auto")};
+`;
+
+const HeroSceneCardTitleRow = styled.div`
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+`;
+
+const HeroSceneCardTitle = styled.div`
+  font-size: 1.25rem;
+  line-height: 1;
+  font-weight: 800;
+`;
+
+const HeroSceneCardSubtitle = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(255, 243, 246, 0.88);
+  font-size: 0.88rem;
+`;
+
+const HeroSceneCardPrice = styled.div`
+  color: #ff6b82;
+  font-size: 0.92rem;
+  font-weight: 800;
+  white-space: nowrap;
+`;
+
+const HeroSceneCardFacts = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+`;
+
+const HeroSceneCardFact = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: rgba(255, 246, 248, 0.94);
+  font-size: 0.8rem;
+  font-weight: 700;
+`;
+
+const HeroSceneCardFooter = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+`;
+
+const HeroSceneTagPill = styled.span<{ $tone?: "listing" | "agency" }>`
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 10px;
+  background: ${(props) =>
+    props.$tone === "agency" ? "rgba(201, 102, 141, 0.18)" : "rgba(255, 255, 255, 0.1)"};
+  border: 1px solid
+    ${(props) =>
+      props.$tone === "agency" ? "rgba(231, 177, 198, 0.22)" : "rgba(255, 255, 255, 0.12)"};
+  color: #fff;
+  font-size: 0.76rem;
+  font-weight: 800;
+`;
+
+const HeroAgencyCardTop = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 14px;
+`;
+
+const HeroAgencyLogo = styled.div<{ $image?: string }>`
+  width: 72px;
+  height: 72px;
+  border-radius: 22px;
+  background:
+    ${(props) =>
+      props.$image
+        ? `linear-gradient(145deg, rgba(80, 28, 50, 0.24), rgba(80, 28, 50, 0.42)), url("${props.$image}") center/cover no-repeat`
+        : "linear-gradient(145deg, rgba(223, 118, 157, 0.94), rgba(158, 51, 91, 0.96))"};
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  box-shadow: 0 20px 30px rgba(15, 23, 42, 0.18);
+`;
+
+const HeroAgencyIdentity = styled.div`
+  display: grid;
+  gap: 6px;
+`;
+
+const HeroAgencyName = styled.div`
+  font-size: 1.8rem;
+  line-height: 1;
+  font-weight: 800;
+`;
+
+const HeroAgencyVerified = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #f2b8cc;
+  font-size: 0.92rem;
+  font-weight: 700;
+`;
+
+const HeroAgencySummary = styled.div`
+  color: rgba(246, 242, 255, 0.88);
+  font-size: 0.96rem;
+  line-height: 1.6;
+  max-width: 380px;
+  min-height: 3.1em;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+`;
+
+const HeroAgencyStats = styled.div`
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+`;
+
+const HeroAgencyStat = styled.div`
+  display: grid;
+  gap: 4px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+`;
+
+const HeroAgencyStatValue = styled.div`
+  color: #fff;
+  font-size: 1.4rem;
+  font-weight: 800;
+`;
+
+const HeroAgencyStatLabel = styled.div`
+  color: rgba(250, 229, 237, 0.78);
+  font-size: 0.86rem;
+  font-weight: 600;
+`;
+
+const HeroDots = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 4px 0;
+
+  @media (max-width: 960px) {
+    justify-content: center;
+  }
+`;
+
+const HeroDot = styled.button<{ $active: boolean }>`
+  width: ${(props) => (props.$active ? "28px" : "9px")};
+  height: 9px;
+  border-radius: 999px;
+  border: none;
+  background: ${(props) => (props.$active ? "rgba(255, 255, 255, 0.94)" : "rgba(255, 255, 255, 0.32)")};
+  cursor: pointer;
+  transition: width 0.2s ease, background 0.2s ease;
 `;
 
 const SearchDock = styled.div`
@@ -1248,6 +1653,58 @@ const HOME_COPY: Record<string, string> = {
   "property.land": "Land",
 };
 
+type HeroShowcaseListing = {
+  title: string;
+  listingTitle?: string;
+  location: string;
+  price: string;
+  summary: string;
+  propertyType: string;
+  bedrooms?: number;
+  bathrooms?: number;
+  areaSqft?: number;
+  imageUrl?: string | null;
+  listingId?: string;
+  targetUrl?: string | null;
+  vendorName?: string;
+  dealType?: string;
+};
+
+type HeroShowcaseAgency = {
+  name: string;
+  tagline: string;
+  summary: string;
+  logoText: string;
+  logoUrl?: string | null;
+  coverImageUrl?: string | null;
+  areaFocus: string;
+  activeListingsLabel: string;
+  planLabel: string;
+  verifiedLabel: string;
+  targetUrl?: string | null;
+  isPlatformFallback?: boolean;
+};
+
+type PublicHeroSlide =
+  | ({ kind: "listing" } & HeroShowcaseListing)
+  | ({ kind: "agency" } & HeroShowcaseAgency);
+
+const heroRotationIntervalMs = 5200;
+
+function formatHeroPrice(value?: number, currency?: string) {
+  return formatCurrency(value, currency, "Contact for price");
+}
+
+function formatHomeDealType(value?: string) {
+  if (!value) return "";
+  return value.toLowerCase() === "rent" ? "For rent" : "For sale";
+}
+
+function formatHeroArea(value?: number) {
+  if (!value) return "";
+  return `${value.toLocaleString("en-US")} sqft`;
+}
+
 export function HomePageClient() {
   const router = useRouter();
   const t = (key: string) => HOME_COPY[key] ?? key;
@@ -1340,6 +1797,8 @@ export function HomePageClient() {
   );
 
   const { listings, loading, loadingMore, hasMore, loadMore } = useInfiniteListings(filters);
+  const [currentHeroSlideIndex, setCurrentHeroSlideIndex] = useState(0);
+  const [heroPromotionSlides, setHeroPromotionSlides] = useState<PublicHeroSlide[]>([]);
   const stateOptions = useMemo(() => getStates(), []);
   const locationDistrictOptions = useMemo(
     () => (locationStateDraft ? getDistricts(locationStateDraft) : []),
@@ -1381,6 +1840,30 @@ export function HomePageClient() {
   );
   const accountLabel = resolvedAccount.label;
   const accountHref = resolvedAccount.href;
+  const platformHeroSlide = useMemo<HeroShowcaseAgency>(
+    () => ({
+      name: "Eain Chan Myay",
+      tagline: "Easy way to find a perfect property",
+      summary: "Discover listings, compare locations, and move from search to inquiry with a cleaner property experience.",
+      logoText: "EC",
+      areaFocus: "Myanmar",
+      activeListingsLabel: String(listings.length || 0),
+      planLabel: "Search",
+      verifiedLabel: "Platform",
+      isPlatformFallback: true,
+    }),
+    [listings.length]
+  );
+
+  const heroSlides = useMemo<PublicHeroSlide[]>(() => {
+    const liveSlides = heroPromotionSlides.slice(0, 4);
+    if (liveSlides.length >= 4) return liveSlides;
+    return [...liveSlides, { kind: "agency", ...platformHeroSlide }];
+  }, [heroPromotionSlides, platformHeroSlide]);
+
+  const heroRotationCount = Math.max(heroSlides.length, 1);
+  const currentHeroSlide =
+    heroSlides[currentHeroSlideIndex] ?? ({ kind: "agency", ...platformHeroSlide } as PublicHeroSlide);
 
   useEffect(() => {
     if (!showBedBathFilters) {
@@ -1388,6 +1871,80 @@ export function HomePageClient() {
       setPendingBathrooms("");
     }
   }, [showBedBathFilters]);
+
+  useEffect(() => {
+    let active = true;
+    const translate = (key: string) => HOME_COPY[key] ?? key;
+    fetch("/api/public/hero-promotions")
+      .then(async (response) => {
+        const payload = (await response.json().catch(() => null)) as
+          | { slides?: Array<Record<string, unknown>>; error?: string }
+          | null;
+        if (!response.ok) {
+          throw new Error(payload?.error || "Unable to load hero promotions.");
+        }
+        if (!active) return;
+        const nextSlides: PublicHeroSlide[] = Array.isArray(payload?.slides)
+          ? payload.slides
+              .map((slide) => {
+                if (slide.kind === "agency") {
+                  return {
+                    kind: "agency" as const,
+                    name: typeof slide.name === "string" ? slide.name : "Agency",
+                    tagline: typeof slide.tagline === "string" ? slide.tagline : "Verified agency spotlight",
+                    summary: typeof slide.summary === "string" ? slide.summary : "",
+                    logoText: typeof slide.logoText === "string" ? slide.logoText : "AG",
+                    logoUrl: typeof slide.logoUrl === "string" ? slide.logoUrl : null,
+                    coverImageUrl: typeof slide.coverImageUrl === "string" ? slide.coverImageUrl : null,
+                    areaFocus: typeof slide.areaFocus === "string" ? slide.areaFocus : "Myanmar",
+                    activeListingsLabel: typeof slide.activeListingsLabel === "string" ? slide.activeListingsLabel : "0",
+                    planLabel: typeof slide.planLabel === "string" ? slide.planLabel : "Agency",
+                    verifiedLabel: typeof slide.verifiedLabel === "string" ? slide.verifiedLabel : "Verified",
+                    targetUrl: typeof slide.targetUrl === "string" ? slide.targetUrl : null,
+                    isPlatformFallback: Boolean(slide.isPlatformFallback),
+                  };
+                }
+                if (slide.kind === "listing") {
+                  return {
+                    kind: "listing" as const,
+                    title: typeof slide.title === "string" ? slide.title : "Featured listing",
+                    listingTitle: typeof slide.listingTitle === "string" ? slide.listingTitle : undefined,
+                    location: typeof slide.location === "string" ? slide.location : "",
+                    price: formatHeroPrice(
+                      typeof slide.price === "number" ? slide.price : undefined,
+                      typeof slide.currency === "string" ? slide.currency : undefined
+                    ),
+                    summary: typeof slide.summary === "string" ? slide.summary : "",
+                    propertyType:
+                      formatPropertyTypeValue(
+                        typeof slide.propertyType === "string" ? slide.propertyType : "",
+                        translate
+                      ) || "Property",
+                    bedrooms: typeof slide.bedrooms === "number" ? slide.bedrooms : undefined,
+                    bathrooms: typeof slide.bathrooms === "number" ? slide.bathrooms : undefined,
+                    areaSqft: typeof slide.areaSqft === "number" ? slide.areaSqft : undefined,
+                    imageUrl: typeof slide.imageUrl === "string" ? slide.imageUrl : null,
+                    listingId: typeof slide.listingId === "string" ? slide.listingId : undefined,
+                    targetUrl: typeof slide.targetUrl === "string" ? slide.targetUrl : null,
+                    vendorName: typeof slide.vendorName === "string" ? slide.vendorName : undefined,
+                    dealType: typeof slide.dealType === "string" ? slide.dealType : undefined,
+                  };
+                }
+                return null;
+              })
+              .filter(Boolean) as PublicHeroSlide[]
+          : [];
+        setHeroPromotionSlides(nextSlides);
+      })
+      .catch(() => {
+        if (!active) return;
+        setHeroPromotionSlides([]);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!hasMore || loading) return;
@@ -1441,6 +1998,20 @@ export function HomePageClient() {
     stateRegion,
     township,
   ]);
+
+  useEffect(() => {
+    if (heroRotationCount <= 1) return;
+    const interval = window.setInterval(() => {
+      setCurrentHeroSlideIndex((current) => (current + 1) % heroRotationCount);
+    }, heroRotationIntervalMs);
+    return () => window.clearInterval(interval);
+  }, [heroRotationCount]);
+
+  useEffect(() => {
+    if (currentHeroSlideIndex >= heroRotationCount) {
+      setCurrentHeroSlideIndex(0);
+    }
+  }, [currentHeroSlideIndex, heroRotationCount]);
 
   const submitHeroSearch = () => {
     setQuery(searchDraft);
@@ -1514,13 +2085,259 @@ export function HomePageClient() {
               </DealTabsWrap>
 
               <HeroBody>
-                <HeroCopy>
-                  <HeroTitle>
-                    Easy way to find
-                    <br />
-                    a perfect property
-                  </HeroTitle>
-                </HeroCopy>
+                <HeroMotionFrame key={`hero-${currentHeroSlideIndex}`}>
+                  {currentHeroSlide.kind === "agency" ? (
+                    <HeroScene $tone="agency">
+                      <HeroSceneCopy>
+                        <HeroSceneEyebrow $tone="agency">
+                          {currentHeroSlide.isPlatformFallback ? <Sparkles size={15} /> : <ShieldCheck size={15} />}
+                          {currentHeroSlide.isPlatformFallback ? "Eain Chan Myay" : "Verified agency spotlight"}
+                        </HeroSceneEyebrow>
+                        <div>
+                          <HeroSceneTitle>{currentHeroSlide.name}</HeroSceneTitle>
+                          <HeroSceneTitle $accent>{currentHeroSlide.tagline}</HeroSceneTitle>
+                        </div>
+                        <HeroSceneSummary>{currentHeroSlide.summary}</HeroSceneSummary>
+                        {currentHeroSlide.isPlatformFallback ? (
+                          <>
+                            <HeroSceneActions>
+                              <HeroSceneAction type="button" $primary $tone="agency" onClick={submitHeroSearch}>
+                                <Search size={18} />
+                                Search Properties
+                              </HeroSceneAction>
+                              <HeroSceneAction type="button" $tone="agency" onClick={openMapView}>
+                                <Map size={18} />
+                                Show Map
+                              </HeroSceneAction>
+                            </HeroSceneActions>
+                            <HeroSceneFactRow>
+                              <HeroSceneFact>
+                                <Sparkles size={16} />
+                                Buy and rent
+                              </HeroSceneFact>
+                              <HeroSceneFact>
+                                <MapPin size={16} />
+                                Township search
+                              </HeroSceneFact>
+                              <HeroSceneFact>
+                                <ShieldCheck size={16} />
+                                Verified agencies
+                              </HeroSceneFact>
+                            </HeroSceneFactRow>
+                          </>
+                        ) : (
+                          <>
+                            <HeroSceneActions>
+                              <HeroSceneAction
+                                type="button"
+                                $primary
+                                $tone="agency"
+                                onClick={() => {
+                                  if (currentHeroSlide.targetUrl) {
+                                    router.push(currentHeroSlide.targetUrl);
+                                  }
+                                }}
+                              >
+                                <Building2 size={18} />
+                                View Agency Profile
+                              </HeroSceneAction>
+                              <HeroSceneAction
+                                type="button"
+                                $tone="agency"
+                                onClick={() => {
+                                  if (currentHeroSlide.targetUrl) {
+                                    router.push(currentHeroSlide.targetUrl);
+                                  }
+                                }}
+                              >
+                                <ArrowUpRight size={18} />
+                                See Agency
+                              </HeroSceneAction>
+                            </HeroSceneActions>
+                            <HeroSceneFactRow>
+                              <HeroSceneFact>
+                                <ShieldCheck size={16} />
+                                Verified agency
+                              </HeroSceneFact>
+                              <HeroSceneFact>
+                                <Building2 size={16} />
+                                {currentHeroSlide.activeListingsLabel} Active Listings
+                              </HeroSceneFact>
+                              <HeroSceneFact>
+                                <Star size={16} />
+                                More trust
+                              </HeroSceneFact>
+                            </HeroSceneFactRow>
+                          </>
+                        )}
+                      </HeroSceneCopy>
+                      <HeroSceneCard $agency $image={currentHeroSlide.coverImageUrl ?? undefined}>
+                        <HeroSceneCardOverlay $fill>
+                          <HeroAgencyCardTop>
+                            <HeroAgencyLogo $image={currentHeroSlide.logoUrl ?? undefined}>
+                              {!currentHeroSlide.logoUrl ? currentHeroSlide.logoText : null}
+                            </HeroAgencyLogo>
+                            <HeroAgencyIdentity>
+                              <HeroAgencyName>{currentHeroSlide.name}</HeroAgencyName>
+                              <HeroAgencyVerified>
+                                {currentHeroSlide.isPlatformFallback ? <Sparkles size={15} /> : <ShieldCheck size={15} />}
+                                {currentHeroSlide.isPlatformFallback ? "Platform spotlight" : "Verified Agency"}
+                              </HeroAgencyVerified>
+                            </HeroAgencyIdentity>
+                          </HeroAgencyCardTop>
+                          <HeroAgencySummary>{currentHeroSlide.summary}</HeroAgencySummary>
+                          <HeroAgencyStats>
+                            <HeroAgencyStat>
+                              <HeroAgencyStatValue>{currentHeroSlide.activeListingsLabel}</HeroAgencyStatValue>
+                              <HeroAgencyStatLabel>{currentHeroSlide.isPlatformFallback ? "Live Listings" : "Active Listings"}</HeroAgencyStatLabel>
+                            </HeroAgencyStat>
+                            <HeroAgencyStat>
+                              <HeroAgencyStatValue>{currentHeroSlide.areaFocus}</HeroAgencyStatValue>
+                              <HeroAgencyStatLabel>Areas Covered</HeroAgencyStatLabel>
+                            </HeroAgencyStat>
+                            <HeroAgencyStat>
+                              <HeroAgencyStatValue>{currentHeroSlide.planLabel}</HeroAgencyStatValue>
+                              <HeroAgencyStatLabel>{currentHeroSlide.isPlatformFallback ? "Discovery" : "Plan"}</HeroAgencyStatLabel>
+                            </HeroAgencyStat>
+                          </HeroAgencyStats>
+                          <HeroSceneCardFooter>
+                            <HeroSceneTagPill $tone="agency">
+                              {currentHeroSlide.isPlatformFallback ? "Platform Default" : "Verified Agency"}
+                            </HeroSceneTagPill>
+                            <HeroSceneTagPill $tone="agency">
+                              {currentHeroSlide.isPlatformFallback ? currentHeroSlide.planLabel : currentHeroSlide.verifiedLabel}
+                            </HeroSceneTagPill>
+                            <HeroSceneTagPill $tone="agency">
+                              {currentHeroSlide.isPlatformFallback ? "Map" : "Homepage Spotlight"}
+                            </HeroSceneTagPill>
+                          </HeroSceneCardFooter>
+                        </HeroSceneCardOverlay>
+                      </HeroSceneCard>
+                    </HeroScene>
+                  ) : (
+                    <HeroScene $tone="listing">
+                      <HeroSceneCopy>
+                        <HeroSceneEyebrow $tone="listing">
+                          <Sparkles size={15} />
+                          Hero section ad
+                        </HeroSceneEyebrow>
+                        <div>
+                          <HeroSceneTitle>{currentHeroSlide.title ?? "Featured listing"}</HeroSceneTitle>
+                          <HeroSceneTitle $accent>{formatHomeDealType(currentHeroSlide.dealType) || "For sale"}</HeroSceneTitle>
+                        </div>
+                        <HeroSceneLocation>
+                          <MapPin size={18} />
+                          <span>{currentHeroSlide.location}</span>
+                        </HeroSceneLocation>
+                        <HeroScenePrice>{currentHeroSlide.price}</HeroScenePrice>
+                        <HeroSceneSummary>{currentHeroSlide.summary}</HeroSceneSummary>
+                        <HeroSceneActions>
+                          <HeroSceneAction
+                            type="button"
+                            $primary
+                            $tone="listing"
+                            onClick={() => {
+                              if (currentHeroSlide.targetUrl) {
+                                router.push(currentHeroSlide.targetUrl);
+                              }
+                            }}
+                          >
+                            <ArrowUpRight size={18} />
+                            View Property
+                          </HeroSceneAction>
+                          <HeroSceneAction
+                            type="button"
+                            $tone="listing"
+                            onClick={() => {
+                              if (currentHeroSlide.targetUrl) {
+                                router.push(currentHeroSlide.targetUrl);
+                              }
+                            }}
+                          >
+                            <Phone size={18} />
+                            Contact Agent
+                          </HeroSceneAction>
+                        </HeroSceneActions>
+                        <HeroSceneFactRow>
+                          <HeroSceneFact>
+                            <ShieldCheck size={16} />
+                            Verified agency
+                          </HeroSceneFact>
+                          <HeroSceneFact>
+                            <Sparkles size={16} />
+                            Featured placement
+                          </HeroSceneFact>
+                          <HeroSceneFact>
+                            <ArrowUpRight size={16} />
+                            More visibility
+                          </HeroSceneFact>
+                        </HeroSceneFactRow>
+                      </HeroSceneCopy>
+                      <HeroSceneCard $image={currentHeroSlide.imageUrl ?? undefined}>
+                        <HeroSceneCardBadges>
+                          <HeroSceneCardBadge>{formatHomeDealType(currentHeroSlide.dealType) || "For sale"}</HeroSceneCardBadge>
+                          <HeroSceneCardBadge $dark>
+                            <Star size={14} />
+                            Featured
+                          </HeroSceneCardBadge>
+                        </HeroSceneCardBadges>
+                        <HeroSceneCardOverlay>
+                          <HeroSceneCardTitleRow>
+                            <div>
+                              <HeroSceneCardTitle>{currentHeroSlide.listingTitle || currentHeroSlide.title}</HeroSceneCardTitle>
+                              <HeroSceneCardSubtitle>
+                                <MapPin size={15} />
+                                <span>{currentHeroSlide.location}</span>
+                              </HeroSceneCardSubtitle>
+                            </div>
+                            <HeroSceneCardPrice>{currentHeroSlide.price}</HeroSceneCardPrice>
+                          </HeroSceneCardTitleRow>
+                          <HeroSceneCardFacts>
+                            <HeroSceneCardFact>
+                              <House size={15} />
+                              {currentHeroSlide.propertyType}
+                            </HeroSceneCardFact>
+                            {currentHeroSlide.bedrooms ? (
+                              <HeroSceneCardFact>
+                                <BedDouble size={15} />
+                                {currentHeroSlide.bedrooms} Bedrooms
+                              </HeroSceneCardFact>
+                            ) : null}
+                            {currentHeroSlide.bathrooms ? (
+                              <HeroSceneCardFact>
+                                <Bath size={15} />
+                                {currentHeroSlide.bathrooms} Bathrooms
+                              </HeroSceneCardFact>
+                            ) : null}
+                            {currentHeroSlide.areaSqft ? (
+                              <HeroSceneCardFact>
+                                <House size={15} />
+                                {formatHeroArea(currentHeroSlide.areaSqft)}
+                              </HeroSceneCardFact>
+                            ) : null}
+                          </HeroSceneCardFacts>
+                          <HeroSceneCardFooter>
+                            <HeroSceneTagPill $tone="listing">{formatHomeDealType(currentHeroSlide.dealType) || "For sale"}</HeroSceneTagPill>
+                            <HeroSceneTagPill $tone="listing">{currentHeroSlide.propertyType}</HeroSceneTagPill>
+                            <HeroSceneTagPill $tone="listing">Verified Agency</HeroSceneTagPill>
+                          <HeroSceneTagPill $tone="listing">Homepage Spotlight</HeroSceneTagPill>
+                          </HeroSceneCardFooter>
+                        </HeroSceneCardOverlay>
+                      </HeroSceneCard>
+                    </HeroScene>
+                  )}
+                </HeroMotionFrame>
+                  <HeroDots>
+                    {Array.from({ length: heroRotationCount }, (_, index) => (
+                      <HeroDot
+                        key={`hero-dot-${index}`}
+                        type="button"
+                        aria-label={`Go to hero slide ${index + 1}`}
+                        $active={index === currentHeroSlideIndex}
+                        onClick={() => setCurrentHeroSlideIndex(index)}
+                      />
+                    ))}
+                  </HeroDots>
               </HeroBody>
 
               <SearchDock>

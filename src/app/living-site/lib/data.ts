@@ -21,6 +21,7 @@ export type Listing = {
   latitude?: number;
   longitude?: number;
   isBoosted?: boolean;
+  isSearchRanked?: boolean;
   verificationStatus?: string;
   imageUrl?: string;
   raw: Record<string, unknown>;

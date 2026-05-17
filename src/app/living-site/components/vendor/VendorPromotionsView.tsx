@@ -5,6 +5,7 @@ import styled, { keyframes } from "styled-components";
 import {
   ArrowLeft,
   BadgeCheck,
+  Building2,
   ChevronLeft,
   ChevronRight,
   CalendarClock,
@@ -12,6 +13,7 @@ import {
   Clock3,
   Crown,
   Gem,
+  House,
   ImageIcon,
   LayoutTemplate,
   Lock,
@@ -19,6 +21,7 @@ import {
   Percent,
   Plus,
   Search,
+  ShieldCheck,
   Sparkles,
   Star,
   X,
@@ -841,6 +844,109 @@ const ListingMiniMeta = styled.div`
   line-height: 1.5;
 `;
 
+const HeroTargetGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+
+  @media (max-width: 760px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const HeroTargetCard = styled.button<{ $active?: boolean }>`
+  border-radius: 20px;
+  border: 1px solid
+    ${(props) => (props.$active ? "rgba(233, 61, 93, 0.24)" : "rgba(148, 163, 184, 0.18)")};
+  background: ${(props) =>
+    props.$active
+      ? "linear-gradient(180deg, #fff1f4 0%, #ffffff 100%)"
+      : "linear-gradient(180deg, #ffffff 0%, #fbfcff 100%)"};
+  padding: 16px;
+  display: grid;
+  gap: 10px;
+  text-align: left;
+  box-shadow: ${(props) => (props.$active ? "0 18px 34px rgba(233, 61, 93, 0.08)" : "none")};
+`;
+
+const HeroTargetTop = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+`;
+
+const HeroTargetIcon = styled.div<{ $active?: boolean }>`
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  color: ${(props) => (props.$active ? "var(--color-primary)" : "#64748b")};
+  background: ${(props) => (props.$active ? "rgba(233, 61, 93, 0.12)" : "#f1f5f9")};
+`;
+
+const HeroTargetTitle = styled.strong`
+  color: var(--color-text);
+  font-size: 0.98rem;
+`;
+
+const HeroTargetCopy = styled.div`
+  color: var(--color-muted);
+  font-size: 0.88rem;
+  line-height: 1.55;
+`;
+
+const HeroAgencyPreview = styled.div`
+  border-radius: 20px;
+  padding: 16px;
+  border: 1px solid rgba(233, 61, 93, 0.16);
+  background: linear-gradient(145deg, #fff6f8 0%, #fffafc 100%);
+  display: grid;
+  gap: 12px;
+`;
+
+const HeroAgencyPreviewTop = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+`;
+
+const HeroAgencyPreviewLogo = styled.div`
+  width: 54px;
+  height: 54px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(145deg, #e63b5d, #be123c);
+  color: #fff;
+  font-size: 1.2rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+`;
+
+const HeroAgencyPreviewName = styled.strong`
+  color: var(--color-text);
+  display: block;
+  font-size: 1rem;
+`;
+
+const HeroAgencyPreviewMeta = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #be123c;
+  font-size: 0.84rem;
+  font-weight: 700;
+  margin-top: 4px;
+`;
+
+const HeroAgencyPreviewCopy = styled.div`
+  color: var(--color-muted);
+  font-size: 0.9rem;
+  line-height: 1.6;
+`;
+
 const PromotionList = styled.div`
   display: grid;
   gap: 12px;
@@ -855,12 +961,49 @@ const PromotionRow = styled.div`
   gap: 10px;
 `;
 
+const PromotionRowMain = styled.div`
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+
+  @media (max-width: 640px) {
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: 10px;
+  }
+`;
+
+const PromotionThumb = styled.div<{ $image?: string }>`
+  height: 72px;
+  border-radius: 14px;
+  background:
+    ${(props) =>
+      props.$image
+        ? `linear-gradient(180deg, rgba(15, 23, 42, 0.04), rgba(15, 23, 42, 0.16)), url("${props.$image}") center/cover no-repeat`
+        : "#eef2f7"};
+  display: grid;
+  place-items: center;
+  color: #64748b;
+
+  @media (max-width: 640px) {
+    height: 62px;
+  }
+`;
+
 const PromotionTop = styled.div`
   display: flex;
   justify-content: space-between;
   gap: 10px;
   align-items: flex-start;
   flex-wrap: wrap;
+`;
+
+const PromotionTopRight = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 `;
 
 const PromotionTitle = styled.strong`
@@ -876,11 +1019,20 @@ const PromotionMeta = styled.div`
   font-size: 0.86rem;
 `;
 
-const PromotionActions = styled.div`
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  flex-wrap: wrap;
+const PromotionActionButton = styled.button`
+  height: 31px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(233, 61, 93, 0.2);
+  background: linear-gradient(135deg, #ffedf3 0%, #ffe1ea 100%);
+  color: #e11d48;
+  font-size: 0.76rem;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
 `;
 
 const Empty = styled.div`
@@ -958,6 +1110,12 @@ type PromotionItem = {
 };
 
 type PromotionsPayload = {
+  workspace?: {
+    vendorId?: string | null;
+    vendorName?: string | null;
+    vendorSlug?: string | null;
+    verifiedStatus?: string | null;
+  };
   eligibleListings: EligibleListing[];
   items: PromotionItem[];
   helperPreview?: {
@@ -978,6 +1136,20 @@ type CreatedPromotionItem = {
 
 function isPayablePromotionStatus(status: string | null | undefined) {
   return status === "draft" || status === "pending_payment";
+}
+
+function isPromotionWindowExpired(value: string | null | undefined) {
+  if (!value) return false;
+  const endsAt = new Date(value);
+  if (!Number.isFinite(endsAt.getTime())) return false;
+  return endsAt.getTime() < Date.now();
+}
+
+function getEffectivePromotionStatus(item: Pick<PromotionItem, "status" | "starts_at" | "ends_at">) {
+  if (item.status === "active" && isPromotionWindowExpired(item.ends_at)) {
+    return "expired";
+  }
+  return item.status ?? null;
 }
 
 type Props = {
@@ -1255,6 +1427,7 @@ export function VendorPromotionsView({
   const [typeFilter, setTypeFilter] = useState<"all" | PromotionType>("all");
   const [statusScope, setStatusScope] = useState<(typeof promotionStatusScopes)[number]["value"]>("all");
   const [selectedType, setSelectedType] = useState<PromotionType>("hero_ad");
+  const [heroTargetType, setHeroTargetType] = useState<"agency_profile" | "listing">("agency_profile");
   const [listingId, setListingId] = useState("");
   const [listingSearch, setListingSearch] = useState("");
   const [listingPickerOpen, setListingPickerOpen] = useState(false);
@@ -1381,6 +1554,14 @@ export function VendorPromotionsView({
     }
   }, [heroAvailabilityDays, planDays, selectedHeroBlockedKeys, selectedHeroStartKey, selectedType]);
 
+  useEffect(() => {
+    if (selectedType !== "hero_ad") return;
+    if (heroTargetType !== "agency_profile") return;
+    setListingId("");
+    setListingSearch("");
+    setListingPickerOpen(false);
+  }, [heroTargetType, selectedType]);
+
   const endsAtPreview = useMemo(() => {
     if (selectedType === "hero_ad") {
       const lastHeroDay = heroRangeKeyList[heroRangeKeyList.length - 1];
@@ -1392,39 +1573,46 @@ export function VendorPromotionsView({
     return formatDateTime(new Date(start.getTime() + parsedHours * 60 * 60 * 1000).toISOString());
   }, [heroRangeKeyList, selectedPlan, selectedType, startsAt]);
 
-  const activePromotions = useMemo(() => (data?.items ?? []).filter((item) => item.status === "active"), [data]);
+  const activePromotions = useMemo(
+    () => (data?.items ?? []).filter((item) => getEffectivePromotionStatus(item) === "active"),
+    [data]
+  );
   const draftPromotions = useMemo(
     () =>
       (data?.items ?? []).filter((item) =>
-        item.status === "draft" || item.status === "pending_payment" || item.status === "pending_activation" || item.status === "paused"
+        getEffectivePromotionStatus(item) === "draft" ||
+        getEffectivePromotionStatus(item) === "pending_payment" ||
+        getEffectivePromotionStatus(item) === "pending_activation" ||
+        getEffectivePromotionStatus(item) === "paused"
       ),
     [data]
   );
-  const listingRequired = true;
+  const listingRequired = selectedType === "hero_ad" ? heroTargetType === "listing" : true;
   const noEligibleListings = !eligibleListings.length;
   const filteredPromotions = useMemo(() => {
     const query = listQuery.trim().toLowerCase();
     const listingMap = new Map(eligibleListings.map((item) => [item.id, item]));
     return (data?.items ?? []).filter((item) => {
+      const effectiveStatus = getEffectivePromotionStatus(item);
       if (typeFilter !== "all" && item.promotion_type !== typeFilter) return false;
-      if (statusScope === "active" && item.status !== "active") return false;
+      if (statusScope === "active" && effectiveStatus !== "active") return false;
       if (
         statusScope === "drafts" &&
-        item.status !== "draft" &&
-        item.status !== "pending_payment" &&
-        item.status !== "pending_activation" &&
-        item.status !== "paused"
+        effectiveStatus !== "draft" &&
+        effectiveStatus !== "pending_payment" &&
+        effectiveStatus !== "pending_activation" &&
+        effectiveStatus !== "paused"
       ) {
         return false;
       }
-      if (statusScope === "history" && item.status !== "expired" && item.status !== "cancelled") return false;
+      if (statusScope === "history" && effectiveStatus !== "expired" && effectiveStatus !== "cancelled") return false;
       if (!query) return true;
       const linkedListing = item.listing_id ? listingMap.get(item.listing_id) : null;
       const haystack = [
         item.title,
         item.description,
         item.promotion_type,
-        item.status,
+        effectiveStatus,
         linkedListing?.title,
         linkedListing?.township,
       ]
@@ -1439,6 +1627,7 @@ export function VendorPromotionsView({
     setCreatedPromotion(null);
     if (!prefillListingId) {
       setSelectedType("hero_ad");
+      setHeroTargetType("agency_profile");
       setSelectedPlanKey(promotionPlanPresets.hero_ad[0].key);
       setListingId("");
       setListingSearch("");
@@ -1453,6 +1642,7 @@ export function VendorPromotionsView({
         setListingId(matchedListing.id);
         setListingSearch(matchedListing.title || "Untitled property");
         setSelectedType("listing_boost");
+        setHeroTargetType("listing");
         setSelectedPlanKey(promotionPlanPresets.listing_boost[0].key);
       }
     }
@@ -1573,7 +1763,7 @@ export function VendorPromotionsView({
         ),
         body: JSON.stringify({
           promotion_type: selectedType,
-          target_type: "listing",
+          target_type: selectedType === "hero_ad" ? heroTargetType : "listing",
           listing_id: listingRequired ? listingId || null : null,
           title: title.trim() || null,
           description: description.trim() || null,
@@ -1722,46 +1912,54 @@ export function VendorPromotionsView({
             {!loading && !filteredPromotions.length ? <Empty>No promotions match these filters yet.</Empty> : null}
             {!loading
               ? filteredPromotions.map((item) => {
+                  const effectiveStatus = getEffectivePromotionStatus(item);
                   const linkedListing = item.listing_id ? eligibleListings.find((listing) => listing.id === item.listing_id) : null;
                   return (
                     <PromotionRow key={item.id}>
-                      <PromotionTop>
-                        <div>
-                          <PromotionTitle>{item.title || linkedListing?.title || "Untitled promotion"}</PromotionTitle>
+                      <PromotionRowMain>
+                        <PromotionThumb $image={linkedListing?.cover_image_url || undefined}>
+                          {!linkedListing?.cover_image_url ? <ImageIcon size={18} /> : null}
+                        </PromotionThumb>
+                        <div style={{ display: "grid", gap: 10, minWidth: 0 }}>
+                          <PromotionTop>
+                            <div>
+                              <PromotionTitle>{item.title || linkedListing?.title || "Untitled promotion"}</PromotionTitle>
+                              <PromotionMeta>
+                                <span>
+                                  {promotionProducts.find((product) => product.type === item.promotion_type)?.label ||
+                                    item.promotion_type ||
+                                    "Promotion"}
+                                </span>
+                                {linkedListing?.title ? (
+                                  <>
+                                    <span>•</span>
+                                    <span>{linkedListing.title}</span>
+                                  </>
+                                ) : null}
+                              </PromotionMeta>
+                            </div>
+                            <PromotionTopRight>
+                              <Pill $tone={statusTone(effectiveStatus)}>{effectiveStatus || "N/A"}</Pill>
+                              {isPayablePromotionStatus(effectiveStatus) || effectiveStatus === "expired" ? (
+                                <PromotionActionButton type="button" onClick={() => openPaymentWallForItem(item)}>
+                                  <Megaphone size={14} />
+                                  <span>{effectiveStatus === "expired" ? "Refresh boost" : "Pay now"}</span>
+                                </PromotionActionButton>
+                              ) : null}
+                            </PromotionTopRight>
+                          </PromotionTop>
                           <PromotionMeta>
                             <span>
-                              {promotionProducts.find((product) => product.type === item.promotion_type)?.label ||
-                                item.promotion_type ||
-                                "Promotion"}
+                              <CalendarClock size={14} style={{ verticalAlign: "text-bottom", marginRight: 6 }} />
+                              {formatDateTime(item.starts_at)}
                             </span>
-                            {linkedListing?.title ? (
-                              <>
-                                <span>•</span>
-                                <span>{linkedListing.title}</span>
-                              </>
-                            ) : null}
+                            <span>•</span>
+                            <span>{formatCurrency(item.price_per_24h ?? undefined, "MMK", "N/A")} / 24h</span>
+                            <span>•</span>
+                            <span>{item.duration_hours ? `${item.duration_hours}h` : "N/A"}</span>
                           </PromotionMeta>
                         </div>
-                        <Pill $tone={statusTone(item.status)}>{item.status || "N/A"}</Pill>
-                      </PromotionTop>
-                      <PromotionMeta>
-                        <span>
-                          <CalendarClock size={14} style={{ verticalAlign: "text-bottom", marginRight: 6 }} />
-                          {formatDateTime(item.starts_at)}
-                        </span>
-                        <span>•</span>
-                        <span>{formatCurrency(item.price_per_24h ?? undefined, "MMK", "N/A")} / 24h</span>
-                        <span>•</span>
-                        <span>{item.duration_hours ? `${item.duration_hours}h` : "N/A"}</span>
-                      </PromotionMeta>
-                      {isPayablePromotionStatus(item.status) ? (
-                        <PromotionActions>
-                          <PrimaryButton type="button" $primary onClick={() => openPaymentWallForItem(item)}>
-                            <Megaphone size={16} />
-                            <span>Pay now</span>
-                          </PrimaryButton>
-                        </PromotionActions>
-                      ) : null}
+                      </PromotionRowMain>
                     </PromotionRow>
                   );
                 })
@@ -1776,7 +1974,7 @@ export function VendorPromotionsView({
             <ModalHeader>
               <div>
                 <Title style={{ fontSize: "1.3rem" }}>Create Promotion</Title>
-                <Subtitle style={{ maxWidth: "none" }}>Choose the promotion type, listing, and plan.</Subtitle>
+                <Subtitle style={{ maxWidth: "none" }}>Choose what to promote, then pick a plan and schedule.</Subtitle>
               </div>
               <ModalClose type="button" onClick={closeCreator} aria-label="Close">
                 <X size={18} />
@@ -1784,11 +1982,23 @@ export function VendorPromotionsView({
             </ModalHeader>
 
             <ModalBody>
-              {noEligibleListings ? <Empty>You need at least one active listing before purchasing this promotion.</Empty> : null}
+              {noEligibleListings && selectedType !== "hero_ad" ? (
+                <Empty>You need at least one active listing before purchasing this promotion.</Empty>
+              ) : null}
 
               <TypeTabs>
                 {promotionProducts.map((product) => (
-                  <TypeTab key={product.type} type="button" $active={selectedType === product.type} onClick={() => setSelectedType(product.type)}>
+                  <TypeTab
+                    key={product.type}
+                    type="button"
+                    $active={selectedType === product.type}
+                    onClick={() => {
+                      setSelectedType(product.type);
+                      if (product.type === "hero_ad") {
+                        setHeroTargetType("agency_profile");
+                      }
+                    }}
+                  >
                     {productIcon(product.type)}
                     <span>{product.label}</span>
                   </TypeTab>
@@ -1796,64 +2006,201 @@ export function VendorPromotionsView({
               </TypeTabs>
 
               <FormGrid>
-                <SearchableField
-                  onBlur={() => {
-                    setTimeout(() => {
-                      setListingPickerOpen(false);
-                      if (selectedListing) {
-                        setListingSearch(selectedListing.title || "Untitled property");
-                      } else if (!normalizedListingSearch) {
-                        setListingSearch("");
-                      }
-                    }, 120);
-                  }}
-                >
-                  <FloatingField data-filled={Boolean(listingSearch)}>
-                    <FloatingLabel htmlFor="promotion-listing-search" $filled>
-                      Listing
-                    </FloatingLabel>
-                    <SearchableTrigger
-                      id="promotion-listing-search"
-                      value={listingSearch}
-                      placeholder="Search or choose a listing"
-                      onFocus={() => setListingPickerOpen(true)}
-                      onChange={(event) => {
-                        setListingSearch(event.target.value);
-                        setListingId("");
-                        setListingPickerOpen(true);
-                      }}
-                      disabled={noEligibleListings}
-                    />
-                    <SearchableFieldIcon size={16} />
-                  </FloatingField>
-                  {listingPickerOpen && !noEligibleListings ? (
-                    <SearchableMenu>
-                      {listingOptions.length ? (
-                        listingOptions.map((item) => (
-                          <SearchableOption
-                            key={item.id}
-                            type="button"
-                            $active={item.id === listingId}
-                            onMouseDown={(event) => {
-                              event.preventDefault();
-                              setListingId(item.id);
-                              setListingSearch(item.title || "Untitled property");
-                              setListingPickerOpen(false);
-                            }}
-                          >
-                            <SearchableOptionTitle>{item.title || "Untitled property"}</SearchableOptionTitle>
-                            <SearchableOptionMeta>
-                              {formatPropertyTypeValue(item.property_type)} • {item.deal_type || "N/A"} •{" "}
-                              {item.township || item.city || "N/A"}
-                            </SearchableOptionMeta>
-                          </SearchableOption>
-                        ))
+                {selectedType === "hero_ad" ? (
+                  <FullWidth>
+                    <div style={{ display: "grid", gap: 14 }}>
+                      <div>
+                        <CardTitle>What do you want to promote?</CardTitle>
+                        <CardCopy style={{ marginTop: 6 }}>
+                          Pick either your verified agency profile or one active listing for this hero slot.
+                        </CardCopy>
+                      </div>
+                      <HeroTargetGrid>
+                        <HeroTargetCard
+                          type="button"
+                          $active={heroTargetType === "agency_profile"}
+                          onClick={() => setHeroTargetType("agency_profile")}
+                        >
+                          <HeroTargetTop>
+                            <HeroTargetIcon $active={heroTargetType === "agency_profile"}>
+                              <Building2 size={18} />
+                            </HeroTargetIcon>
+                            <div>
+                              <HeroTargetTitle>Agency profile</HeroTargetTitle>
+                              <HeroTargetCopy>Lead with your brand, trust, and agency identity.</HeroTargetCopy>
+                            </div>
+                          </HeroTargetTop>
+                        </HeroTargetCard>
+                        <HeroTargetCard
+                          type="button"
+                          $active={heroTargetType === "listing"}
+                          onClick={() => setHeroTargetType("listing")}
+                        >
+                          <HeroTargetTop>
+                            <HeroTargetIcon $active={heroTargetType === "listing"}>
+                              <House size={18} />
+                            </HeroTargetIcon>
+                            <div>
+                              <HeroTargetTitle>One listing</HeroTargetTitle>
+                              <HeroTargetCopy>Feature one active listing directly in the homepage hero.</HeroTargetCopy>
+                            </div>
+                          </HeroTargetTop>
+                        </HeroTargetCard>
+                      </HeroTargetGrid>
+
+                      {heroTargetType === "agency_profile" ? (
+                        <HeroAgencyPreview>
+                          <HeroAgencyPreviewTop>
+                            <HeroAgencyPreviewLogo>
+                              {(data?.workspace?.vendorName || "Agency")
+                                .split(/\s+/)
+                                .filter(Boolean)
+                                .slice(0, 2)
+                                .map((part) => part[0]?.toUpperCase() ?? "")
+                                .join("") || "AG"}
+                            </HeroAgencyPreviewLogo>
+                            <div>
+                              <HeroAgencyPreviewName>{data?.workspace?.vendorName || "Your agency profile"}</HeroAgencyPreviewName>
+                              <HeroAgencyPreviewMeta>
+                                <ShieldCheck size={14} />
+                                <span>Verified agency spotlight</span>
+                              </HeroAgencyPreviewMeta>
+                            </div>
+                          </HeroAgencyPreviewTop>
+                          <HeroAgencyPreviewCopy>
+                            Buyers will land on your agency profile and see your listings, trust badge, and brand first.
+                          </HeroAgencyPreviewCopy>
+                        </HeroAgencyPreview>
                       ) : (
-                        <SearchableEmpty>No matching listings found.</SearchableEmpty>
+                        noEligibleListings ? (
+                          <Empty>You need at least one active listing before using a listing hero placement.</Empty>
+                        ) : (
+                        <SearchableField
+                          onBlur={() => {
+                            setTimeout(() => {
+                              setListingPickerOpen(false);
+                              if (selectedListing) {
+                                setListingSearch(selectedListing.title || "Untitled property");
+                              } else if (!normalizedListingSearch) {
+                                setListingSearch("");
+                              }
+                            }, 120);
+                          }}
+                        >
+                          <FloatingField data-filled={Boolean(listingSearch)}>
+                            <FloatingLabel htmlFor="promotion-listing-search" $filled>
+                              Listing
+                            </FloatingLabel>
+                            <SearchableTrigger
+                              id="promotion-listing-search"
+                              value={listingSearch}
+                              placeholder="Search or choose a listing"
+                              onFocus={() => setListingPickerOpen(true)}
+                              onChange={(event) => {
+                                setListingSearch(event.target.value);
+                                setListingId("");
+                                setListingPickerOpen(true);
+                              }}
+                              disabled={noEligibleListings}
+                            />
+                            <SearchableFieldIcon size={16} />
+                          </FloatingField>
+                          {listingPickerOpen && !noEligibleListings ? (
+                            <SearchableMenu>
+                              {listingOptions.length ? (
+                                listingOptions.map((item) => (
+                                  <SearchableOption
+                                    key={item.id}
+                                    type="button"
+                                    $active={item.id === listingId}
+                                    onMouseDown={(event) => {
+                                      event.preventDefault();
+                                      setListingId(item.id);
+                                      setListingSearch(item.title || "Untitled property");
+                                      setListingPickerOpen(false);
+                                    }}
+                                  >
+                                    <SearchableOptionTitle>{item.title || "Untitled property"}</SearchableOptionTitle>
+                                    <SearchableOptionMeta>
+                                      {formatPropertyTypeValue(item.property_type)} • {item.deal_type || "N/A"} •{" "}
+                                      {item.township || item.city || "N/A"}
+                                    </SearchableOptionMeta>
+                                  </SearchableOption>
+                                ))
+                              ) : (
+                                <SearchableEmpty>No matching listings found.</SearchableEmpty>
+                              )}
+                            </SearchableMenu>
+                          ) : null}
+                        </SearchableField>
+                        )
                       )}
-                    </SearchableMenu>
-                  ) : null}
-                </SearchableField>
+                    </div>
+                  </FullWidth>
+                ) : (
+                  noEligibleListings ? (
+                    <Empty>You need at least one active listing before purchasing this promotion.</Empty>
+                  ) : (
+                  <SearchableField
+                    onBlur={() => {
+                      setTimeout(() => {
+                        setListingPickerOpen(false);
+                        if (selectedListing) {
+                          setListingSearch(selectedListing.title || "Untitled property");
+                        } else if (!normalizedListingSearch) {
+                          setListingSearch("");
+                        }
+                      }, 120);
+                    }}
+                  >
+                    <FloatingField data-filled={Boolean(listingSearch)}>
+                      <FloatingLabel htmlFor="promotion-listing-search" $filled>
+                        Listing
+                      </FloatingLabel>
+                      <SearchableTrigger
+                        id="promotion-listing-search"
+                        value={listingSearch}
+                        placeholder="Search or choose a listing"
+                        onFocus={() => setListingPickerOpen(true)}
+                        onChange={(event) => {
+                          setListingSearch(event.target.value);
+                          setListingId("");
+                          setListingPickerOpen(true);
+                        }}
+                        disabled={noEligibleListings}
+                      />
+                      <SearchableFieldIcon size={16} />
+                    </FloatingField>
+                    {listingPickerOpen && !noEligibleListings ? (
+                      <SearchableMenu>
+                        {listingOptions.length ? (
+                          listingOptions.map((item) => (
+                            <SearchableOption
+                              key={item.id}
+                              type="button"
+                              $active={item.id === listingId}
+                              onMouseDown={(event) => {
+                                event.preventDefault();
+                                setListingId(item.id);
+                                setListingSearch(item.title || "Untitled property");
+                                setListingPickerOpen(false);
+                              }}
+                            >
+                              <SearchableOptionTitle>{item.title || "Untitled property"}</SearchableOptionTitle>
+                              <SearchableOptionMeta>
+                                {formatPropertyTypeValue(item.property_type)} • {item.deal_type || "N/A"} •{" "}
+                                {item.township || item.city || "N/A"}
+                              </SearchableOptionMeta>
+                            </SearchableOption>
+                          ))
+                        ) : (
+                          <SearchableEmpty>No matching listings found.</SearchableEmpty>
+                        )}
+                      </SearchableMenu>
+                    ) : null}
+                  </SearchableField>
+                  )
+                )}
 
                 <FloatingField data-filled={Boolean(title)}>
                   <FloatingLabel htmlFor="promotion-title" $filled={Boolean(title)}>
@@ -1881,7 +2228,7 @@ export function VendorPromotionsView({
                 </FullWidth>
               </FormGrid>
 
-              {selectedListing ? (
+              {selectedListing && listingRequired ? (
                 <ListingSelectCard>
                   <ListingMini>
                     <ListingMiniImage $image={selectedListing.cover_image_url || undefined}>
@@ -2026,7 +2373,7 @@ export function VendorPromotionsView({
                   type="button"
                   $primary
                   onClick={() => void handleSubmit()}
-                  disabled={saving || !listingId || !selectedPlan || (selectedType === "hero_ad" && !selectedHeroStartKey)}
+                  disabled={saving || !selectedPlan || (listingRequired && !listingId) || (selectedType === "hero_ad" && !selectedHeroStartKey)}
                 >
                   <Megaphone size={16} />
                   <span>{saving ? "Saving..." : "Create promotion"}</span>

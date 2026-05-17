@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createDingerPrebuiltCheckoutUrl } from "@/lib/dinger";
 import { getVendorRequestContext } from "@/app/api/vendor/_lib/context";
-import { normalizePromotionStatus, normalizePromotionType } from "@/lib/vendor-promotions";
+import { calculatePromotionEndsAt, normalizePromotionStatus, normalizePromotionType } from "@/lib/vendor-promotions";
 
 const dingerClientId = process.env.DINGER_CLIENT_ID ?? "";
 const dingerPublicKey = process.env.DINGER_PUBLIC_KEY ?? "";
@@ -47,8 +47,8 @@ export async function POST(request: Request) {
   }
 
   const status = normalizePromotionStatus(data.status);
-  if (status && !["draft", "pending_payment"].includes(status)) {
-    return NextResponse.json({ error: "Only draft promotions can enter checkout." }, { status: 400 });
+  if (status && !["draft", "pending_payment", "active"].includes(status)) {
+    return NextResponse.json({ error: "Only draft or refreshable promotions can enter checkout." }, { status: 400 });
   }
 
   const promotionType = normalizePromotionType(data.promotion_type);
@@ -62,16 +62,22 @@ export async function POST(request: Request) {
   const merchantOrderId = `promotion-${vendor.id}-${promotionId}-${Date.now()}`;
 
   if (!enablePromotionDingerCheckout || !isDingerConfigured) {
+    const startsAt = new Date().toISOString();
+    const endsAt = calculatePromotionEndsAt(startsAt, durationHours);
+    if (!endsAt) {
+      return NextResponse.json({ error: "Unable to calculate promotion end time." }, { status: 500 });
+    }
     const { data: updatedPromotion, error: updateError } = await supabase
       .from("vendor_promotions")
       .update({
         status: "active",
         price_paid: totalAmount,
+        starts_at: startsAt,
+        ends_at: endsAt,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", promotionId)
-      .eq("vendor_id", vendor.id)
-      .select("id,status,price_paid,updated_at")
+      .eq("id", promotionId).eq("vendor_id", vendor.id)
+      .select("id,status,price_paid,starts_at,ends_at,updated_at")
       .single();
 
     if (updateError) {
