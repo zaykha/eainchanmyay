@@ -83,6 +83,7 @@ export type VendorRequestContext = {
 
 type VendorRequestContextOptions = {
   allowPendingBilling?: boolean;
+  requireExplicitVendorSelection?: boolean;
 };
 
 export async function getVendorRequestContext(request: Request): Promise<
@@ -243,6 +244,16 @@ export async function getVendorRequestContext(
       }
   >;
 
+  if (options.requireExplicitVendorSelection && membershipEntries.length > 1 && !requestedVendorId) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: "Select an active vendor workspace before accessing this endpoint." },
+        { status: 400 }
+      ),
+    };
+  }
+
   const membershipRow = (
     requestedVendorId
       ? membershipEntries.find((row) => {
@@ -369,10 +380,7 @@ export async function getVendorRequestContext(
     .filter(Boolean) as VendorRequestContext["workspaces"];
 
   const requiresActiveBilling = vendorRaw.plan && vendorRaw.plan !== "free";
-  const effectiveBillingStatus =
-    process.env.NODE_ENV !== "production" && requiresActiveBilling
-      ? "active"
-      : ((vendorRaw.billing_status as string | null) ?? null);
+  const effectiveBillingStatus = (vendorRaw.billing_status as string | null) ?? null;
 
   if (requiresActiveBilling && effectiveBillingStatus !== "active" && !options.allowPendingBilling) {
     return {

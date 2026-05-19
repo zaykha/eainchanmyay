@@ -12,13 +12,27 @@ function normalizeSource(value: unknown) {
   return null;
 }
 
+function isFreePlan(plan: string | null | undefined) {
+  return (plan ?? "").trim().toLowerCase() === "free";
+}
+
 export async function PATCH(request: Request) {
-  const result = await getVendorRequestContext(request);
+  const result = await getVendorRequestContext(request, { requireExplicitVendorSelection: true });
   if (!result.ok) {
     return result.response;
   }
 
-  const { supabase, vendor, memberIds } = result.context;
+  const { supabase, vendor, memberIds, membership, user } = result.context;
+  if (isFreePlan(vendor.plan)) {
+    return NextResponse.json(
+      {
+        error: "Appointment management requires a Pro plan or higher.",
+        code: "appointments_upgrade_required",
+      },
+      { status: 403 }
+    );
+  }
+  const isOwnerOrAdmin = ["owner", "admin"].includes(membership.role);
   const raw = (await request.json().catch(() => null)) as {
     source?: unknown;
     id?: unknown;
@@ -82,6 +96,7 @@ export async function PATCH(request: Request) {
       .select("id,vendor_id,status,assigned_staff_id")
       .eq("id", id)
       .eq("vendor_id", vendor.id)
+      .eq(isOwnerOrAdmin ? "vendor_id" : "assigned_staff_id", isOwnerOrAdmin ? vendor.id : user.id)
       .maybeSingle();
 
     if (lookupError) {
@@ -90,6 +105,22 @@ export async function PATCH(request: Request) {
 
     if (!row?.id) {
       return NextResponse.json({ error: "Appointment not found." }, { status: 404 });
+    }
+
+    const isAssignedToCurrentUser = String(row.assigned_staff_id ?? "") === user.id;
+    if (!isOwnerOrAdmin) {
+      if (!isAssignedToCurrentUser) {
+        return NextResponse.json({ error: "Appointment not found." }, { status: 404 });
+      }
+      if (
+        assignedStaffId !== undefined ||
+        title !== undefined ||
+        startAt !== undefined ||
+        clientName !== undefined ||
+        clientPhone !== undefined
+      ) {
+        return NextResponse.json({ error: "Staff can only update status or notes on assigned appointments." }, { status: 403 });
+      }
     }
 
     const currentStatus = normalizeAppointmentStatus(row.status) ?? "requested";
@@ -159,6 +190,7 @@ export async function PATCH(request: Request) {
     .from("viewing_requests")
     .select("id,property_id,lead_status,assigned_staff_id")
     .eq("id", id)
+    .eq(isOwnerOrAdmin ? "id" : "assigned_staff_id", isOwnerOrAdmin ? id : user.id)
     .maybeSingle();
 
   if (requestLookupError) {
@@ -167,6 +199,16 @@ export async function PATCH(request: Request) {
 
   if (!requestRow?.id || !requestRow.property_id) {
     return NextResponse.json({ error: "Viewing request not found." }, { status: 404 });
+  }
+
+  const isAssignedToCurrentUser = String(requestRow.assigned_staff_id ?? "") === user.id;
+  if (!isOwnerOrAdmin) {
+    if (!isAssignedToCurrentUser) {
+      return NextResponse.json({ error: "Viewing request not found." }, { status: 404 });
+    }
+    if (assignedStaffId !== undefined) {
+      return NextResponse.json({ error: "Staff cannot reassign viewing requests." }, { status: 403 });
+    }
   }
 
   const { data: propertyRow, error: propertyLookupError } = await supabase
@@ -227,12 +269,25 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const result = await getVendorRequestContext(request);
+  const result = await getVendorRequestContext(request, { requireExplicitVendorSelection: true });
   if (!result.ok) {
     return result.response;
   }
 
-  const { supabase, vendor, memberIds } = result.context;
+  if (isFreePlan(result.context.vendor.plan)) {
+    return NextResponse.json(
+      {
+        error: "Appointment management requires a Pro plan or higher.",
+        code: "appointments_upgrade_required",
+      },
+      { status: 403 }
+    );
+  }
+
+  const { supabase, vendor, memberIds, membership } = result.context;
+  if (!["owner", "admin"].includes(membership.role)) {
+    return NextResponse.json({ error: "Only owners and admins can delete appointments or viewing requests." }, { status: 403 });
+  }
   const raw = (await request.json().catch(() => null)) as { source?: unknown; id?: unknown } | null;
   const source = normalizeSource(raw?.source);
   const id = typeof raw?.id === "string" ? raw.id.trim() : "";
@@ -303,12 +358,25 @@ export async function DELETE(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const result = await getVendorRequestContext(request);
+  const result = await getVendorRequestContext(request, { requireExplicitVendorSelection: true });
   if (!result.ok) {
     return result.response;
   }
 
-  const { supabase, vendor, user, memberIds } = result.context;
+  if (isFreePlan(result.context.vendor.plan)) {
+    return NextResponse.json(
+      {
+        error: "Appointment management requires a Pro plan or higher.",
+        code: "appointments_upgrade_required",
+      },
+      { status: 403 }
+    );
+  }
+
+  const { supabase, vendor, user, memberIds, membership } = result.context;
+  if (!["owner", "admin"].includes(membership.role)) {
+    return NextResponse.json({ error: "Only owners and admins can create appointments." }, { status: 403 });
+  }
   const raw = (await request.json().catch(() => null)) as {
     property_id?: unknown;
     title?: unknown;

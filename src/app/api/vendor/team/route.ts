@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { isAdminOrOwner } from "@/lib/vendor-permissions";
+
 import { getVendorRequestContext } from "@/app/api/vendor/_lib/context";
 import { getVendorPlanUsage } from "@/app/api/vendor/_lib/plan-limits";
 
@@ -17,13 +19,33 @@ function normalizeStatus(input: unknown) {
   return input === "active" || input === "inactive" ? input : null;
 }
 
+function isFreePlan(plan: string | null | undefined) {
+  return (plan ?? "").trim().toLowerCase() === "free";
+}
+
+function teamUpgradeRequiredResponse() {
+  return NextResponse.json(
+    {
+      error: "Team management requires a Pro plan or higher.",
+      code: "team_upgrade_required",
+    },
+    { status: 403 }
+  );
+}
+
 export async function GET(request: Request) {
   const result = await getVendorRequestContext(request);
   if (!result.ok) {
     return result.response;
   }
 
-  const { supabase, vendor } = result.context;
+  const { supabase, vendor, membership } = result.context;
+  if (isFreePlan(vendor.plan)) {
+    return teamUpgradeRequiredResponse();
+  }
+  if (!isAdminOrOwner(membership.role)) {
+    return NextResponse.json({ error: "Only owners and admins can access team management." }, { status: 403 });
+  }
 
   const [membersResult, invitesResult] = await Promise.all([
     supabase
@@ -78,6 +100,9 @@ export async function POST(request: Request) {
   }
 
   const { supabase, membership, vendor, user } = result.context;
+  if (isFreePlan(vendor.plan)) {
+    return teamUpgradeRequiredResponse();
+  }
   const { planUsage } = await getVendorPlanUsage(result.context);
 
   if (!["owner", "admin"].includes(membership.role)) {
@@ -108,8 +133,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Email and role are required." }, { status: 400 });
   }
 
-  if (membership.role === "admin" && role === "owner") {
-    return NextResponse.json({ error: "Admins cannot assign owner seats." }, { status: 403 });
+  if (membership.role === "admin" && role !== "agent") {
+    return NextResponse.json({ error: "Admins can only invite staff seats." }, { status: 403 });
   }
 
   const { data: profile, error: profileError } = await supabase
@@ -231,6 +256,9 @@ export async function PATCH(request: Request) {
   }
 
   const { supabase, membership, vendor, user } = result.context;
+  if (isFreePlan(vendor.plan)) {
+    return teamUpgradeRequiredResponse();
+  }
 
   if (!["owner", "admin"].includes(membership.role)) {
     return NextResponse.json({ error: "Only owner or admin members can manage seats." }, { status: 403 });
@@ -270,8 +298,41 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Team member not found." }, { status: 404 });
   }
 
-  if (membership.role === "admin" && (existing.role === "owner" || role === "owner")) {
-    return NextResponse.json({ error: "Admins cannot manage owner seats." }, { status: 403 });
+  const existingRole = existing.role === "staff" ? "agent" : existing.role;
+  const existingStatus = existing.status ?? "active";
+
+  if (membership.role === "admin") {
+    if (existingRole !== "agent") {
+      return NextResponse.json({ error: "Admins can only manage staff seats." }, { status: 403 });
+    }
+    if (role !== "agent") {
+      return NextResponse.json({ error: "Admins cannot promote staff to admin or owner." }, { status: 403 });
+    }
+  }
+
+  const removingActiveOwner =
+    existingRole === "owner" &&
+    existingStatus === "active" &&
+    !(role === "owner" && status === "active");
+
+  if (removingActiveOwner) {
+    const { count, error: ownerCountError } = await supabase
+      .from("vendor_members")
+      .select("user_id", { count: "exact", head: true })
+      .eq("vendor_id", vendor.id)
+      .eq("role", "owner")
+      .eq("status", "active");
+
+    if (ownerCountError) {
+      return NextResponse.json({ error: ownerCountError.message }, { status: 500 });
+    }
+
+    if ((count ?? 0) <= 1) {
+      return NextResponse.json(
+        { error: "This workspace must always keep at least one active owner." },
+        { status: 403 }
+      );
+    }
   }
 
   const { error: updateError } = await supabase

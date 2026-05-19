@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { useAppState } from "@/app/living-site/lib/app-state";
 import { readActiveVendorWorkspace, withActiveVendorHeaders } from "@/app/living-site/lib/active-context";
+import { useI18n } from "@/app/living-site/lib/i18n";
 import { readWorkspaceCache, writeWorkspaceCache } from "@/app/living-site/lib/vendor-workspace-cache";
 import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
 import { isVendorStorefrontSetupComplete } from "@/lib/vendor-storefront";
@@ -243,17 +244,17 @@ const ModalText = styled.p`
 `;
 
 const navItems = [
-  { href: "/vendor", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/vendor/properties", label: "Properties", icon: Building2 },
-  { href: "/vendor/viewing-requests", label: "Viewing Requests", icon: CalendarDays },
-  { href: "/vendor/sales-requests", label: "Sales Requests", icon: ClipboardList },
-  { href: "/vendor/inquiries", label: "Inquiries", icon: MessagesSquare },
-  { href: "/vendor/team", label: "Team", icon: Users2 },
-  { href: "/vendor/import", label: "Bulk Import", icon: FileSpreadsheet },
-  { href: "/vendor/verification", label: "Verification", icon: ShieldCheck },
-  { href: "/request-sale", label: "Request Listing", icon: Plus },
-  { href: "/vendor/settings", label: "Settings", icon: Settings },
-];
+  { href: "/vendor", labelKey: "vendorShell.dashboard", icon: LayoutDashboard },
+  { href: "/vendor/properties", labelKey: "vendorShell.properties", icon: Building2 },
+  { href: "/vendor/viewing-requests", labelKey: "vendorShell.viewingRequests", icon: CalendarDays },
+  { href: "/vendor/sales-requests", labelKey: "vendorShell.salesRequests", icon: ClipboardList },
+  { href: "/vendor/inquiries", labelKey: "vendorShell.inquiries", icon: MessagesSquare },
+  { href: "/vendor/team", labelKey: "vendorShell.team", icon: Users2 },
+  { href: "/vendor/import", labelKey: "vendorShell.bulkImport", icon: FileSpreadsheet },
+  { href: "/vendor/verification", labelKey: "vendorShell.verification", icon: ShieldCheck },
+  { href: "/request-sale", labelKey: "vendorShell.requestListing", icon: Plus },
+  { href: "/vendor/settings", labelKey: "vendorShell.settings", icon: Settings },
+] as const;
 
 type WorkspaceSummary = {
   vendor: {
@@ -270,6 +271,7 @@ type WorkspaceSummary = {
 };
 
 export function VendorShell({ children }: { children: React.ReactNode }) {
+  const { t } = useI18n();
   const pathname = usePathname();
   const router = useRouter();
   const { user, profileRole, profileReady, authToken } = useAppState();
@@ -278,6 +280,13 @@ export function VendorShell({ children }: { children: React.ReactNode }) {
   const [workspaceLoading, setWorkspaceLoading] = useState(false);
   const [workspaceError, setWorkspaceError] = useState<string | null>(null);
   const [showHubAgencySetupPopup, setShowHubAgencySetupPopup] = useState(false);
+  const workspaceRole = String(workspace?.membership.role ?? "").trim().toLowerCase();
+  const visibleNavItems = navItems.filter((item) => {
+    if (item.href === "/vendor/team") {
+      return workspaceRole === "owner" || workspaceRole === "admin";
+    }
+    return true;
+  });
 
   useEffect(() => {
     if (!profileReady || !authToken || !user) return;
@@ -320,7 +329,7 @@ export function VendorShell({ children }: { children: React.ReactNode }) {
         }
 
         if (!response.ok || !payload?.vendor) {
-          throw new Error(payload?.error ?? "Unable to load the vendor workspace.");
+          throw new Error(payload?.error ?? t("vendorShell.loadFailed"));
         }
 
         const hubRoute = pathname === "/hub" || pathname.startsWith("/hub/");
@@ -362,7 +371,7 @@ export function VendorShell({ children }: { children: React.ReactNode }) {
             setWorkspace(null);
           }
           setWorkspaceError(
-            error instanceof Error ? error.message : "Unable to load the vendor workspace."
+            error instanceof Error ? error.message : t("vendorShell.loadFailed")
           );
         }
       } finally {
@@ -380,7 +389,7 @@ export function VendorShell({ children }: { children: React.ReactNode }) {
   }, [authToken, profileReady, router, user, pathname]);
 
   if (!profileReady) {
-    return <LoadingOverlay message="Loading vendor workspace..." />;
+    return <LoadingOverlay message={t("vendorShell.loading")} />;
   }
 
   if (!user) {
@@ -388,16 +397,14 @@ export function VendorShell({ children }: { children: React.ReactNode }) {
       <Frame>
         <Content>
           <AccessCard>
-            <AccessTitle>Sign in to access the vendor workspace</AccessTitle>
-            <AccessText>
-              This area is reserved for vendor accounts managing listings, requests, and workspace operations.
-            </AccessText>
+            <AccessTitle>{t("vendorShell.signInTitle")}</AccessTitle>
+            <AccessText>{t("vendorShell.signInCopy")}</AccessText>
             <AccessActions>
               <PrimaryAction type="button" onClick={() => router.push("/auth")}>
-                Go to login
+                {t("vendorShell.goToLogin")}
               </PrimaryAction>
               <SecondaryAction type="button" onClick={() => router.push("/")}>
-                Back to home
+                {t("vendorShell.backHome")}
               </SecondaryAction>
             </AccessActions>
           </AccessCard>
@@ -411,16 +418,14 @@ export function VendorShell({ children }: { children: React.ReactNode }) {
       <Frame>
         <Content>
           <AccessCard>
-            <AccessTitle>Vendor access required</AccessTitle>
-            <AccessText>
-              Your current account does not have vendor workspace access. Sign in with a vendor account or return to the public site.
-            </AccessText>
+            <AccessTitle>{t("vendorShell.accessTitle")}</AccessTitle>
+            <AccessText>{t("vendorShell.accessCopy")}</AccessText>
             <AccessActions>
               <PrimaryAction type="button" onClick={() => router.push("/auth")}>
-                Switch account
+                {t("vendorShell.switchAccount")}
               </PrimaryAction>
               <SecondaryAction type="button" onClick={() => router.push("/")}>
-                Back to home
+                {t("vendorShell.backHome")}
               </SecondaryAction>
             </AccessActions>
           </AccessCard>
@@ -430,7 +435,7 @@ export function VendorShell({ children }: { children: React.ReactNode }) {
   }
 
   if (workspaceLoading) {
-    return <LoadingOverlay message="Preparing workspace..." />;
+    return <LoadingOverlay message={t("vendorShell.preparing")} />;
   }
 
   if (workspaceError) {
@@ -438,14 +443,14 @@ export function VendorShell({ children }: { children: React.ReactNode }) {
       <Frame>
         <Content>
           <AccessCard>
-            <AccessTitle>Workspace unavailable</AccessTitle>
+            <AccessTitle>{t("vendorShell.unavailableTitle")}</AccessTitle>
             <AccessText>{workspaceError}</AccessText>
             <AccessActions>
               <PrimaryAction type="button" onClick={() => window.location.reload()}>
-                Retry
+                {t("vendorShell.retry")}
               </PrimaryAction>
               <SecondaryAction type="button" onClick={() => router.push("/")}>
-                Back to home
+                {t("vendorShell.backHome")}
               </SecondaryAction>
             </AccessActions>
           </AccessCard>
@@ -456,41 +461,39 @@ export function VendorShell({ children }: { children: React.ReactNode }) {
 
   return (
     <Frame>
-      <Overlay type="button" aria-label="Close menu" $open={menuOpen} onClick={() => setMenuOpen(false)} />
+      <Overlay type="button" aria-label={t("vendorShell.closeMenu")} $open={menuOpen} onClick={() => setMenuOpen(false)} />
       <Sidebar $open={menuOpen}>
         <Brand href="/vendor" onClick={() => setMenuOpen(false)}>
           <BrandMark>
             <img src="/KTLogo.png" alt="Eain Chan Myay" />
           </BrandMark>
-          <span>{workspace?.vendor.name || "Vendor Workspace"}</span>
+          <span>{workspace?.vendor.name || t("vendorShell.brandFallback")}</span>
         </Brand>
         <Nav>
-          {navItems.map((item) => {
+          {visibleNavItems.map((item) => {
             const Icon = item.icon;
             const active = pathname === item.href || (item.href !== "/vendor" && pathname.startsWith(item.href));
             return (
               <NavLink key={item.href} href={item.href} $active={active} onClick={() => setMenuOpen(false)}>
                 <Icon size={18} />
-                <span>{item.label}</span>
+                <span>{t(item.labelKey)}</span>
               </NavLink>
             );
           })}
         </Nav>
-        <SidebarHint>
-          Phase 1 includes the vendor shell, dashboard, and property workspace. Team, inquiries, and request management come next.
-        </SidebarHint>
+        <SidebarHint>{t("vendorShell.sidebarHint")}</SidebarHint>
       </Sidebar>
 
       <Content>
         <MobileBar>
-          <IconButton type="button" aria-label="Open menu" onClick={() => setMenuOpen((prev) => !prev)}>
+          <IconButton type="button" aria-label={t("vendorShell.openMenu")} onClick={() => setMenuOpen((prev) => !prev)}>
             {menuOpen ? <X size={20} /> : <Menu size={20} />}
           </IconButton>
           <MobileBrand>
             <BrandMark>
               <img src="/KTLogo.png" alt="Eain Chan Myay" />
             </BrandMark>
-            <span>{workspace?.vendor.name || "Vendor"}</span>
+            <span>{workspace?.vendor.name || t("vendorShell.mobileBrandFallback")}</span>
           </MobileBrand>
           <div style={{ width: 42 }} />
         </MobileBar>
@@ -504,11 +507,8 @@ export function VendorShell({ children }: { children: React.ReactNode }) {
             onClick={() => setShowHubAgencySetupPopup(false)}
           >
             <ModalCard onClick={(e) => e.stopPropagation()}>
-              <ModalTitle>Set up your agency profile</ModalTitle>
-              <ModalText>
-                To show your agency properly in the Hub, finish your public storefront (name, contact, logo, and bio).
-                You can set it up now, or continue to view the Hub with the current agencies.
-              </ModalText>
+              <ModalTitle>{t("vendorShell.setupTitle")}</ModalTitle>
+              <ModalText>{t("vendorShell.setupCopy")}</ModalText>
               <AccessActions>
                 <SecondaryAction
                   type="button"
@@ -520,7 +520,7 @@ export function VendorShell({ children }: { children: React.ReactNode }) {
                     }
                   }}
                 >
-                  Continue to Hub
+                  {t("vendorShell.continueHub")}
                 </SecondaryAction>
                 <PrimaryAction
                   type="button"
@@ -530,7 +530,7 @@ export function VendorShell({ children }: { children: React.ReactNode }) {
                   }}
                 >
                   <Sparkles size={18} />
-                  Set up agency
+                  {t("vendorShell.setupAgency")}
                 </PrimaryAction>
               </AccessActions>
             </ModalCard>

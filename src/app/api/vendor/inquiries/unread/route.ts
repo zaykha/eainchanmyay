@@ -1,16 +1,34 @@
 import { NextResponse } from "next/server";
 import { getVendorRequestContext } from "@/app/api/vendor/_lib/context";
 
+function isFreePlan(plan: string | null | undefined) {
+  return (plan ?? "").trim().toLowerCase() === "free";
+}
+
 export async function GET(request: Request) {
-  const result = await getVendorRequestContext(request);
+  const result = await getVendorRequestContext(request, { requireExplicitVendorSelection: true });
   if (!result.ok) {
     return result.response;
   }
 
-  const { supabase, vendor, user } = result.context;
+  const { supabase, vendor, user, membership } = result.context;
+  if (isFreePlan(vendor.plan)) {
+    return NextResponse.json(
+      {
+        error: "Lead inbox requires a Pro plan or higher.",
+        code: "lead_inbox_upgrade_required",
+      },
+      { status: 403 }
+    );
+  }
+  const isOwnerOrAdmin = ["owner", "admin"].includes(membership.role);
 
   const [{ data: leadRows, error: leadError }, { data: readRows, error: readError }] = await Promise.all([
-    supabase.from("vendor_inquiry_leads").select("id,last_activity_at,created_at").eq("vendor_id", vendor.id),
+    supabase
+      .from("vendor_inquiry_leads")
+      .select("id,last_activity_at,created_at")
+      .eq("vendor_id", vendor.id)
+      .eq(isOwnerOrAdmin ? "vendor_id" : "assigned_member_user_id", isOwnerOrAdmin ? vendor.id : user.id),
     supabase.from("vendor_lead_reads").select("lead_id,last_read_at").eq("user_id", user.id),
   ]);
 

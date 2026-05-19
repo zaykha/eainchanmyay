@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getVendorRequestContext } from "@/app/api/vendor/_lib/context";
 import { resolveListingImage } from "@/app/living-site/lib/images";
 import { calculatePromotionEndsAt, isPromotionListingStatusEligible, normalizePromotionTargetType, normalizePromotionType, selectActiveBoostedListingPromotions, selectActiveHeroPromotions } from "@/lib/vendor-promotions";
+import { isAdminOrOwner, isOwner } from "@/lib/vendor-permissions";
+
 
 type PropertyRow = {
   id: string;
@@ -71,10 +73,22 @@ function toNumber(value: unknown) {
 }
 
 export async function GET(request: Request) {
-  const result = await getVendorRequestContext(request);
+  const result = await getVendorRequestContext(request, { requireExplicitVendorSelection: true });
   if (!result.ok) return result.response;
 
-  const { supabase, vendor, memberIds } = result.context;
+  const { supabase, vendor, memberIds, membership } = result.context;
+  if (!isAdminOrOwner(membership.role)) {
+    return NextResponse.json({ error: "Only owners and admins can access promotions." }, { status: 403 });
+  }
+  if (vendor.verified_status !== "approved") {
+    return NextResponse.json(
+      {
+        error: "Verification required to boost listings or agency profile.",
+        code: "verification_required",
+      },
+      { status: 403 }
+    );
+  }
 
   const [promotionsResult, listingsResult] = await Promise.all([
     supabase
@@ -135,6 +149,7 @@ export async function GET(request: Request) {
       vendorName: vendor.name,
       vendorSlug: vendor.slug,
       verifiedStatus: vendor.verified_status,
+      membershipRole: membership.role,
     },
     eligibleListings: listings.map((item) => ({
       ...item,
@@ -155,12 +170,12 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const result = await getVendorRequestContext(request);
+  const result = await getVendorRequestContext(request, { requireExplicitVendorSelection: true });
   if (!result.ok) return result.response;
 
   const { supabase, user, vendor, memberIds, membership } = result.context;
-  if (!["owner", "admin"].includes(membership.role)) {
-    return NextResponse.json({ error: "Only owners and admins can create promotions." }, { status: 403 });
+  if (!isOwner(membership.role)) {
+    return NextResponse.json({ error: "Only workspace owners can create promotions." }, { status: 403 });
   }
   if (vendor.verified_status !== "approved") {
     return NextResponse.json({ error: "Only verified agencies can create promotions." }, { status: 403 });

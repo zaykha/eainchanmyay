@@ -8,6 +8,7 @@ import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
 import { CustomSelect } from "@/app/living-site/components/form-controls/CustomSelect";
 import { supabase } from "@/app/living-site/lib/supabaseClient";
 import { withActiveVendorHeaders } from "@/app/living-site/lib/active-context";
+import { useI18n } from "@/app/living-site/lib/i18n";
 
 const Page = styled.div<{ $embedded?: boolean }>`
   display: grid;
@@ -668,11 +669,12 @@ function isOverdue(item: InquiryItem) {
 export function VendorInquiriesView({
   embedded = false,
   hideHeader = false,
-  title = "Inquiries",
-  subtitle = "Buyer and renter leads routed into your vendor workspace from the marketplace inquiry flow.",
+  title,
+  subtitle,
   vendorId = null,
 }: VendorInquiriesViewProps = {}) {
   const { authToken, user } = useAppState();
+  const { t } = useI18n();
   const [items, setItems] = useState<InquiryItem[]>([]);
   const [assignees, setAssignees] = useState<AssigneeOption[]>([]);
   const [membershipRole, setMembershipRole] = useState<string | null>(null);
@@ -711,7 +713,7 @@ export function VendorInquiriesView({
         });
         const payload = (await response.json()) as InquiriesPayload;
         if (!response.ok) {
-          throw new Error(payload?.error || "Unable to load inquiries.");
+          throw new Error(payload?.error || t("vendor.inquiries.loadError"));
         }
         if (!cancelled) {
           const nextItems = payload.items ?? [];
@@ -723,7 +725,7 @@ export function VendorInquiriesView({
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Unable to load inquiries.");
+          setError(err instanceof Error ? err.message : t("vendor.inquiries.loadError"));
         }
       } finally {
         if (!cancelled) {
@@ -866,7 +868,7 @@ export function VendorInquiriesView({
       );
       setNoteDrafts((current) => ({ ...current, [leadId]: "" }));
     } catch (noteError) {
-      setError(noteError instanceof Error ? noteError.message : "Unable to save note.");
+      setError(noteError instanceof Error ? noteError.message : t("vendor.inquiries.noteError"));
     } finally {
       setSavingLeadId(null);
     }
@@ -896,14 +898,14 @@ export function VendorInquiriesView({
         | { error?: string; template?: NonNullable<InquiriesPayload["templates"]>[number] }
         | null;
       if (!response.ok || !payload?.template) {
-        throw new Error(payload?.error || "Unable to create template.");
+        throw new Error(payload?.error || t("vendor.inquiries.templateError"));
       }
 
       setTemplates((current) => [payload.template!, ...current]);
       setTemplateTitle("");
       setTemplateBody("");
     } catch (templateError) {
-      setError(templateError instanceof Error ? templateError.message : "Unable to create template.");
+      setError(templateError instanceof Error ? templateError.message : t("vendor.inquiries.templateError"));
     } finally {
       setCreatingTemplate(false);
     }
@@ -961,11 +963,11 @@ export function VendorInquiriesView({
 
       const payload = (await response.json().catch(() => null)) as { error?: string } | null;
       if (!response.ok) {
-        throw new Error(payload?.error || "Unable to update inquiry lead.");
+        throw new Error(payload?.error || t("vendor.inquiries.updateError"));
       }
     } catch (updateError) {
       setItems(previousItems);
-      setError(updateError instanceof Error ? updateError.message : "Unable to update inquiry lead.");
+      setError(updateError instanceof Error ? updateError.message : t("vendor.inquiries.updateError"));
     } finally {
       setSavingLeadId(null);
     }
@@ -989,7 +991,7 @@ export function VendorInquiriesView({
       });
       const payload = (await response.json().catch(() => null)) as { error?: string } | null;
       if (!response.ok) {
-        throw new Error(payload?.error || "Unable to delete note.");
+        throw new Error(payload?.error || t("vendor.inquiries.deleteNoteError"));
       }
       setItems((current) =>
         current.map((item) =>
@@ -997,25 +999,27 @@ export function VendorInquiriesView({
         )
       );
     } catch (deleteError) {
-      setError(deleteError instanceof Error ? deleteError.message : "Unable to delete note.");
+      setError(deleteError instanceof Error ? deleteError.message : t("vendor.inquiries.deleteNoteError"));
     } finally {
       setSavingLeadId(null);
     }
   };
 
   if (loading) {
-    return <LoadingOverlay message="Loading inquiries..." />;
+    return <LoadingOverlay message={t("vendor.inquiries.loading")} />;
   }
 
   const canManageTemplates = membershipRole === "owner" || membershipRole === "admin";
   const showEmptyPreview = !error && !items.length;
+  const resolvedTitle = title ?? t("account.inquiries");
+  const resolvedSubtitle = subtitle ?? "Buyer and renter leads routed into your vendor workspace from the marketplace inquiry flow.";
 
   return (
     <Page $embedded={embedded}>
       {!hideHeader ? (
         <Header>
-          <Title $embedded={embedded}>{title}</Title>
-          <Subtitle $embedded={embedded}>{subtitle}</Subtitle>
+          <Title $embedded={embedded}>{resolvedTitle}</Title>
+          <Subtitle $embedded={embedded}>{resolvedSubtitle}</Subtitle>
         </Header>
       ) : null}
 
@@ -1034,15 +1038,15 @@ export function VendorInquiriesView({
               </TabRow>
             </UtilityRow>
             <SearchBar style={{ opacity: 0.82 }}>
-              <Input value="" placeholder="Search leads, location, budget, notes" readOnly />
+              <Input value="" placeholder={t("vendor.inquiries.searchPlaceholder")} readOnly />
               <SelectField>
-                <CustomSelect id="lead-inbox-preview-status-filter" name="lead-inbox-preview-status-filter" label="Status" hideLabel value="all" onChange={() => undefined} disabled>
-                  <option value="all">All statuses</option>
+                <CustomSelect id="lead-inbox-preview-status-filter" name="lead-inbox-preview-status-filter" label={t("vendor.inquiries.status")} hideLabel value="all" onChange={() => undefined} disabled>
+                  <option value="all">{t("vendor.inquiries.allStatuses")}</option>
                 </CustomSelect>
               </SelectField>
               <SelectField>
-                <CustomSelect id="lead-inbox-preview-assignee-filter" name="lead-inbox-preview-assignee-filter" label="Assignee" hideLabel value="all" onChange={() => undefined} disabled>
-                  <option value="all">All assignees</option>
+                <CustomSelect id="lead-inbox-preview-assignee-filter" name="lead-inbox-preview-assignee-filter" label={t("vendor.inquiries.assignee")} hideLabel value="all" onChange={() => undefined} disabled>
+                  <option value="all">{t("vendor.inquiries.allAssignees")}</option>
                 </CustomSelect>
               </SelectField>
             </SearchBar>
@@ -1052,14 +1056,14 @@ export function VendorInquiriesView({
             <ScrollPanel>
               <PanelHeader>
                 <PanelTitleWrap>
-                  <PanelTitle>Lead queue</PanelTitle>
+                  <PanelTitle>{t("vendor.inquiries.leadQueue")}</PanelTitle>
                 </PanelTitleWrap>
               </PanelHeader>
               <PanelScrollBody>
                 <Empty $embedded>
                   <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 8, color: "var(--color-text)", fontWeight: 700 }}>
                     <SearchCheck size={16} />
-                    <span>Lead queue is empty.</span>
+                    <span>{t("vendor.inquiries.leadQueueEmpty")}</span>
                   </div>
                 </Empty>
               </PanelScrollBody>
@@ -1070,7 +1074,7 @@ export function VendorInquiriesView({
                 <Empty $embedded>
                   <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 8, color: "var(--color-text)", fontWeight: 700 }}>
                     <UserRound size={16} />
-                    <span>Select a lead.</span>
+                    <span>{t("vendor.inquiries.selectLead")}</span>
                   </div>
                 </Empty>
               </PanelScrollBody>
@@ -1156,18 +1160,18 @@ export function VendorInquiriesView({
                   <Input
                     value={searchQuery}
                     onChange={(event) => setSearchQuery(event.target.value)}
-                    placeholder="Search leads, location, budget, notes"
+                    placeholder={t("vendor.inquiries.searchPlaceholder")}
                   />
                   <SelectField>
                     <CustomSelect
                       id="lead-inbox-status-filter"
                       name="lead-inbox-status-filter"
-                      label="Status"
+                      label={t("vendor.inquiries.status")}
                       hideLabel
                       value={statusFilter}
                       onChange={setStatusFilter}
                     >
-                      <option value="all">All statuses</option>
+                      <option value="all">{t("vendor.inquiries.allStatuses")}</option>
                       {statusOptions.map((option) => (
                         <option key={option.value} value={option.value}>
                           {option.label}
@@ -1179,13 +1183,13 @@ export function VendorInquiriesView({
                     <CustomSelect
                       id="lead-inbox-assignee-filter"
                       name="lead-inbox-assignee-filter"
-                      label="Assignee"
+                      label={t("vendor.inquiries.assignee")}
                       hideLabel
                       value={assigneeFilter}
                       onChange={setAssigneeFilter}
                     >
-                      <option value="all">All assignees</option>
-                      <option value="unassigned">Unassigned</option>
+                      <option value="all">{t("vendor.inquiries.allAssignees")}</option>
+                      <option value="unassigned">{t("vendor.inquiries.unassigned")}</option>
                       {assignees.map((assignee) => (
                         <option key={assignee.user_id} value={assignee.user_id}>
                           {assignee.full_name || assignee.email || assignee.user_id}
@@ -1200,7 +1204,7 @@ export function VendorInquiriesView({
                 <ScrollPanel>
                   <PanelHeader>
                     <PanelTitleWrap>
-                      <PanelTitle>Lead queue</PanelTitle>
+                      <PanelTitle>{t("vendor.inquiries.leadQueue")}</PanelTitle>
                     </PanelTitleWrap>
                   </PanelHeader>
                   <PanelScrollBody>
@@ -1229,9 +1233,9 @@ export function VendorInquiriesView({
                               <StatusPill $status={item.status}>{formatStatus(item.status)}</StatusPill>
                             </LeadTop>
                             <LeadSummary>
-                              <span>Budget: {item.budget_range || "Not specified"}</span>
-                              <span>Assigned: {item.assigned_member_name || "Unassigned"}</span>
-                              <span>SLA: {formatDateTime(item.sla_due_at)}</span>
+                              <span>{t("vendor.inquiries.budget")}: {item.budget_range || t("vendor.inquiries.notSpecified")}</span>
+                              <span>{t("vendor.inquiries.assigned")}: {item.assigned_member_name || t("vendor.inquiries.unassigned")}</span>
+                              <span>{t("vendor.inquiries.sla")}: {formatDateTime(item.sla_due_at)}</span>
                             </LeadSummary>
                           </LeadRow>
                         ))}
@@ -1240,9 +1244,9 @@ export function VendorInquiriesView({
                       <Empty $embedded>
                         <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 8, color: "var(--color-text)", fontWeight: 700 }}>
                           <SearchCheck size={16} />
-                          <span>No matching leads.</span>
+                          <span>{t("vendor.inquiries.noMatches")}</span>
                         </div>
-                        Adjust your search or filter settings.
+                        {t("vendor.inquiries.noMatchesCopy")}
                       </Empty>
                     )}
                   </PanelScrollBody>
@@ -1263,43 +1267,43 @@ export function VendorInquiriesView({
 
                   <InlineGrid>
                     <SummaryCard>
-                      <SummaryLabel>Budget</SummaryLabel>
-                      <SummaryValue>{selectedLead.budget_range || "Not specified"}</SummaryValue>
-                    </SummaryCard>
-                    <SummaryCard>
-                      <SummaryLabel>Timeline</SummaryLabel>
+                    <SummaryLabel>{t("vendor.inquiries.budget")}</SummaryLabel>
+                    <SummaryValue>{selectedLead.budget_range || t("vendor.inquiries.notSpecified")}</SummaryValue>
+                  </SummaryCard>
+                  <SummaryCard>
+                      <SummaryLabel>{t("vendor.inquiries.timeline")}</SummaryLabel>
                       <SummaryValue>{formatTimeline(selectedLead.timeline)}</SummaryValue>
                     </SummaryCard>
                   <SummaryCard>
-                    <SummaryLabel>Assigned</SummaryLabel>
-                    <SummaryValue>{selectedLead.assigned_member_name || "Unassigned"}</SummaryValue>
+                    <SummaryLabel>{t("vendor.inquiries.assigned")}</SummaryLabel>
+                    <SummaryValue>{selectedLead.assigned_member_name || t("vendor.inquiries.unassigned")}</SummaryValue>
                   </SummaryCard>
                   <SummaryCard>
-                    <SummaryLabel>Contact number</SummaryLabel>
-                    <SummaryValue>{selectedLead.contact_number || "Not provided"}</SummaryValue>
+                    <SummaryLabel>{t("vendor.inquiries.contactNumber")}</SummaryLabel>
+                    <SummaryValue>{selectedLead.contact_number || t("vendor.inquiries.notProvided")}</SummaryValue>
                   </SummaryCard>
                   <SummaryCard>
-                    <SummaryLabel>SLA due</SummaryLabel>
+                    <SummaryLabel>{t("vendor.inquiries.slaDue")}</SummaryLabel>
                     <SummaryValue>{formatDateTime(selectedLead.sla_due_at)}</SummaryValue>
                     </SummaryCard>
                     <SummaryCard>
-                      <SummaryLabel>Created</SummaryLabel>
+                      <SummaryLabel>{t("vendor.inquiries.created")}</SummaryLabel>
                       <SummaryValue>{formatDate(selectedLead.created_at)}</SummaryValue>
                     </SummaryCard>
                     <SummaryCard>
-                      <SummaryLabel>Last contacted</SummaryLabel>
+                      <SummaryLabel>{t("vendor.inquiries.lastContacted")}</SummaryLabel>
                       <SummaryValue>{formatDateTime(selectedLead.last_contacted_at)}</SummaryValue>
                     </SummaryCard>
                   </InlineGrid>
 
                   <Section>
-                    <SectionTitle>Lead controls</SectionTitle>
+                    <SectionTitle>{t("vendor.inquiries.leadControls")}</SectionTitle>
                     <Controls>
                       <SelectField>
                         <CustomSelect
                           id={`lead-status-${selectedLead.lead_id}`}
                           name={`lead-status-${selectedLead.lead_id}`}
-                          label="Status"
+                          label={t("vendor.inquiries.status")}
                           hideLabel
                           value={selectedLead.status}
                           onChange={(value) => void handleUpdateLead(selectedLead.lead_id, { status: value })}
@@ -1316,7 +1320,7 @@ export function VendorInquiriesView({
                         <CustomSelect
                           id={`lead-stage-${selectedLead.lead_id}`}
                           name={`lead-stage-${selectedLead.lead_id}`}
-                          label="Stage"
+                          label={t("vendor.inquiries.stage")}
                           hideLabel
                           value={selectedLead.pipeline_stage}
                           onChange={(value) => void handleUpdateLead(selectedLead.lead_id, { pipeline_stage: value })}
@@ -1344,7 +1348,7 @@ export function VendorInquiriesView({
                             }
                             disabled={savingLeadId === selectedLead.lead_id}
                           >
-                            <option value="">Unassigned</option>
+                            <option value="">{t("vendor.inquiries.unassigned")}</option>
                             {assignees.map((assignee) => (
                               <option key={assignee.user_id} value={assignee.user_id}>
                                 {assignee.full_name || assignee.email || assignee.user_id}
@@ -1358,7 +1362,7 @@ export function VendorInquiriesView({
 
                   {buildRequirementChips(selectedLead).length ? (
                     <Section>
-                      <SectionTitle>Requirements</SectionTitle>
+                      <SectionTitle>{t("vendor.inquiries.requirements")}</SectionTitle>
                       <Chips>
                         {buildRequirementChips(selectedLead).map((requirement) => (
                           <Chip key={requirement}>{requirement}</Chip>
@@ -1369,10 +1373,10 @@ export function VendorInquiriesView({
 
                   <Section>
                     <SectionHeader>
-                      <SectionTitle>Internal notes</SectionTitle>
+                      <SectionTitle>{t("vendor.inquiries.internalNotes")}</SectionTitle>
                       <Button type="button" onClick={() => setNoteModalOpen(true)}>
                         <Plus size={15} style={{ marginRight: 6, verticalAlign: "text-bottom" }} />
-                        Add note
+                        {t("vendor.inquiries.addNote")}
                       </Button>
                     </SectionHeader>
                     {selectedLead.notes.length ? (
@@ -1381,13 +1385,13 @@ export function VendorInquiriesView({
                           <NoteItem key={note.id}>
                             <NoteTop>
                               <SmallText>
-                                {(note.author_name || "Team member") + " • " + formatDateTime(note.created_at)}
+                                {(note.author_name || t("vendor.inquiries.teamMember")) + " • " + formatDateTime(note.created_at)}
                               </SmallText>
                               <IconButton
                                 type="button"
                                 onClick={() => void handleDeleteNote(selectedLead.lead_id, note.id)}
                                 disabled={savingLeadId === selectedLead.lead_id}
-                                aria-label="Delete note"
+                                aria-label={t("vendor.inquiries.deleteNote")}
                               >
                                 <Trash2 size={15} />
                               </IconButton>
@@ -1397,7 +1401,7 @@ export function VendorInquiriesView({
                         ))}
                       </NoteList>
                     ) : (
-                      <SmallText>No notes yet.</SmallText>
+                      <SmallText>{t("vendor.inquiries.noNotes")}</SmallText>
                     )}
                   </Section>
 
@@ -1407,9 +1411,9 @@ export function VendorInquiriesView({
                       <Empty $embedded>
                         <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 8, color: "var(--color-text)", fontWeight: 700 }}>
                           <UserRound size={16} />
-                          <span>Select a lead.</span>
+                          <span>{t("vendor.inquiries.selectLead")}</span>
                         </div>
-                        Choose a lead from the queue to review, assign, and check internal notes.
+                        {t("vendor.inquiries.selectLeadCopy")}
                       </Empty>
                     </PanelScrollBody>
                   )}
@@ -1424,10 +1428,10 @@ export function VendorInquiriesView({
           <ModalCard onClick={(event) => event.stopPropagation()}>
             <ModalHeader>
               <PanelTitleWrap>
-                <PanelTitle>Add internal note</PanelTitle>
-                <PanelCopy>Visible only to your team inside the lead inbox.</PanelCopy>
+                <PanelTitle>{t("vendor.inquiries.addInternalNote")}</PanelTitle>
+                <PanelCopy>{t("vendor.inquiries.addInternalNoteCopy")}</PanelCopy>
               </PanelTitleWrap>
-              <IconButton type="button" onClick={() => setNoteModalOpen(false)} aria-label="Close note modal">
+              <IconButton type="button" onClick={() => setNoteModalOpen(false)} aria-label={t("vendor.inquiries.closeNoteModal")}>
                 <X size={16} />
               </IconButton>
             </ModalHeader>
@@ -1436,7 +1440,7 @@ export function VendorInquiriesView({
                 <CustomSelect
                   id={`lead-template-modal-${selectedLead.lead_id}`}
                   name={`lead-template-modal-${selectedLead.lead_id}`}
-                  label="Template"
+                  label={t("vendor.inquiries.template")}
                   hideLabel
                   value=""
                   onChange={(value) => {
@@ -1450,7 +1454,7 @@ export function VendorInquiriesView({
                     }));
                   }}
                 >
-                  <option value="">Use template</option>
+                  <option value="">{t("vendor.inquiries.useTemplate")}</option>
                   {templates.map((template) => (
                     <option key={template.id} value={template.id}>
                       {template.title}
@@ -1463,7 +1467,7 @@ export function VendorInquiriesView({
                 onChange={(event) =>
                   setNoteDrafts((current) => ({ ...current, [selectedLead.lead_id]: event.target.value }))
                 }
-                placeholder="Add an internal note for this lead"
+                placeholder={t("vendor.inquiries.notePlaceholder")}
                 style={{ minHeight: 180 }}
               />
               <Controls>

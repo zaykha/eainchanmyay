@@ -107,12 +107,40 @@ export async function POST(request: Request) {
   }
 
   const targetVendorId = toNullableString(body.targetVendorId);
+
+  // Prevent vendors (owner/admin/staff/invited members) from creating "property help" leads for their own agency via API.
+  // Determine which vendor_ids the requester belongs to (active memberships).
+  const { data: requesterMemberships, error: requesterMembershipsError } = await supabase
+    .from("vendor_members")
+    .select("vendor_id")
+    .eq("user_id", user.id)
+    .eq("status", "active");
+
+  if (requesterMembershipsError) {
+    return NextResponse.json({ error: requesterMembershipsError.message }, { status: 500 });
+  }
+
+  const requesterVendorIds = new Set(
+    (requesterMemberships ?? [])
+      .map((r) => String((r as { vendor_id?: unknown }).vendor_id ?? ""))
+      .filter(Boolean)
+  );
+
   if (targetVendorId) {
+    // If requester targets their own vendor, block.
+    if (requesterVendorIds.has(targetVendorId)) {
+      return NextResponse.json(
+        { error: "Cannot request property help for your own agency." },
+        { status: 403 }
+      );
+    }
+
     const { data: targetVendorRow, error: targetVendorError } = await supabase
       .from("vendors")
       .select("id")
       .eq("id", targetVendorId)
       .maybeSingle();
+
 
     if (targetVendorError) {
       return NextResponse.json({ error: targetVendorError.message }, { status: 500 });

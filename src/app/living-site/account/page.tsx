@@ -732,14 +732,6 @@ const HeaderWorkspaceTriggerBody = styled.div`
   }
 `;
 
-const HeaderWorkspaceTriggerChevron = styled.span`
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--color-muted);
-`;
-
 const HeaderWorkspaceDropdown = styled.div`
   position: absolute;
   top: calc(100% + 12px);
@@ -1454,7 +1446,7 @@ const HubRailSurface = styled.div<{ $expanded?: boolean }>`
   border: 1px solid rgba(15, 23, 42, 0.08);
   background: rgba(255, 255, 255, 0.96);
   box-shadow: ${(props) => (props.$expanded ? "0 18px 44px rgba(15, 23, 42, 0.12)" : "var(--frame-shadow)")};
-  overflow: hidden;
+  overflow: visible;
   transition:
     width 180ms ease,
     box-shadow 180ms ease,
@@ -2506,6 +2498,7 @@ const WorkspaceSectionViewport = styled(HubSectionViewport)``;
 
 const WorkspaceSectionScroller = styled(HubSectionScroller)``;
 
+
 const LeadInboxViewport = styled(HubSectionViewport)`
   min-height: 640px;
   max-height: 640px;
@@ -3046,6 +3039,13 @@ const CompactGhostButton = styled.button`
     opacity: 0.55;
     cursor: not-allowed;
   }
+`;
+
+const WorkspaceSwitchButton = styled(CompactGhostButton)`
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
 `;
 
 const CompactCTAButton = styled(CTAButton)`
@@ -4417,9 +4417,9 @@ function AccountHeader({ isVendor }: { isVendor: boolean }) {
   const [languageOpen, setLanguageOpen] = useState(false);
   const [activeContext, setActiveContext] = useState<"personal" | "vendor">("personal");
   const navLinks = [
-    { label: "Articles", href: "/faq" },
-    { label: "Our Partners", href: "/#partners" },
-    { label: "Collections", href: "/#collections" },
+    { label: t("header.articles"), href: "/faq" },
+    { label: t("header.ourPartners"), href: "/#partners" },
+    { label: t("header.collections"), href: "/#collections" },
   ];
   const languageOptions = [
     { value: "en", flag: "🇬🇧", name: "English", label: "Eng" },
@@ -4430,7 +4430,7 @@ function AccountHeader({ isVendor }: { isVendor: boolean }) {
   const activeLanguage =
     languageOptions.find((option) => option.value === language) ?? languageOptions[0];
   const hasWorkspaceAccess = profileReady && profileRole === "vendor_user";
-  const accountLabel = !user ? "Sign in / Register" : isVendor ? "Hub" : "Account";
+  const accountLabel = !user ? t("header.signInRegister") : isVendor ? t("header.hub") : t("header.account");
   const accountHref = !user ? "/auth" : isVendor ? "/hub" : "/account";
 
   useEffect(() => {
@@ -4452,7 +4452,7 @@ function AccountHeader({ isVendor }: { isVendor: boolean }) {
         <HeaderInner>
           <MobileMenuButton
             type="button"
-            aria-label="Open navigation menu"
+            aria-label={t("header.openNavigationMenu")}
             onClick={() => setMobileMenuOpen(true)}
           >
             <Menu />
@@ -4475,8 +4475,8 @@ function AccountHeader({ isVendor }: { isVendor: boolean }) {
             ))}
             {user && hasWorkspaceAccess ? (
               <ContextSwitch>
-                <ContextButton type="button" aria-label="Open account and workspace switcher">
-                  <span>Hub</span>
+                <ContextButton type="button" aria-label={t("header.openWorkspaceSwitcher")}>
+                  <span>{t("header.hub")}</span>
                   <ChevronDown />
                 </ContextButton>
                 <ContextMenu>
@@ -4488,8 +4488,8 @@ function AccountHeader({ isVendor }: { isVendor: boolean }) {
                       setActiveContext("personal");
                     }}
                   >
-                    <strong>Personal account</strong>
-                    <span>Saved listings, inquiries, and requests</span>
+                    <strong>{t("header.personalAccount")}</strong>
+                    <span>{t("header.personalAccountHint")}</span>
                   </ContextMenuItem>
                   <ContextMenuItem
                     href="/hub"
@@ -4499,8 +4499,8 @@ function AccountHeader({ isVendor }: { isVendor: boolean }) {
                       setActiveContext("vendor");
                     }}
                   >
-                    <strong>Agency workspace</strong>
-                    <span>Listings, appointments, leads, and team</span>
+                    <strong>{t("header.agencyWorkspace")}</strong>
+                    <span>{t("header.agencyWorkspaceHint")}</span>
                   </ContextMenuItem>
                 </ContextMenu>
               </ContextSwitch>
@@ -4512,7 +4512,7 @@ function AccountHeader({ isVendor }: { isVendor: boolean }) {
           <HeaderActions>
             <LanguageTrigger
               type="button"
-              aria-label="Open language selector"
+              aria-label={t("header.openLanguageSelector")}
               onClick={() => setLanguageOpen(true)}
             >
               {activeLanguage.flag}
@@ -4525,9 +4525,9 @@ function AccountHeader({ isVendor }: { isVendor: boolean }) {
         <MobileMenuOverlay onClick={() => setMobileMenuOpen(false)}>
           <MobileMenuDrawer onClick={(event) => event.stopPropagation()}>
             <MobileMenuHeader>
-              <MobileMenuTitle>Menu</MobileMenuTitle>
+              <MobileMenuTitle>{t("header.menu")}</MobileMenuTitle>
               <GhostButton type="button" onClick={() => setMobileMenuOpen(false)}>
-                Close
+                {t("header.close")}
               </GhostButton>
             </MobileMenuHeader>
             <MobileMenuLinks>
@@ -4541,7 +4541,7 @@ function AccountHeader({ isVendor }: { isVendor: boolean }) {
                       setMobileMenuOpen(false);
                     }}
                   >
-                    Personal account
+                    {t("header.personalAccount")}
                   </Link>
                   <Link
                     href="/hub"
@@ -4551,7 +4551,7 @@ function AccountHeader({ isVendor }: { isVendor: boolean }) {
                       setMobileMenuOpen(false);
                     }}
                   >
-                    Agency workspace
+                    {t("header.agencyWorkspace")}
                   </Link>
                 </>
               ) : null}
@@ -4574,10 +4574,10 @@ function AccountHeader({ isVendor }: { isVendor: boolean }) {
             <ModalHeader>
               <div>
                 <VendorSectionTitle>{t("settings.language")}</VendorSectionTitle>
-                <Muted>Choose the language for your marketplace experience.</Muted>
+                <Muted>{t("header.languagePrompt")}</Muted>
               </div>
               <GhostButton type="button" onClick={() => setLanguageOpen(false)}>
-                Close
+                {t("header.close")}
               </GhostButton>
             </ModalHeader>
             <VendorActionGrid>
@@ -4787,7 +4787,7 @@ export default function AccountPage() {
   const [activeSale, setActiveSale] = useState<Record<string, unknown> | null>(null);
   const [onboardingPending, setOnboardingPending] = useState(false);
   const [hubRailExpanded, setHubRailExpanded] = useState(false);
-  const [hubSection, setHubSection] = useState<
+  type HubSection =
     | "snapshot"
     | "analytics"
     | "boostings"
@@ -4798,8 +4798,8 @@ export default function AccountPage() {
     | "listing-detail"
     | "team"
     | "settings"
-    | "verification"
-  >("snapshot");
+    | "verification";
+  const [hubSection, setHubSection] = useState<HubSection>("snapshot");
   const searchParams = useSearchParams();
   const [selectedHubProperty, setSelectedHubProperty] = useState<VendorPropertyItem | null>(null);
   const [selectedHubPropertyDetail, setSelectedHubPropertyDetail] = useState<HubPropertyDetailPayload | null>(null);
@@ -4856,24 +4856,7 @@ export default function AccountPage() {
   const [selectedAppointmentStaffId, setSelectedAppointmentStaffId] = useState<string | null>(null);
   const [showPastStaffAppointments, setShowPastStaffAppointments] = useState(false);
   const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
-  const workspaceMenuRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    const section = searchParams.get("section");
-    if (
-      section === "snapshot" ||
-      section === "analytics" ||
-      section === "boostings" ||
-      section === "manage-listings" ||
-      section === "lead-inbox" ||
-      section === "appointments" ||
-      section === "verification" ||
-      section === "team" ||
-      section === "settings"
-    ) {
-      setHubSection(section);
-    }
-  }, [searchParams]);
   const [toastMessage, setToastMessage] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [teamInvites, setTeamInvites] = useState<
     Array<{
@@ -4955,37 +4938,60 @@ export default function AccountPage() {
   const isAccountPath = pathname === "/account";
   const hasVendorWorkspaceAccess =
     profileRole === "vendor_user" || onboardingPending || Boolean(vendorWorkspace?.vendor.id);
+  const workspaceRole = (vendorWorkspace?.membership.role ?? "").trim().toLowerCase();
+  const isFreeAgencyPlan = vendorWorkspace?.vendor.plan === "free";
+  const isOwnerOrAdmin = workspaceRole === "owner" || workspaceRole === "admin";
+  const canAccessAppointments = !isFreeAgencyPlan;
+  const canAccessLeadInbox = !isFreeAgencyPlan;
+  const canManagePromotions = workspaceRole === "owner";
+  const canAccessBilling = workspaceRole === "owner";
+  const canAccessHubSnapshot = isOwnerOrAdmin;
+  const canAccessAnalytics = isOwnerOrAdmin && !isFreeAgencyPlan;
+  const canAccessBoostings = isOwnerOrAdmin;
+  const canAccessSettings = isOwnerOrAdmin;
+  const canAccessVerification = workspaceRole === "owner";
+  const canAccessBulkUpload = isOwnerOrAdmin && !isFreeAgencyPlan;
+  const canManageListingOperations = isOwnerOrAdmin;
+  const canCreateAppointments = isOwnerOrAdmin && canAccessAppointments;
+  const canManageTeam = isOwnerOrAdmin;
+  const canAccessTeam = canManageTeam && !isFreeAgencyPlan;
+  const canInviteAdminSeats = workspaceRole === "owner";
+  const canManageAdminSeats = workspaceRole === "owner";
+  const getFallbackHubSection = (): HubSection => (canAccessHubSnapshot ? "snapshot" : "manage-listings");
+  const isHubSectionAllowed = (section: HubSection) => {
+    if (section === "manage-listings" || section === "listing-detail") return true;
+    if (section === "appointments") return canAccessAppointments;
+    if (section === "lead-inbox") return canAccessLeadInbox;
+    if (section === "bulk-upload") return canAccessBulkUpload;
+    if (section === "snapshot") return canAccessHubSnapshot;
+    if (section === "analytics") return canAccessAnalytics;
+    if (section === "boostings") return canAccessBoostings;
+    if (section === "settings") return canAccessSettings;
+    if (section === "verification") return canAccessVerification;
+    if (section === "team") return canAccessTeam;
+    return false;
+  };
 
   const updateHubSection = (
-    section:
-      | "snapshot"
-      | "analytics"
-      | "boostings"
-      | "manage-listings"
-      | "bulk-upload"
-      | "lead-inbox"
-      | "appointments"
-      | "listing-detail"
-      | "team"
-      | "settings"
-      | "verification",
+    section: HubSection,
     options?: {
       listingId?: string | null;
     }
   ) => {
-    setHubSection(section);
+    const nextSection = isHubSectionAllowed(section) ? section : getFallbackHubSection();
+    setHubSection(nextSection);
     if (!isHubPath) return;
 
     const nextParams = new URLSearchParams(searchParams.toString());
-    if (section === "snapshot") {
+    if (nextSection === "snapshot") {
       nextParams.delete("section");
-    } else if (section === "listing-detail" || section === "bulk-upload") {
+    } else if (nextSection === "listing-detail" || nextSection === "bulk-upload") {
       nextParams.delete("section");
     } else {
-      nextParams.set("section", section);
+      nextParams.set("section", nextSection);
     }
 
-    if (section === "boostings" && options?.listingId) {
+    if (nextSection === "boostings" && options?.listingId) {
       nextParams.set("listingId", options.listingId);
     } else {
       nextParams.delete("listingId");
@@ -4994,6 +5000,55 @@ export default function AccountPage() {
     const query = nextParams.toString();
     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
   };
+
+  useEffect(() => {
+    const section = searchParams.get("section");
+    if (
+      section === "snapshot" ||
+      section === "analytics" ||
+      section === "boostings" ||
+      section === "manage-listings" ||
+      section === "lead-inbox" ||
+      section === "appointments" ||
+      section === "verification" ||
+      section === "team" ||
+      section === "settings"
+    ) {
+      if (isHubSectionAllowed(section)) {
+        setHubSection(section);
+      } else {
+        updateHubSection(getFallbackHubSection());
+      }
+    } else if (!section && !canAccessHubSnapshot) {
+      setHubSection("manage-listings");
+    }
+  }, [
+    searchParams,
+    canAccessAnalytics,
+    canAccessBoostings,
+    canAccessBulkUpload,
+    canAccessHubSnapshot,
+    canAccessSettings,
+    canAccessVerification,
+    canManageTeam,
+    isFreeAgencyPlan,
+  ]);
+
+  useEffect(() => {
+    if (!isHubSectionAllowed(hubSection)) {
+      updateHubSection(getFallbackHubSection());
+    }
+  }, [
+    hubSection,
+    canAccessAnalytics,
+    canAccessBoostings,
+    canAccessBulkUpload,
+    canAccessHubSnapshot,
+    canAccessSettings,
+    canAccessVerification,
+    canManageTeam,
+    isFreeAgencyPlan,
+  ]);
 
   useEffect(() => {
     const pathContext = deriveActiveContextFromPath(pathname);
@@ -5012,17 +5067,6 @@ export default function AccountPage() {
       setActiveVendorId(storedVendorId);
     }
   }, [userId]);
-
-  useEffect(() => {
-    if (!workspaceMenuOpen) return;
-    const handlePointerDown = (event: MouseEvent) => {
-      if (!workspaceMenuRef.current?.contains(event.target as Node)) {
-        setWorkspaceMenuOpen(false);
-      }
-    };
-    window.addEventListener("mousedown", handlePointerDown);
-    return () => window.removeEventListener("mousedown", handlePointerDown);
-  }, [workspaceMenuOpen]);
 
   const buildVendorHeaders = (contentType = true) =>
     withActiveVendorHeaders(
@@ -5072,7 +5116,7 @@ export default function AccountPage() {
   }, []);
 
   useEffect(() => {
-    if (!authToken || profileRole !== "vendor_user") {
+    if (!authToken || profileRole !== "vendor_user" || !canAccessHubSnapshot) {
       setVendorOverview(null);
       setVendorOverviewError(null);
       setVendorOverviewLoading(false);
@@ -5119,7 +5163,7 @@ export default function AccountPage() {
     return () => {
       active = false;
     };
-  }, [activeVendorId, authToken, profileRole, vendorWorkspace?.vendor.plan]);
+  }, [activeVendorId, authToken, canAccessHubSnapshot, profileRole, vendorWorkspace?.vendor.plan]);
 
   useEffect(() => {
     if (!authToken || profileRole !== "vendor_user" || vendorWorkspace?.vendor.plan === "free") {
@@ -5153,7 +5197,7 @@ export default function AccountPage() {
   }, [activeVendorId, authToken, leadInboxUnreadVersion, profileRole, vendorWorkspace?.vendor.plan]);
 
   useEffect(() => {
-    if (!authToken || profileRole !== "vendor_user") {
+    if (!authToken || profileRole !== "vendor_user" || vendorWorkspace?.vendor.plan === "free") {
       setAppointmentUnreadCount(0);
       return;
     }
@@ -5181,7 +5225,7 @@ export default function AccountPage() {
     return () => {
       active = false;
     };
-  }, [activeVendorId, appointmentUnreadVersion, authToken, profileRole]);
+  }, [activeVendorId, appointmentUnreadVersion, authToken, profileRole, vendorWorkspace?.vendor.plan]);
 
   useEffect(() => {
     if (!authToken || !userId || profileRole !== "vendor_user" || vendorWorkspace?.vendor.plan === "free") return;
@@ -5429,7 +5473,8 @@ export default function AccountPage() {
 
   useEffect(() => {
     const shouldLoadAppointmentDashboard = appointmentComposerMode || hubSection === "appointments";
-    if (!authToken || !shouldLoadAppointmentDashboard) {
+    if (!authToken || !shouldLoadAppointmentDashboard || vendorWorkspace?.vendor.plan === "free") {
+      setAppointmentDashboard(null);
       setAppointmentDashboardLoading(false);
       setAppointmentDashboardError(null);
       return;
@@ -5472,7 +5517,7 @@ export default function AccountPage() {
     return () => {
       active = false;
     };
-  }, [activeVendorId, Boolean(appointmentComposerMode), appointmentDashboardVersion, authToken, hubSection === "appointments"]);
+  }, [activeVendorId, Boolean(appointmentComposerMode), appointmentDashboardVersion, authToken, hubSection === "appointments", vendorWorkspace?.vendor.plan]);
 
   useEffect(() => {
     if (!authToken || profileRole !== "vendor_user") {
@@ -5938,7 +5983,7 @@ export default function AccountPage() {
         headers: buildVendorHeaders(),
         body: JSON.stringify({
           email: teamInviteEmail.trim(),
-          role: teamInviteRole,
+          role: canInviteAdminSeats ? teamInviteRole : "agent",
         }),
       });
       const payload = (await response.json().catch(() => null)) as {
@@ -6022,10 +6067,10 @@ export default function AccountPage() {
 
   const currentVendorPlan = getVendorPlan(vendorWorkspace?.vendor.plan);
   const suggestedUpgrade = getUpgradePlan(vendorWorkspace?.vendor.plan);
-  const isFreeAgencyPlan = vendorWorkspace?.vendor.plan === "free";
   const storefrontReady = vendorWorkspace ? isVendorStorefrontSetupComplete(vendorWorkspace.vendor) : false;
 
   const handleRoleChangeClick = (member: typeof teamMembers[number]) => {
+    if (!canManageTeamMember(member)) return;
     setMemberBeingEdited(member);
     setNewRoleForMember(member.role);
     setShowChangeRoleModalId(member.user_id);
@@ -6033,6 +6078,7 @@ export default function AccountPage() {
   };
 
   const handleRemoveMemberClick = (member: typeof teamMembers[number]) => {
+    if (!canManageTeamMember(member)) return;
     setMemberBeingEdited(member);
     setShowRemoveMemberModalId(member.user_id);
     setShowMemberActionsMenuId(null);
@@ -6040,7 +6086,8 @@ export default function AccountPage() {
 
   const handleConfirmRoleChange = async () => {
     if (!memberBeingEdited || !newRoleForMember) return;
-    await handleTeamMemberUpdate(memberBeingEdited.user_id, newRoleForMember, memberBeingEdited.status);
+    const nextRole = canManageAdminSeats ? newRoleForMember : "agent";
+    await handleTeamMemberUpdate(memberBeingEdited.user_id, nextRole, memberBeingEdited.status);
     setShowChangeRoleModalId(null);
     setMemberBeingEdited(null);
     setNewRoleForMember("");
@@ -6084,7 +6131,6 @@ export default function AccountPage() {
   const profileReadinessDoneCount = profileReadinessItems.filter((item) => item.done).length;
   const freeSettingsHref = "/hub/settings";
   const freeUpgradeHref = "/hub/upgrade";
-  const canManageTeam = vendorWorkspace?.membership.role === "owner" || vendorWorkspace?.membership.role === "admin";
   const workspaceOptions =
     vendorWorkspace?.workspaces?.length
       ? vendorWorkspace.workspaces
@@ -6112,6 +6158,8 @@ export default function AccountPage() {
     null;
   const handleWorkspaceChange = (nextVendorId: string) => {
     if (!userId || !nextVendorId || nextVendorId === activeVendorId) return;
+    const nextWorkspace = workspaceOptions.find((workspace) => workspace.vendor.id === nextVendorId) ?? null;
+    const nextWorkspaceRole = String(nextWorkspace?.membership.role ?? "").trim().toLowerCase();
     writeActiveVendorWorkspace(userId, nextVendorId);
     setActiveVendorId(nextVendorId);
     setSelectedHubProperty(null);
@@ -6124,13 +6172,20 @@ export default function AccountPage() {
     setLeadInboxUnreadVersion((current) => current + 1);
     setAppointmentUnreadVersion((current) => current + 1);
     if (hubSection === "listing-detail") {
-      setHubSection("snapshot");
+      setHubSection(nextWorkspaceRole === "owner" || nextWorkspaceRole === "admin" ? "snapshot" : "manage-listings");
     }
   };
   const activeTeamCount = teamMembers.filter((member) => member.status === "active").length;
   const ownerCount = teamMembers.filter((member) => member.role === "owner" && member.status === "active").length;
   const adminCount = teamMembers.filter((member) => member.role === "admin" && member.status === "active").length;
   const agentCount = teamMembers.filter((member) => member.role === "agent" && member.status === "active").length;
+  const canManageTeamMember = (member: (typeof teamMembers)[number]) => {
+    if (!canManageTeam) return false;
+    if (workspaceRole === "owner") {
+      return member.user_id !== userId;
+    }
+    return workspaceRole === "admin" && member.role === "agent" && member.user_id !== userId;
+  };
   const storefrontChannels = [
     vendorWorkspace?.vendor.contact_phone,
     vendorWorkspace?.vendor.contact_email,
@@ -6517,39 +6572,64 @@ export default function AccountPage() {
           user &&
           isHubPath &&
           (profileRole === "vendor_user" || onboardingPending || Boolean(vendorWorkspace?.vendor.id)) && (
-          <VendorGrid>
-            <VendorActionRail
-              data-hub-rail="true"
-              $expanded={hubRailExpanded}
-              onMouseEnter={() => setHubRailExpanded(true)}
-              onMouseLeave={() => setHubRailExpanded(false)}
-              onFocus={() => setHubRailExpanded(true)}
-              onBlur={(event) => {
-                if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
-                  setHubRailExpanded(false);
-                }
-              }}
-            >
-              <HubRailSurface $expanded={hubRailExpanded}>
+          <>
+            <VendorGrid>
+              <VendorActionRail
+                data-hub-rail="true"
+                $expanded={hubRailExpanded}
+                onMouseEnter={() => setHubRailExpanded(true)}
+                onMouseLeave={() => setHubRailExpanded(false)}
+                onFocus={() => setHubRailExpanded(true)}
+                onBlur={(event) => {
+                  if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                    setHubRailExpanded(false);
+                  }
+                }}
+              >
+                <HubRailSurface $expanded={hubRailExpanded}>
                 <HubNavList>
-                  <HubNavButton
-                    $active={hubSection === "snapshot"}
-                    $expanded={hubRailExpanded}
-                    type="button"
-                    onClick={() => updateHubSection("snapshot")}
-                  >
-                    <HubNavIcon $active={hubSection === "snapshot"} $image={vendorWorkspace?.vendor.logo_url || undefined}>
-                      {!vendorWorkspace?.vendor.logo_url ? <Home /> : null}
-                    </HubNavIcon>
-                    <HubNavBody $expanded={hubRailExpanded}>
-                      <HubNavTitle $active={hubSection === "snapshot"}>Hub</HubNavTitle>
-                    </HubNavBody>
-                    <HubNavArrow $expanded={hubRailExpanded}>
-                      <ArrowUpRight size={18} />
-                    </HubNavArrow>
-                  </HubNavButton>
+                  {workspaceOptions.length > 0 && !canAccessHubSnapshot ? (
+                    <HubNavButton
+                      $active={workspaceMenuOpen}
+                      $expanded={hubRailExpanded}
+                      type="button"
+                      aria-label="Open organization switcher"
+                      aria-expanded={workspaceMenuOpen}
+                      onClick={() => setWorkspaceMenuOpen(true)}
+                    >
+                      <HubNavIcon $active={workspaceMenuOpen} $image={currentWorkspaceOption?.vendor.logo_url || undefined}>
+                        {!currentWorkspaceOption?.vendor.logo_url ? <Building2 /> : null}
+                      </HubNavIcon>
+                      <HubNavBody $expanded={hubRailExpanded}>
+                        <HubNavTitleRow>
+                          <HubNavTitle $active={workspaceMenuOpen}>Agency workspace</HubNavTitle>
+                        </HubNavTitleRow>
+                      </HubNavBody>
+                      <HubNavArrow $expanded={hubRailExpanded}>
+                        <ArrowUpRight size={18} />
+                      </HubNavArrow>
+                    </HubNavButton>
+                  ) : null}
+                  {canAccessHubSnapshot ? (
+                    <HubNavButton
+                      $active={hubSection === "snapshot"}
+                      $expanded={hubRailExpanded}
+                      type="button"
+                      onClick={() => updateHubSection("snapshot")}
+                    >
+                      <HubNavIcon $active={hubSection === "snapshot"} $image={vendorWorkspace?.vendor.logo_url || undefined}>
+                        {!vendorWorkspace?.vendor.logo_url ? <Home /> : null}
+                      </HubNavIcon>
+                      <HubNavBody $expanded={hubRailExpanded}>
+                        <HubNavTitle $active={hubSection === "snapshot"}>Hub</HubNavTitle>
+                      </HubNavBody>
+                      <HubNavArrow $expanded={hubRailExpanded}>
+                        <ArrowUpRight size={18} />
+                      </HubNavArrow>
+                    </HubNavButton>
+                  ) : null}
 
-                  {isFreeAgencyPlan ? (
+                  {isFreeAgencyPlan && canManageListingOperations ? (
                     <HubNavItem $expanded={hubRailExpanded} href="/request-sale">
                       <HubNavIcon>
                         <Plus />
@@ -6616,41 +6696,45 @@ export default function AccountPage() {
                     </HubNavButton>
                   )}
 
-                  <HubNavButton
-                    $active={hubSection === "boostings"}
-                    $expanded={hubRailExpanded}
-                    type="button"
-                    onClick={() => updateHubSection("boostings")}
-                  >
-                    <HubNavIcon $active={hubSection === "boostings"}>
-                      <Megaphone />
-                    </HubNavIcon>
-                    <HubNavBody $expanded={hubRailExpanded}>
-                      <HubNavTitle $active={hubSection === "boostings"}>Boostings</HubNavTitle>
-                    </HubNavBody>
-                    <HubNavArrow $expanded={hubRailExpanded}>
-                      <ArrowUpRight size={18} />
-                    </HubNavArrow>
-                  </HubNavButton>
+                  {canAccessBoostings ? (
+                    <HubNavButton
+                      $active={hubSection === "boostings"}
+                      $expanded={hubRailExpanded}
+                      type="button"
+                      onClick={() => updateHubSection("boostings")}
+                    >
+                      <HubNavIcon $active={hubSection === "boostings"}>
+                        <Megaphone />
+                      </HubNavIcon>
+                      <HubNavBody $expanded={hubRailExpanded}>
+                        <HubNavTitle $active={hubSection === "boostings"}>Boostings</HubNavTitle>
+                      </HubNavBody>
+                      <HubNavArrow $expanded={hubRailExpanded}>
+                        <ArrowUpRight size={18} />
+                      </HubNavArrow>
+                    </HubNavButton>
+                  ) : null}
 
-                  <HubNavButton
-                    $active={hubSection === "analytics"}
-                    $expanded={hubRailExpanded}
-                    type="button"
-                    onClick={() => updateHubSection("analytics")}
-                  >
-                    <HubNavIcon $active={hubSection === "analytics"}>
-                      <BarChart3 />
-                    </HubNavIcon>
-                    <HubNavBody $expanded={hubRailExpanded}>
-                      <HubNavTitle $active={hubSection === "analytics"}>Analytics</HubNavTitle>
-                    </HubNavBody>
-                    <HubNavArrow $expanded={hubRailExpanded}>
-                      <ArrowUpRight size={18} />
-                    </HubNavArrow>
-                  </HubNavButton>
+                  {canAccessAnalytics ? (
+                    <HubNavButton
+                      $active={hubSection === "analytics"}
+                      $expanded={hubRailExpanded}
+                      type="button"
+                      onClick={() => updateHubSection("analytics")}
+                    >
+                      <HubNavIcon $active={hubSection === "analytics"}>
+                        <BarChart3 />
+                      </HubNavIcon>
+                      <HubNavBody $expanded={hubRailExpanded}>
+                        <HubNavTitle $active={hubSection === "analytics"}>Analytics</HubNavTitle>
+                      </HubNavBody>
+                      <HubNavArrow $expanded={hubRailExpanded}>
+                        <ArrowUpRight size={18} />
+                      </HubNavArrow>
+                    </HubNavButton>
+                  ) : null}
 
-                  {!isFreeAgencyPlan ? (
+                  {canAccessLeadInbox ? (
                     <HubNavButton
                       $active={hubSection === "lead-inbox"}
                       $expanded={hubRailExpanded}
@@ -6672,22 +6756,24 @@ export default function AccountPage() {
                     </HubNavButton>
                   ) : null}
 
-                  <HubNavButton
-                    $active={hubSection === "settings"}
-                    $expanded={hubRailExpanded}
-                    type="button"
-                    onClick={() => updateHubSection("settings")}
-                  >
-                    <HubNavIcon $active={hubSection === "settings"}>
-                      <Settings />
-                    </HubNavIcon>
-                    <HubNavBody $expanded={hubRailExpanded}>
-                      <HubNavTitle $active={hubSection === "settings"}>Organization settings</HubNavTitle>
-                    </HubNavBody>
-                    <HubNavArrow $expanded={hubRailExpanded}>
-                      <ArrowUpRight size={18} />
-                    </HubNavArrow>
-                  </HubNavButton>
+                  {canAccessSettings ? (
+                    <HubNavButton
+                      $active={hubSection === "settings"}
+                      $expanded={hubRailExpanded}
+                      type="button"
+                      onClick={() => updateHubSection("settings")}
+                    >
+                      <HubNavIcon $active={hubSection === "settings"}>
+                        <Settings />
+                      </HubNavIcon>
+                      <HubNavBody $expanded={hubRailExpanded}>
+                        <HubNavTitle $active={hubSection === "settings"}>Organization settings</HubNavTitle>
+                      </HubNavBody>
+                      <HubNavArrow $expanded={hubRailExpanded}>
+                        <ArrowUpRight size={18} />
+                      </HubNavArrow>
+                    </HubNavButton>
+                  ) : null}
 
                   {isFreeAgencyPlan ? (
                     <HubNavItem $expanded={hubRailExpanded} href={freeUpgradeHref} $disabled>
@@ -6757,63 +6843,26 @@ export default function AccountPage() {
               <HubRailSpacer />
             </VendorActionRail>
             <VendorColumn>
-            {(isFreeAgencyPlan || hubSection === "snapshot") ? (
+            {(canAccessHubSnapshot && (isFreeAgencyPlan || hubSection === "snapshot")) ? (
               <VendorCard>
                 <StarterHeader>
                   <StarterTopRow>
                     <VendorHero>
                       <VendorIdentity>
-                        {workspaceOptions.length > 0 ? (
-                          <HeaderWorkspaceMenu ref={workspaceMenuRef}>
-                            <HeaderWorkspaceTrigger
-                              type="button"
-                              aria-label="Open organization switcher"
-                              aria-expanded={workspaceMenuOpen}
-                              onClick={() => setWorkspaceMenuOpen((current) => !current)}
-                            >
-                              <HeaderWorkspaceTriggerAvatar $image={currentWorkspaceOption?.vendor.logo_url || undefined}>
-                                {!currentWorkspaceOption?.vendor.logo_url ? <Building2 /> : null}
-                              </HeaderWorkspaceTriggerAvatar>
-                              <HeaderWorkspaceTriggerBody>
-                                <strong>{currentWorkspaceOption?.vendor.name || vendorWorkspace?.vendor.name || "Agency account"}</strong>
-                                <span>{formatRoleLabel(currentWorkspaceOption?.membership.role || vendorWorkspace?.membership.role)}</span>
-                              </HeaderWorkspaceTriggerBody>
-                              <HeaderWorkspaceTriggerChevron>
-                                <ChevronDown />
-                              </HeaderWorkspaceTriggerChevron>
-                            </HeaderWorkspaceTrigger>
-                            {workspaceMenuOpen ? (
-                              <HeaderWorkspaceDropdown>
-                                {workspaceOptions.map((workspace) => (
-                                  <HeaderWorkspaceItem
-                                    key={workspace.vendor.id}
-                                    type="button"
-                                    $active={(activeVendorId ?? workspaceOptions[0]?.vendor.id ?? "") === workspace.vendor.id}
-                                    onClick={() => {
-                                      if (workspace.vendor.id !== activeVendorId) {
-                                        handleWorkspaceChange(workspace.vendor.id);
-                                      }
-                                      setWorkspaceMenuOpen(false);
-                                    }}
-                                  >
-                                    <Building2 size={16} />
-                                    <div>
-                                      <strong>{workspace.vendor.name}</strong>
-                                      <span>{formatRoleLabel(workspace.membership.role)}</span>
-                                    </div>
-                                  </HeaderWorkspaceItem>
-                                ))}
-                              </HeaderWorkspaceDropdown>
+                        <>
+                          <VendorLogoBadge $image={currentWorkspaceOption?.vendor.logo_url || vendorWorkspace?.vendor.logo_url || undefined}>
+                            {!currentWorkspaceOption?.vendor.logo_url && !vendorWorkspace?.vendor.logo_url ? <Building2 size={22} /> : null}
+                          </VendorLogoBadge>
+                          <VendorHero>
+                            <VendorTitle>{currentWorkspaceOption?.vendor.name || vendorWorkspace?.vendor.name || "Agency account"}</VendorTitle>
+                            {workspaceOptions.length > 0 ? (
+                              <WorkspaceSwitchButton type="button" onClick={() => setWorkspaceMenuOpen(true)}>
+                                Switch agency
+                                <ArrowUpRight size={16} />
+                              </WorkspaceSwitchButton>
                             ) : null}
-                          </HeaderWorkspaceMenu>
-                        ) : (
-                          <>
-                            <VendorLogoBadge $image={vendorWorkspace?.vendor.logo_url || undefined}>
-                              {!vendorWorkspace?.vendor.logo_url ? <Building2 size={22} /> : null}
-                            </VendorLogoBadge>
-                            <VendorTitle>{vendorWorkspace?.vendor.name || "Agency account"}</VendorTitle>
-                          </>
-                        )}
+                          </VendorHero>
+                        </>
                       </VendorIdentity>
                     </VendorHero>
 
@@ -6830,17 +6879,31 @@ export default function AccountPage() {
                           {agentUsage} / {agentLimit}
                         </StarterSummaryValue>
                       </StarterSummaryItem>
-                      <VendorPillLink href={isFreeAgencyPlan ? freeUpgradeHref : "/hub/upgrade"} $tone="warning">
-                        <Sparkles size={14} />
-                        {vendorWorkspace?.limits?.currentPlan?.name || currentVendorPlan.name}
-                      </VendorPillLink>
-                      <VendorPillLink
-                        href={isFreeAgencyPlan ? freeUpgradeHref : "/hub?section=verification"}
-                        $tone={vendorWorkspace?.vendor.verified_status === "approved" ? "success" : "warning"}
-                      >
-                        {vendorWorkspace?.vendor.verified_status === "approved" ? <BadgeCheck size={14} /> : <ShieldCheck size={14} />}
-                        {vendorWorkspace?.vendor.verified_status === "approved" ? "Verified" : "Unverified"}
-                      </VendorPillLink>
+                      {canAccessBilling ? (
+                        <VendorPillLink href={isFreeAgencyPlan ? freeUpgradeHref : "/hub/upgrade"} $tone="warning">
+                          <Sparkles size={14} />
+                          {vendorWorkspace?.limits?.currentPlan?.name || currentVendorPlan.name}
+                        </VendorPillLink>
+                      ) : (
+                        <AppointmentPill $tone="warning">
+                          <Sparkles size={14} />
+                          {vendorWorkspace?.limits?.currentPlan?.name || currentVendorPlan.name}
+                        </AppointmentPill>
+                      )}
+                      {canAccessVerification ? (
+                        <VendorPillLink
+                          href={isFreeAgencyPlan ? freeUpgradeHref : "/hub?section=verification"}
+                          $tone={vendorWorkspace?.vendor.verified_status === "approved" ? "success" : "warning"}
+                        >
+                          {vendorWorkspace?.vendor.verified_status === "approved" ? <BadgeCheck size={14} /> : <ShieldCheck size={14} />}
+                          {vendorWorkspace?.vendor.verified_status === "approved" ? "Verified" : "Unverified"}
+                        </VendorPillLink>
+                      ) : (
+                        <AppointmentPill $tone={vendorWorkspace?.vendor.verified_status === "approved" ? "success" : "warning"}>
+                          {vendorWorkspace?.vendor.verified_status === "approved" ? <BadgeCheck size={14} /> : <ShieldCheck size={14} />}
+                          {vendorWorkspace?.vendor.verified_status === "approved" ? "Verified" : "Unverified"}
+                        </AppointmentPill>
+                      )}
                     </StarterSummary>
                   </StarterTopRow>
                 </StarterHeader>
@@ -6878,7 +6941,7 @@ export default function AccountPage() {
                   </>
                 ) : (
                   <>
-                    {isFreeAgencyPlan || hubSection === "snapshot" ? (
+                    {canAccessHubSnapshot && (isFreeAgencyPlan || hubSection === "snapshot") ? (
                       <HubFeatureHeader>
                         <HubFeatureTitle>
                           {isFreeAgencyPlan
@@ -6892,8 +6955,8 @@ export default function AccountPage() {
                         ) : null}
                       </HubFeatureHeader>
                     ) : null}
-                    {isFreeAgencyPlan && hubSection !== "analytics" ? (
-                      <HubFeaturePreview>
+                    {canAccessHubSnapshot && isFreeAgencyPlan && hubSection !== "analytics" ? (
+                    <HubFeaturePreview>
                         <HubFeaturePreviewGrid>
                           <HubFeaturePreviewItem>
                             <HubFeaturePreviewTop>
@@ -6924,19 +6987,29 @@ export default function AccountPage() {
                             <HubFeaturePreviewValue>Locked until upgrade</HubFeaturePreviewValue>
                           </HubFeaturePreviewItem>
                         </HubFeaturePreviewGrid>
-                        <HubFeatureUpsellCard href={freeUpgradeHref}>
-                          <HubFeatureUpsellHeader>
-                            <HubFeatureLock>
-                              <Lock size={18} />
-                            </HubFeatureLock>
-                            <HubChecklistTitle>Upgrade to reveal premium insights</HubChecklistTitle>
-                          </HubFeatureUpsellHeader>
-                          <HubChecklistHint>
-                            Sales stats, lead summaries, appointments, and team performance appear here once your plan is upgraded.
-                          </HubChecklistHint>
+                        {canAccessBilling ? (
+                          <HubFeatureUpsellCard href={freeUpgradeHref}>
+                            <HubFeatureUpsellHeader>
+                              <HubFeatureLock>
+                                <Lock size={18} />
+                              </HubFeatureLock>
+                              <HubChecklistTitle>Upgrade to reveal premium insights</HubChecklistTitle>
+                            </HubFeatureUpsellHeader>
+                            <HubChecklistHint>
+                              Sales stats, lead summaries, appointments, and team performance appear here once your plan is upgraded.
+                            </HubChecklistHint>
                           </HubFeatureUpsellCard>
+                        ) : (
+                          <HubFeaturePreviewItem>
+                            <HubFeaturePreviewTop>
+                              <span>Premium insights</span>
+                              <Lock />
+                            </HubFeaturePreviewTop>
+                            <HubFeaturePreviewValue>Owner upgrade required</HubFeaturePreviewValue>
+                          </HubFeaturePreviewItem>
+                        )}
                         </HubFeaturePreview>
-                    ) : hubSection === "boostings" ? (
+                    ) : hubSection === "boostings" && canAccessBoostings ? (
                       <WorkspaceSectionViewport>
                         <WorkspaceSectionScroller>
                           <VendorPromotionsView
@@ -6948,7 +7021,7 @@ export default function AccountPage() {
                           />
                         </WorkspaceSectionScroller>
                       </WorkspaceSectionViewport>
-                    ) : hubSection === "analytics" ? (
+                    ) : hubSection === "analytics" && canAccessAnalytics ? (
                       <WorkspaceSectionViewport>
                         <WorkspaceSectionScroller>
                           <HubAnalyticsContent embedded />
@@ -6967,23 +7040,27 @@ export default function AccountPage() {
                             updateHubSection("listing-detail");
                           }}
                         />
-                        <HubSectionFooter>
-                          <CompactGhostButton
-                            type="button"
-                            onClick={() => {
-                              updateHubSection("bulk-upload");
-                            }}
-                          >
-                            <Upload size={16} />
-                            <span>Bulk upload</span>
-                          </CompactGhostButton>
-                          <HubSectionAction href="/request-sale">
-                            <Plus size={16} />
-                            <span>Add property listing</span>
-                          </HubSectionAction>
-                        </HubSectionFooter>
+                        {canManageListingOperations ? (
+                          <HubSectionFooter>
+                            <CompactGhostButton
+                              type="button"
+                              onClick={() => {
+                                updateHubSection("bulk-upload");
+                              }}
+                            >
+                              <Upload size={16} />
+                              <span>Bulk upload</span>
+                            </CompactGhostButton>
+                            {canManageListingOperations ? (
+                              <HubSectionAction href="/request-sale">
+                                <Plus size={16} />
+                                <span>Add property listing</span>
+                              </HubSectionAction>
+                            ) : null}
+                          </HubSectionFooter>
+                        ) : null}
                       </>
-                    ) : hubSection === "bulk-upload" ? (
+                    ) : hubSection === "bulk-upload" && canAccessBulkUpload ? (
                       <WorkspaceSectionViewport>
                         <WorkspaceSectionScroller>
                           <VendorImportView
@@ -7004,12 +7081,14 @@ export default function AccountPage() {
                               <ListingDetailCopy>Review this property, its scheduled appointments, and who is handling each viewing.</ListingDetailCopy>
                             </ListingDetailTitleWrap>
                             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                              <CTAButton
-                                type="button"
-                                onClick={() => openAppointmentCreator(selectedHubPropertyDetail?.property.id ?? selectedHubProperty.id)}
-                              >
-                                Schedule appointment
-                              </CTAButton>
+                              {canCreateAppointments ? (
+                                <CTAButton
+                                  type="button"
+                                  onClick={() => openAppointmentCreator(selectedHubPropertyDetail?.property.id ?? selectedHubProperty.id)}
+                                >
+                                  Schedule appointment
+                                </CTAButton>
+                              ) : null}
                               <ListingDetailBack
                                 type="button"
                                 onClick={() => {
@@ -7058,42 +7137,44 @@ export default function AccountPage() {
                                       <AppointmentPill $tone="warning">{labelize(selectedHubPropertyDetail.property.deal_type)}</AppointmentPill>
                                       <AppointmentPill>{formatPropertyTypeValue(selectedHubPropertyDetail.property.property_type)}</AppointmentPill>
                                     </ListingDetailPills>
-                                    <ListingDetailActions>
-                                      <ListingStatusAction
-                                        type="button"
-                                        onClick={() => {
-                                          setListingStatusModalOpen(true);
-                                          setSelectedHubPropertyStatusError(null);
-                                          setSelectedHubPropertyStatusNotice(null);
-                                        }}
-                                        disabled={!availableListingStatusOptions.length || selectedHubPropertyDeleting}
-                                      >
-                                        Update status
-                                      </ListingStatusAction>
-                                      <ListingDetailIconAction
-                                        type="button"
-                                        aria-label="Edit listing"
-                                        title="Edit listing"
-                                        onClick={() => router.push(`/hub/${selectedHubPropertyDetail.property.id}/edit`)}
-                                        disabled={selectedHubPropertyDeleting}
-                                      >
-                                        <Pencil size={14} />
-                                      </ListingDetailIconAction>
-                                      <ListingDetailIconAction
-                                        type="button"
-                                        $tone="danger"
-                                        aria-label="Delete listing"
-                                        title="Delete listing"
-                                        onClick={() => {
-                                          setListingDeleteModalOpen(true);
-                                          setSelectedHubPropertyStatusError(null);
-                                          setSelectedHubPropertyStatusNotice(null);
-                                        }}
-                                        disabled={selectedHubPropertyDeleting || selectedHubPropertyStatusSaving}
-                                      >
-                                        <Trash2 size={14} />
-                                      </ListingDetailIconAction>
-                                    </ListingDetailActions>
+                                    {canManageListingOperations ? (
+                                      <ListingDetailActions>
+                                        <ListingStatusAction
+                                          type="button"
+                                          onClick={() => {
+                                            setListingStatusModalOpen(true);
+                                            setSelectedHubPropertyStatusError(null);
+                                            setSelectedHubPropertyStatusNotice(null);
+                                          }}
+                                          disabled={!availableListingStatusOptions.length || selectedHubPropertyDeleting}
+                                        >
+                                          Update status
+                                        </ListingStatusAction>
+                                        <ListingDetailIconAction
+                                          type="button"
+                                          aria-label="Edit listing"
+                                          title="Edit listing"
+                                          onClick={() => router.push(`/hub/${selectedHubPropertyDetail.property.id}/edit`)}
+                                          disabled={selectedHubPropertyDeleting}
+                                        >
+                                          <Pencil size={14} />
+                                        </ListingDetailIconAction>
+                                        <ListingDetailIconAction
+                                          type="button"
+                                          $tone="danger"
+                                          aria-label="Delete listing"
+                                          title="Delete listing"
+                                          onClick={() => {
+                                            setListingDeleteModalOpen(true);
+                                            setSelectedHubPropertyStatusError(null);
+                                            setSelectedHubPropertyStatusNotice(null);
+                                          }}
+                                          disabled={selectedHubPropertyDeleting || selectedHubPropertyStatusSaving}
+                                        >
+                                          <Trash2 size={14} />
+                                        </ListingDetailIconAction>
+                                      </ListingDetailActions>
+                                    ) : null}
                                   </ListingDetailPillRow>
                                   {selectedHubPropertyStatusError ? (
                                     <ListingStatusMessage $tone="danger">{selectedHubPropertyStatusError}</ListingStatusMessage>
@@ -7109,7 +7190,8 @@ export default function AccountPage() {
                                       "Contact"
                                     )}
                                   </ListingDetailPrice>
-                                  {vendorWorkspace?.vendor.verified_status === "approved" &&
+                                  {canManagePromotions &&
+                                  vendorWorkspace?.vendor.verified_status === "approved" &&
                                   normalizeListingStatus(selectedHubPropertyDetail.property.status) === "active" ? (
                                     <div style={{ display: "flex", justifyContent: "flex-start" }}>
                                       <ListingPromoteAction
@@ -7309,7 +7391,7 @@ export default function AccountPage() {
                           </ListingDetailLower>
                         </ListingDetailScroller>
                       </ListingDetailViewport>
-                    ) : hubSection === "lead-inbox" ? (
+                    ) : hubSection === "lead-inbox" && canAccessLeadInbox ? (
                       <LeadInboxViewport>
                         <LeadInboxScroller>
                           <VendorInquiriesView
@@ -7321,7 +7403,7 @@ export default function AccountPage() {
                           />
                         </LeadInboxScroller>
                       </LeadInboxViewport>
-                    ) : hubSection === "appointments" ? (
+                    ) : hubSection === "appointments" && canAccessAppointments ? (
                       <HubSectionViewport>
                         <HubSectionScroller>
                           <AppointmentLayout>
@@ -7544,9 +7626,11 @@ export default function AccountPage() {
                                     <Clock size={14} />
                                     {appointmentStats.unassigned} unassigned
                                   </AppointmentPill>
-                                  <CTAButton type="button" onClick={() => openAppointmentCreator()}>
-                                    Create appointment
-                                  </CTAButton>
+                                  {canCreateAppointments ? (
+                                    <CTAButton type="button" onClick={() => openAppointmentCreator()}>
+                                      Create appointment
+                                    </CTAButton>
+                                  ) : null}
                                 </div>
                               </AppointmentCardHeader>
                               <AppointmentQueueList>
@@ -7601,7 +7685,7 @@ export default function AccountPage() {
                           </AppointmentLayout>
                         </HubSectionScroller>
                       </HubSectionViewport>
-                    ) : hubSection === "settings" ? (
+                    ) : hubSection === "settings" && canAccessSettings ? (
                       <WorkspaceSectionViewport>
                         <WorkspaceSectionScroller>
                           <WorkspaceSectionHeader>
@@ -7644,7 +7728,7 @@ export default function AccountPage() {
                                 <GhostButton type="button" onClick={() => updateHubSection("team")}>
                                   Team
                                 </GhostButton>
-                                {vendorWorkspace?.limits?.suggestedUpgrade ? (
+                                {canAccessBilling && vendorWorkspace?.limits?.suggestedUpgrade ? (
                                   <GhostButton type="button" onClick={() => router.push("/hub/upgrade")}>
                                     Upgrade
                                   </GhostButton>
@@ -7713,11 +7797,11 @@ export default function AccountPage() {
                                 </SettingsIndexBullet>
                                 <SettingsIndexBullet>
                                   <CheckCircle2 size={16} />
-                                  <span><strong style={{ color: "var(--color-text)" }}>Admin:</strong> listings + appointments.</span>
+                                  <span><strong style={{ color: "var(--color-text)" }}>Admin:</strong> listings, leads, appointments, public profile, and staff management.</span>
                                 </SettingsIndexBullet>
                                 <SettingsIndexBullet>
                                   <Circle size={16} />
-                                  <span><strong style={{ color: "var(--color-text)" }}>Agent:</strong> assigned work only.</span>
+                                  <span><strong style={{ color: "var(--color-text)" }}>Agent:</strong> listings, leads, and appointments only.</span>
                                 </SettingsIndexBullet>
                               </SettingsIndexBullets>
                               <SettingsIndexActions>
@@ -7761,13 +7845,13 @@ export default function AccountPage() {
                           </SettingsIndexGrid>
                         </WorkspaceSectionScroller>
                       </WorkspaceSectionViewport>
-                    ) : hubSection === "verification" ? (
+                    ) : hubSection === "verification" && canAccessVerification ? (
                       <WorkspaceSectionViewport>
                         <WorkspaceSectionScroller>
                           <VendorVerificationView />
                         </WorkspaceSectionScroller>
                       </WorkspaceSectionViewport>
-                    ) : hubSection === "team" ? (
+                    ) : hubSection === "team" && canManageTeam ? (
                       <WorkspaceSectionViewport>
                         <WorkspaceSectionScroller>
                           <WorkspaceSectionHeader>
@@ -7800,9 +7884,13 @@ export default function AccountPage() {
                                 <TeamSummaryItemValue>{vendorWorkspace?.limits?.currentPlan?.name || currentVendorPlan.name}</TeamSummaryItemValue>
                               </TeamSummaryItem>
                             </TeamSummaryBar>
-                            <WorkspacePanel>
+                              <WorkspacePanel>
                               <WorkspacePanelTitle>Add team member</WorkspacePanelTitle>
-                              <WorkspacePanelCopy>Send an email invite and choose the role the person should receive after accepting it.</WorkspacePanelCopy>
+                              <WorkspacePanelCopy>
+                                {canInviteAdminSeats
+                                  ? "Send an email invite and choose the role the person should receive after accepting it."
+                                  : "Admins can invite staff seats only."}
+                              </WorkspacePanelCopy>
                               {canManageTeam ? (
                                 <TeamInviteGrid>
                                   <CompactTextInput
@@ -7821,8 +7909,8 @@ export default function AccountPage() {
                                       onChange={setTeamInviteRole}
                                     >
                                       <option value="agent">Agent</option>
-                                      <option value="admin">Admin</option>
-                                      <option value="owner">Owner</option>
+                                      {canInviteAdminSeats ? <option value="admin">Admin</option> : null}
+                                      {canInviteAdminSeats ? <option value="owner">Owner</option> : null}
                                     </CustomSelect>
                                   </CompactSelectWrap>
                                   <CompactCTAButton
@@ -7834,7 +7922,7 @@ export default function AccountPage() {
                                   </CompactCTAButton>
                                 </TeamInviteGrid>
                               ) : (
-                                <WorkspaceSummaryHint>Only owner and admin seats can add team members in this workspace.</WorkspaceSummaryHint>
+                                <WorkspaceSummaryHint>Only owner and admin seats can access team controls in this workspace.</WorkspaceSummaryHint>
                               )}
                             </WorkspacePanel>
                             <WorkspacePanel>
@@ -7907,7 +7995,7 @@ export default function AccountPage() {
                                           {labelize(member.status)}
                                         </AppointmentPill>
                                       </div>
-                                      {canManageTeam && (member.user_id !== userId || ownerCount > 1) ? (
+                                      {canManageTeamMember(member) ? (
                                         <MemberActionsButton
                                           id={`member-actions-button-${member.user_id}`}
                                           type="button"
@@ -8167,6 +8255,50 @@ export default function AccountPage() {
             </VendorCardFill>
             </VendorColumn>
           </VendorGrid>
+          {workspaceMenuOpen && workspaceOptions.length > 0 ? (
+            <ModalOverlay onClick={() => setWorkspaceMenuOpen(false)}>
+              <ModalCard onClick={(event) => event.stopPropagation()}>
+                <ModalHeader>
+                  <div>
+                    <ModalTitle>Switch agency</ModalTitle>
+                    <WorkspaceSectionCopy>Select the agency workspace you want to work in.</WorkspaceSectionCopy>
+                  </div>
+                  <GhostButton type="button" onClick={() => setWorkspaceMenuOpen(false)}>
+                    Close
+                  </GhostButton>
+                </ModalHeader>
+                <HeaderWorkspaceDropdown
+                  style={{
+                    position: "static",
+                    minWidth: "unset",
+                    width: "100%",
+                    boxShadow: "none",
+                  }}
+                >
+                  {workspaceOptions.map((workspace) => (
+                    <HeaderWorkspaceItem
+                      key={workspace.vendor.id}
+                      type="button"
+                      $active={(activeVendorId ?? workspaceOptions[0]?.vendor.id ?? "") === workspace.vendor.id}
+                      onClick={() => {
+                        if (workspace.vendor.id !== activeVendorId) {
+                          handleWorkspaceChange(workspace.vendor.id);
+                        }
+                        setWorkspaceMenuOpen(false);
+                      }}
+                    >
+                      <Building2 size={16} />
+                      <div>
+                        <strong>{workspace.vendor.name}</strong>
+                        <span>{formatRoleLabel(workspace.membership.role)}</span>
+                      </div>
+                    </HeaderWorkspaceItem>
+                  ))}
+                </HeaderWorkspaceDropdown>
+              </ModalCard>
+            </ModalOverlay>
+          ) : null}
+          </>
         )}
 
         {isAccountPath && (

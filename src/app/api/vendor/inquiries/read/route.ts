@@ -1,13 +1,27 @@
 import { NextResponse } from "next/server";
 import { getVendorRequestContext } from "@/app/api/vendor/_lib/context";
 
+function isFreePlan(plan: string | null | undefined) {
+  return (plan ?? "").trim().toLowerCase() === "free";
+}
+
 export async function POST(request: Request) {
-  const result = await getVendorRequestContext(request);
+  const result = await getVendorRequestContext(request, { requireExplicitVendorSelection: true });
   if (!result.ok) {
     return result.response;
   }
 
-  const { supabase, vendor, user } = result.context;
+  const { supabase, vendor, user, membership } = result.context;
+  if (isFreePlan(vendor.plan)) {
+    return NextResponse.json(
+      {
+        error: "Lead inbox requires a Pro plan or higher.",
+        code: "lead_inbox_upgrade_required",
+      },
+      { status: 403 }
+    );
+  }
+  const isOwnerOrAdmin = ["owner", "admin"].includes(membership.role);
   let body: { lead_id?: string } = {};
 
   try {
@@ -23,7 +37,7 @@ export async function POST(request: Request) {
 
   const { data: leadRow, error: leadError } = await supabase
     .from("vendor_inquiry_leads")
-    .select("id")
+    .select("id,assigned_member_user_id")
     .eq("id", leadId)
     .eq("vendor_id", vendor.id)
     .maybeSingle();
@@ -33,6 +47,10 @@ export async function POST(request: Request) {
   }
 
   if (!leadRow?.id) {
+    return NextResponse.json({ error: "Lead not found." }, { status: 404 });
+  }
+
+  if (!isOwnerOrAdmin && String(leadRow.assigned_member_user_id ?? "") !== user.id) {
     return NextResponse.json({ error: "Lead not found." }, { status: 404 });
   }
 

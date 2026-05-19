@@ -1,6 +1,7 @@
 "use client";
 
 import styled from "styled-components";
+import { useI18n } from "@/app/living-site/lib/i18n";
 import { VENDOR_PLANS, type VendorPlanKey } from "@/lib/vendor-plans";
 
 const Shell = styled.div`
@@ -224,12 +225,13 @@ export function VendorPlanSelection({
   onSelectPaid,
   onBack,
 }: Props) {
-  const eyebrow = mode === "setup" ? "Vendor setup" : "Upgrade plan";
-  const title = mode === "setup" ? "Choose how your agency starts" : "Choose the next plan for your agency";
+  const { t } = useI18n();
+  const eyebrow = mode === "setup" ? t("vendorPlan.setupEyebrow") : t("vendorPlan.upgradeEyebrow");
+  const title = mode === "setup" ? t("vendorPlan.setupTitle") : t("vendorPlan.upgradeTitle");
   const copy =
     mode === "setup"
-      ? "Free agencies can start immediately. Paid plans will require successful payment before the workspace is unlocked. If a paid checkout is canceled later, the account stays on Free until upgraded again."
-      : "Upgrade your agency when you need more listing capacity, more seats, and richer workspace tools. Your current workspace stays active until payment is confirmed.";
+      ? t("vendorPlan.setupCopy")
+      : t("vendorPlan.upgradeCopy");
   const currentPlanIndex = VENDOR_PLANS.findIndex((plan) => plan.key === currentPlan);
 
   return (
@@ -263,16 +265,18 @@ export function VendorPlanSelection({
           const actionLabel =
             mode === "setup"
               ? isFree
-                ? "Continue with Free"
-                : `Pay and start ${plan.name}`
+                ? t("vendorPlan.action.continueFree")
+                : t("vendorPlan.action.payAndStart", { plan: t(`vendorPlan.${plan.key}.name`) })
               : isLockedBelowCurrent
-                ? "Current tier is higher"
+                ? t("vendorPlan.action.currentTierHigher")
               : isCurrent
-                ? "Current plan"
-                : isFree
-                  ? "Already active"
-                  : `Upgrade to ${plan.name}`;
-          const loadingLabel = isFree ? "Creating workspace..." : "Redirecting to Dinger...";
+                ? t("vendorPlan.action.currentPlan")
+              : isFree
+                  ? t("vendorPlan.action.alreadyActive")
+                  : t("vendorPlan.action.upgradeTo", { plan: t(`vendorPlan.${plan.key}.name`) });
+          const loadingLabel = isFree
+            ? t("vendorPlan.loading.creatingWorkspace")
+            : t("vendorPlan.loading.redirectingToDinger");
 
           return (
             <Card
@@ -291,30 +295,30 @@ export function VendorPlanSelection({
               }}
             >
               {isCurrent ? (
-                <CornerBadge $current>Current</CornerBadge>
+                <CornerBadge $current>{t("vendorPlan.badge.current")}</CornerBadge>
               ) : isMostPopular ? (
-                <CornerBadge>Most Popular</CornerBadge>
+                <CornerBadge>{t("vendorPlan.badge.popular")}</CornerBadge>
               ) : null}
               <div>
-                <PlanName>{plan.name}</PlanName>
+                <PlanName>{t(`vendorPlan.${plan.key}.name`)}</PlanName>
                 <Price>{plan.priceLabel}</Price>
               </div>
 
               <Meta>
-                <MetaItem>{plan.listingLimitLabel}</MetaItem>
-                <MetaItem>{plan.agentLimitLabel}</MetaItem>
+                <MetaItem>{t(`vendorPlan.${plan.key}.listingLimit`)}</MetaItem>
+                <MetaItem>{t(`vendorPlan.${plan.key}.agentLimit`)}</MetaItem>
                 <MetaItem>
-                  {plan.includedVerification ? "Verification included, still manually approved" : "Verification separate"}
+                  {plan.includedVerification ? t("vendorPlan.verificationIncluded") : t("vendorPlan.verificationSeparate")}
                 </MetaItem>
               </Meta>
 
-              <Subtle>{plan.description}</Subtle>
+              <Subtle>{t(`vendorPlan.${plan.key}.description`)}</Subtle>
 
               <List>
-                {plan.highlights.map((item) => (
-                  <Item key={item}>
+                {[1, 2, 3].map((index) => (
+                  <Item key={`${plan.key}-highlight-${index}`}>
                     <Dot />
-                    <span>{item}</span>
+                    <span>{t(`vendorPlan.${plan.key}.highlight${index}`)}</span>
                   </Item>
                 ))}
               </List>
@@ -328,7 +332,7 @@ export function VendorPlanSelection({
       </Grid>
 
       <SecondaryAction type="button" onClick={onBack}>
-        {mode === "setup" ? "Back to home" : "Back to hub"}
+        {mode === "setup" ? t("vendorPlan.backHome") : t("vendorPlan.backHub")}
       </SecondaryAction>
     </Shell>
   );

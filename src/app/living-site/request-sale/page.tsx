@@ -24,11 +24,13 @@ import {
 import { MarketplaceHeader } from "@/app/living-site/components/MarketplaceHeader";
 import { SectionTitle, Panel } from "@/app/living-site/components/PageSection";
 import { useAppState } from "@/app/living-site/lib/app-state";
+import { useI18n } from "@/app/living-site/lib/i18n";
 import { getDistricts, getStates, getTownships } from "@/app/living-site/lib/myanmar-geo";
 import { CustomInput } from "@/app/living-site/components/form-controls/CustomInput";
 import { CustomSelect } from "@/app/living-site/components/form-controls/CustomSelect";
 import { CustomTextarea } from "@/app/living-site/components/form-controls/CustomTextarea";
 import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
+import { readActiveVendorWorkspace, withActiveVendorHeaders } from "@/app/living-site/lib/active-context";
 import {
   getOwnedPropertiesForUser,
   getOwnedPropertyById,
@@ -881,6 +883,9 @@ type WorkspaceLimits = {
   vendor?: {
     plan?: string | null;
   };
+  membership?: {
+    role?: string | null;
+  };
   limits?: {
     currentPlan?: {
       name: string;
@@ -1108,8 +1113,8 @@ export function RequestSalePageContent({
   forcedEditId = null,
   vendorReturnPath: vendorReturnPathProp = "/hub",
 }: RequestSalePageContentProps = {}) {
+  const { t } = useI18n();
   const { user, profileRole, profileReady, authToken } = useAppState();
-  const t = requestSaleText;
   const router = useRouter();
   const searchParams = useSearchParams();
   const editId = forcedEditId ?? searchParams.get("editId");
@@ -1125,6 +1130,8 @@ export function RequestSalePageContent({
   const [loadingEdit, setLoadingEdit] = useState(false);
   const [existingRequestCount, setExistingRequestCount] = useState(0);
   const [workspaceLimits, setWorkspaceLimits] = useState<WorkspaceLimits | null>(null);
+  const [workspaceAccessLoading, setWorkspaceAccessLoading] = useState(false);
+  const [workspaceAccessResolved, setWorkspaceAccessResolved] = useState(false);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [mapActive, setMapActive] = useState(false);
   const [mapLoading, setMapLoading] = useState(false);
@@ -1193,26 +1200,43 @@ export function RequestSalePageContent({
     township: "",
   });
   const vendorReturnPath = vendorReturnPathProp;
-  const isVendorFlow =
+  const isVendorProfile =
     profileRole === "vendor_user" || profileRole === "staff" || profileRole === "admin" || profileRole === "master_admin";
+  const activeVendorId = user?.id ? readActiveVendorWorkspace(user.id) : null;
+  const workspaceRole = (workspaceLimits?.membership?.role ?? "").trim().toLowerCase();
+  const canCreateVendorListing = workspaceRole === "owner" || workspaceRole === "admin";
+  const isStaffWorkspaceRole = workspaceRole === "agent" || workspaceRole === "staff";
+  const isVendorFlow = isVendorProfile && canCreateVendorListing;
   const currentPlan = getVendorPlan(workspaceLimits?.vendor?.plan ?? "free");
   const vendorImageLimit = currentPlan.imageLimit;
   const maxImageCount = isVendorFlow ? vendorImageLimit : 5;
   const customerLimitReached = !isVendorFlow && !isEdit && existingRequestCount >= 1;
 
   useEffect(() => {
-    if (!authToken || !isVendorFlow) return;
+    if (!authToken || !isVendorProfile) return;
 
     let cancelled = false;
     const loadWorkspaceLimits = async () => {
-      const response = await fetch("/api/vendor/workspace", {
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-        },
-      });
-      const payload = (await response.json().catch(() => null)) as WorkspaceLimits | null;
-      if (!cancelled && response.ok) {
-        setWorkspaceLimits(payload);
+      setWorkspaceAccessLoading(true);
+      setWorkspaceAccessResolved(false);
+      try {
+        const response = await fetch("/api/vendor/workspace", {
+          headers: withActiveVendorHeaders(
+            {
+              Authorization: `Bearer ${authToken}`,
+            },
+            activeVendorId
+          ),
+        });
+        const payload = (await response.json().catch(() => null)) as WorkspaceLimits & { error?: string } | null;
+        if (!cancelled && response.ok) {
+          setWorkspaceLimits(payload);
+        }
+      } finally {
+        if (!cancelled) {
+          setWorkspaceAccessLoading(false);
+          setWorkspaceAccessResolved(true);
+        }
       }
     };
 
@@ -1220,7 +1244,7 @@ export function RequestSalePageContent({
     return () => {
       cancelled = true;
     };
-  }, [authToken, isVendorFlow]);
+  }, [authToken, isVendorProfile, user?.id]);
 
   useEffect(() => {
     if (!editId || !user?.id) return;
@@ -1813,10 +1837,13 @@ export function RequestSalePageContent({
       }
       setSuccessListingId(editId);
     } else {
-      const endpoint = profileRole === "vendor_user" ? "/api/vendor/sales-requests" : "/api/public/sales-requests";
-      const headers: Record<string, string> = {};
+      const endpoint = canCreateVendorListing ? "/api/vendor/sales-requests" : "/api/public/sales-requests";
+      let headers: HeadersInit = {};
       if (authToken) {
-        headers.Authorization = `Bearer ${authToken}`;
+        headers = { Authorization: `Bearer ${authToken}` };
+      }
+      if (canCreateVendorListing) {
+        headers = withActiveVendorHeaders(headers, activeVendorId);
       }
       const requestBody = new FormData();
       requestBody.set("payload", JSON.stringify(payload));
@@ -1874,7 +1901,49 @@ export function RequestSalePageContent({
         <MarketplaceHeader />
         <PageShell>
           <Panel>
-            <Muted>Loading request details…</Muted>
+            <Muted>{t("requestSale.loadingDetails")}</Muted>
+          </Panel>
+        </PageShell>
+      </div>
+    );
+  }
+
+  if (isVendorProfile && (workspaceAccessLoading || !workspaceAccessResolved)) {
+    return <LoadingOverlay message={t("requestSale.checkingWorkspaceAccess")} />;
+  }
+
+  if (isVendorProfile && isStaffWorkspaceRole) {
+    return (
+      <div>
+        <MarketplaceHeader />
+        <PageShell>
+          <SectionTitle>{t("requestSale.createListing")}</SectionTitle>
+          <Panel>
+            <Muted>{t("requestSale.staffBlocked")}</Muted>
+            <Actions>
+              <PrimaryButton type="button" onClick={() => router.push("/hub?section=manage-listings")}>
+                {t("requestSale.goManageListings")}
+              </PrimaryButton>
+            </Actions>
+          </Panel>
+        </PageShell>
+      </div>
+    );
+  }
+
+  if (isVendorProfile && !canCreateVendorListing) {
+    return (
+      <div>
+        <MarketplaceHeader />
+        <PageShell>
+          <SectionTitle>{t("requestSale.createListing")}</SectionTitle>
+          <Panel>
+            <Muted>{t("requestSale.accessUnknown")}</Muted>
+            <Actions>
+              <PrimaryButton type="button" onClick={() => router.push("/hub?section=manage-listings")}>
+                {t("requestSale.goManageListings")}
+              </PrimaryButton>
+            </Actions>
           </Panel>
         </PageShell>
       </div>
@@ -1888,10 +1957,10 @@ export function RequestSalePageContent({
         <TitleRow>
           <SectionTitle>
             {isEdit
-              ? "Edit listing"
-              : profileRole === "vendor_user"
-                ? "Create listing"
-                : "Create a listing"}
+              ? t("requestSale.editListing")
+              : canCreateVendorListing
+                ? t("requestSale.createListing")
+                : t("requestSale.createListingPublic")}
           </SectionTitle>
           <BackButton type="button" onClick={() => router.back()}>
             {t("common.back")}
@@ -1899,27 +1968,30 @@ export function RequestSalePageContent({
         </TitleRow>
         <Muted>
           {isEdit
-            ? "Update your property listing details."
-            : profileRole === "vendor_user"
-              ? "Create and publish a property listing for your agency workspace."
-              : "Publish your property directly to the marketplace."}
+            ? t("requestSale.subtitleEdit")
+            : canCreateVendorListing
+              ? t("requestSale.subtitleVendorCreate")
+              : t("requestSale.subtitlePublicCreate")}
         </Muted>
         {!isVendorFlow ? (
           <LimitNotice $danger={customerLimitReached}>
             {customerLimitReached
-              ? "You already used your 1 active listing for this account."
-              : `1 active listing per account. Current usage: ${existingRequestCount}/1.`}
+              ? t("requestSale.publicLimitReached")
+              : t("requestSale.publicLimitUsage", { count: existingRequestCount })}
           </LimitNotice>
         ) : null}
         {workspaceLimits?.limits?.listingNearLimit ? (
           <LimitNotice $danger={workspaceLimits.limits.listingOverLimit}>
             {workspaceLimits.limits.listingOverLimit
-              ? "Your workspace is already above its current listing soft limit. Submission stays open for now, but the next billing phase should turn this into an upgrade or cleanup path."
-              : `You are close to your current ${workspaceLimits.limits.currentPlan?.name || "plan"} limit: ${workspaceLimits.limits.listingCount ?? 0}/${workspaceLimits.limits.listingLimit ?? 0} listings. ${
-                  workspaceLimits.limits.suggestedUpgrade
+              ? t("requestSale.workspaceLimitOver")
+              : t("requestSale.workspaceLimitNear", {
+                  plan: workspaceLimits.limits.currentPlan?.name || "plan",
+                  count: workspaceLimits.limits.listingCount ?? 0,
+                  limit: workspaceLimits.limits.listingLimit ?? 0,
+                  upgrade: workspaceLimits.limits.suggestedUpgrade
                     ? `Recommended upgrade: ${workspaceLimits.limits.suggestedUpgrade.name} (${workspaceLimits.limits.suggestedUpgrade.priceLabel}).`
-                    : ""
-                }`}
+                    : "",
+                })}
           </LimitNotice>
         ) : null}
         <Stepper>
@@ -1955,7 +2027,10 @@ export function RequestSalePageContent({
                     onChange={handleImagePick}
                   />
                   <UploadHint>
-                    Add at least 1 photo. Up to {maxImageCount} image{maxImageCount > 1 ? "s" : ""}. The first image is the cover.
+                    {t("requestSale.uploadHint", {
+                      count: maxImageCount,
+                      suffix: maxImageCount > 1 ? "s" : "",
+                    })}
                   </UploadHint>
                   {stepAttempted[0] && imageError ? <ErrorText>{imageError}</ErrorText> : null}
   <UploadStrip>
@@ -1993,15 +2068,17 @@ export function RequestSalePageContent({
               </RemoveImageButton>
               <UploadSlotOverlay $filled>
                 <UploadSlotInner>
-                  <strong style={{ color: "#fff" }}>{index === 0 ? "Cover" : `Photo ${index + 1}`}</strong>
+                  <strong style={{ color: "#fff" }}>
+                    {index === 0 ? t("requestSale.cover") : t("requestSale.photo", { index: index + 1 })}
+                  </strong>
                 </UploadSlotInner>
               </UploadSlotOverlay>
             </>
           ) : (
             <UploadSlotInner>
               <ImagePlus size={18} />
-              <strong>Add photo</strong>
-              <span>Slot {index + 1}</span>
+              <strong>{t("requestSale.addPhoto")}</strong>
+              <span>{t("requestSale.photoSlot", { index: index + 1 })}</span>
             </UploadSlotInner>
           )}
         </UploadSlot>
@@ -2155,7 +2232,7 @@ export function RequestSalePageContent({
                   {t("requestSale.locateOnMap")}
                 </MapButton>
                 <MapButton type="button" onClick={handleOpenMapManual} disabled={mapLoading}>
-                  View on map and select
+                  {t("requestSale.step.locationManual")}
                 </MapButton>
                 <LatLngButton type="button" onClick={() => setLatLngOpen(true)} disabled={mapLoading}>
                   {t("requestSale.useLatLng")}
@@ -2164,7 +2241,7 @@ export function RequestSalePageContent({
               <MapHelper>{t("requestSale.mapHelper")}</MapHelper>
               {mapActive ? (
                 <MapInstruction>
-                  Drag the map to your property area, then click the map or drag the marker to place the exact location.
+                  {t("requestSale.mapInstruction")}
                 </MapInstruction>
               ) : null}
               <MapFrame $status={mapPinError ? (stepAttempted[1] ? "error" : "default") : "success"}>
@@ -2181,7 +2258,7 @@ export function RequestSalePageContent({
                   <MapOverlay>{mapLoading ? t("common.loading") : "?"}</MapOverlay>
                 )}
               </MapFrame>
-              {!mapPinError ? <Muted>Map pin added.</Muted> : null}
+              {!mapPinError ? <Muted>{t("requestSale.mapPinAdded")}</Muted> : null}
               {mapError && <ErrorText>{mapError}</ErrorText>}
               {stepAttempted[1] && mapPinError ? <ErrorText>{mapPinError}</ErrorText> : null}
             </>
@@ -2435,7 +2512,7 @@ export function RequestSalePageContent({
             <CollapsibleText>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
                 <Badge $variant="internal">{t("requestSale.internalBadge")}</Badge>
-                <Badge $variant="optional">Optional</Badge>
+                <Badge $variant="optional">{t("requestSale.optionalBadge")}</Badge>
               </div>
               <strong>{t("requestSale.privateOwnerDetails")}</strong>
               <Muted>{t("requestSale.privateOwnerDescription")}</Muted>
@@ -2502,9 +2579,9 @@ export function RequestSalePageContent({
                     ? t("common.submitting")
                     : isEdit
                       ? t("common.saveChanges")
-                      : profileRole === "vendor_user"
+                      : canCreateVendorListing
                         ? t("listing.submitRequest")
-                        : "Publish listing"}
+                        : t("requestSale.publishListing")}
               </PrimaryButton>
             )}
           </Actions>
@@ -2521,21 +2598,21 @@ export function RequestSalePageContent({
             <strong>{isEdit ? t("requestSale.successUpdated") : t("requestSale.successThanks")}</strong>
             <Muted>
               {isEdit
-                ? profileRole === "vendor_user"
+                ? canCreateVendorListing
                   ? t("requestSale.successReviewUpdate")
-                  : "Your listing has been updated."
-                : profileRole === "vendor_user"
+                  : t("requestSale.listingUpdatedPublic")
+                : canCreateVendorListing
                   ? t("requestSale.successReviewNew")
-                  : "Your listing is now live on the marketplace."}
+                  : t("requestSale.listingLive")}
             </Muted>
             <Actions>
-              {profileRole === "vendor_user" ? (
+              {canCreateVendorListing ? (
                 <>
                   <SecondaryButton type="button" onClick={() => router.push("/hub?section=manage-listings")}>
-                    Go to manage listings
+                    {t("requestSale.goManageListings")}
                   </SecondaryButton>
                   <PrimaryButton type="button" onClick={() => router.push(vendorReturnPath)}>
-                    Back to hub
+                    {t("requestSale.backToHub")}
                   </PrimaryButton>
                 </>
               ) : (
@@ -2548,7 +2625,7 @@ export function RequestSalePageContent({
                   </SecondaryButton>
                   {successListingId ? (
                     <PrimaryButton type="button" onClick={() => router.push(`/listing/${successListingId}`)}>
-                      View listing
+                      {t("requestSale.viewListing")}
                     </PrimaryButton>
                   ) : null}
                 </>
@@ -2560,20 +2637,18 @@ export function RequestSalePageContent({
       {mapHelpOpen && (
         <HelpOverlay>
           <HelpModal>
-            <strong>We couldn&apos;t place this location automatically.</strong>
-            <Muted>
-              You can still continue by entering coordinates or placing the pin yourself.
-            </Muted>
+            <strong>{t("requestSale.mapHelpTitle")}</strong>
+            <Muted>{t("requestSale.mapHelpCopy")}</Muted>
             <HelpList>
-              <li>Use the latitude and longitude fields if you already know the location coordinates.</li>
-              <li>Use "View on map and select" to open the map and place the pin manually.</li>
+              <li>{t("requestSale.mapHelpItem1")}</li>
+              <li>{t("requestSale.mapHelpItem2")}</li>
             </HelpList>
             <Actions>
               <SecondaryButton type="button" onClick={() => setMapHelpOpen(false)}>
-                I&apos;ll use lat/lng
+                {t("requestSale.mapHelpLatLng")}
               </SecondaryButton>
               <PrimaryButton type="button" onClick={handleOpenMapManual}>
-                View on map and select
+                {t("requestSale.step.locationManual")}
               </PrimaryButton>
             </Actions>
           </HelpModal>
@@ -2582,12 +2657,12 @@ export function RequestSalePageContent({
       {latLngOpen && (
         <HelpOverlay>
           <HelpModal>
-            <strong>Use latitude and longitude</strong>
-            <Muted>Enter decimal coordinates if you already know the exact location.</Muted>
+            <strong>{t("requestSale.latLngTitle")}</strong>
+            <Muted>{t("requestSale.latLngCopy")}</Muted>
             <HelpList>
-              <li>Use decimal format, for example latitude `16.8661` and longitude `96.1951`.</li>
-              <li>Latitude should be between `-90` and `90`. Longitude should be between `-180` and `180`.</li>
-              <li>This only places the map pin. Your State/Region, District, and Township stay as you selected them.</li>
+              <li>{t("requestSale.latLngItem1")}</li>
+              <li>{t("requestSale.latLngItem2")}</li>
+              <li>{t("requestSale.latLngItem3")}</li>
             </HelpList>
             <CustomInput
               id={`${fieldId}-latitude-modal`}
@@ -2606,10 +2681,10 @@ export function RequestSalePageContent({
             {mapError ? <ErrorText>{mapError}</ErrorText> : null}
             <Actions>
               <SecondaryButton type="button" onClick={() => setLatLngOpen(false)}>
-                Cancel
+                {t("common.close")}
               </SecondaryButton>
               <PrimaryButton type="button" onClick={handleUseLatLng}>
-                Apply coordinates
+                {t("requestSale.applyCoordinates")}
               </PrimaryButton>
             </Actions>
           </HelpModal>
@@ -2618,15 +2693,15 @@ export function RequestSalePageContent({
       {limitPopup && (
         <HelpOverlay>
           <LimitModal>
-            <strong>Input limit reached</strong>
+            <strong>{t("requestSale.inputLimitTitle")}</strong>
             <Muted>{limitPopup}</Muted>
             <HelpList>
-              <li>Title can use up to {REQUEST_TITLE_MAX_WORDS} words.</li>
-              <li>Description can use up to {REQUEST_DESCRIPTION_MAX_LENGTH} characters.</li>
+              <li>{t("requestSale.inputLimitItem1", { count: REQUEST_TITLE_MAX_WORDS })}</li>
+              <li>{t("requestSale.inputLimitItem2", { count: REQUEST_DESCRIPTION_MAX_LENGTH })}</li>
             </HelpList>
             <Actions>
               <PrimaryButton type="button" onClick={() => setLimitPopup(null)}>
-                OK
+                {t("requestSale.ok")}
               </PrimaryButton>
             </Actions>
           </LimitModal>
@@ -2635,12 +2710,12 @@ export function RequestSalePageContent({
       {moderationPopup && (
         <HelpOverlay>
           <LimitModal>
-            <strong>Update your title or description</strong>
+            <strong>{t("requestSale.moderationTitle")}</strong>
             <Muted>{moderationPopup}</Muted>
             <HelpList>
-              <li>Remove profanity or abusive wording.</li>
-              <li>Do not include drug-sale or illegal service language.</li>
-              <li>Do not add spammy contact-promotion text.</li>
+              <li>{t("requestSale.moderationItem1")}</li>
+              <li>{t("requestSale.moderationItem2")}</li>
+              <li>{t("requestSale.moderationItem3")}</li>
             </HelpList>
             <Actions>
               <PrimaryButton
@@ -2650,7 +2725,7 @@ export function RequestSalePageContent({
                   setStep(0);
                 }}
               >
-                Back to basics
+                {t("requestSale.backToBasics")}
               </PrimaryButton>
             </Actions>
           </LimitModal>
@@ -2660,9 +2735,14 @@ export function RequestSalePageContent({
   );
 }
 
+function RequestSaleSuspenseFallback() {
+  const { t } = useI18n();
+  return <LoadingOverlay message={t("common.loading")} />;
+}
+
 export default function RequestSalePage() {
   return (
-    <Suspense fallback={<LoadingOverlay message="Loading..." />}>
+    <Suspense fallback={<RequestSaleSuspenseFallback />}>
       <RequestSalePageContent />
     </Suspense>
   );

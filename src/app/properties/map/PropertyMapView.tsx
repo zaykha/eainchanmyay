@@ -25,6 +25,7 @@ import {
   buildListingQuery,
   type ListingQueryBounds,
 } from "@/app/living-site/hooks/useInfiniteListings";
+import { useI18n } from "@/app/living-site/lib/i18n";
 import { getDistricts, getStates, getTownships } from "@/app/living-site/lib/myanmar-geo";
 import { formatPropertyTypeValue, propertyTypeDefinitions } from "@/lib/property-types";
 
@@ -738,6 +739,7 @@ function MapListingCard({
 export default function PropertyMapView() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { t } = useI18n();
 
   const initialQuery = searchParams.get("q") ?? "";
   const initialDealType = searchParams.get("deal") ?? "";
@@ -961,13 +963,13 @@ export default function PropertyMapView() {
               <MiniPill>{formatPropertyTypeValue(selectedListing.propertyType) || "Property"}</MiniPill>
             </MetaLine>
           </div>
-          <PriceLabel>{formatCurrency(selectedListing.price, selectedListing.currency, "Contact")}</PriceLabel>
+          <PriceLabel>{formatCurrency(selectedListing.price, selectedListing.currency, t("listing.contactPrice"))}</PriceLabel>
         </ListingTop>
         <MetaLine>
           <MapPin size={15} />
           {[selectedListing.township, selectedListing.district || selectedListing.city].filter(Boolean).join(", ") ||
             selectedListing.stateRegion ||
-            "Location pending"}
+            t("map.locationPending")}
         </MetaLine>
         <FactsRow>
           {selectedListing.bedrooms ? (
@@ -990,9 +992,9 @@ export default function PropertyMapView() {
           ) : null}
         </FactsRow>
         <CardActions>
-          <CardLink href={`/listing/${selectedListing.id}`}>View details</CardLink>
+          <CardLink href={`/listing/${selectedListing.id}`}>{t("map.viewDetails")}</CardLink>
           <CardLink href={`/listing/${selectedListing.id}#contact`} $accent>
-            Contact
+            {t("map.contact")}
           </CardLink>
         </CardActions>
       </ListingContent>
@@ -1008,9 +1010,9 @@ export default function PropertyMapView() {
             <PanelHeader>
               <BackLink href={homeHref}>
                 <ArrowLeft size={16} />
-                Back to search
+                {t("map.backToSearch")}
               </BackLink>
-              <Title>Map discovery</Title>
+              <Title>{t("map.discovery")}</Title>
               <SearchRow
                 onSubmit={(event) => {
                   event.preventDefault();
@@ -1022,16 +1024,16 @@ export default function PropertyMapView() {
                   <input
                     value={searchDraft}
                     onChange={(event) => setSearchDraft(event.target.value)}
-                    placeholder="Search by title, township, district, or state"
+                    placeholder={t("map.searchPlaceholder")}
                   />
                 </SearchInputWrap>
                 <ActionButton type="submit" $primary>
                   <Search size={16} />
-                  Search
+                  {t("map.search")}
                 </ActionButton>
                 <ActionButton type="button" onClick={() => setFilterOpen(true)}>
                   <SlidersHorizontal size={16} />
-                  Filters
+                  {t("home.filters")}
                 </ActionButton>
               </SearchRow>
             </PanelHeader>
@@ -1039,18 +1041,18 @@ export default function PropertyMapView() {
             <FilterBar>
               <ChipRow>
                 <Chip $active={!dealType} onClick={() => setDealType("")}>
-                  All deals
+                  {t("filter.allDeals")}
                 </Chip>
                 <Chip $active={dealType === "sale"} onClick={() => setDealType("sale")}>
-                  Buy
+                  {t("home.buy")}
                 </Chip>
                 <Chip $active={dealType === "rent"} onClick={() => setDealType("rent")}>
-                  Rent
+                  {t("home.rent")}
                 </Chip>
               </ChipRow>
               <ChipRow>
                 <Chip $active={!propertyType} onClick={() => setPropertyType("")}>
-                  All types
+                  {t("filter.allTypes")}
                 </Chip>
                 {propertyTypeDefinitions.slice(0, 8).map((item) => (
                   <Chip
@@ -1067,15 +1069,15 @@ export default function PropertyMapView() {
             <SummaryRow>
               <SummaryCard>
                 <SummaryValue>{normalizeCount(total)}</SummaryValue>
-                <SummaryLabel>Total results</SummaryLabel>
+                <SummaryLabel>{t("map.totalResults")}</SummaryLabel>
               </SummaryCard>
               <SummaryCard>
                 <SummaryValue>{normalizeCount(markerListings.length)}</SummaryValue>
-                <SummaryLabel>Map markers</SummaryLabel>
+                <SummaryLabel>{t("map.mapMarkers")}</SummaryLabel>
               </SummaryCard>
               <SummaryCard>
                 <SummaryValue>{normalizeCount(missingLocationCount)}</SummaryValue>
-                <SummaryLabel>Missing pins</SummaryLabel>
+                <SummaryLabel>{t("map.missingPins")}</SummaryLabel>
               </SummaryCard>
             </SummaryRow>
 
@@ -1100,7 +1102,7 @@ export default function PropertyMapView() {
                     setAppliedBounds(pendingBounds);
                   }}
                 >
-                  Search this area
+                  {t("map.searchThisArea")}
                 </SearchAreaButton>
               </MapOverlayTop>
             ) : null}
@@ -1135,7 +1137,7 @@ export default function PropertyMapView() {
                   <input
                       value={searchDraft}
                       onChange={(event) => setSearchDraft(event.target.value)}
-                      placeholder="Search properties"
+                      placeholder={t("map.searchProperties")}
                     />
                   </SearchInputWrap>
                   <ActionButton type="button" onClick={() => setFilterOpen(true)}>
@@ -1167,7 +1169,7 @@ export default function PropertyMapView() {
                     setAppliedBounds(pendingBounds);
                   }}
                 >
-                  Search this area
+                  {t("map.searchThisArea")}
                 </SearchAreaButton>
               </MapOverlayTop>
             ) : null}
@@ -1176,7 +1178,7 @@ export default function PropertyMapView() {
 
             <FloatingListButton type="button" onClick={() => setMobileListOpen(true)}>
               <Map size={16} />
-              Show list
+              {t("map.showList")}
             </FloatingListButton>
           </MapPanel>
         </MobileLayout>
@@ -1189,7 +1191,7 @@ export default function PropertyMapView() {
           <MobileListSheet>
             <SheetHeader>
               <SheetTitle>
-                {normalizeCount(total)} results · {normalizeCount(markerListings.length)} on map
+                {t("map.resultsSummary", { total: normalizeCount(total), mapped: normalizeCount(markerListings.length) })}
               </SheetTitle>
               <SheetClose type="button" onClick={() => setMobileListOpen(false)}>
                 <X size={18} />
@@ -1205,7 +1207,7 @@ export default function PropertyMapView() {
           <Overlay onClick={() => setFilterOpen(false)} />
           <FilterDialog>
             <FilterHeader>
-              <FilterTitle>Search filters</FilterTitle>
+              <FilterTitle>{t("filter.searchFilters")}</FilterTitle>
               <SheetClose type="button" onClick={() => setFilterOpen(false)}>
                 <X size={18} />
               </SheetClose>
@@ -1214,19 +1216,19 @@ export default function PropertyMapView() {
               <CustomSelect
                 id="map-deal-type"
                 name="map_deal_type"
-                label="Deal type"
+                label={t("filter.dealType")}
                 value={dealType}
                 onChange={setDealType}
               >
-                <option value="">All deals</option>
-                <option value="sale">Sale</option>
-                <option value="rent">Rent</option>
+                <option value="">{t("filter.allDeals")}</option>
+                <option value="sale">{t("listing.forSale")}</option>
+                <option value="rent">{t("listing.forRent")}</option>
               </CustomSelect>
 
               <CustomSelect
                 id="map-property-type"
                 name="map_property_type"
-                label="Property type"
+                label={t("filter.propertyType")}
                 value={propertyType}
                 onChange={setPropertyType}
               >
@@ -1240,7 +1242,7 @@ export default function PropertyMapView() {
               <CustomSelect
                 id="map-state"
                 name="map_state"
-                label="State / Region"
+                label={t("filter.state")}
                 value={stateRegion}
                 onChange={(value) => {
                   setStateRegion(value);
@@ -1248,7 +1250,7 @@ export default function PropertyMapView() {
                   setTownship("");
                 }}
               >
-                <option value="">All states</option>
+                <option value="">{t("filter.allStates")}</option>
                 {stateOptions.map((item) => (
                   <option key={item.pcode ?? item.name_en} value={item.name_en}>
                     {item.name_en}
@@ -1259,7 +1261,7 @@ export default function PropertyMapView() {
               <CustomSelect
                 id="map-district"
                 name="map_district"
-                label="District"
+                label={t("filter.district")}
                 value={district}
                 onChange={(value) => {
                   setDistrict(value);
@@ -1267,7 +1269,7 @@ export default function PropertyMapView() {
                 }}
                 disabled={!stateRegion}
               >
-                <option value="">All districts</option>
+                <option value="">{t("filter.allDistricts")}</option>
                 {districtOptions.map((item) => (
                   <option key={item.pcode ?? item.name_en} value={item.name_en}>
                     {item.name_en}
@@ -1278,12 +1280,12 @@ export default function PropertyMapView() {
               <CustomSelect
                 id="map-township"
                 name="map_township"
-                label="Township"
+                label={t("filter.township")}
                 value={township}
                 onChange={setTownship}
                 disabled={!district}
               >
-                <option value="">All townships</option>
+                <option value="">{t("filter.allTownships")}</option>
                 {townshipOptions.map((item) => (
                   <option key={item.pcode ?? item.name_en} value={item.name_en}>
                     {item.name_en}
@@ -1292,28 +1294,28 @@ export default function PropertyMapView() {
               </CustomSelect>
 
               <NumberField>
-                Minimum price
+                {t("filter.min")} {t("filter.priceRange")}
                 <input value={minPrice} onChange={(event) => setMinPrice(event.target.value)} inputMode="numeric" />
               </NumberField>
 
               <NumberField>
-                Maximum price
+                {t("filter.max")} {t("filter.priceRange")}
                 <input value={maxPrice} onChange={(event) => setMaxPrice(event.target.value)} inputMode="numeric" />
               </NumberField>
 
               <NumberField>
-                Bedrooms
+                {t("filter.bedrooms")}
                 <input value={bedrooms} onChange={(event) => setBedrooms(event.target.value)} inputMode="numeric" />
               </NumberField>
 
               <NumberField>
-                Bathrooms
+                {t("filter.bathrooms")}
                 <input value={bathrooms} onChange={(event) => setBathrooms(event.target.value)} inputMode="numeric" />
               </NumberField>
             </FilterGrid>
             <FilterFooter>
               <SecondaryButton type="button" onClick={resetFilters}>
-                Clear filters
+                {t("filter.clearFilters")}
               </SecondaryButton>
               <ActionButton
                 type="button"
@@ -1324,7 +1326,7 @@ export default function PropertyMapView() {
                   setFilterOpen(false);
                 }}
               >
-                Apply filters
+                {t("filter.apply")}
               </ActionButton>
             </FilterFooter>
           </FilterDialog>

@@ -1,10 +1,24 @@
 import { NextResponse } from "next/server";
 import { getVendorRequestContext } from "@/app/api/vendor/_lib/context";
 
+function isFreePlan(plan: string | null | undefined) {
+  return (plan ?? "").trim().toLowerCase() === "free";
+}
+
 export async function GET(request: Request) {
   const result = await getVendorRequestContext(request);
   if (!result.ok) {
     return result.response;
+  }
+
+  if (isFreePlan(result.context.vendor.plan)) {
+    return NextResponse.json(
+      {
+        error: "Appointment management requires a Pro plan or higher.",
+        code: "appointments_upgrade_required",
+      },
+      { status: 403 }
+    );
   }
 
   const { supabase, user, memberIds } = result.context;

@@ -18,12 +18,21 @@ type CheckoutBody = {
 };
 
 export async function POST(request: Request) {
-  const result = await getVendorRequestContext(request);
+  const result = await getVendorRequestContext(request, { requireExplicitVendorSelection: true });
   if (!result.ok) return result.response;
 
   const { supabase, vendor, membership } = result.context;
-  if (!["owner", "admin"].includes(membership.role)) {
-    return NextResponse.json({ error: "Only owners and admins can start promotion checkout." }, { status: 403 });
+  if (membership.role !== "owner") {
+    return NextResponse.json({ error: "Only workspace owners can start promotion checkout." }, { status: 403 });
+  }
+  if (vendor.verified_status !== "approved") {
+    return NextResponse.json(
+      {
+        error: "Verification required to boost listings or agency profile.",
+        code: "verification_required",
+      },
+      { status: 403 }
+    );
   }
 
   const body = (await request.json().catch(() => null)) as CheckoutBody | null;

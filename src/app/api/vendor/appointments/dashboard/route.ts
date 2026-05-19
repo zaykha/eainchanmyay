@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { getVendorRequestContext } from "@/app/api/vendor/_lib/context";
 import { normalizeAppointmentStatus, normalizeLeadStatus } from "@/lib/lifecycle";
 
+function isFreePlan(plan: string | null | undefined) {
+  return (plan ?? "").trim().toLowerCase() === "free";
+}
+
 type AppointmentRow = {
   id: string;
   title: string | null;
@@ -47,12 +51,22 @@ type MemberRow = {
 };
 
 export async function GET(request: Request) {
-  const result = await getVendorRequestContext(request);
+  const result = await getVendorRequestContext(request, { requireExplicitVendorSelection: true });
   if (!result.ok) {
     return result.response;
   }
 
-  const { supabase, vendor, memberIds, user } = result.context;
+  const { supabase, vendor, memberIds, user, membership } = result.context;
+  if (isFreePlan(vendor.plan)) {
+    return NextResponse.json(
+      {
+        error: "Appointment management requires a Pro plan or higher.",
+        code: "appointments_upgrade_required",
+      },
+      { status: 403 }
+    );
+  }
+  const isOwnerOrAdmin = ["owner", "admin"].includes(membership.role);
 
   const { data: propertiesData, error: propertiesLookupError } = await supabase
     .from("properties")
@@ -67,19 +81,33 @@ export async function GET(request: Request) {
   const properties = (propertiesData ?? []) as Array<PropertyRow & { created_by?: string | null }>;
   const propertyIds = properties.map((property) => String(property.id ?? "")).filter(Boolean);
 
+  const appointmentQuery = supabase
+    .from("appointments")
+    .select("id,title,start_at,status,client_name,client_phone,notes,property_id,assigned_staff_id")
+    .eq("vendor_id", vendor.id)
+    .order("start_at", { ascending: true });
+
+  const scopedAppointmentQuery = isOwnerOrAdmin
+    ? appointmentQuery
+    : appointmentQuery.eq("assigned_staff_id", user.id);
+
+  const viewingRequestQuery = propertyIds.length
+    ? supabase
+        .from("viewing_requests")
+        .select("id,property_id,name,phone,preferred_date,preferred_time_window,lead_status,notes,assigned_staff_id,last_activity_at,created_at")
+        .in("property_id", propertyIds)
+        .order("preferred_date", { ascending: true })
+    : null;
+
+  const scopedViewingRequestQuery = viewingRequestQuery
+    ? isOwnerOrAdmin
+      ? viewingRequestQuery
+      : viewingRequestQuery.eq("assigned_staff_id", user.id)
+    : null;
+
   const [appointmentResult, viewingRequestResult] = await Promise.all([
-    supabase
-      .from("appointments")
-      .select("id,title,start_at,status,client_name,client_phone,notes,property_id,assigned_staff_id")
-      .eq("vendor_id", vendor.id)
-      .order("start_at", { ascending: true }),
-    propertyIds.length
-        ? supabase
-          .from("viewing_requests")
-          .select("id,property_id,name,phone,preferred_date,preferred_time_window,lead_status,notes,assigned_staff_id,last_activity_at,created_at")
-          .in("property_id", propertyIds)
-          .order("preferred_date", { ascending: true })
-      : Promise.resolve({ data: [], error: null }),
+    scopedAppointmentQuery,
+    scopedViewingRequestQuery ?? Promise.resolve({ data: [], error: null }),
   ]);
 
   if (appointmentResult.error) {
@@ -267,7 +295,9 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     stats: mergedStats,
-    assignments: members.map((member) => {
+    assignments: members
+      .filter((member) => (isOwnerOrAdmin ? true : String(member.user_id ?? "") === user.id))
+      .map((member) => {
       const userId = String(member.user_id ?? "");
       const profile = profileMap.get(userId);
       return {

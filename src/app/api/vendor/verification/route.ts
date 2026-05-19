@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { getVendorRequestContext } from "@/app/api/vendor/_lib/context";
+import { canSubmitVerification, isAdminOrOwner } from "@/lib/vendor-permissions";
+
 import { getVendorPlan } from "@/lib/vendor-plans";
 
 type VerificationDocumentInput = {
@@ -235,9 +237,16 @@ async function loadVerificationPayload(
 }
 
 export async function GET(request: Request) {
-  const result = await getVendorRequestContext(request, { allowPendingBilling: true });
+  const result = await getVendorRequestContext(request, {
+    allowPendingBilling: true,
+    requireExplicitVendorSelection: true,
+  });
   if (!result.ok) {
     return result.response;
+  }
+
+  if (!isAdminOrOwner(result.context.membership.role)) {
+    return NextResponse.json({ error: "Only owners and admins can access verification management." }, { status: 403 });
   }
 
   const { supabase, vendor } = result.context;
@@ -250,13 +259,15 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const result = await getVendorRequestContext(request, { allowPendingBilling: true });
+  const result = await getVendorRequestContext(request, {
+    requireExplicitVendorSelection: true,
+  });
   if (!result.ok) {
     return result.response;
   }
 
-  if (!["owner", "admin"].includes(result.context.membership.role)) {
-    return NextResponse.json({ error: "Only owners and admins can request verification." }, { status: 403 });
+  if (!canSubmitVerification(result.context.membership.role)) {
+    return NextResponse.json({ error: "Only workspace owners can submit verification." }, { status: 403 });
   }
 
   let body: Record<string, unknown> = {};
@@ -292,6 +303,15 @@ export async function POST(request: Request) {
 
   const { supabase, vendor, user } = result.context;
   const currentPlan = getVendorPlan(vendor.plan);
+  if (!currentPlan.includedVerification) {
+    return NextResponse.json(
+      {
+        error: "Verification submission is included only on the Verified plan.",
+        code: "verification_upgrade_required",
+      },
+      { status: 403 }
+    );
+  }
 
   const { data: existingRows, error: existingError } = await supabase
     .from("vendor_verification_requests")

@@ -1,17 +1,31 @@
 import { NextResponse } from "next/server";
 import { getVendorRequestContext } from "@/app/api/vendor/_lib/context";
 import { uploadVendorVerificationDocument } from "@/app/api/_lib/vendor-verification-upload";
+import { getVendorPlan } from "@/lib/vendor-plans";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  const result = await getVendorRequestContext(request, { allowPendingBilling: true });
+  const result = await getVendorRequestContext(request, {
+    requireExplicitVendorSelection: true,
+  });
   if (!result.ok) {
     return result.response;
   }
 
-  if (!["owner", "admin"].includes(result.context.membership.role)) {
-    return NextResponse.json({ error: "Only owners and admins can upload verification documents." }, { status: 403 });
+  if (result.context.membership.role !== "owner") {
+    return NextResponse.json({ error: "Only workspace owners can upload verification documents." }, { status: 403 });
+  }
+
+  const currentPlan = getVendorPlan(result.context.vendor.plan);
+  if (!currentPlan.includedVerification) {
+    return NextResponse.json(
+      {
+        error: "Verification submission is included only on the Verified plan.",
+        code: "verification_upgrade_required",
+      },
+      { status: 403 }
+    );
   }
 
   let formData: FormData;

@@ -2,14 +2,20 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ChevronDown, Menu, X } from "lucide-react";
 import styled from "styled-components";
 import { useLanguage } from "@/app/living-site/components/Providers";
 import { useAppState } from "@/app/living-site/lib/app-state";
 import { resolveHeaderAccountPresentation } from "@/app/living-site/lib/header-account";
 import { useI18n } from "@/app/living-site/lib/i18n";
-import { deriveActiveContextFromPath, readActiveContext, writeActiveContext } from "@/app/living-site/lib/active-context";
+import {
+  deriveActiveContextFromPath,
+  readActiveContext,
+  readActiveVendorWorkspace,
+  writeActiveContext,
+  writeActiveVendorWorkspace,
+} from "@/app/living-site/lib/active-context";
 
 const Header = styled.header`
   padding: 14px 20px 0;
@@ -203,12 +209,51 @@ const WorkspaceMenuDropdown = styled.div`
   z-index: 20;
 `;
 
+const WorkspaceMenuSection = styled.div`
+  display: grid;
+  gap: 6px;
+  padding-top: 4px;
+`;
+
+const WorkspaceMenuLabel = styled.div`
+  padding: 4px 10px 0;
+  color: var(--color-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+`;
+
 const WorkspaceMenuItem = styled(Link)<{ $active?: boolean }>`
   min-height: 42px;
   padding: 10px 12px;
   border-radius: 12px;
   display: grid;
   gap: 2px;
+  background: ${(props) => (props.$active ? "color-mix(in srgb, var(--color-primary) 8%, white)" : "transparent")};
+  color: ${(props) => (props.$active ? "var(--color-primary)" : "var(--color-text)")};
+
+  strong {
+    font-size: 0.92rem;
+    line-height: 1.2;
+  }
+
+  span {
+    font-size: 0.78rem;
+    color: var(--color-muted);
+  }
+`;
+
+const WorkspaceMenuButton = styled.button<{ $active?: boolean }>`
+  width: 100%;
+  min-height: 42px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: none;
+  display: grid;
+  gap: 2px;
+  text-align: left;
+  cursor: pointer;
   background: ${(props) => (props.$active ? "color-mix(in srgb, var(--color-primary) 8%, white)" : "transparent")};
   color: ${(props) => (props.$active ? "var(--color-primary)" : "var(--color-text)")};
 
@@ -373,24 +418,47 @@ type MarketplaceHeaderProps = {
   accountHrefOverride?: string | null;
 };
 
-const navLinks = [
-  { label: "Articles", href: "/faq" },
-  { label: "Our Partners", href: "/#partners" },
-  { label: "Collections", href: "/#collections" },
-];
+type WorkspaceOption = {
+  vendor: {
+    id: string;
+    name: string;
+    slug?: string | null;
+    logo_url?: string | null;
+  };
+  membership: {
+    role: string;
+    status?: string;
+  };
+};
+
+function formatRoleLabel(role: string | null | undefined, t: (key: string) => string) {
+  const normalized = String(role ?? "").trim().toLowerCase();
+  if (normalized === "owner") return t("role.owner");
+  if (normalized === "admin") return t("role.admin");
+  if (normalized === "agent" || normalized === "staff") return t("role.staff");
+  return t("role.member");
+}
 
 export function MarketplaceHeader({
   accountLabelOverride,
   accountHrefOverride,
 }: MarketplaceHeaderProps) {
-  const { user, profileRole, profileReady, loading } = useAppState();
+  const router = useRouter();
+  const { user, authToken, profileRole, profileReady, loading } = useAppState();
   const pathname = usePathname();
   const { t } = useI18n();
   const { language, setLanguage } = useLanguage();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [languageOpen, setLanguageOpen] = useState(false);
   const [activeContext, setActiveContext] = useState<"personal" | "vendor">("personal");
+  const [workspaceOptions, setWorkspaceOptions] = useState<WorkspaceOption[]>([]);
+  const [activeVendorId, setActiveVendorId] = useState<string | null>(null);
   const hasWorkspaceAccess = profileReady && profileRole === "vendor_user";
+  const navLinks = [
+    { label: t("header.articles"), href: "/faq" },
+    { label: t("header.ourPartners"), href: "/#partners" },
+    { label: t("header.collections"), href: "/#collections" },
+  ];
 
   useEffect(() => {
     const pathContext = deriveActiveContextFromPath(pathname);
@@ -407,6 +475,61 @@ export function MarketplaceHeader({
     setActiveContext("personal");
   }, [hasWorkspaceAccess, pathname]);
 
+  useEffect(() => {
+    if (!user?.id) {
+      setActiveVendorId(null);
+      return;
+    }
+    setActiveVendorId(readActiveVendorWorkspace(user.id));
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id || !hasWorkspaceAccess) {
+      setWorkspaceOptions([]);
+      return;
+    }
+
+    let active = true;
+
+    fetch("/api/vendor/workspace?includeUsage=false", {
+      headers: authToken
+        ? {
+            Authorization: `Bearer ${authToken}`,
+          }
+        : undefined,
+    })
+      .then(async (response) => {
+        const payload = (await response.json().catch(() => null)) as
+          | {
+              vendor?: { id?: string };
+              workspaces?: WorkspaceOption[];
+            }
+          | null;
+        if (!response.ok || !active) return;
+        const nextWorkspaces = Array.isArray(payload?.workspaces) ? payload.workspaces : [];
+        setWorkspaceOptions(nextWorkspaces);
+        const storedVendorId = readActiveVendorWorkspace(user.id);
+        if (storedVendorId) {
+          setActiveVendorId(storedVendorId);
+          return;
+        }
+        const fallbackVendorId = payload?.vendor?.id ? String(payload.vendor.id) : nextWorkspaces[0]?.vendor.id ?? null;
+        if (fallbackVendorId) {
+          writeActiveVendorWorkspace(user.id, fallbackVendorId);
+          setActiveVendorId(fallbackVendorId);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setWorkspaceOptions([]);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [authToken, hasWorkspaceAccess, user?.id]);
+
   const resolvedAccount = useMemo(
     () =>
       resolveHeaderAccountPresentation({
@@ -419,9 +542,12 @@ export function MarketplaceHeader({
   );
 
   const accountLabel =
-    accountLabelOverride || (!user ? resolvedAccount.label : hasWorkspaceAccess && activeContext === "vendor" ? "Hub" : "Account");
+    accountLabelOverride ||
+    (!user ? t("header.signInRegister") : hasWorkspaceAccess && activeContext === "vendor" ? t("header.hub") : t("header.account"));
   const accountHref =
     accountHrefOverride || (!user ? resolvedAccount.href : hasWorkspaceAccess && activeContext === "vendor" ? "/hub" : "/account");
+  const currentWorkspace =
+    workspaceOptions.find((workspace) => workspace.vendor.id === (activeVendorId ?? "")) ?? workspaceOptions[0] ?? null;
 
   const languageOptions = [
     { value: "en", flag: "🇬🇧", name: "English" },
@@ -431,11 +557,22 @@ export function MarketplaceHeader({
   ] as const;
   const languageFlag = language === "mm" ? "🇲🇲" : language === "zh" ? "🇨🇳" : language === "th" ? "🇹🇭" : "🇬🇧";
 
+  const handleWorkspaceSwitch = (workspace: WorkspaceOption) => {
+    if (!user?.id) return;
+    writeActiveVendorWorkspace(user.id, workspace.vendor.id);
+    writeActiveContext("vendor");
+    setActiveContext("vendor");
+    setActiveVendorId(workspace.vendor.id);
+    setMobileMenuOpen(false);
+    const workspaceRole = String(workspace.membership.role ?? "").trim().toLowerCase();
+    router.push(workspaceRole === "owner" || workspaceRole === "admin" ? "/hub" : "/hub?section=manage-listings");
+  };
+
   return (
     <>
       <Header>
         <HeaderInner>
-          <MobileMenuButton type="button" aria-label="Open navigation menu" onClick={() => setMobileMenuOpen(true)}>
+          <MobileMenuButton type="button" aria-label={t("header.openNavigationMenu")} onClick={() => setMobileMenuOpen(true)}>
             <Menu />
           </MobileMenuButton>
           <Brand href="/">
@@ -455,8 +592,8 @@ export function MarketplaceHeader({
             ))}
             {user && hasWorkspaceAccess ? (
               <WorkspaceMenu>
-                <WorkspaceMenuTrigger type="button" aria-label="Open account and workspace switcher">
-                  <span>Hub</span>
+                <WorkspaceMenuTrigger type="button" aria-label={t("header.openWorkspaceSwitcher")}>
+                  <span>{t("header.hub")}</span>
                   <ChevronDown />
                 </WorkspaceMenuTrigger>
                 <WorkspaceMenuDropdown>
@@ -468,8 +605,8 @@ export function MarketplaceHeader({
                       setActiveContext("personal");
                     }}
                   >
-                    <strong>Personal account</strong>
-                    <span>Saved listings, inquiries, and requests</span>
+                    <strong>{t("header.personalAccount")}</strong>
+                    <span>{t("header.personalAccountHint")}</span>
                   </WorkspaceMenuItem>
                   <WorkspaceMenuItem
                     href="/hub"
@@ -479,9 +616,29 @@ export function MarketplaceHeader({
                       setActiveContext("vendor");
                     }}
                   >
-                    <strong>Agency workspace</strong>
-                    <span>Listings, appointments, leads, and team</span>
+                    <strong>{t("header.agencyWorkspace")}</strong>
+                    <span>
+                      {currentWorkspace
+                        ? `${currentWorkspace.vendor.name} · ${formatRoleLabel(currentWorkspace.membership.role, t)}`
+                        : t("header.agencyWorkspaceHint")}
+                    </span>
                   </WorkspaceMenuItem>
+                  {workspaceOptions.length > 0 ? (
+                    <WorkspaceMenuSection>
+                      <WorkspaceMenuLabel>{t("header.switchAgency")}</WorkspaceMenuLabel>
+                      {workspaceOptions.map((workspace) => (
+                        <WorkspaceMenuButton
+                          key={workspace.vendor.id}
+                          type="button"
+                          $active={(activeVendorId ?? currentWorkspace?.vendor.id ?? "") === workspace.vendor.id}
+                          onClick={() => handleWorkspaceSwitch(workspace)}
+                        >
+                          <strong>{workspace.vendor.name}</strong>
+                          <span>{formatRoleLabel(workspace.membership.role, t)}</span>
+                        </WorkspaceMenuButton>
+                      ))}
+                    </WorkspaceMenuSection>
+                  ) : null}
                 </WorkspaceMenuDropdown>
               </WorkspaceMenu>
             ) : (
@@ -491,7 +648,7 @@ export function MarketplaceHeader({
           <HeaderActions>
             <LanguageTrigger
               type="button"
-              aria-label="Open language selector"
+              aria-label={t("header.openLanguageSelector")}
               onClick={() => setLanguageOpen(true)}
             >
               {languageFlag}
@@ -504,9 +661,9 @@ export function MarketplaceHeader({
         <MobileMenuOverlay onClick={() => setMobileMenuOpen(false)}>
           <MobileMenuDrawer onClick={(event) => event.stopPropagation()}>
             <MobileMenuHeader>
-              <MobileMenuTitle>Menu</MobileMenuTitle>
+              <MobileMenuTitle>{t("header.menu")}</MobileMenuTitle>
               <GhostButton type="button" onClick={() => setMobileMenuOpen(false)}>
-                Close
+                {t("header.close")}
               </GhostButton>
             </MobileMenuHeader>
             <MobileMenuLinks>
@@ -520,7 +677,7 @@ export function MarketplaceHeader({
                       setMobileMenuOpen(false);
                     }}
                   >
-                    Personal account
+                    {t("header.personalAccount")}
                   </Link>
                   <Link
                     href="/hub"
@@ -530,8 +687,25 @@ export function MarketplaceHeader({
                       setMobileMenuOpen(false);
                     }}
                   >
-                    Agency workspace
+                    {t("header.agencyWorkspace")}
                   </Link>
+                  {workspaceOptions.length > 0
+                    ? workspaceOptions.map((workspace) => (
+                        <Link
+                          key={workspace.vendor.id}
+                          href={String(workspace.membership.role ?? "").trim().toLowerCase() === "owner" ||
+                          String(workspace.membership.role ?? "").trim().toLowerCase() === "admin"
+                            ? "/hub"
+                            : "/hub?section=manage-listings"}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            handleWorkspaceSwitch(workspace);
+                          }}
+                        >
+                          {workspace.vendor.name} · {formatRoleLabel(workspace.membership.role, t)}
+                        </Link>
+                      ))
+                    : null}
                 </>
               ) : null}
               {navLinks.map((item) => (
@@ -553,10 +727,10 @@ export function MarketplaceHeader({
             <LanguageHeader>
               <div>
                 <LanguageTitle>{t("settings.language")}</LanguageTitle>
-                <LanguageCopy>Choose the language for your marketplace experience.</LanguageCopy>
+                <LanguageCopy>{t("header.languagePrompt")}</LanguageCopy>
               </div>
               <GhostButton type="button" onClick={() => setLanguageOpen(false)}>
-                Close
+                {t("header.close")}
               </GhostButton>
             </LanguageHeader>
             <LanguageGrid>

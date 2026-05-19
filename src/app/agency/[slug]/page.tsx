@@ -4,13 +4,14 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Mail, MapPin, Phone, ShieldCheck } from "lucide-react";
 import styled from "styled-components";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
 import { MarketplaceHeader } from "@/app/living-site/components/MarketplaceHeader";
 import { SectionTitle } from "@/app/living-site/components/PageSection";
 import { formatCurrency } from "@/app/living-site/lib/format";
 import { resolveImage } from "@/app/living-site/lib/images";
 import { useAppState } from "@/app/living-site/lib/app-state";
+import { useI18n } from "@/app/living-site/lib/i18n";
 
 type AgencyPayload = {
   agency: {
@@ -51,6 +52,9 @@ type AgencyPayload = {
     area_sqft: number | null;
     image_url: string | null | undefined;
   }>;
+  viewer?: {
+    is_member?: boolean;
+  };
 };
 
 const Shell = styled.div`
@@ -271,23 +275,6 @@ const Action = styled(Link)`
   box-shadow: var(--frame-shadow);
 `;
 
-const ActionButton = styled.button`
-  min-height: 44px;
-  padding: 10px 16px;
-  border-radius: var(--radius-md);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  background: var(--gradient);
-  color: white;
-  font-weight: 700;
-  font-size: 0.95rem;
-  border: 1px solid rgba(0, 0, 0, 0.12);
-  box-shadow: var(--frame-shadow);
-  cursor: pointer;
-`;
-
 const GhostAction = styled.a`
   min-height: 44px;
   padding: 10px 16px;
@@ -301,22 +288,6 @@ const GhostAction = styled.a`
   color: var(--color-text);
   font-weight: 700;
   font-size: 0.95rem;
-`;
-
-const GhostActionButton = styled.button`
-  min-height: 44px;
-  padding: 10px 16px;
-  border-radius: var(--radius-md);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  border: 1px solid var(--color-outline);
-  background: var(--color-surface-2);
-  color: var(--color-text);
-  font-weight: 700;
-  font-size: 0.95rem;
-  cursor: pointer;
 `;
 
 const SidebarCard = styled(Card)`
@@ -382,45 +353,6 @@ const EmptyState = styled.div`
   background: #f8fafc;
 `;
 
-const ModalOverlay = styled.div`
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.4);
-  display: grid;
-  place-items: center;
-  padding: 16px;
-  z-index: 120;
-`;
-
-const ModalCard = styled.div`
-  width: min(460px, 100%);
-  border-radius: 24px;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  background: rgba(255, 255, 255, 0.98);
-  box-shadow: 0 22px 48px rgba(15, 23, 42, 0.16);
-  padding: 20px;
-  display: grid;
-  gap: 12px;
-`;
-
-const ModalTitle = styled.h3`
-  margin: 0;
-  color: #0f172a;
-  font-size: 1.05rem;
-`;
-
-const ModalCopy = styled.p`
-  margin: 0;
-  color: #475467;
-  line-height: 1.6;
-`;
-
-const ModalActions = styled.div`
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-`;
-
 function formatLocation(listing: AgencyPayload["listings"][number]) {
   return [listing.township, listing.district, listing.state_region].filter(Boolean).join(", ") || listing.city || "Myanmar";
 }
@@ -432,18 +364,16 @@ function formatLabel(value: string | null) {
 
 export default function AgencyStorefrontPage() {
   const params = useParams<{ slug: string }>();
-  const router = useRouter();
-  const { authToken, profileRole } = useAppState();
+  const { authToken } = useAppState();
+  const { t } = useI18n();
   const [data, setData] = useState<AgencyPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [viewerVendorId, setViewerVendorId] = useState<string | null>(null);
-  const [selfActionModalOpen, setSelfActionModalOpen] = useState(false);
 
   useEffect(() => {
     const slug = typeof params?.slug === "string" ? params.slug : "";
     if (!slug) {
-      setError("Agency profile not found.");
+      setError(t("agency.profileUnavailable"));
       setLoading(false);
       return;
     }
@@ -453,17 +383,23 @@ export default function AgencyStorefrontPage() {
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch(`/api/public/agencies/${encodeURIComponent(slug)}`);
+        const response = await fetch(`/api/public/agencies/${encodeURIComponent(slug)}`, {
+          headers: authToken
+            ? {
+                Authorization: `Bearer ${authToken}`,
+              }
+            : undefined,
+        });
         const payload = (await response.json()) as AgencyPayload & { error?: string };
         if (!response.ok) {
-          throw new Error(payload.error || "Unable to load agency profile.");
+          throw new Error(payload.error || t("agency.profileUnavailableCopy"));
         }
         if (!cancelled) {
           setData(payload);
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Unable to load agency profile.");
+          setError(err instanceof Error ? err.message : t("agency.profileUnavailableCopy"));
         }
       } finally {
         if (!cancelled) {
@@ -476,40 +412,10 @@ export default function AgencyStorefrontPage() {
     return () => {
       cancelled = true;
     };
-  }, [params?.slug]);
-
-  useEffect(() => {
-    if (!authToken || profileRole !== "vendor_user") {
-      setViewerVendorId(null);
-      return;
-    }
-
-    let active = true;
-    fetch("/api/vendor/workspace?includeUsage=false", {
-      headers: {
-        Authorization: `Bearer ${authToken}`,
-      },
-    })
-      .then(async (response) => {
-        const payload = (await response.json().catch(() => null)) as { vendor?: { id?: string } } | null;
-        if (!response.ok) return;
-        if (active) {
-          setViewerVendorId(payload?.vendor?.id ? String(payload.vendor.id) : null);
-        }
-      })
-      .catch(() => {
-        if (active) {
-          setViewerVendorId(null);
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [authToken, profileRole]);
+  }, [authToken, params?.slug, t]);
 
   if (loading) {
-    return <LoadingOverlay message="Loading agency profile..." />;
+    return <LoadingOverlay message={t("agency.loadingProfile")} />;
   }
 
   const agency = data?.agency;
@@ -517,7 +423,7 @@ export default function AgencyStorefrontPage() {
   const logoUrl = resolveImage(agency?.logo_url ?? null);
   const coverImageUrl = resolveImage(agency?.cover_image_url ?? null);
   const isVerified = agency?.verified_status === "approved";
-  const isOwnAgencyProfile = Boolean(viewerVendorId && agency?.id === viewerVendorId);
+  const isAgencyMemberViewer = Boolean(data?.viewer?.is_member);
 
   return (
     <Shell>
@@ -537,13 +443,13 @@ export default function AgencyStorefrontPage() {
                   <Logo $image={logoUrl}>{agency.name.charAt(0).toUpperCase()}</Logo>
                   <HeroText>
                     <HeroTitle>{agency.name}</HeroTitle>
-                    <HeroCopy>{agency.tagline || "Public agency profile on Eain Chan Myay."}</HeroCopy>
+                    <HeroCopy>{agency.tagline || t("agency.defaultTagline")}</HeroCopy>
                   </HeroText>
                 </LogoRow>
                 <BadgeRow>
                   <Badge>
                     <ShieldCheck size={14} />
-                    {isVerified ? "Verified agency" : "Unverified agency"}
+                    {isVerified ? t("agency.verifiedStatus") : t("agency.unverifiedStatus")}
                   </Badge>
                 </BadgeRow>
               </HeroContent>
@@ -552,18 +458,18 @@ export default function AgencyStorefrontPage() {
             <Layout>
               <div style={{ display: "grid", gap: 22 }}>
                 <Card>
-                  <SectionTitle>Agency overview</SectionTitle>
+                  <SectionTitle>{t("agency.overview")}</SectionTitle>
                   <OverviewStack>
                     <div style={{ display: "grid", gap: 8 }}>
-                      <CompactSectionTitle>About</CompactSectionTitle>
+                      <CompactSectionTitle>{t("agency.about")}</CompactSectionTitle>
                       <BodyCopy>
                         {agency.description ||
-                          "This agency has not added a full description yet. Use the contact panel to connect with them or browse their public listings below."}
+                          t("agency.aboutFallback")}
                       </BodyCopy>
                     </div>
                     {agency.strengths.length ? (
                       <div style={{ display: "grid", gap: 8 }}>
-                        <CompactSectionTitle>Strengths</CompactSectionTitle>
+                        <CompactSectionTitle>{t("agency.strengths")}</CompactSectionTitle>
                         <StrengthList>
                           {agency.strengths.map((strength) => (
                             <StrengthPill key={strength}>{strength}</StrengthPill>
@@ -575,7 +481,7 @@ export default function AgencyStorefrontPage() {
                 </Card>
 
                 <Card>
-                  <SectionTitle>Public listings</SectionTitle>
+                  <SectionTitle>{t("agency.publicListings")}</SectionTitle>
                   {listings.length ? (
                     <ListingGrid>
                       {listings.map((listing) => (
@@ -584,7 +490,7 @@ export default function AgencyStorefrontPage() {
                           <ListingBody>
                             <ListingTitle>{listing.title}</ListingTitle>
                             <ListingPrice>
-                              {listing.price ? formatCurrency(listing.price, listing.currency || "MMK") : "Price on request"}
+                              {listing.price ? formatCurrency(listing.price, listing.currency || "MMK") : t("agency.priceOnRequest")}
                             </ListingPrice>
                             <ListingMeta>
                               {formatLocation(listing)}
@@ -596,22 +502,22 @@ export default function AgencyStorefrontPage() {
                       ))}
                     </ListingGrid>
                   ) : (
-                    <EmptyState>This agency does not have public listings yet.</EmptyState>
+                    <EmptyState>{t("agency.noListings")}</EmptyState>
                   )}
                 </Card>
               </div>
 
               <div style={{ display: "grid", gap: 22 }}>
                 <SidebarCard>
-                  <SectionTitle>Contact points</SectionTitle>
+                  <SectionTitle>{t("agency.contactPoints")}</SectionTitle>
                   <ContactStack>
                     <ContactItem>
-                      <strong>Verification</strong>
-                      <span>{isVerified ? "Verified" : "Unverified"}</span>
+                      <strong>{t("agency.verification")}</strong>
+                      <span>{isVerified ? t("agency.verified") : t("agency.unverified")}</span>
                     </ContactItem>
                     {agency.contact_phone ? (
                       <ContactItem>
-                        <strong>Phone</strong>
+                        <strong>{t("agency.phone")}</strong>
                         <a href={`tel:${agency.contact_phone}`}>
                           <Phone size={15} style={{ marginRight: 6, verticalAlign: "text-bottom" }} />
                           {agency.contact_phone}
@@ -620,7 +526,7 @@ export default function AgencyStorefrontPage() {
                     ) : null}
                     {agency.contact_email ? (
                       <ContactItem>
-                        <strong>Email</strong>
+                        <strong>{t("agency.email")}</strong>
                         <a href={`mailto:${agency.contact_email}`}>
                           <Mail size={15} style={{ marginRight: 6, verticalAlign: "text-bottom" }} />
                           {agency.contact_email}
@@ -666,19 +572,15 @@ export default function AgencyStorefrontPage() {
                       </ContactItem>
                     ) : null}
                     <ContactItem>
-                      <strong>Coverage</strong>
+                      <strong>{t("agency.coverage")}</strong>
                       <span>
                         <MapPin size={15} style={{ marginRight: 6, verticalAlign: "text-bottom" }} />
-                        Active across the marketplace listing feed
+                        {t("agency.marketplaceCoverage")}
                       </span>
                     </ContactItem>
                   </ContactStack>
-                  <ActionRow>
-                    {isOwnAgencyProfile ? (
-                      <ActionButton type="button" onClick={() => setSelfActionModalOpen(true)}>
-                        Request property help
-                      </ActionButton>
-                    ) : (
+                  {isAgencyMemberViewer ? null : (
+                    <ActionRow>
                       <Action
                         href={{
                           pathname: "/inquiries/new",
@@ -690,43 +592,19 @@ export default function AgencyStorefrontPage() {
                           },
                         }}
                       >
-                        Request property help
+                        {t("agency.requestPropertyHelp")}
                       </Action>
-                    )}
-                    {agency.contact_phone ? (
-                      isOwnAgencyProfile ? (
-                        <GhostActionButton type="button" onClick={() => setSelfActionModalOpen(true)}>
-                          Call agency
-                        </GhostActionButton>
-                      ) : (
-                        <GhostAction href={`tel:${agency.contact_phone}`}>Call agency</GhostAction>
-                      )
-                    ) : null}
-                  </ActionRow>
+                      {agency.contact_phone ? (
+                        <GhostAction href={`tel:${agency.contact_phone}`}>{t("agency.callAgency")}</GhostAction>
+                      ) : null}
+                    </ActionRow>
+                  )}
                 </SidebarCard>
               </div>
             </Layout>
           </>
         )}
       </Page>
-      {selfActionModalOpen ? (
-        <ModalOverlay onClick={() => setSelfActionModalOpen(false)}>
-          <ModalCard onClick={(event) => event.stopPropagation()}>
-            <ModalTitle>Viewing your own agency profile</ModalTitle>
-            <ModalCopy>
-              You can’t request property help or call your own agency from this public profile. These actions are only for visitors viewing the agency page.
-            </ModalCopy>
-            <ModalActions>
-              <GhostActionButton type="button" onClick={() => setSelfActionModalOpen(false)}>
-                Close
-              </GhostActionButton>
-              <ActionButton type="button" onClick={() => router.push("/hub")}>
-                Go to hub
-              </ActionButton>
-            </ModalActions>
-          </ModalCard>
-        </ModalOverlay>
-      ) : null}
     </Shell>
   );
 }

@@ -53,6 +53,10 @@ export async function GET(request: Request) {
 
   const { supabase, vendor, membership, memberIds } = result.context;
 
+  if (!["owner", "admin"].includes(membership.role)) {
+    return NextResponse.json({ error: "Only owners and admins can access workspace snapshot data." }, { status: 403 });
+  }
+
   if ((vendor.plan ?? "").trim().toLowerCase() === "free") {
     return NextResponse.json(
       {

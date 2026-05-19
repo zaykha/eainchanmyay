@@ -179,11 +179,28 @@ export async function GET(request: Request) {
     return result.response;
   }
 
+  const role = result.context.membership.role;
+  if (!role || !["owner", "admin"].includes(role)) {
+    return NextResponse.json({ error: "Only owners and admins can download bulk import templates." }, { status: 403 });
+  }
+
+  if ((result.context.vendor.plan ?? "").trim().toLowerCase() === "free") {
+    return NextResponse.json(
+      {
+        error: "Bulk upload requires a Pro plan or higher.",
+        code: "bulk_upload_upgrade_required",
+      },
+      { status: 403 }
+    );
+  }
+
+
   const { searchParams } = new URL(request.url);
   const format = (searchParams.get("format") ?? "xlsx").trim().toLowerCase();
-  const rows = toTemplateRows();
+  const rowsUnknown = toTemplateRows() as unknown as unknown[][];
 
   if (format === "csv") {
+    const rows = rowsUnknown as unknown[][];
     return new NextResponse(toCsv(rows), {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",

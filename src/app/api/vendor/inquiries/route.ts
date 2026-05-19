@@ -2,13 +2,27 @@ import { NextResponse } from "next/server";
 import { getVendorRequestContext } from "@/app/api/vendor/_lib/context";
 import { canTransitionLeadStatus, normalizeLeadStatus } from "@/lib/lifecycle";
 
+function isFreePlan(plan: string | null | undefined) {
+  return (plan ?? "").trim().toLowerCase() === "free";
+}
+
 export async function GET(request: Request) {
-  const result = await getVendorRequestContext(request);
+  const result = await getVendorRequestContext(request, { requireExplicitVendorSelection: true });
   if (!result.ok) {
     return result.response;
   }
 
   const { supabase, vendor, membership, user } = result.context;
+  if (isFreePlan(vendor.plan)) {
+    return NextResponse.json(
+      {
+        error: "Lead inbox requires a Pro plan or higher.",
+        code: "lead_inbox_upgrade_required",
+      },
+      { status: 403 }
+    );
+  }
+  const isOwnerOrAdmin = ["owner", "admin"].includes(membership.role);
 
   const [{ data: leadRows, error: leadError }, { data: memberRows, error: memberError }, { data: templateRows, error: templateError }] = await Promise.all([
     supabase
@@ -16,8 +30,9 @@ export async function GET(request: Request) {
       .select(
         "id,inquiry_id,requester_user_id,contact_number,status,source,routing_score,assigned_member_user_id,pipeline_stage,last_contacted_at,last_activity_at,sla_due_at,created_at,updated_at,deal_type,property_type,state_region,district,township,budget_range,timeline,bedrooms,bathrooms,area_sqft,need_parking,need_lift,need_solar,need_generator,assignee:profiles!vendor_inquiry_leads_assigned_member_user_id_fkey(full_name,email),requester:profiles!vendor_inquiry_leads_requester_user_id_fkey(phone,full_name,email)"
       )
-      .eq("vendor_id", vendor.id)
-      .order("created_at", { ascending: false }),
+    .eq("vendor_id", vendor.id)
+    .eq(isOwnerOrAdmin ? "vendor_id" : "assigned_member_user_id", isOwnerOrAdmin ? vendor.id : user.id)
+    .order("created_at", { ascending: false }),
     supabase
       .from("vendor_members")
       .select("user_id,role,status,profiles:profiles(full_name,email)")
@@ -151,7 +166,7 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     items,
-    assignees,
+    assignees: isOwnerOrAdmin ? assignees : assignees.filter((assignee) => assignee.user_id === user.id),
     membershipRole: membership.role,
     templates: (templateRows ?? []).map((row) => ({
       id: String(row.id ?? ""),
@@ -164,12 +179,22 @@ export async function GET(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const result = await getVendorRequestContext(request);
+  const result = await getVendorRequestContext(request, { requireExplicitVendorSelection: true });
   if (!result.ok) {
     return result.response;
   }
 
-  const { supabase, vendor, membership } = result.context;
+  const { supabase, vendor, membership, user } = result.context;
+  if (isFreePlan(vendor.plan)) {
+    return NextResponse.json(
+      {
+        error: "Lead inbox requires a Pro plan or higher.",
+        code: "lead_inbox_upgrade_required",
+      },
+      { status: 403 }
+    );
+  }
+  const isOwnerOrAdmin = ["owner", "admin"].includes(membership.role);
   let body: {
     lead_id?: string;
     status?: string;
@@ -197,7 +222,7 @@ export async function PATCH(request: Request) {
 
   const { data: existingLead, error: existingLeadError } = await supabase
     .from("vendor_inquiry_leads")
-    .select("id,vendor_id,status,pipeline_stage")
+    .select("id,vendor_id,status,pipeline_stage,assigned_member_user_id")
     .eq("id", leadId)
     .eq("vendor_id", vendor.id)
     .maybeSingle();
@@ -208,6 +233,16 @@ export async function PATCH(request: Request) {
 
   if (!existingLead?.id) {
     return NextResponse.json({ error: "Lead not found." }, { status: 404 });
+  }
+
+  const isAssignedToCurrentUser = String(existingLead.assigned_member_user_id ?? "") === user.id;
+  if (!isOwnerOrAdmin) {
+    if (!isAssignedToCurrentUser) {
+      return NextResponse.json({ error: "Lead not found." }, { status: 404 });
+    }
+    if (body.assigned_member_user_id !== undefined) {
+      return NextResponse.json({ error: "Staff cannot assign inquiry leads." }, { status: 403 });
+    }
   }
 
   const updatePayload: Record<string, unknown> = {

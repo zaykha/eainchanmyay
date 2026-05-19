@@ -35,6 +35,7 @@ import { CustomInput } from "@/app/living-site/components/form-controls/CustomIn
 import { CustomSelect } from "@/app/living-site/components/form-controls/CustomSelect";
 import { CustomTextarea } from "@/app/living-site/components/form-controls/CustomTextarea";
 import { useLanguage } from "@/app/living-site/components/Providers";
+import { useI18n } from "@/app/living-site/lib/i18n";
 import { formatPropertyTypeValue, isBedBathPropertyType } from "@/lib/property-types";
 
 const PageShell = styled.div`
@@ -1007,7 +1008,7 @@ export default function ListingDetailPage() {
   const router = useRouter();
   const { user, authToken, profileRole } = useAppState();
   const { language } = useLanguage();
-  const t = (key: string) => LISTING_COPY[key] ?? key;
+  const { t } = useI18n();
   const propertyId = params?.propertyId as string | undefined;
   const { detail, loading } = useListingDetail(propertyId);
   const [viewingOpen, setViewingOpen] = useState(false);

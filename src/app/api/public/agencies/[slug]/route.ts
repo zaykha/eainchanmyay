@@ -16,7 +16,7 @@ type RouteContext = {
   }>;
 };
 
-export async function GET(_request: Request, context: RouteContext) {
+export async function GET(request: Request, context: RouteContext) {
   if (!isConfigured) {
     return NextResponse.json({ error: "Supabase is not configured." }, { status: 500 });
   }
@@ -49,6 +49,28 @@ export async function GET(_request: Request, context: RouteContext) {
 
   if (!vendorRow?.id || !vendorRow.name) {
     return NextResponse.json({ error: "Agency profile not found." }, { status: 404 });
+  }
+
+  let viewerIsMember = false;
+  const authHeader = request.headers.get("authorization");
+  const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
+
+  if (bearerToken) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser(bearerToken);
+
+    if (user?.id) {
+      const { data: viewerMembership } = await supabase
+        .from("vendor_members")
+        .select("user_id")
+        .eq("vendor_id", vendorRow.id)
+        .eq("user_id", user.id)
+        .eq("status", "active")
+        .maybeSingle();
+
+      viewerIsMember = Boolean(viewerMembership?.user_id);
+    }
   }
 
   const { data: membershipRows, error: membershipError } = await supabase
@@ -160,5 +182,8 @@ export async function GET(_request: Request, context: RouteContext) {
         image_url: resolveListingImage(row, photos),
       };
     }),
+    viewer: {
+      is_member: viewerIsMember,
+    },
   });
 }

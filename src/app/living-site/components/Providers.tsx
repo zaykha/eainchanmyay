@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { ThemeProvider } from "styled-components";
 import { AppStateProvider } from "@/app/living-site/lib/app-state";
+import { DEFAULT_LANGUAGE, isSupportedLanguage, type Language } from "@/app/living-site/lib/i18n-config";
 import { GlobalStyle } from "@/app/living-site/styles/global";
 import {
   eainChanMyaeDarkTheme,
@@ -10,7 +11,6 @@ import {
 } from "@/app/living-site/styles/theme";
 
 type ThemeMode = "light" | "dark";
-type Language = "mm" | "en" | "zh" | "th";
 
 type ThemeContextValue = {
   mode: ThemeMode;
@@ -28,7 +28,7 @@ const ThemeContext = createContext<ThemeContextValue>({
 });
 
 const LanguageContext = createContext<LanguageContextValue>({
-  language: "mm",
+  language: DEFAULT_LANGUAGE,
   setLanguage: () => {},
 });
 
@@ -42,7 +42,7 @@ export function useLanguage() {
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [mode, setMode] = useState<ThemeMode>("light");
-  const [language, setLanguageState] = useState<Language>("mm");
+  const [language, setLanguageState] = useState<Language>(DEFAULT_LANGUAGE);
   const theme = mode === "dark" ? eainChanMyaeDarkTheme : eainChanMyaeLightTheme;
 
   useEffect(() => {
@@ -59,7 +59,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const stored = window.localStorage.getItem("ecm_lang") as Language | null;
-    if (stored === "mm" || stored === "en" || stored === "zh" || stored === "th") {
+    if (isSupportedLanguage(stored)) {
       setLanguageState(stored);
     }
   }, []);

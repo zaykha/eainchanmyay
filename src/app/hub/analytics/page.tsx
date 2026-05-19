@@ -24,6 +24,7 @@ import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
 import { readActiveVendorWorkspace, withActiveVendorHeaders } from "@/app/living-site/lib/active-context";
 import { useAppState } from "@/app/living-site/lib/app-state";
 import { CustomSelect } from "@/app/living-site/components/form-controls/CustomSelect";
+import { useI18n } from "@/app/living-site/lib/i18n";
 
 type WorkspacePayload = {
   vendor?: {
@@ -1043,6 +1044,7 @@ function sortCountEntries<T extends { count: number }>(items: T[]) {
 
 export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }) {
   const { user, authToken, profileReady, profileRole } = useAppState();
+  const { t } = useI18n();
   const [activeVendorId, setActiveVendorId] = useState<string | null>(null);
   const [workspace, setWorkspace] = useState<WorkspacePayload["vendor"] | null>(null);
   const [overview, setOverview] = useState<OverviewPayload | null>(null);
@@ -1108,7 +1110,7 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
         const workspacePayload = (await workspaceResponse.json().catch(() => null)) as WorkspacePayload | null;
 
         if (!workspaceResponse.ok || !workspacePayload?.vendor?.id) {
-          throw new Error(workspacePayload?.error ?? "Unable to load vendor workspace.");
+          throw new Error(workspacePayload?.error ?? t("vendor.settings.loadingError"));
         }
 
         if (cancelled) return;
@@ -1132,7 +1134,7 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
           });
           const overviewPayload = (await overviewResponse.json().catch(() => null)) as (OverviewPayload & { error?: string }) | null;
           if (!overviewResponse.ok || !overviewPayload) {
-            throw new Error(overviewPayload?.error ?? "Unable to load basic analytics.");
+            throw new Error(overviewPayload?.error ?? t("analytics.unavailable"));
           }
           if (!cancelled) {
             setOverview(overviewPayload);
@@ -1151,7 +1153,7 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
         });
         const analyticsPayload = (await analyticsResponse.json().catch(() => null)) as (FullAnalyticsPayload & { error?: string }) | null;
         if (!analyticsResponse.ok || !analyticsPayload) {
-          throw new Error(analyticsPayload?.error ?? "Unable to load full analytics.");
+          throw new Error(analyticsPayload?.error ?? t("analytics.unavailable"));
         }
         if (!cancelled) {
           setFullAnalytics(analyticsPayload);
@@ -1159,7 +1161,7 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
         }
       } catch (fetchError) {
         if (!cancelled) {
-          setError(fetchError instanceof Error ? fetchError.message : "Unable to load analytics.");
+          setError(fetchError instanceof Error ? fetchError.message : t("analytics.unavailable"));
           setOverview(null);
           setFullAnalytics(null);
         }
@@ -1461,7 +1463,7 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
         </SplitGrid>
       </EmbeddedStack>
     ) : (
-      <LoadingOverlay message="Loading agency analytics..." />
+      <LoadingOverlay message={t("analytics.loading")} />
     );
   }
 
@@ -1473,7 +1475,7 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
         <EmptyState>
           <SectionHead>
             <div>
-              <SectionTitle>Analytics unavailable</SectionTitle>
+              <SectionTitle>{t("analytics.unavailable")}</SectionTitle>
               <SectionCopy>{error}</SectionCopy>
             </div>
           </SectionHead>
@@ -1484,23 +1486,22 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
         <LockCard>
           <SectionHead>
             <div>
-              <SectionTitle>Full analytics are locked on Free</SectionTitle>
+              <SectionTitle>{t("analytics.freeLockedTitle")}</SectionTitle>
               <SectionCopy>
-                The hub overview remains available, but live agency analytics, listing performance tables, and premium funnel views
-                require a paid plan.
+                {t("analytics.freeLockedCopy")}
               </SectionCopy>
             </div>
             <NotePill>
               <Lock size={14} />
-              Upgrade required
+              {t("analytics.upgradeRequired")}
             </NotePill>
           </SectionHead>
           <ActionRow>
             <PrimaryLink href="/hub/upgrade">
-              Upgrade to Growth
+                {t("analytics.upgradeToGrowth")}
               <ArrowUpRight size={16} />
             </PrimaryLink>
-            {!embedded ? <SecondaryLink href="/hub">Return to hub</SecondaryLink> : null}
+            {!embedded ? <SecondaryLink href="/hub">{t("analytics.returnToHub")}</SecondaryLink> : null}
           </ActionRow>
         </LockCard>
       ) : null}
@@ -1510,15 +1511,14 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
           <Section>
             <SectionHead>
               <div>
-                <SectionTitle>Basic analytics</SectionTitle>
+                <SectionTitle>{t("analytics.basicTitle")}</SectionTitle>
                 <SectionCopy>
-                  Pro currently exposes the existing live overview metrics. Full premium analytics, filters, and listing-level breakdowns
-                  remain gated to Growth.
+                  {t("analytics.basicCopy")}
                 </SectionCopy>
               </div>
               <NotePill>
                 <Sparkles size={14} />
-                Growth unlocks the full page
+                {t("analytics.growthUnlocks")}
               </NotePill>
             </SectionHead>
             <KpiGrid>
@@ -1617,16 +1617,15 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
           <LockCard>
             <SectionHead>
               <div>
-                <SectionTitle>Upgrade for full analytics</SectionTitle>
+                <SectionTitle>{t("analytics.upgradeFullTitle")}</SectionTitle>
                 <SectionCopy>
-                  Growth unlocks sticky filters, listing performance tables, lead pipeline analytics, appointment breakdowns, and premium
-                  promotion reporting slots.
+                  {t("analytics.upgradeFullCopy")}
                 </SectionCopy>
               </div>
             </SectionHead>
             <ActionRow>
               <PrimaryLink href="/hub/upgrade">
-                Upgrade plan
+                {t("analytics.upgradePlan")}
                 <ChevronRight size={16} />
               </PrimaryLink>
             </ActionRow>
@@ -1640,14 +1639,14 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
             <Section>
               <SectionHead>
                 <div>
-                  <SectionTitle>Listing performance</SectionTitle>
+                  <SectionTitle>{t("analytics.listingPerformance")}</SectionTitle>
                   <SectionCopy>
-                    Generic agency inquiries are not tied to listings, so this drill-in focuses on views, saves, requests, appointments, and conversion.
+                    {t("analytics.listingPerformanceCopy")}
                   </SectionCopy>
                 </div>
                 <InlineButton type="button" onClick={() => setAnalyticsStep("overview")}>
                   <ArrowLeft size={16} />
-                  Back to overview
+                  {t("analytics.backToOverview")}
                 </InlineButton>
               </SectionHead>
               <FilterGrid>

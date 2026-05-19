@@ -90,7 +90,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ prop
 
   const { data: property, error: propertyError } = await supabase
     .from("properties")
-    .select("id,title,description,deal_type,property_type,price,currency,status,state_region,district,township,address_text,bedrooms,bathrooms,area_sqft,floor_count,room_count,has_lift,has_backup_power,backup_power_type,has_parking,latitude,longitude,verification_status,created_by,created_at,updated_at")
+    .select(
+      "id,title,description,deal_type,property_type,price,currency,status,state_region,district,township,address_text,bedrooms,bathrooms,area_sqft,floor_count,room_count,has_lift,has_backup_power,backup_power_type,has_parking,latitude,longitude,verification_status,created_by,created_at,updated_at"
+    )
     .eq("id", propertyId)
     .eq("is_deleted", false)
     .maybeSingle();
@@ -121,7 +123,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ prop
 
   if (appointmentsError || propertyImagesError) {
     return NextResponse.json(
-      { error: appointmentsError?.message || propertyImagesError?.message || "Unable to load property detail." },
+      {
+        error: appointmentsError?.message || propertyImagesError?.message || "Unable to load property detail.",
+      },
       { status: 500 }
     );
   }
@@ -136,7 +140,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ prop
 
   let staffProfiles: Array<{ id: string | null; full_name: string | null; email: string | null }> = [];
   if (assignedStaffIds.length) {
-    const { data, error } = await supabase.from("profiles").select("id,full_name,email").in("id", assignedStaffIds);
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id,full_name,email")
+      .in("id", assignedStaffIds);
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
@@ -185,10 +192,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ prop
     },
     images: ((propertyImages ?? []) as PropertyImageRow[]).map((image) => ({
       id: image.id,
-      resolved_url: image.public_url ?? resolveListingImage(
-        { primary_image_url: image.public_url, primary_r2_key: image.r2_key } as unknown as Record<string, unknown>,
-        [image] as unknown as Record<string, unknown>[]
-      ),
+      resolved_url: image.public_url ??
+        resolveListingImage(
+          { primary_image_url: image.public_url, primary_r2_key: image.r2_key } as unknown as Record<string, unknown>,
+          [image] as unknown as Record<string, unknown>[]
+        ),
     })),
     appointments: appointmentRows.map((appointment) => {
       const assignedId = String(appointment.assigned_staff_id ?? "");
@@ -213,9 +221,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ pr
   if (!result.ok) return result.response;
 
   const { propertyId } = await params;
-  const { supabase, memberIds } = result.context;
-  const body = (await request.json().catch(() => null)) as PropertyUpdatePayload | null;
+  const { supabase, memberIds, membership } = result.context;
 
+  if (!["owner", "admin"].includes(membership.role)) {
+    return NextResponse.json({ error: "Only owners and admins can update listings." }, { status: 403 });
+  }
+
+  const body = (await request.json().catch(() => null)) as PropertyUpdatePayload | null;
   if (!body) {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
@@ -241,10 +253,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ pr
   const nextStatus = body.status ? normalizeListingStatus(body.status) : null;
 
   if (body.status && !nextStatus) {
-    return NextResponse.json(
-      { error: "Invalid listing status." },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Invalid listing status." }, { status: 400 });
   }
 
   const updatePayload: Record<string, unknown> = { updated_at: now };
@@ -317,7 +326,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ pr
   }
 
   const { error: updateError } = propertyUpdate;
-
   if (updateError) {
     return NextResponse.json({ error: updateError.message }, { status: 500 });
   }
@@ -330,7 +338,11 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ p
   if (!result.ok) return result.response;
 
   const { propertyId } = await params;
-  const { supabase, memberIds } = result.context;
+  const { supabase, memberIds, membership } = result.context;
+
+  if (!["owner", "admin"].includes(membership.role)) {
+    return NextResponse.json({ error: "Only owners and admins can delete listings." }, { status: 403 });
+  }
 
   const { data: existingProperty, error: existingError } = await supabase
     .from("properties")
@@ -366,7 +378,10 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ p
     storagePaths,
   });
 
-  const { error: imageDeleteError } = await supabase.from("property_images").delete().eq("property_id", propertyId);
+  const { error: imageDeleteError } = await supabase
+    .from("property_images")
+    .delete()
+    .eq("property_id", propertyId);
 
   if (imageDeleteError) {
     return NextResponse.json({ error: imageDeleteError.message }, { status: 500 });
@@ -384,3 +399,4 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ p
 
   return NextResponse.json({ ok: true });
 }
+

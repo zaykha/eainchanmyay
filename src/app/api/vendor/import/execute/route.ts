@@ -48,6 +48,22 @@ export async function POST(request: Request) {
     return result.response;
   }
 
+  const role = result.context.membership.role;
+  if (!role || !["owner", "admin"].includes(role)) {
+    return NextResponse.json({ error: "Only owners and admins can run bulk imports." }, { status: 403 });
+  }
+
+  if ((result.context.vendor.plan ?? "").trim().toLowerCase() === "free") {
+    return NextResponse.json(
+      {
+        error: "Bulk upload requires a Pro plan or higher.",
+        code: "bulk_upload_upgrade_required",
+      },
+      { status: 403 }
+    );
+  }
+
+
   const formData = await request.formData().catch(() => null);
   const spreadsheet = formData?.get("spreadsheet");
   const imageZip = formData?.get("images");

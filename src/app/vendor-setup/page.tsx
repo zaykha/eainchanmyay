@@ -6,6 +6,7 @@ import styled from "styled-components";
 import { useAppState } from "@/app/living-site/lib/app-state";
 import { VendorPlanSelection } from "@/app/living-site/components/vendor/VendorPlanSelection";
 import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
+import { useI18n } from "@/app/living-site/lib/i18n";
 import { isVendorStorefrontSetupComplete } from "@/lib/vendor-storefront";
 import type { VendorPlanKey } from "@/lib/vendor-plans";
 
@@ -49,6 +50,30 @@ const Copy = styled.p`
   line-height: 1.65;
 `;
 
+const AccessCard = styled.div`
+  width: min(760px, 100%);
+  margin: 0 auto;
+  display: grid;
+  gap: 16px;
+`;
+
+const AccessActions = styled.div`
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+`;
+
+const SecondaryAction = styled.button`
+  min-height: 46px;
+  padding: 0 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: transparent;
+  color: #1f2937;
+  font-weight: 700;
+  cursor: pointer;
+`;
+
 type WorkspacePayload = {
   vendor?: {
     id: string;
@@ -64,6 +89,7 @@ type WorkspacePayload = {
 };
 
 export default function VendorSetupPage() {
+  const { t } = useI18n();
   const router = useRouter();
   const { user, profileReady, profileRole, authToken } = useAppState();
   const [loading, setLoading] = useState(true);
@@ -79,7 +105,7 @@ export default function VendorSetupPage() {
 
   const ensureVendorProfileRole = async () => {
     if (!authToken) {
-      throw new Error("Missing account session.");
+      throw new Error(t("vendorSetup.missingSession"));
     }
 
     const response = await fetch("/api/auth/ensure-vendor-role", {
@@ -92,7 +118,7 @@ export default function VendorSetupPage() {
     const payload = (await response.json().catch(() => null)) as { error?: string } | null;
 
     if (!response.ok) {
-      throw new Error(payload?.error || "Unable to prepare the vendor account.");
+      throw new Error(payload?.error || t("vendorSetup.prepareAccount"));
     }
   };
 
@@ -145,7 +171,7 @@ export default function VendorSetupPage() {
         }
 
         setMessage(
-          "Your paid workspace is waiting for successful Dinger payment confirmation. Once payment is confirmed, access will unlock automatically."
+          t("vendorSetup.pendingPaid")
         );
         setLoading(false);
         return;
@@ -183,7 +209,7 @@ export default function VendorSetupPage() {
 
       const payload = (await response.json().catch(() => null)) as { message?: string } | null;
       if (!response.ok) {
-        throw new Error(payload?.message ?? "Unable to create the free vendor workspace.");
+        throw new Error(payload?.message ?? t("vendorSetup.createFreeFailed"));
       }
 
       if (typeof window !== "undefined") {
@@ -191,7 +217,7 @@ export default function VendorSetupPage() {
       }
       router.replace("/agency-setup");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Unable to create the free vendor workspace.");
+      setMessage(error instanceof Error ? error.message : t("vendorSetup.createFreeFailed"));
     } finally {
       setCreatingPlan(null);
     }
@@ -220,7 +246,7 @@ export default function VendorSetupPage() {
 
       const payload = (await response.json().catch(() => null)) as { checkoutUrl?: string; error?: string } | null;
       if (!response.ok || !payload?.checkoutUrl) {
-        throw new Error(payload?.error ?? "Unable to start Dinger checkout.");
+        throw new Error(payload?.error ?? t("vendorSetup.startCheckoutFailed"));
       }
 
       if (typeof window !== "undefined") {
@@ -228,13 +254,13 @@ export default function VendorSetupPage() {
       }
       window.location.href = payload.checkoutUrl;
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Unable to start Dinger checkout.");
+      setMessage(error instanceof Error ? error.message : t("vendorSetup.startCheckoutFailed"));
       setCreatingPlan(null);
     }
   };
 
   if (!profileReady || loading) {
-    return <LoadingOverlay message="Preparing vendor setup..." />;
+    return <LoadingOverlay message={t("vendorSetup.loading")} />;
   }
 
   if (!user) {
@@ -244,16 +270,16 @@ export default function VendorSetupPage() {
   if (profileRole !== "vendor_user" && !onboardingPending) {
     return (
       <Page>
-        <Shell>
-          <Header>
-            <Eyebrow>Vendor setup</Eyebrow>
-            <Title>Vendor access required</Title>
-            <Copy>This setup flow is only available for vendor accounts.</Copy>
-          </Header>
-          <SecondaryAction type="button" onClick={() => router.push("/auth")}>
-            Switch account
-          </SecondaryAction>
-        </Shell>
+        <AccessCard>
+          <Eyebrow>{t("vendorSetup.eyebrow")}</Eyebrow>
+          <Title>{t("vendorSetup.accessTitle")}</Title>
+          <Copy>{t("vendorSetup.accessCopy")}</Copy>
+          <AccessActions>
+            <SecondaryAction type="button" onClick={() => router.push("/auth")}>
+              {t("vendorSetup.switchAccount")}
+            </SecondaryAction>
+          </AccessActions>
+        </AccessCard>
       </Page>
     );
   }

@@ -244,13 +244,13 @@ export function ListingCard({ listing }: ListingCardProps) {
               {listing.isBoosted ? (
                 <CoverBadge $tone="boost">
                   <Sparkles size={13} />
-                  <span>Boosted</span>
+                  <span>{t("listing.boosted")}</span>
                 </CoverBadge>
               ) : null}
               {listing.isSearchRanked ? (
                 <CoverBadge $tone="search">
                   <Search size={13} />
-                  <span>Search ranked</span>
+                  <span>{t("listing.searchRanked")}</span>
                 </CoverBadge>
               ) : null}
             </CoverBadges>

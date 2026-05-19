@@ -32,6 +32,7 @@ import { CustomSelect } from "@/app/living-site/components/form-controls/CustomS
 import { formatCurrency } from "@/app/living-site/lib/format";
 import { formatPropertyTypeValue } from "@/lib/property-types";
 import { promotionProducts, type PromotionType } from "@/lib/vendor-promotions";
+import { useI18n } from "@/app/living-site/lib/i18n";
 
 const shimmer = keyframes`
   0% {
@@ -342,6 +343,10 @@ const ActionLink = styled.a`
   align-items: center;
   justify-content: center;
   gap: 8px;
+`;
+
+const PrimaryActionLink = styled(ActionLink)`
+  box-shadow: 0 10px 22px rgba(223, 39, 76, 0.14);
 `;
 
 const TopBar = styled.div`
@@ -1059,13 +1064,22 @@ const SkeletonBlock = styled.div<{ $height?: number; $radius?: number }>`
 `;
 
 const LockShell = styled.div`
+  width: min(760px, 100%);
+  margin: 0 auto;
   border-radius: 28px;
   padding: 28px;
   background: linear-gradient(180deg, #f8f9fc 0%, #f2f5fa 100%);
   border: 1px solid rgba(148, 163, 184, 0.24);
   box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
   display: grid;
-  gap: 16px;
+  gap: 14px;
+  align-content: start;
+`;
+
+const LockStateWrap = styled.div`
+  min-height: min(640px, calc(100vh - 220px));
+  display: grid;
+  align-items: center;
 `;
 
 const LockHero = styled.div`
@@ -1076,6 +1090,22 @@ const LockHero = styled.div`
   color: #e11d48;
   display: grid;
   place-items: center;
+`;
+
+const LockHeaderRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 16px;
+
+  @media (max-width: 640px) {
+    align-items: flex-start;
+  }
+`;
+
+const LockCopy = styled.div`
+  display: grid;
+  gap: 4px;
+  min-width: 0;
 `;
 
 type EligibleListing = {
@@ -1115,6 +1145,7 @@ type PromotionsPayload = {
     vendorName?: string | null;
     vendorSlug?: string | null;
     verifiedStatus?: string | null;
+    membershipRole?: string | null;
   };
   eligibleListings: EligibleListing[];
   items: PromotionItem[];
@@ -1414,6 +1445,7 @@ export function VendorPromotionsView({
   onBack,
 }: Props) {
   const { authToken } = useAppState();
+  const { t } = useI18n();
   const [data, setData] = useState<PromotionsPayload | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -1438,6 +1470,7 @@ export function VendorPromotionsView({
   const [initialPrefillConsumed, setInitialPrefillConsumed] = useState(false);
   const [selectedHeroSlot, setSelectedHeroSlot] = useState<string>("Slot 1");
   const [selectedHeroStartKey, setSelectedHeroStartKey] = useState<string | null>(null);
+  const canManagePromotions = data?.workspace?.membershipRole === "owner";
   const selectedPlan =
     promotionPlanPresets[selectedType].find((plan) => plan.key === selectedPlanKey) ?? promotionPlanPresets[selectedType][0];
   const planDays = Math.max(1, Math.round((selectedPlan?.durationHours ?? 24) / 24));
@@ -1476,14 +1509,14 @@ export function VendorPromotionsView({
       .then(async (response) => {
         const payload = (await response.json().catch(() => null)) as PromotionsPayload | { error?: string } | null;
         if (!response.ok || !payload || "error" in payload) {
-          throw new Error((payload as { error?: string } | null)?.error || "Unable to load promotions.");
+          throw new Error((payload as { error?: string } | null)?.error || t("vendor.promotions.loadingError"));
         }
         if (!active) return;
         setData(payload as PromotionsPayload);
       })
       .catch((loadError) => {
         if (!active) return;
-        setError(loadError instanceof Error ? loadError.message : "Unable to load promotions.");
+        setError(loadError instanceof Error ? loadError.message : t("vendor.promotions.loadingError"));
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -1525,7 +1558,7 @@ export function VendorPromotionsView({
   }, [listingPickerOpen, selectedListing]);
 
   useEffect(() => {
-    if (!initialListingId || !eligibleListings.length || initialPrefillConsumed) return;
+    if (!canManagePromotions || !initialListingId || !eligibleListings.length || initialPrefillConsumed) return;
     const matchedListing = eligibleListings.find((item) => item.id === initialListingId);
     if (!matchedListing) return;
     setListingId(matchedListing.id);
@@ -1534,7 +1567,7 @@ export function VendorPromotionsView({
     setSelectedPlanKey(promotionPlanPresets.listing_boost[0].key);
     setCreatorOpen(true);
     setInitialPrefillConsumed(true);
-  }, [eligibleListings, initialListingId, initialPrefillConsumed]);
+  }, [canManagePromotions, eligibleListings, initialListingId, initialPrefillConsumed]);
 
   useEffect(() => {
     if (!selectedPlan) return;
@@ -1671,7 +1704,7 @@ export function VendorPromotionsView({
     });
     const reloadPayload = (await reload.json().catch(() => null)) as PromotionsPayload | { error?: string } | null;
     if (!reload.ok || !reloadPayload || "error" in reloadPayload) {
-      throw new Error((reloadPayload as { error?: string } | null)?.error || "Unable to refresh promotions.");
+      throw new Error((reloadPayload as { error?: string } | null)?.error || t("vendor.promotions.loadingError"));
     }
     setData(reloadPayload as PromotionsPayload);
   };
@@ -1732,15 +1765,15 @@ export function VendorPromotionsView({
         | { error?: string; checkoutUrl?: string | null; mode?: string; message?: string }
         | null;
       if (!response.ok) {
-        throw new Error(payload?.error || "Unable to start promotion checkout.");
+        throw new Error(payload?.error || t("vendor.promotions.checkoutError"));
       }
       if (payload?.mode === "dinger" && payload.checkoutUrl) {
         window.location.href = payload.checkoutUrl;
         return;
       }
-      await returnToDrafts(payload?.message || "Dev payment complete. Promotion is now active.", "all");
+      await returnToDrafts(payload?.message || t("vendor.promotions.devPaymentComplete"), "all");
     } catch (checkoutError) {
-      setError(checkoutError instanceof Error ? checkoutError.message : "Unable to start promotion checkout.");
+      setError(checkoutError instanceof Error ? checkoutError.message : t("vendor.promotions.checkoutError"));
     } finally {
       setCheckoutLoading(false);
     }
@@ -1775,16 +1808,16 @@ export function VendorPromotionsView({
       });
       const payload = (await response.json().catch(() => null)) as { error?: string; message?: string } | null;
       if (!response.ok) {
-        throw new Error(payload?.error || "Unable to save promotion.");
+        throw new Error(payload?.error || t("vendor.promotions.saveError"));
       }
       setCreatedPromotion((payload as { item?: CreatedPromotionItem | null } | null)?.item ?? null);
-      setSuccess(payload?.message || "Promotion saved as draft.");
+      setSuccess(payload?.message || t("vendor.promotions.savedDraft"));
       setTitle("");
       setDescription("");
       setSelectedPlanKey(promotionPlanPresets[selectedType][0].key);
       setPaymentWallOpen(true);
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "Unable to save promotion.");
+      setError(submitError instanceof Error ? submitError.message : t("vendor.promotions.saveError"));
     } finally {
       setSaving(false);
     }
@@ -1793,33 +1826,43 @@ export function VendorPromotionsView({
   if (!verified) {
     return (
       <Page $embedded={embedded}>
-        <LockShell>
-          <LockHero>
-            <Lock size={24} />
-          </LockHero>
-          <Heading>
-            <Title>Verification Required</Title>
-            <Subtitle>Only verified agencies can purchase hero placements, search ranking, and listing boosts.</Subtitle>
-          </Heading>
-          <SummaryRow>
-            <Pill $tone="warning">
-              <BadgeCheck size={14} />
-              Agency verification needed
-            </Pill>
-          </SummaryRow>
-          <ButtonRow>
-            {onBack ? (
-              <Button type="button" onClick={onBack}>
-                <ArrowLeft size={16} />
-                <span>Back</span>
-              </Button>
-            ) : null}
-            <ActionLink href={verificationHref}>
-              <BadgeCheck size={16} />
-              <span>Apply for Verification</span>
-            </ActionLink>
-          </ButtonRow>
-        </LockShell>
+        <LockStateWrap>
+          <LockShell>
+            <LockHeaderRow>
+              <LockHero>
+                <Lock size={24} />
+              </LockHero>
+              <LockCopy>
+                <Title>{t("vendor.promotions.lockTitle")}</Title>
+                <Subtitle>{t("vendor.promotions.lockCopy")}</Subtitle>
+              </LockCopy>
+            </LockHeaderRow>
+            <SummaryRow>
+              <Pill $tone="warning">
+                <BadgeCheck size={14} />
+                {t("vendor.promotions.agencyVerificationNeeded")}
+              </Pill>
+              {!canManagePromotions ? (
+                <Pill $tone="warning">
+                  <ShieldCheck size={14} />
+                  {t("vendor.promotions.ownerVerificationRequired")}
+                </Pill>
+              ) : null}
+            </SummaryRow>
+            <ButtonRow>
+              <PrimaryActionLink href={verificationHref}>
+                <BadgeCheck size={16} />
+                <span>{canManagePromotions ? t("vendor.promotions.goToVerification") : t("vendor.promotions.viewVerification")}</span>
+              </PrimaryActionLink>
+              {onBack ? (
+                <Button type="button" onClick={onBack}>
+                  <ArrowLeft size={16} />
+                  <span>{t("vendor.promotions.back")}</span>
+                </Button>
+              ) : null}
+            </ButtonRow>
+          </LockShell>
+        </LockStateWrap>
       </Page>
     );
   }
@@ -1829,8 +1872,8 @@ export function VendorPromotionsView({
       <Shell>
         <Header>
           <Heading>
-            <Title>Promote Listings</Title>
-            <Subtitle>Manage hero ads, search ranking, and listing boosts for your active listings.</Subtitle>
+            <Title>{t("vendor.promotions.title")}</Title>
+            <Subtitle>{t("vendor.promotions.subtitle")}</Subtitle>
           </Heading>
         </Header>
 
@@ -1842,21 +1885,23 @@ export function VendorPromotionsView({
             <SummaryRow>
               <Pill $tone="accent">
                 <Megaphone size={14} />
-                {eligibleListings.length} eligible listings
+                {t("vendor.promotions.eligibleListings", { count: eligibleListings.length })}
               </Pill>
               <Pill $tone="success">
                 <CheckCircle2 size={14} />
-                {activePromotions.length} active
+                {t("vendor.promotions.active", { count: activePromotions.length })}
               </Pill>
               <Pill $tone="warning">
                 <Clock3 size={14} />
-                {draftPromotions.length} drafts
+                {t("vendor.promotions.drafts", { count: draftPromotions.length })}
               </Pill>
             </SummaryRow>
-            <PrimaryButton type="button" $primary onClick={() => openCreator()}>
-              <Plus size={16} />
-              <span>Create promotion</span>
-            </PrimaryButton>
+            {canManagePromotions ? (
+              <PrimaryButton type="button" $primary onClick={() => openCreator()}>
+                <Plus size={16} />
+                <span>{t("vendor.promotions.create")}</span>
+              </PrimaryButton>
+            ) : null}
           </TopBar>
 
           <SearchRow>
@@ -1865,13 +1910,13 @@ export function VendorPromotionsView({
               <SearchInput
                 value={listQuery}
                 onChange={(event) => setListQuery(event.target.value)}
-                placeholder="Search promotions or listing names"
+                placeholder={t("vendor.promotions.searchPlaceholder")}
               />
             </SearchField>
             <CustomSelect
               id="promotion-status-scope"
               name="promotion-status-scope"
-              label="Promotion status scope"
+              label={t("vendor.promotions.statusScope")}
               hideLabel
               value={statusScope}
               onChange={(value) => setStatusScope(value as (typeof promotionStatusScopes)[number]["value"])}
@@ -1909,7 +1954,7 @@ export function VendorPromotionsView({
                   </PromotionRow>
                 ))
               : null}
-            {!loading && !filteredPromotions.length ? <Empty>No promotions match these filters yet.</Empty> : null}
+            {!loading && !filteredPromotions.length ? <Empty>{t("vendor.promotions.noMatch")}</Empty> : null}
             {!loading
               ? filteredPromotions.map((item) => {
                   const effectiveStatus = getEffectivePromotionStatus(item);
@@ -1923,7 +1968,7 @@ export function VendorPromotionsView({
                         <div style={{ display: "grid", gap: 10, minWidth: 0 }}>
                           <PromotionTop>
                             <div>
-                              <PromotionTitle>{item.title || linkedListing?.title || "Untitled promotion"}</PromotionTitle>
+                              <PromotionTitle>{item.title || linkedListing?.title || t("vendor.promotions.untitled")}</PromotionTitle>
                               <PromotionMeta>
                                 <span>
                                   {promotionProducts.find((product) => product.type === item.promotion_type)?.label ||
@@ -1940,7 +1985,7 @@ export function VendorPromotionsView({
                             </div>
                             <PromotionTopRight>
                               <Pill $tone={statusTone(effectiveStatus)}>{effectiveStatus || "N/A"}</Pill>
-                              {isPayablePromotionStatus(effectiveStatus) || effectiveStatus === "expired" ? (
+                              {canManagePromotions && (isPayablePromotionStatus(effectiveStatus) || effectiveStatus === "expired") ? (
                                 <PromotionActionButton type="button" onClick={() => openPaymentWallForItem(item)}>
                                   <Megaphone size={14} />
                                   <span>{effectiveStatus === "expired" ? "Refresh boost" : "Pay now"}</span>
@@ -1968,7 +2013,7 @@ export function VendorPromotionsView({
         </Card>
       </Shell>
 
-      {creatorOpen ? (
+      {creatorOpen && canManagePromotions ? (
         <ModalOverlay>
           <ModalShell>
             <ModalHeader>
@@ -2384,7 +2429,7 @@ export function VendorPromotionsView({
         </ModalOverlay>
       ) : null}
 
-      {paymentWallOpen && createdPromotion ? (
+      {paymentWallOpen && createdPromotion && canManagePromotions ? (
         <PaymentWallOverlay>
           <PaymentWallShell>
             <ModalHeader>

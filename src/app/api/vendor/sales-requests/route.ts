@@ -94,7 +94,10 @@ export async function POST(request: Request) {
     return result.response;
   }
 
-  const { supabase, user, profile } = result.context;
+  const { supabase, user, profile, membership } = result.context;
+  if (!["owner", "admin"].includes(membership.role)) {
+    return NextResponse.json({ error: "Only owners and admins can create listing records." }, { status: 403 });
+  }
   const { planUsage } = await getVendorPlanUsage(result.context);
 
   if (planUsage.listingUsage >= planUsage.listingLimit) {

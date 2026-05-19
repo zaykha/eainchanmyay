@@ -103,7 +103,10 @@ export async function GET(request: Request) {
     return result.response;
   }
 
-  const { supabase, vendor, memberIds } = result.context;
+  const { supabase, vendor, memberIds, membership } = result.context;
+  if (!["owner", "admin"].includes(membership.role)) {
+    return NextResponse.json({ error: "Only owners and admins can access analytics." }, { status: 403 });
+  }
   const plan = normalizePlan(vendor.plan);
 
   if (!["growth", "verified"].includes(plan)) {

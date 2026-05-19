@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { canManageBilling } from "@/lib/vendor-permissions";
+
 import { createDingerPrebuiltCheckoutUrl } from "@/lib/dinger";
 import { getBearerToken } from "@/lib/vendor-auth";
 import { getVendorPlan, isVendorPlanKey } from "@/lib/vendor-plans";
 import { isVendorStorefrontSetupComplete } from "@/lib/vendor-storefront";
+import { getVendorRequestContext } from "@/app/api/vendor/_lib/context";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
@@ -25,6 +28,14 @@ function getFallbackVendorName(email: string | null | undefined) {
   if (!email) return "My Vendor Workspace";
   const localPart = email.split("@")[0]?.trim() ?? "";
   return localPart ? `${localPart} Workspace` : "My Vendor Workspace";
+}
+
+function getRequestedVendorId(request: Request) {
+  const headerValue = request.headers.get("x-vendor-id")?.trim();
+  if (headerValue) return headerValue;
+  const { searchParams } = new URL(request.url);
+  const queryValue = searchParams.get("vendorId")?.trim();
+  return queryValue || null;
 }
 
 export async function POST(request: Request) {
@@ -94,14 +105,56 @@ export async function POST(request: Request) {
       "vendor_id,role,status,vendor:vendors(id,name,plan,billing_status,description,contact_phone,contact_email,logo_url,public_storefront_enabled,slug)"
     )
     .eq("user_id", user.id)
-    .order("created_at", { ascending: true })
-    .limit(1);
+    .eq("status", "active")
+    .order("created_at", { ascending: true });
 
   if (membershipError) {
     return NextResponse.json({ error: membershipError.message }, { status: 500 });
   }
 
-  const existingMembership = existingMembershipRows?.[0] as
+  const membershipEntries = (existingMembershipRows ?? []) as Array<
+    | {
+        vendor_id?: string | null;
+        role?: string | null;
+        status?: string | null;
+        vendor?:
+          | {
+              id?: string | null;
+              name?: string | null;
+              plan?: string | null;
+              billing_status?: string | null;
+              description?: string | null;
+              contact_phone?: string | null;
+              contact_email?: string | null;
+              logo_url?: string | null;
+              public_storefront_enabled?: boolean | null;
+              slug?: string | null;
+            }
+          | Array<{
+              id?: string | null;
+              name?: string | null;
+              plan?: string | null;
+              billing_status?: string | null;
+              description?: string | null;
+              contact_phone?: string | null;
+              contact_email?: string | null;
+              logo_url?: string | null;
+              public_storefront_enabled?: boolean | null;
+              slug?: string | null;
+            }>
+          | null;
+      }
+  >;
+
+  const requestedVendorId = getRequestedVendorId(request);
+  if (membershipEntries.length > 1 && !requestedVendorId) {
+    return NextResponse.json({ error: "Select an active vendor workspace before starting checkout." }, { status: 400 });
+  }
+  const existingMembership = (
+    requestedVendorId
+      ? membershipEntries.find((row) => String(row.vendor_id ?? "") === requestedVendorId)
+      : membershipEntries[0]
+  ) as
     | {
         vendor_id?: string | null;
         role?: string | null;
@@ -140,6 +193,10 @@ export async function POST(request: Request) {
     : existingMembership?.vendor;
 
   let vendorId = existingVendor?.id ? String(existingVendor.id) : null;
+
+  if (requestedVendorId && membershipEntries.length > 0 && !existingMembership) {
+    return NextResponse.json({ error: "Vendor workspace not found." }, { status: 403 });
+  }
 
   if (!vendorId) {
     const vendorName =
@@ -180,6 +237,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: memberInsertError.message }, { status: 500 });
     }
   } else {
+    if (!canManageBilling(existingMembership?.role)) {
+      return NextResponse.json({ error: "Only workspace owners can start billing checkout." }, { status: 403 });
+    }
+
+    const contextResult = await getVendorRequestContext(request, { allowPendingBilling: true });
+    if (!contextResult.ok) {
+      return contextResult.response;
+    }
+
+    if (contextResult.context.vendor.id !== vendorId || !canManageBilling(contextResult.context.membership.role)) {
+      return NextResponse.json({ error: "Only workspace owners can start billing checkout." }, { status: 403 });
+    }
+
     const { error: vendorUpdateError } = await supabase
       .from("vendors")
       .update({

@@ -2,13 +2,28 @@ import { NextResponse } from "next/server";
 import { getVendorRequestContext } from "@/app/api/vendor/_lib/context";
 import { canTransitionLeadStatus, normalizeLeadStatus } from "@/lib/lifecycle";
 
+function isFreePlan(plan: string | null | undefined) {
+  return (plan ?? "").trim().toLowerCase() === "free";
+}
+
 export async function GET(request: Request) {
-  const result = await getVendorRequestContext(request);
+  const result = await getVendorRequestContext(request, { requireExplicitVendorSelection: true });
   if (!result.ok) {
     return result.response;
   }
 
-  const { supabase, memberIds } = result.context;
+  if (isFreePlan(result.context.vendor.plan)) {
+    return NextResponse.json(
+      {
+        error: "Appointment management requires a Pro plan or higher.",
+        code: "appointments_upgrade_required",
+      },
+      { status: 403 }
+    );
+  }
+
+  const { supabase, memberIds, membership, user } = result.context;
+  const isOwnerOrAdmin = ["owner", "admin"].includes(membership.role);
 
   if (!memberIds.length) {
     return NextResponse.json({ items: [] });
@@ -41,11 +56,15 @@ export async function GET(request: Request) {
     ])
   );
 
-  const { data, error } = await supabase
+  const viewingRequestQuery = supabase
     .from("viewing_requests")
     .select("id,property_id,name,phone,preferred_date,preferred_time_window,notes,lead_status,assigned_staff_id,created_at,updated_at,last_activity_at")
     .in("property_id", propertyIds)
     .order("created_at", { ascending: false });
+
+  const { data, error } = await (isOwnerOrAdmin
+    ? viewingRequestQuery
+    : viewingRequestQuery.eq("assigned_staff_id", user.id));
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -63,12 +82,23 @@ export async function GET(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const result = await getVendorRequestContext(request);
+  const result = await getVendorRequestContext(request, { requireExplicitVendorSelection: true });
   if (!result.ok) {
     return result.response;
   }
 
-  const { supabase, memberIds } = result.context;
+  if (isFreePlan(result.context.vendor.plan)) {
+    return NextResponse.json(
+      {
+        error: "Appointment management requires a Pro plan or higher.",
+        code: "appointments_upgrade_required",
+      },
+      { status: 403 }
+    );
+  }
+
+  const { supabase, memberIds, membership, user } = result.context;
+  const isOwnerOrAdmin = ["owner", "admin"].includes(membership.role);
   const raw = (await request.json().catch(() => null)) as {
     id?: unknown;
     lead_status?: unknown;
@@ -101,8 +131,9 @@ export async function PATCH(request: Request) {
 
   const { data: requestRow, error: requestLookupError } = await supabase
     .from("viewing_requests")
-    .select("id,property_id,lead_status")
+    .select("id,property_id,lead_status,assigned_staff_id")
     .eq("id", requestId)
+    .eq(isOwnerOrAdmin ? "id" : "assigned_staff_id", isOwnerOrAdmin ? requestId : user.id)
     .maybeSingle();
 
   if (requestLookupError) {
@@ -126,6 +157,16 @@ export async function PATCH(request: Request) {
 
   if (!propertyRow?.id || !memberIds.includes(String(propertyRow.created_by ?? ""))) {
     return NextResponse.json({ error: "Viewing request not found in this vendor workspace." }, { status: 404 });
+  }
+
+  const isAssignedToCurrentUser = String(requestRow.assigned_staff_id ?? "") === user.id;
+  if (!isOwnerOrAdmin) {
+    if (!isAssignedToCurrentUser) {
+      return NextResponse.json({ error: "Viewing request not found." }, { status: 404 });
+    }
+    if (assignedStaffId !== undefined) {
+      return NextResponse.json({ error: "Staff cannot reassign viewing requests." }, { status: 403 });
+    }
   }
 
   if (assignedStaffId !== undefined && assignedStaffId !== null && !memberIds.includes(assignedStaffId)) {

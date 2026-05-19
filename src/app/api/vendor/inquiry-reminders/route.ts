@@ -9,13 +9,27 @@ function normalizeReminderStatus(value: unknown) {
   return allowedReminderStatuses.has(normalized) ? normalized : null;
 }
 
+function isFreePlan(plan: string | null | undefined) {
+  return (plan ?? "").trim().toLowerCase() === "free";
+}
+
 export async function POST(request: Request) {
-  const result = await getVendorRequestContext(request);
+  const result = await getVendorRequestContext(request, { requireExplicitVendorSelection: true });
   if (!result.ok) {
     return result.response;
   }
 
-  const { supabase, vendor, membership } = result.context;
+  const { supabase, vendor, membership, user } = result.context;
+  if (isFreePlan(vendor.plan)) {
+    return NextResponse.json(
+      {
+        error: "Lead inbox requires a Pro plan or higher.",
+        code: "lead_inbox_upgrade_required",
+      },
+      { status: 403 }
+    );
+  }
+  const isOwnerOrAdmin = ["owner", "admin"].includes(membership.role);
   let body: {
     lead_id?: string;
     remind_at?: string;
@@ -37,13 +51,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Lead id and remind_at are required." }, { status: 400 });
   }
 
-  if (!["owner", "admin"].includes(membership.role) && assignedUserId && assignedUserId !== result.context.user.id) {
+  if (!isOwnerOrAdmin && assignedUserId && assignedUserId !== user.id) {
     return NextResponse.json({ error: "Only owner or admin members can assign reminders to others." }, { status: 403 });
   }
 
   const { data: leadRow, error: leadError } = await supabase
     .from("vendor_inquiry_leads")
-    .select("id,vendor_id")
+    .select("id,vendor_id,assigned_member_user_id")
     .eq("id", leadId)
     .eq("vendor_id", vendor.id)
     .maybeSingle();
@@ -56,12 +70,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Lead not found." }, { status: 404 });
   }
 
-  if (assignedUserId) {
+  if (!isOwnerOrAdmin && String(leadRow.assigned_member_user_id ?? "") !== user.id) {
+    return NextResponse.json({ error: "Lead not found." }, { status: 404 });
+  }
+
+  const effectiveAssignedUserId = isOwnerOrAdmin ? assignedUserId : user.id;
+
+  if (effectiveAssignedUserId) {
     const { data: memberRow, error: memberError } = await supabase
       .from("vendor_members")
       .select("user_id")
       .eq("vendor_id", vendor.id)
-      .eq("user_id", assignedUserId)
+      .eq("user_id", effectiveAssignedUserId)
       .eq("status", "active")
       .maybeSingle();
 
@@ -79,7 +99,7 @@ export async function POST(request: Request) {
     .insert({
       lead_id: leadId,
       vendor_id: vendor.id,
-      assigned_user_id: assignedUserId,
+      assigned_user_id: effectiveAssignedUserId,
       remind_at: remindAt,
       note: body.note?.trim() || null,
       status: "pending",
@@ -95,7 +115,7 @@ export async function POST(request: Request) {
     ok: true,
     reminder: {
       id: String(reminderRow?.id ?? ""),
-      assigned_user_id: reminderRow?.assigned_user_id ? String(reminderRow.assigned_user_id) : assignedUserId,
+      assigned_user_id: reminderRow?.assigned_user_id ? String(reminderRow.assigned_user_id) : effectiveAssignedUserId,
       remind_at: (reminderRow?.remind_at as string | null) ?? remindAt,
       status: (reminderRow?.status as string | null) ?? "pending",
       note: (reminderRow?.note as string | null) ?? (body.note?.trim() || null),
@@ -104,12 +124,22 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const result = await getVendorRequestContext(request);
+  const result = await getVendorRequestContext(request, { requireExplicitVendorSelection: true });
   if (!result.ok) {
     return result.response;
   }
 
-  const { supabase, vendor } = result.context;
+  const { supabase, vendor, user, membership } = result.context;
+  if (isFreePlan(vendor.plan)) {
+    return NextResponse.json(
+      {
+        error: "Lead inbox requires a Pro plan or higher.",
+        code: "lead_inbox_upgrade_required",
+      },
+      { status: 403 }
+    );
+  }
+  const isOwnerOrAdmin = ["owner", "admin"].includes(membership.role);
   let body: { reminder_id?: string; status?: string } = {};
 
   try {
@@ -123,6 +153,25 @@ export async function PATCH(request: Request) {
 
   if (!reminderId || !status) {
     return NextResponse.json({ error: "Reminder id and status are required." }, { status: 400 });
+  }
+
+  const { data: existingReminder, error: reminderLookupError } = await supabase
+    .from("vendor_lead_reminders")
+    .select("id,assigned_user_id")
+    .eq("id", reminderId)
+    .eq("vendor_id", vendor.id)
+    .maybeSingle();
+
+  if (reminderLookupError) {
+    return NextResponse.json({ error: reminderLookupError.message }, { status: 500 });
+  }
+
+  if (!existingReminder?.id) {
+    return NextResponse.json({ error: "Reminder not found." }, { status: 404 });
+  }
+
+  if (!isOwnerOrAdmin && String(existingReminder.assigned_user_id ?? "") !== user.id) {
+    return NextResponse.json({ error: "Reminder not found." }, { status: 404 });
   }
 
   const { error: updateError } = await supabase
@@ -142,12 +191,22 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const result = await getVendorRequestContext(request);
+  const result = await getVendorRequestContext(request, { requireExplicitVendorSelection: true });
   if (!result.ok) {
     return result.response;
   }
 
-  const { supabase, vendor } = result.context;
+  const { supabase, vendor, user, membership } = result.context;
+  if (isFreePlan(vendor.plan)) {
+    return NextResponse.json(
+      {
+        error: "Lead inbox requires a Pro plan or higher.",
+        code: "lead_inbox_upgrade_required",
+      },
+      { status: 403 }
+    );
+  }
+  const isOwnerOrAdmin = ["owner", "admin"].includes(membership.role);
   let body: { reminder_id?: string } = {};
 
   try {
@@ -160,6 +219,25 @@ export async function DELETE(request: Request) {
 
   if (!reminderId) {
     return NextResponse.json({ error: "Reminder id is required." }, { status: 400 });
+  }
+
+  const { data: existingReminder, error: reminderLookupError } = await supabase
+    .from("vendor_lead_reminders")
+    .select("id,assigned_user_id")
+    .eq("id", reminderId)
+    .eq("vendor_id", vendor.id)
+    .maybeSingle();
+
+  if (reminderLookupError) {
+    return NextResponse.json({ error: reminderLookupError.message }, { status: 500 });
+  }
+
+  if (!existingReminder?.id) {
+    return NextResponse.json({ error: "Reminder not found." }, { status: 404 });
+  }
+
+  if (!isOwnerOrAdmin && String(existingReminder.assigned_user_id ?? "") !== user.id) {
+    return NextResponse.json({ error: "Reminder not found." }, { status: 404 });
   }
 
   const { error } = await supabase

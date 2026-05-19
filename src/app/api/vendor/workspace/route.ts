@@ -62,6 +62,7 @@ export async function PATCH(request: Request) {
   if (!["owner", "admin"].includes(result.context.membership.role)) {
     return NextResponse.json({ error: "Only owners and admins can update storefront settings." }, { status: 403 });
   }
+  const isOwner = result.context.membership.role === "owner";
 
   let body: Record<string, unknown> = {};
   try {
@@ -74,6 +75,20 @@ export async function PATCH(request: Request) {
   const rawName = typeof body.name === "string" ? body.name.trim() : "";
   if (payload.slug !== undefined && !payload.slug) {
     return NextResponse.json({ error: "Storefront slug cannot be empty." }, { status: 400 });
+  }
+
+  if (!isOwner) {
+    const attemptedRestrictedField =
+      body.name !== undefined || payload.slug !== undefined || payload.public_storefront_enabled !== undefined;
+    if (attemptedRestrictedField) {
+      return NextResponse.json(
+        {
+          error:
+            "Only workspace owners can update agency identity, storefront slug, or storefront visibility.",
+        },
+        { status: 403 }
+      );
+    }
   }
 
   const updates = Object.fromEntries(

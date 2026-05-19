@@ -7,6 +7,7 @@ import { BadgeCheck, Calendar, ChevronDown, ChevronLeft, ChevronRight, Pencil, S
 import { useAppState } from "@/app/living-site/lib/app-state";
 import { CustomSelect } from "@/app/living-site/components/form-controls/CustomSelect";
 import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
+import { useI18n } from "@/app/living-site/lib/i18n";
 
 const Page = styled.div`
   display: grid;
@@ -719,6 +720,7 @@ function VerificationDatePicker({
 
 export function VendorVerificationView() {
   const { authToken } = useAppState();
+  const { t } = useI18n();
   const router = useRouter();
   const [data, setData] = useState<VerificationData | null>(null);
   const [form, setForm] = useState<VerificationForm>({
@@ -767,6 +769,7 @@ export function VendorVerificationView() {
     data?.verification.latestRequest?.status || data?.vendor.verification_status || "not_requested"
   );
   const showReadOnlyStatus = currentAgencyStatus === "pending" || currentAgencyStatus === "verified";
+  const verificationIncludedInPlan = Boolean(data?.verification.includedInPlan);
 
   const canSubmit = useMemo(
     () =>
@@ -799,7 +802,7 @@ export function VendorVerificationView() {
         });
         const payload = (await response.json()) as VerificationData & { error?: string };
         if (!response.ok) {
-          throw new Error(payload.error || "Unable to load verification data.");
+          throw new Error(payload.error || t("vendor.verification.loadingError"));
         }
         if (!cancelled) {
           setData(payload);
@@ -853,7 +856,7 @@ export function VendorVerificationView() {
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Unable to load verification data.");
+          setError(err instanceof Error ? err.message : t("vendor.verification.loadingError"));
         }
       } finally {
         if (!cancelled) {
@@ -926,7 +929,7 @@ export function VendorVerificationView() {
         | null;
 
       if (!response.ok || !payload?.publicUrl) {
-        throw new Error(payload?.error || "Unable to upload document photo.");
+        throw new Error(payload?.error || t("vendor.verification.uploadError"));
       }
 
       setDocuments((current) =>
@@ -945,7 +948,7 @@ export function VendorVerificationView() {
         )
       );
     } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : "Unable to upload document photo.");
+      setError(uploadError instanceof Error ? uploadError.message : t("vendor.verification.uploadError"));
     } finally {
       setUploadingDocumentIndex(null);
     }
@@ -971,13 +974,13 @@ export function VendorVerificationView() {
       });
       const payload = (await response.json()) as VerificationData & { error?: string };
       if (!response.ok) {
-        throw new Error(payload.error || "Unable to submit verification request.");
+        throw new Error(payload.error || t("vendor.verification.submitError"));
       }
       setData(payload);
       router.push("/hub");
       return;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to submit verification request.");
+      setError(err instanceof Error ? err.message : t("vendor.verification.submitError"));
     } finally {
       setSubmitting(false);
       setSubmitConfirmOpen(false);
@@ -985,16 +988,14 @@ export function VendorVerificationView() {
   };
 
   if (loading) {
-    return <LoadingOverlay message="Loading verification..." />;
+    return <LoadingOverlay message={t("vendor.verification.loading")} />;
   }
 
   return (
     <Page>
       <div>
-        <Title>Verification</Title>
-        <Copy>
-          Submit your agency verification package for manual review. Only document photos are accepted for this flow.
-        </Copy>
+        <Title>{t("vendor.verification.title")}</Title>
+        <Copy>{t("vendor.verification.subtitle")}</Copy>
       </div>
 
       {error ? <Note>{error}</Note> : null}
@@ -1007,56 +1008,66 @@ export function VendorVerificationView() {
         </InlineRow>
         <Copy>{agencyStatusCopy(currentAgencyStatus)}</Copy>
         {data?.verification.latestRequest?.review_notes ? (
-          <Note>Admin review notes: {data.verification.latestRequest.review_notes}</Note>
+          <Note>{t("vendor.verification.reviewNotes", { notes: data.verification.latestRequest.review_notes })}</Note>
         ) : null}
       </Card>
 
+      {!verificationIncludedInPlan && !showReadOnlyStatus ? (
+        <Card>
+          <Title style={{ fontSize: "1.1rem" }}>{t("vendor.verification.planRequired")}</Title>
+          <Copy>{t("vendor.verification.planRequiredCopy")}</Copy>
+          <ActionRow>
+            <Button type="button" onClick={() => router.push("/hub/upgrade")}>
+              {t("vendor.verification.upgradeVerified")}
+            </Button>
+          </ActionRow>
+        </Card>
+      ) : null}
+
       {currentAgencyStatus === "pending" ? (
         <Card>
-          <Title style={{ fontSize: "1.1rem" }}>Verified benefits</Title>
-          <Copy>
-            What changes after approval.
-          </Copy>
+          <Title style={{ fontSize: "1.1rem" }}>{t("vendor.verification.benefitsTitle")}</Title>
+          <Copy>{t("vendor.verification.benefitsCopy")}</Copy>
           <BenefitGrid>
             <BenefitCard>
               <BenefitTop>
                 <BadgeCheck />
-                <span>Trust badge</span>
+                <span>{t("vendor.verification.trustBadge")}</span>
               </BenefitTop>
-              <BenefitCopy>Show a verified badge on your agency presence.</BenefitCopy>
+              <BenefitCopy>{t("vendor.verification.trustBadgeCopy")}</BenefitCopy>
             </BenefitCard>
             <BenefitCard>
               <BenefitTop>
                 <Search />
-                <span>Search boost</span>
+                <span>{t("vendor.verification.searchBoost")}</span>
               </BenefitTop>
-              <BenefitCopy>Get stronger ranking support in matching search results.</BenefitCopy>
+              <BenefitCopy>{t("vendor.verification.searchBoostCopy")}</BenefitCopy>
             </BenefitCard>
             <BenefitCard>
               <BenefitTop>
                 <Sparkles />
-                <span>Boostings access</span>
+                <span>{t("vendor.verification.boostingsAccess")}</span>
               </BenefitTop>
-              <BenefitCopy>Unlock hero ads, ranking boosts, and listing boostings.</BenefitCopy>
+              <BenefitCopy>{t("vendor.verification.boostingsAccessCopy")}</BenefitCopy>
             </BenefitCard>
             <BenefitCard>
               <BenefitTop>
                 <ShieldCheck />
-                <span>Buyer confidence</span>
+                <span>{t("vendor.verification.buyerConfidence")}</span>
               </BenefitTop>
-              <BenefitCopy>Your agency feels safer and more trusted to buyers.</BenefitCopy>
+              <BenefitCopy>{t("vendor.verification.buyerConfidenceCopy")}</BenefitCopy>
             </BenefitCard>
           </BenefitGrid>
         </Card>
       ) : null}
 
-      {!showReadOnlyStatus ? (
+      {!showReadOnlyStatus && verificationIncludedInPlan ? (
         <>
       <Card>
-        <Title style={{ fontSize: "1.1rem" }}>Business profile</Title>
+        <Title style={{ fontSize: "1.1rem" }}>{t("vendor.verification.businessProfile")}</Title>
         <Grid>
           <Field>
-            Request type
+            {t("vendor.verification.requestType")}
             <CustomSelect
               id="verification-request-type"
               name="request_type"
@@ -1065,88 +1076,88 @@ export function VendorVerificationView() {
               onChange={(value) => setForm((current) => ({ ...current, request_type: value }))}
               hideLabel
             >
-              <option value="initial">Initial</option>
-              <option value="resubmission">Update / Resubmission</option>
+              <option value="initial">{t("vendor.verification.requestType.initial")}</option>
+              <option value="resubmission">{t("vendor.verification.requestType.resubmission")}</option>
             </CustomSelect>
           </Field>
           <Field>
-            Business name
+            {t("vendor.verification.businessName")}
             <ClickField type="button" onClick={openNameEditor}>
-              <span>{form.business_name_submitted || "Registered agency name"}</span>
+              <span>{form.business_name_submitted || t("vendor.verification.registeredAgencyName")}</span>
               <Pencil size={16} />
             </ClickField>
           </Field>
           <Field>
-            Business or agency license number
+            {t("vendor.verification.licenseNumber")}
             <Input
               value={form.license_number}
               onChange={(event) => setForm((current) => ({ ...current, license_number: event.target.value }))}
-              placeholder="Agency or business license number"
+              placeholder={t("vendor.verification.licensePlaceholder")}
             />
           </Field>
           <Field>
-            Company registration number
+            {t("vendor.verification.registrationNumber")}
             <Input
               value={form.company_registration_number}
               onChange={(event) =>
                 setForm((current) => ({ ...current, company_registration_number: event.target.value }))
               }
-              placeholder="Registration number"
+              placeholder={t("vendor.verification.registrationPlaceholder")}
             />
           </Field>
           <Field>
-            Tax ID
+            {t("vendor.verification.taxId")}
             <Input
               value={form.tax_id}
               onChange={(event) => setForm((current) => ({ ...current, tax_id: event.target.value }))}
-              placeholder="Tax registration ID"
+              placeholder={t("vendor.verification.taxIdPlaceholder")}
             />
           </Field>
           <Field>
-            Office address
+            {t("vendor.verification.officeAddress")}
             <Input
               value={form.office_address}
               onChange={(event) => setForm((current) => ({ ...current, office_address: event.target.value }))}
-              placeholder="Registered office address"
+              placeholder={t("vendor.verification.officeAddressPlaceholder")}
             />
           </Field>
         </Grid>
       </Card>
 
       <Card>
-        <Title style={{ fontSize: "1.1rem" }}>Contact person</Title>
+        <Title style={{ fontSize: "1.1rem" }}>{t("vendor.verification.contactPerson")}</Title>
         <Grid>
           <Field>
-            Responsible person
+            {t("vendor.verification.responsiblePerson")}
             <Input
               value={form.contact_person_name}
               onChange={(event) => setForm((current) => ({ ...current, contact_person_name: event.target.value }))}
-              placeholder="Responsible person"
+              placeholder={t("vendor.verification.responsiblePersonPlaceholder")}
             />
           </Field>
           <Field>
-            Role
+            {t("vendor.verification.role")}
             <Input
               value={form.contact_person_role}
               onChange={(event) => setForm((current) => ({ ...current, contact_person_role: event.target.value }))}
-              placeholder="Owner, Director, Operations Lead"
+              placeholder={t("vendor.verification.rolePlaceholder")}
             />
           </Field>
           <Field>
-            Phone
+            {t("vendor.verification.phone")}
             <Input
               value={form.contact_person_phone}
               onChange={(event) => setForm((current) => ({ ...current, contact_person_phone: event.target.value }))}
-              placeholder="09..."
+              placeholder={t("vendor.verification.phonePlaceholder")}
             />
           </Field>
           <Field>
-            Email
+            {t("vendor.verification.email")}
             <Input
               type="email"
               value={form.contact_person_email}
               onChange={(event) => setForm((current) => ({ ...current, contact_person_email: event.target.value }))}
-              placeholder="name@agency.com"
+              placeholder={t("vendor.verification.emailPlaceholder")}
             />
           </Field>
         </Grid>
@@ -1154,31 +1165,31 @@ export function VendorVerificationView() {
 
       <Card>
         <Field>
-          Agency verification notes
+          {t("vendor.verification.notes")}
           <Textarea
             value={form.notes}
             onChange={(event) => updateNotes(event.target.value)}
-            placeholder="Describe your service area, operating history, or anything the review team should know."
+            placeholder={t("vendor.verification.notesPlaceholder")}
           />
-          <Copy style={{ fontSize: "0.92rem", maxWidth: "none" }}>{notesWordCount} / {notesWordLimit} words</Copy>
+          <Copy style={{ fontSize: "0.92rem", maxWidth: "none" }}>{t("vendor.verification.words", { count: notesWordCount, limit: notesWordLimit })}</Copy>
         </Field>
       </Card>
 
       <Card>
         <InlineRow style={{ justifyContent: "space-between" }}>
           <div>
-            <Title style={{ fontSize: "1.1rem" }}>Documents</Title>
-            <Copy>Upload one clear document photo for review. Once uploaded, it stays locked for this submission.</Copy>
+            <Title style={{ fontSize: "1.1rem" }}>{t("vendor.verification.documents")}</Title>
+            <Copy>{t("vendor.verification.documentsCopy")}</Copy>
           </div>
         </InlineRow>
         <Note>
-          <strong>Recommended documents</strong>
+          <strong>{t("vendor.verification.recommendedDocs")}</strong>
           <GuidanceList>
-            <li>Required: Company Registration Certificate or Business License.</li>
-            <li>Required: Owner / Director NRC or Passport.</li>
-            <li>Recommended: DICA / MyCO Company Extract and Office Address Proof.</li>
-            <li>Optional: Real Estate Agent / Broker Certificate if available.</li>
-            <li>Authorization Letter is only required if the applicant is not the owner or director.</li>
+            <li>{t("vendor.verification.requiredCompanyDoc")}</li>
+            <li>{t("vendor.verification.requiredOwnerDoc")}</li>
+            <li>{t("vendor.verification.recommendedExtract")}</li>
+            <li>{t("vendor.verification.optionalBroker")}</li>
+            <li>{t("vendor.verification.authorizationOnly")}</li>
           </GuidanceList>
         </Note>
         <HiddenFileInput
@@ -1189,7 +1200,7 @@ export function VendorVerificationView() {
           onChange={(event) => void handleDocumentPhotoUpload(0, event.target.files?.[0] ?? null)}
         />
         {uploadingDocumentIndex === 0 ? (
-          <UploadSkeleton aria-label="Uploading document photo" />
+          <UploadSkeleton aria-label={t("vendor.verification.uploadingDocument")} />
         ) : (
           <UploadArea
             type="button"
@@ -1205,19 +1216,19 @@ export function VendorVerificationView() {
                   src={primaryDocument.document_url}
                   alt={documentTypeLabel(primaryDocument.document_type)}
                 />
-                <UploadMeta>
-                  <strong style={{ color: "var(--color-text)" }}>{documentTypeLabel(primaryDocument.document_type)}</strong>
-                  <span>Your uploaded photo is attached to this verification request.</span>
+                  <UploadMeta>
+                    <strong style={{ color: "var(--color-text)" }}>{documentTypeLabel(primaryDocument.document_type)}</strong>
+                  <span>{t("vendor.verification.uploadedPhotoCopy")}</span>
                 </UploadMeta>
               </>
             ) : (
               <>
                 <InlineRow>
                   <Upload size={18} />
-                  <strong>Upload document photo</strong>
+                  <strong>{t("vendor.verification.uploadPhoto")}</strong>
                 </InlineRow>
                 <Copy style={{ maxWidth: "none" }}>
-                  Choose one clear image from your device. After upload, it will appear here as the review thumbnail.
+                  {t("vendor.verification.uploadPhotoCopy")}
                 </Copy>
               </>
             )}
@@ -1226,7 +1237,7 @@ export function VendorVerificationView() {
         <DocumentCard>
           <Grid>
             <Field>
-              Document type
+              {t("vendor.verification.documentType")}
               <CustomSelect
                 id="verification-document-type"
                 name="document_type"
@@ -1250,15 +1261,15 @@ export function VendorVerificationView() {
                 </CustomSelect>
               </Field>
             <Field>
-              Document number
+              {t("vendor.verification.documentNumber")}
               <Input
                 value={primaryDocument.document_number}
                 onChange={(event) => updateDocument(0, "document_number", event.target.value)}
-                placeholder="Optional document number"
+                placeholder={t("vendor.verification.documentNumberPlaceholder")}
               />
             </Field>
             <Field>
-              Issued date
+              {t("vendor.verification.issuedDate")}
               <VerificationDatePicker
                 id="verification-document-issued-at"
                 value={primaryDocument.document_issued_at}
@@ -1266,7 +1277,7 @@ export function VendorVerificationView() {
               />
             </Field>
             <Field>
-              Expiry date
+              {t("vendor.verification.expiryDate")}
               <VerificationDatePicker
                 id="verification-document-expires-at"
                 value={primaryDocument.document_expires_at}
@@ -1279,7 +1290,7 @@ export function VendorVerificationView() {
 
       {!showReadOnlyStatus && data?.verification.events.length ? (
         <Card>
-          <Title style={{ fontSize: "1.1rem" }}>Verification timeline</Title>
+          <Title style={{ fontSize: "1.1rem" }}>{t("vendor.verification.timeline")}</Title>
           <EventList>
             {data.verification.events.map((event) => (
               <EventRow key={event.id}>
@@ -1302,7 +1313,7 @@ export function VendorVerificationView() {
           disabled={!canSubmit || submitting || uploadingDocumentIndex !== null}
           onClick={() => setSubmitConfirmOpen(true)}
         >
-          {submitting ? "Submitting..." : uploadingDocumentIndex !== null ? "Uploading document..." : "Submit verification request"}
+          {submitting ? t("vendor.verification.submitting") : uploadingDocumentIndex !== null ? t("vendor.verification.uploading") : t("vendor.verification.submit")}
         </Button>
       </ActionRow>
         </>
@@ -1311,20 +1322,18 @@ export function VendorVerificationView() {
       {nameEditorOpen && !showReadOnlyStatus ? (
         <Overlay>
           <OverlayPanel>
-            <OverlayTitle>Edit business name</OverlayTitle>
-            <Copy>
-              If this is different from your current agency name, we will update the public agency name after verification is approved.
-            </Copy>
+            <OverlayTitle>{t("vendor.verification.editBusinessName")}</OverlayTitle>
+            <Copy>{t("vendor.verification.editBusinessNameCopy")}</Copy>
             <Field>
-              Business name
-              <Input value={nameDraft} onChange={(event) => setNameDraft(event.target.value)} placeholder="Registered agency name" />
+              {t("vendor.verification.businessName")}
+              <Input value={nameDraft} onChange={(event) => setNameDraft(event.target.value)} placeholder={t("vendor.verification.registeredAgencyName")} />
             </Field>
             <ActionRow>
               <Button type="button" onClick={applyBusinessName} disabled={!nameDraft.trim()}>
-                Save name
+                {t("vendor.verification.saveName")}
               </Button>
               <SecondaryButton type="button" onClick={() => setNameEditorOpen(false)}>
-                Cancel
+                {t("vendor.promotions.cancel")}
               </SecondaryButton>
             </ActionRow>
           </OverlayPanel>
@@ -1334,16 +1343,14 @@ export function VendorVerificationView() {
       {submitConfirmOpen && !showReadOnlyStatus ? (
         <Overlay>
           <OverlayPanel>
-            <OverlayTitle>Confirm verification submission</OverlayTitle>
-            <Copy>
-              Please double-check your business details and uploaded document photo before sending this verification request.
-            </Copy>
+            <OverlayTitle>{t("vendor.verification.confirmTitle")}</OverlayTitle>
+            <Copy>{t("vendor.verification.confirmCopy")}</Copy>
             <Note>
-              You are submitting:
+              {t("vendor.verification.confirmSummary")}
               <GuidanceList>
-                <li>Business name: {form.business_name_submitted || "Not set"}</li>
-                <li>Responsible person: {form.contact_person_name || "Not set"}</li>
-                <li>Document attached: {primaryDocument?.document_name || "Not set"}</li>
+                <li>{t("vendor.verification.businessName")}: {form.business_name_submitted || t("vendor.verification.notSet")}</li>
+                <li>{t("vendor.verification.responsiblePerson")}: {form.contact_person_name || t("vendor.verification.notSet")}</li>
+                <li>{t("vendor.verification.documents")}: {primaryDocument?.document_name || t("vendor.verification.notSet")}</li>
               </GuidanceList>
             </Note>
             <ActionRow>
@@ -1352,10 +1359,10 @@ export function VendorVerificationView() {
                 disabled={!canSubmit || submitting || uploadingDocumentIndex !== null}
                 onClick={() => void handleSubmit()}
               >
-                {submitting ? "Submitting..." : "Confirm and submit"}
+                {submitting ? t("vendor.verification.submitting") : t("vendor.verification.confirmSubmit")}
               </Button>
               <SecondaryButton type="button" onClick={() => setSubmitConfirmOpen(false)} disabled={submitting}>
-                Go back
+                {t("vendor.verification.goBack")}
               </SecondaryButton>
             </ActionRow>
           </OverlayPanel>

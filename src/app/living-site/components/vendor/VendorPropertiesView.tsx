@@ -23,6 +23,7 @@ import { withActiveVendorHeaders } from "@/app/living-site/lib/active-context";
 import { formatCurrency } from "@/app/living-site/lib/format";
 import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
 import { CustomSelect } from "@/app/living-site/components/form-controls/CustomSelect";
+import { useI18n } from "@/app/living-site/lib/i18n";
 
 const Page = styled.div<{ $embedded?: boolean }>`
   display: grid;
@@ -568,12 +569,13 @@ type VendorPropertiesViewProps = {
 export function VendorPropertiesView({
   embedded = false,
   hideHeader = false,
-  title = "Properties",
-  subtitle = "Manage the live properties linked to this vendor workspace, then open each one for workspace-specific detail and editing.",
+  title,
+  subtitle,
   onSelectProperty,
   vendorId = null,
 }: VendorPropertiesViewProps = {}) {
   const { authToken } = useAppState();
+  const { t } = useI18n();
   const [items, setItems] = useState<VendorPropertyItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -634,10 +636,10 @@ export function VendorPropertiesView({
         const payload = (await response.json()) as { items?: VendorPropertyItem[]; error?: string };
         const workspacePayload = (await workspaceResponse.json()) as WorkspaceLimits & { error?: string };
         if (!response.ok) {
-          throw new Error(payload?.error || "Unable to load vendor properties.");
+          throw new Error(payload?.error || t("vendor.properties.loadingError"));
         }
         if (!workspaceResponse.ok) {
-          throw new Error(workspacePayload?.error || "Unable to load workspace limits.");
+          throw new Error(workspacePayload?.error || t("vendor.properties.limitError"));
         }
         if (!cancelled) {
           setItems(payload.items ?? []);
@@ -645,7 +647,7 @@ export function VendorPropertiesView({
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Unable to load vendor properties.");
+          setError(err instanceof Error ? err.message : t("vendor.properties.loadingError"));
         }
       } finally {
         if (!cancelled) {
@@ -663,6 +665,15 @@ export function VendorPropertiesView({
   function applySearch() {
     setQuery(searchInput.trim());
   }
+
+  const resolvedTitle = title ?? t("vendor.properties.title");
+  const resolvedSubtitle = subtitle ?? t("vendor.properties.subtitle");
+  const recommendedUpgrade = workspaceLimits?.suggestedUpgrade
+    ? t("vendor.properties.recommendedUpgrade", {
+        name: workspaceLimits.suggestedUpgrade.name,
+        price: workspaceLimits.suggestedUpgrade.priceLabel,
+      })
+    : "";
 
   if (loading) {
     return embedded ? (
@@ -685,7 +696,7 @@ export function VendorPropertiesView({
         ))}
       </EmbeddedLoadingState>
     ) : (
-      <LoadingOverlay message="Loading properties..." />
+      <LoadingOverlay message={t("vendor.properties.loading")} />
     );
   }
 
@@ -694,12 +705,12 @@ export function VendorPropertiesView({
       {!hideHeader ? (
         <Header $embedded={embedded}>
           <Heading>
-            <Title $embedded={embedded}>{title}</Title>
-            <Subtitle $embedded={embedded}>{subtitle}</Subtitle>
+            <Title $embedded={embedded}>{resolvedTitle}</Title>
+            <Subtitle $embedded={embedded}>{resolvedSubtitle}</Subtitle>
           </Heading>
           <ActionLink $embedded={embedded} href="/request-sale">
             <Plus size={18} />
-            <span>Request listing</span>
+            <span>{t("vendor.properties.requestListing")}</span>
           </ActionLink>
         </Header>
       ) : null}
@@ -707,12 +718,12 @@ export function VendorPropertiesView({
       {workspaceLimits?.listingNearLimit ? (
         <Notice $danger={workspaceLimits.listingOverLimit} $embedded={embedded}>
           {workspaceLimits.listingOverLimit
-            ? "This workspace is already over its current listing soft limit. New listing intake should move behind an upgrade flow in a later phase."
-            : `This workspace is close to its listing limit: ${workspaceLimits.listingCount ?? items.length}/${workspaceLimits.listingLimit ?? items.length}. ${
-                workspaceLimits.suggestedUpgrade
-                  ? `Recommended upgrade: ${workspaceLimits.suggestedUpgrade.name} (${workspaceLimits.suggestedUpgrade.priceLabel}).`
-                  : ""
-              }`}
+            ? t("vendor.properties.limitOver")
+            : t("vendor.properties.limitNear", {
+                count: workspaceLimits.listingCount ?? items.length,
+                limit: workspaceLimits.listingLimit ?? items.length,
+                upgrade: recommendedUpgrade,
+              })}
         </Notice>
       ) : null}
 
@@ -727,22 +738,22 @@ export function VendorPropertiesView({
             $embedded={embedded}
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
-            placeholder="Search title or location"
-            aria-label="Search properties"
+            placeholder={t("vendor.properties.searchPlaceholder")}
+            aria-label={t("vendor.properties.searchAria")}
           />
-          <SearchButton type="submit" $embedded={embedded} aria-label="Search listings">
+          <SearchButton type="submit" $embedded={embedded} aria-label={t("vendor.properties.searchButtonAria")}>
             <Search />
           </SearchButton>
         </SearchField>
         <CustomSelect
           id="vendor-property-status"
           name="vendor-property-status"
-          label="Status"
+          label={t("vendor.properties.status")}
           value={status}
           onChange={setStatus}
           hideLabel
         >
-          <option value="">All statuses</option>
+          <option value="">{t("vendor.properties.allStatuses")}</option>
           <option value="draft">Draft</option>
           <option value="active">Active</option>
           <option value="paused">Paused</option>
@@ -756,24 +767,24 @@ export function VendorPropertiesView({
         <CustomSelect
           id="vendor-property-deal"
           name="vendor-property-deal"
-          label="Deal"
+          label={t("vendor.properties.deal")}
           value={dealType}
           onChange={setDealType}
           hideLabel
         >
-          <option value="">All deals</option>
-          <option value="sale">Sale</option>
-          <option value="rent">Rent</option>
+          <option value="">{t("vendor.properties.allDeals")}</option>
+          <option value="sale">{getDealTypeLabel("sale")}</option>
+          <option value="rent">{getDealTypeLabel("rent")}</option>
         </CustomSelect>
         <CustomSelect
           id="vendor-property-type"
           name="vendor-property-type"
-          label="Type"
+          label={t("vendor.properties.type")}
           value={propertyType}
           onChange={setPropertyType}
           hideLabel
         >
-          <option value="">All types</option>
+          <option value="">{t("vendor.properties.allTypes")}</option>
           {propertyTypeDefinitions.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
@@ -800,9 +811,9 @@ export function VendorPropertiesView({
                   }}
                 >
                   <Filter size={16} />
-                  <span>No properties matched this workspace filter.</span>
+                  <span>{t("vendor.properties.noMatchTitle")}</span>
                 </div>
-                Create a new listing request or relax the filters to see more results.
+                {t("vendor.properties.noMatchCopy")}
               </EmptyCard>
             ) : null}
 
@@ -815,7 +826,7 @@ export function VendorPropertiesView({
                       onClick={() => {
                         onSelectProperty?.(property);
                       }}
-                      aria-label={`Open ${property.title || "property"} details`}
+                      aria-label={`Open ${property.title || t("listing.property")} details`}
                     >
                       <EmbeddedFloatingPills>
                         <EmbeddedPill $embedded $tone={getListingStatusTone(property.status)}>
@@ -825,7 +836,7 @@ export function VendorPropertiesView({
                           {getDealTypeLabel(property.deal_type)}
                         </EmbeddedPill>
                         <EmbeddedPill $embedded $tone="price">
-                          {formatCurrency(property.price ?? undefined, property.currency ?? "MMK", "Contact")}
+                          {formatCurrency(property.price ?? undefined, property.currency ?? "MMK", t("listing.contactPrice"))}
                         </EmbeddedPill>
                       </EmbeddedFloatingPills>
                       <EmbeddedCardRow>
@@ -835,16 +846,16 @@ export function VendorPropertiesView({
                         <EmbeddedCardBody>
                           <EmbeddedLeftStack>
                             <CardTop>
-                              <CardTitle $embedded>{property.title || "Untitled property"}</CardTitle>
+                              <CardTitle $embedded>{property.title || t("vendor.properties.untitled")}</CardTitle>
                             </CardTop>
                             <EmbeddedFooterMeta>
                               <EmbeddedFooterLine>
                                 <MapPin />
-                                <span>{[property.district || property.city, property.township].filter(Boolean).join(" / ") || "Unspecified"}</span>
+                                <span>{[property.district || property.city, property.township].filter(Boolean).join(" / ") || t("vendor.properties.unspecified")}</span>
                               </EmbeddedFooterLine>
                               <EmbeddedFooterLine>
                                 <Calendar />
-                                <span>{property.appointments_count} appointments</span>
+                                <span>{property.appointments_count} {t("vendor.properties.appointments")}</span>
                               </EmbeddedFooterLine>
                             </EmbeddedFooterMeta>
                           </EmbeddedLeftStack>
@@ -869,39 +880,39 @@ export function VendorPropertiesView({
             <EmptyCard>
               <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 10, color: "#dbe2ef", fontWeight: 700 }}>
                 <Filter size={16} />
-                <span>No properties matched this workspace filter.</span>
-              </div>
-              Create a new listing request or relax the filters to see more results.
-            </EmptyCard>
-          ) : null}
+                  <span>{t("vendor.properties.noMatchTitle")}</span>
+                </div>
+                {t("vendor.properties.noMatchCopy")}
+              </EmptyCard>
+            ) : null}
 
           {!!items.length && (
             <Grid>
               {items.map((property) => (
                 <Card key={property.id}>
                   <CardTop>
-                    <CardTitle>{property.title || "Untitled property"}</CardTitle>
+                    <CardTitle>{property.title || t("vendor.properties.untitled")}</CardTitle>
                     <Pill $tone={getListingStatusTone(property.status)}>{labelize(property.status)}</Pill>
                   </CardTop>
                   <Meta>
                     <Pill $tone="deal">{labelize(property.deal_type)}</Pill>
                     <Pill>{labelize(property.property_type)}</Pill>
                     <Pill $tone={property.verification_status === "verified" || property.verification_status === "approved" ? "status-success" : "status-muted"}>
-                      {`Verification: ${labelize(property.verification_status)}`}
+                      {`${t("vendor.properties.verification")}: ${labelize(property.verification_status)}`}
                     </Pill>
                   </Meta>
                   <Row>
-                    <span>Price</span>
-                    <Strong>{formatCurrency(property.price ?? undefined, property.currency ?? "MMK", "Contact")}</Strong>
+                    <span>{t("vendor.properties.price")}</span>
+                    <Strong>{formatCurrency(property.price ?? undefined, property.currency ?? "MMK", t("listing.contactPrice"))}</Strong>
                   </Row>
                   <Row>
-                    <span>Location</span>
-                    <Strong>{[property.district || property.city, property.township].filter(Boolean).join(" / ") || "Unspecified"}</Strong>
+                    <span>{t("vendor.properties.location")}</span>
+                    <Strong>{[property.district || property.city, property.township].filter(Boolean).join(" / ") || t("vendor.properties.unspecified")}</Strong>
                   </Row>
                   <Footer>
-                    <span style={{ color: "#9aa4b6" }}>{property.appointments_count} appointments</span>
+                    <span style={{ color: "#9aa4b6" }}>{property.appointments_count} {t("vendor.properties.appointments")}</span>
                     <OpenLink href={`/vendor/properties/${property.id}`}>
-                      <span>Open workspace</span>
+                      <span>{t("vendor.properties.openWorkspace")}</span>
                       <ChevronRight size={16} />
                     </OpenLink>
                   </Footer>

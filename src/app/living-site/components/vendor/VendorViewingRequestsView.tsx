@@ -5,6 +5,7 @@ import styled from "styled-components";
 import { CalendarRange } from "lucide-react";
 import { useAppState } from "@/app/living-site/lib/app-state";
 import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
+import { useI18n } from "@/app/living-site/lib/i18n";
 
 const Page = styled.div`
   display: grid;
@@ -164,6 +165,7 @@ function labelizeStatus(value: string | null | undefined) {
 
 export function VendorViewingRequestsView() {
   const { authToken } = useAppState();
+  const { t } = useI18n();
   const [items, setItems] = useState<ViewingRequestItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -184,14 +186,14 @@ export function VendorViewingRequestsView() {
         });
         const payload = (await response.json()) as { items?: ViewingRequestItem[]; error?: string };
         if (!response.ok) {
-          throw new Error(payload?.error || "Unable to load viewing requests.");
+          throw new Error(payload?.error || t("vendor.viewing.loadError"));
         }
         if (!cancelled) {
           setItems(payload.items ?? []);
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Unable to load viewing requests.");
+          setError(err instanceof Error ? err.message : t("vendor.viewing.loadError"));
         }
       } finally {
         if (!cancelled) {
@@ -230,27 +232,26 @@ export function VendorViewingRequestsView() {
 
       const payload = (await response.json().catch(() => null)) as { error?: string } | null;
       if (!response.ok) {
-        throw new Error(payload?.error || "Unable to update lead status.");
+        throw new Error(payload?.error || t("vendor.viewing.updateError"));
       }
     } catch (err) {
       setItems(previousItems);
-      setError(err instanceof Error ? err.message : "Unable to update lead status.");
+      setError(err instanceof Error ? err.message : t("vendor.viewing.updateError"));
     } finally {
       setSavingId(null);
     }
   };
 
   if (loading) {
-    return <LoadingOverlay message="Loading viewing requests..." />;
+    return <LoadingOverlay message={t("vendor.viewing.loading")} />;
   }
 
   return (
     <Page>
       <div style={{ display: "grid", gap: 6 }}>
-        <Title>Viewing requests</Title>
+        <Title>{t("vendor.viewing.title")}</Title>
         <Subtitle>
-          Buyer and renter viewing requests linked to properties created by your vendor workspace members. Use lead
-          statuses to track each customer from new through appointment, viewing, negotiation, and close.
+          {t("vendor.viewing.subtitle")}
         </Subtitle>
       </div>
 
@@ -260,9 +261,9 @@ export function VendorViewingRequestsView() {
         <Empty>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 8, color: "#e5e7eb", fontWeight: 700 }}>
             <CalendarRange size={16} />
-            <span>No viewing requests yet.</span>
+            <span>{t("vendor.viewing.emptyTitle")}</span>
           </div>
-          Requests from interested clients will show up here as soon as they target your active or reserved properties.
+          {t("vendor.viewing.emptyCopy")}
         </Empty>
       ) : null}
 
@@ -272,32 +273,32 @@ export function VendorViewingRequestsView() {
             <Card key={item.id}>
               <Top>
                 <div style={{ display: "grid", gap: 6 }}>
-                  <Property>{item.property?.title || "Property"}</Property>
+                  <Property>{item.property?.title || t("vendor.viewing.property")}</Property>
                   <Meta>
                     {[item.property?.district || item.property?.city, item.property?.township].filter(Boolean).join(" / ") ||
-                      "Location pending"}
+                      t("vendor.viewing.locationPending")}
                   </Meta>
                 </div>
                 <StatusPill $status={item.lead_status || "new"}>{labelizeStatus(item.lead_status)}</StatusPill>
               </Top>
               <Row>
-                <span>Client</span>
-                <strong>{item.name || "Unnamed requester"}</strong>
+                <span>{t("vendor.viewing.client")}</span>
+                <strong>{item.name || t("vendor.viewing.unnamedRequester")}</strong>
               </Row>
               <Row>
-                <span>Phone</span>
-                <strong>{item.phone || "No phone"}</strong>
+                <span>{t("vendor.viewing.phone")}</span>
+                <strong>{item.phone || t("vendor.viewing.noPhone")}</strong>
               </Row>
               <Row>
-                <span>Date</span>
-                <strong>{item.preferred_date || "Open"}</strong>
+                <span>{t("vendor.viewing.date")}</span>
+                <strong>{item.preferred_date || t("vendor.viewing.open")}</strong>
               </Row>
               <Row>
-                <span>Time window</span>
-                <strong>{item.preferred_time_window || "Flexible"}</strong>
+                <span>{t("vendor.viewing.timeWindow")}</span>
+                <strong>{item.preferred_time_window || t("vendor.viewing.flexible")}</strong>
               </Row>
               <StatusRow>
-                <span style={{ color: "#98a2b3" }}>Lead status</span>
+                <span style={{ color: "#98a2b3" }}>{t("vendor.viewing.leadStatus")}</span>
                 <StatusSelect
                   value={item.lead_status || "new"}
                   onChange={(event) => void handleStatusChange(item.id, event.target.value)}

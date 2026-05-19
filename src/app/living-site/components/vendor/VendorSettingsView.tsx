@@ -8,6 +8,7 @@ import { useAppState } from "@/app/living-site/lib/app-state";
 import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
 import { MarketplaceHeader } from "@/app/living-site/components/MarketplaceHeader";
 import { slugifyVendorSlug } from "@/lib/vendor-storefront";
+import { useI18n } from "@/app/living-site/lib/i18n";
 
 const Shell = styled.div`
   min-height: 100vh;
@@ -354,6 +355,7 @@ export function VendorSettingsView() {
   const pathname = usePathname();
   const router = useRouter();
   const { authToken } = useAppState();
+  const { t } = useI18n();
   const [workspace, setWorkspace] = useState<WorkspaceSummary | null>(null);
   const [storefront, setStorefront] = useState<StorefrontFormState | null>(null);
   const [loading, setLoading] = useState(true);
@@ -380,7 +382,7 @@ export function VendorSettingsView() {
         });
         const payload = (await response.json()) as WorkspaceSummary & { error?: string };
         if (!response.ok) {
-          throw new Error(payload?.error || "Unable to load workspace settings.");
+          throw new Error(payload?.error || t("vendor.settings.loadingError"));
         }
         if (!cancelled) {
           setWorkspace(payload);
@@ -388,7 +390,7 @@ export function VendorSettingsView() {
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Unable to load workspace settings.");
+          setError(err instanceof Error ? err.message : t("vendor.settings.loadingError"));
         }
       } finally {
         if (!cancelled) {
@@ -410,11 +412,11 @@ export function VendorSettingsView() {
       <Shell>
         <MarketplaceHeader />
         <PageShell>
-          <LoadingOverlay message="Loading settings..." />
+          <LoadingOverlay message={t("vendor.settings.loading")} />
         </PageShell>
       </Shell>
     ) : (
-      <LoadingOverlay message="Loading settings..." />
+      <LoadingOverlay message={t("vendor.settings.loading")} />
     );
   }
 
@@ -423,16 +425,42 @@ export function VendorSettingsView() {
       <Shell>
         <MarketplaceHeader />
         <PageShell>
-          <LoadingOverlay message="Saving storefront..." />
+          <LoadingOverlay message={t("vendor.settings.saving")} />
         </PageShell>
       </Shell>
     ) : (
-      <LoadingOverlay message="Saving storefront..." />
+      <LoadingOverlay message={t("vendor.settings.saving")} />
     );
   }
 
-  const canEditStorefront = workspace?.membership.role === "owner" || workspace?.membership.role === "admin";
+  const workspaceRole = (workspace?.membership.role ?? "").trim().toLowerCase();
+  const canEditStorefront = workspaceRole === "owner" || workspaceRole === "admin";
+  const canEditStorefrontIdentity = workspaceRole === "owner";
+  const canEditStorefrontVisibility = workspaceRole === "owner";
+  const canEditStorefrontBranding = workspaceRole === "owner" || workspaceRole === "admin";
+  const canEditStorefrontPublicCopy = workspaceRole === "owner" || workspaceRole === "admin";
   const identityLocked = workspace?.vendor.verified_status === "approved";
+
+  if (workspace && !canEditStorefront) {
+    const blockedContent = (
+      <Page>
+        <HeroCard>
+          <Title>{t("vendor.settings.title")}</Title>
+          <Copy>{t("vendor.settings.blocked")}</Copy>
+        </HeroCard>
+      </Page>
+    );
+
+    return isHubSettings ? (
+      <Shell>
+        <MarketplaceHeader />
+        <PageShell>{blockedContent}</PageShell>
+      </Shell>
+    ) : (
+      blockedContent
+    );
+  }
+
   const handleStorefrontChange = <K extends keyof StorefrontFormState>(key: K, value: StorefrontFormState[K]) => {
     setStorefront((current) => (current ? { ...current, [key]: value } : current));
   };
@@ -459,11 +487,11 @@ export function VendorSettingsView() {
       });
       const payload = (await response.json().catch(() => null)) as { publicUrl?: string; error?: string } | null;
       if (!response.ok || !payload?.publicUrl) {
-        throw new Error(payload?.error || `Unable to upload ${kind}.`);
+        throw new Error(payload?.error || t("vendor.settings.uploadError", { kind }));
       }
       handleStorefrontChange(field, payload.publicUrl);
     } catch (err) {
-      setError(err instanceof Error ? err.message : `Unable to upload ${kind}.`);
+      setError(err instanceof Error ? err.message : t("vendor.settings.uploadError", { kind }));
     } finally {
       setUploading(false);
     }
@@ -476,21 +504,48 @@ export function VendorSettingsView() {
     setError(null);
     setSaveMessage(null);
     try {
+      const requestBody: Record<string, unknown> = canEditStorefrontIdentity
+        ? {
+            slug: slugifyVendorSlug(storefront.slug || workspace.vendor.name),
+            tagline: storefront.tagline,
+            description: storefront.description,
+            contact_phone: storefront.contact_phone,
+            contact_email: storefront.contact_email,
+            logo_url: storefront.logo_url,
+            facebook_url: storefront.facebook_url,
+            telegram_url: storefront.telegram_url,
+            viber_phone: storefront.viber_phone,
+            tiktok_url: storefront.tiktok_url,
+            website_url: storefront.website_url,
+            cover_image_url: storefront.cover_image_url,
+            strengths: storefront.strengths,
+            public_storefront_enabled: storefront.public_storefront_enabled,
+          }
+        : {
+            tagline: storefront.tagline,
+            description: storefront.description,
+            contact_phone: storefront.contact_phone,
+            contact_email: storefront.contact_email,
+            logo_url: storefront.logo_url,
+            facebook_url: storefront.facebook_url,
+            telegram_url: storefront.telegram_url,
+            viber_phone: storefront.viber_phone,
+            tiktok_url: storefront.tiktok_url,
+            website_url: storefront.website_url,
+            cover_image_url: storefront.cover_image_url,
+            strengths: storefront.strengths,
+          };
       const response = await fetch("/api/vendor/workspace", {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${authToken}`,
         },
-        body: JSON.stringify({
-          ...storefront,
-          slug: slugifyVendorSlug(storefront.slug || workspace.vendor.name),
-          strengths: storefront.strengths,
-        }),
+        body: JSON.stringify(requestBody),
       });
       const payload = (await response.json()) as WorkspaceSummary & { error?: string };
       if (!response.ok) {
-        throw new Error(payload.error || "Unable to save storefront settings.");
+        throw new Error(payload.error || t("vendor.settings.saveError"));
       }
 
       setWorkspace(payload);
@@ -499,9 +554,9 @@ export function VendorSettingsView() {
         router.replace("/hub");
         return;
       }
-      setSaveMessage("Agency storefront saved.");
+      setSaveMessage(t("vendor.settings.saved"));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to save storefront settings.");
+      setError(err instanceof Error ? err.message : t("vendor.settings.saveError"));
     } finally {
       setSaving(false);
     }
@@ -510,10 +565,8 @@ export function VendorSettingsView() {
   const content = (
     <Page>
       <HeroCard>
-        <Title>Organization settings</Title>
-        <Copy>
-          Manage the public agency page buyers see first. Keep your identity, contact channels, and storefront details clean and consistent here.
-        </Copy>
+        <Title>{t("vendor.settings.title")}</Title>
+        <Copy>{t("vendor.settings.subtitle")}</Copy>
       </HeroCard>
 
       {error ? <Copy>{error}</Copy> : null}
@@ -521,19 +574,22 @@ export function VendorSettingsView() {
       {workspace && storefront ? (
         <Card>
           <SectionHeader>
-            <SectionTitle>Agency storefront</SectionTitle>
-            <SectionCopy>
-              This is the public agency profile page buyers use to understand your brand, browse listings, and contact the team.
-            </SectionCopy>
+            <SectionTitle>{t("vendor.settings.storefront")}</SectionTitle>
+            <SectionCopy>{t("vendor.settings.storefrontCopy")}</SectionCopy>
           </SectionHeader>
           {identityLocked ? (
-            <Notice>Name and slug are locked after verification approval. Contact details, branding, and channels can still be updated.</Notice>
+            <Notice>{t("vendor.settings.identityLocked")}</Notice>
+          ) : null}
+          {workspaceRole === "admin" ? (
+            <Notice>
+              {t("vendor.settings.adminNotice")}
+            </Notice>
           ) : null}
           {saveMessage ? <Success>{saveMessage}</Success> : null}
           <SectionBlock>
             <SectionHeader>
-              <SectionTitle>Identity</SectionTitle>
-              <SectionCopy>These are the first storefront details buyers will scan.</SectionCopy>
+              <SectionTitle>{t("vendor.settings.identity")}</SectionTitle>
+              <SectionCopy>{t("vendor.settings.identityCopy")}</SectionCopy>
             </SectionHeader>
             <HiddenFileInput
               ref={logoInputRef}
@@ -561,7 +617,7 @@ export function VendorSettingsView() {
                 <AssetUploadButton
                   type="button"
                   onClick={() => logoInputRef.current?.click()}
-                  disabled={!canEditStorefront || saving || uploadingLogo}
+                  disabled={!canEditStorefrontBranding || saving || uploadingLogo}
                 >
                   <AssetThumb $image={storefront.logo_url || undefined}>
                     {!storefront.logo_url ? <ImageIcon size={22} /> : null}
@@ -584,7 +640,7 @@ export function VendorSettingsView() {
                   type="button"
                   $wide
                   onClick={() => coverInputRef.current?.click()}
-                  disabled={!canEditStorefront || saving || uploadingCover}
+                  disabled={!canEditStorefrontBranding || saving || uploadingCover}
                 >
                   <AssetThumb $image={storefront.cover_image_url || undefined} $wide>
                     {!storefront.cover_image_url ? <ImageIcon size={22} /> : null}
@@ -608,7 +664,7 @@ export function VendorSettingsView() {
                   value={storefront.slug}
                   onChange={(event) => handleStorefrontChange("slug", slugifyVendorSlug(event.target.value))}
                   placeholder="eain-chan-myay"
-                  disabled={!canEditStorefront || saving || identityLocked}
+                  disabled={!canEditStorefrontIdentity || saving || identityLocked}
                 />
               </FormField>
               <FormField>
@@ -617,7 +673,7 @@ export function VendorSettingsView() {
                   value={storefront.tagline}
                   onChange={(event) => handleStorefrontChange("tagline", event.target.value)}
                   placeholder="Trusted Yangon residential specialists"
-                  disabled={!canEditStorefront || saving}
+                  disabled={!canEditStorefrontPublicCopy || saving}
                 />
               </FormField>
               <FormField style={{ gridColumn: "1 / -1" }}>
@@ -626,7 +682,7 @@ export function VendorSettingsView() {
                   value={storefront.description}
                   onChange={(event) => handleStorefrontChange("description", event.target.value)}
                   placeholder="What makes your agency strong, trusted, and useful for buyers."
-                  disabled={!canEditStorefront || saving}
+                  disabled={!canEditStorefrontPublicCopy || saving}
                 />
               </FormField>
               <FormField style={{ gridColumn: "1 / -1" }}>
@@ -635,7 +691,7 @@ export function VendorSettingsView() {
                   value={storefront.strengths}
                   onChange={(event) => handleStorefrontChange("strengths", event.target.value)}
                   placeholder={"One strength per line\nFast viewing coordination\nStrong condo inventory"}
-                  disabled={!canEditStorefront || saving}
+                  disabled={!canEditStorefrontPublicCopy || saving}
                 />
               </FormField>
             </FormGrid>
@@ -653,7 +709,7 @@ export function VendorSettingsView() {
                   value={storefront.contact_phone}
                   onChange={(event) => handleStorefrontChange("contact_phone", event.target.value)}
                   placeholder="+95..."
-                  disabled={!canEditStorefront || saving}
+                  disabled={!canEditStorefrontPublicCopy || saving}
                 />
               </FormField>
               <FormField>
@@ -662,7 +718,7 @@ export function VendorSettingsView() {
                   value={storefront.contact_email}
                   onChange={(event) => handleStorefrontChange("contact_email", event.target.value)}
                   placeholder="agency@example.com"
-                  disabled={!canEditStorefront || saving}
+                  disabled={!canEditStorefrontPublicCopy || saving}
                 />
               </FormField>
               <FormField>
@@ -671,7 +727,7 @@ export function VendorSettingsView() {
                   value={storefront.facebook_url}
                   onChange={(event) => handleStorefrontChange("facebook_url", event.target.value)}
                   placeholder="https://facebook.com/youragency"
-                  disabled={!canEditStorefront || saving}
+                  disabled={!canEditStorefrontPublicCopy || saving}
                 />
               </FormField>
               <FormField>
@@ -680,7 +736,7 @@ export function VendorSettingsView() {
                   value={storefront.telegram_url}
                   onChange={(event) => handleStorefrontChange("telegram_url", event.target.value)}
                   placeholder="https://t.me/youragency"
-                  disabled={!canEditStorefront || saving}
+                  disabled={!canEditStorefrontPublicCopy || saving}
                 />
               </FormField>
               <FormField>
@@ -689,7 +745,7 @@ export function VendorSettingsView() {
                   value={storefront.viber_phone}
                   onChange={(event) => handleStorefrontChange("viber_phone", event.target.value)}
                   placeholder="+95..."
-                  disabled={!canEditStorefront || saving}
+                  disabled={!canEditStorefrontPublicCopy || saving}
                 />
               </FormField>
               <FormField>
@@ -698,7 +754,7 @@ export function VendorSettingsView() {
                   value={storefront.tiktok_url}
                   onChange={(event) => handleStorefrontChange("tiktok_url", event.target.value)}
                   placeholder="https://www.tiktok.com/@youragency"
-                  disabled={!canEditStorefront || saving}
+                  disabled={!canEditStorefrontPublicCopy || saving}
                 />
               </FormField>
               <FormField style={{ gridColumn: "1 / -1" }}>
@@ -707,7 +763,7 @@ export function VendorSettingsView() {
                   value={storefront.website_url}
                   onChange={(event) => handleStorefrontChange("website_url", event.target.value)}
                   placeholder="https://youragency.com"
-                  disabled={!canEditStorefront || saving}
+                  disabled={!canEditStorefrontPublicCopy || saving}
                 />
               </FormField>
             </FormGrid>
@@ -724,7 +780,7 @@ export function VendorSettingsView() {
                 type="checkbox"
                 checked={storefront.public_storefront_enabled}
                 onChange={(event) => handleStorefrontChange("public_storefront_enabled", event.target.checked)}
-                disabled={!canEditStorefront || saving}
+                disabled={!canEditStorefrontVisibility || saving}
               />
               Public storefront enabled
             </Toggle>

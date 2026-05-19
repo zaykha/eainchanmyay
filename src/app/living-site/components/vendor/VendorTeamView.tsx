@@ -5,6 +5,7 @@ import styled from "styled-components";
 import { ShieldPlus, UserPlus } from "lucide-react";
 import { useAppState } from "@/app/living-site/lib/app-state";
 import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
+import { useI18n } from "@/app/living-site/lib/i18n";
 
 const Page = styled.div`
   display: grid;
@@ -213,10 +214,12 @@ function labelize(value: string | null | undefined) {
 
 export function VendorTeamView() {
   const { authToken } = useAppState();
+  const { t } = useI18n();
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [canManage, setCanManage] = useState(false);
+  const [workspaceRole, setWorkspaceRole] = useState("");
   const [workspaceLimits, setWorkspaceLimits] = useState<WorkspaceLimits["limits"] | null>(null);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("agent");
@@ -225,6 +228,10 @@ export function VendorTeamView() {
 
   const activeCount = useMemo(
     () => members.filter((member) => member.status === "active").length,
+    [members]
+  );
+  const ownerCount = useMemo(
+    () => members.filter((member) => member.role === "owner" && member.status === "active").length,
     [members]
   );
 
@@ -250,20 +257,29 @@ export function VendorTeamView() {
         ]);
         const payload = (await teamResponse.json()) as { members?: Member[]; error?: string };
         const workspacePayload = (await workspaceResponse.json()) as WorkspaceLimits;
-        if (!teamResponse.ok) {
-          throw new Error(payload?.error || "Unable to load the vendor team.");
-        }
         if (!workspaceResponse.ok) {
-          throw new Error(workspacePayload?.error || "Unable to load vendor workspace permissions.");
+          throw new Error(workspacePayload?.error || t("vendor.team.workspaceError"));
         }
         if (!cancelled) {
+          const nextWorkspaceRole = String(workspacePayload.membership?.role ?? "").trim().toLowerCase();
+          setWorkspaceRole(nextWorkspaceRole);
+          if (!["owner", "admin"].includes(nextWorkspaceRole)) {
+            setMembers([]);
+            setCanManage(false);
+            setWorkspaceLimits(workspacePayload.limits ?? null);
+            setLoading(false);
+            return;
+          }
+          if (!teamResponse.ok) {
+            throw new Error(payload?.error || t("vendor.team.loadingError"));
+          }
           setMembers(payload.members ?? []);
-          setCanManage(["owner", "admin"].includes(String(workspacePayload.membership?.role ?? "")));
+          setCanManage(["owner", "admin"].includes(nextWorkspaceRole));
           setWorkspaceLimits(workspacePayload.limits ?? null);
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Unable to load the vendor team.");
+          setError(err instanceof Error ? err.message : t("vendor.team.loadingError"));
         }
       } finally {
         if (!cancelled) {
@@ -277,6 +293,16 @@ export function VendorTeamView() {
       cancelled = true;
     };
   }, [authToken]);
+
+  const canInviteAdminSeats = workspaceRole === "owner";
+  const canManageMember = (member: Member) =>
+    workspaceRole === "owner" ? true : workspaceRole === "admin" ? member.role === "agent" : false;
+
+  useEffect(() => {
+    if (!canInviteAdminSeats && inviteRole !== "agent") {
+      setInviteRole("agent");
+    }
+  }, [canInviteAdminSeats, inviteRole]);
 
   const handleInvite = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -292,17 +318,17 @@ export function VendorTeamView() {
         },
         body: JSON.stringify({
           email: inviteEmail,
-          role: inviteRole,
+          role: canInviteAdminSeats ? inviteRole : "agent",
         }),
       });
       const payload = (await response.json()) as { invite?: { email?: string; role?: string; status?: string }; error?: string };
       if (!response.ok) {
-        throw new Error(payload?.error || "Unable to send vendor invite.");
+        throw new Error(payload?.error || t("vendor.team.inviteError"));
       }
       setInviteEmail("");
       setInviteRole("agent");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to send vendor invite.");
+      setError(err instanceof Error ? err.message : t("vendor.team.inviteError"));
     } finally {
       setSavingInvite(false);
     }
@@ -327,7 +353,7 @@ export function VendorTeamView() {
       });
       const payload = (await response.json()) as { error?: string };
       if (!response.ok) {
-        throw new Error(payload?.error || "Unable to update the team member.");
+        throw new Error(payload?.error || t("vendor.team.updateError"));
       }
       setMembers((prev) =>
         prev.map((item) =>
@@ -341,23 +367,36 @@ export function VendorTeamView() {
         )
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to update the team member.");
+      setError(err instanceof Error ? err.message : t("vendor.team.updateError"));
     } finally {
       setSavingUserId(null);
     }
   };
 
   if (loading) {
-    return <LoadingOverlay message="Loading team..." />;
+    return <LoadingOverlay message={t("vendor.team.loading")} />;
+  }
+
+  if (!canManage) {
+    return (
+      <Page>
+        <Header>
+          <Heading>
+            <Title>{t("vendor.team.title")}</Title>
+            <Subtitle>{t("vendor.team.blocked")}</Subtitle>
+          </Heading>
+        </Header>
+      </Page>
+    );
   }
 
   return (
     <Page>
       <Header>
         <Heading>
-          <Title>Team</Title>
+          <Title>{t("vendor.team.title")}</Title>
           <Subtitle>
-            Manage vendor workspace seats under this company. Phase 2 adds plan-aware seat visibility while the billing and hard enforcement layer is still being built.
+            {t("vendor.team.subtitle")}
           </Subtitle>
         </Heading>
       </Header>
@@ -367,12 +406,12 @@ export function VendorTeamView() {
       {workspaceLimits && workspaceLimits.agentNearLimit ? (
         <Notice $danger={workspaceLimits.agentOverLimit}>
           {workspaceLimits.agentOverLimit
-            ? "This workspace is above its current seat soft limit. New billing enforcement should force an upgrade or seat reduction in a later phase."
-            : `This workspace is close to its seat limit: ${workspaceLimits.agentCount ?? activeCount}/${workspaceLimits.agentLimit ?? activeCount}. ${
+            ? t("vendor.team.limitOver")
+            : t("vendor.team.limitNear", { count: workspaceLimits.agentCount ?? activeCount, limit: workspaceLimits.agentLimit ?? activeCount, upgrade:
                 workspaceLimits.suggestedUpgrade
                   ? `Recommended upgrade: ${workspaceLimits.suggestedUpgrade.name} (${workspaceLimits.suggestedUpgrade.priceLabel}).`
                   : ""
-              }`}
+              })}
         </Notice>
       ) : null}
 
@@ -380,28 +419,30 @@ export function VendorTeamView() {
         <Card>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 8, color: "#f8fafc", fontWeight: 700 }}>
             <UserPlus size={18} color="#ff5d78" />
-            <span>Add team member</span>
+            <span>{t("vendor.team.addMember")}</span>
           </div>
           {canManage ? (
             <>
               <Empty>
-                Send an email invite and the recipient will finish onboarding from the invite link before joining this workspace.
+                {canInviteAdminSeats
+                  ? t("vendor.team.inviteCopyOwner")
+                  : t("vendor.team.inviteCopyAdmin")}
               </Empty>
               <Form onSubmit={handleInvite}>
                 <Input
                   type="email"
                   value={inviteEmail}
                   onChange={(event) => setInviteEmail(event.target.value)}
-                  placeholder="member@example.com"
+                  placeholder={t("vendor.team.emailPlaceholder")}
                   required
                 />
                 <Select value={inviteRole} onChange={(event) => setInviteRole(event.target.value)}>
-                  <option value="agent">Agent</option>
-                  <option value="admin">Admin</option>
-                  <option value="owner">Owner</option>
+                  <option value="agent">{t("vendor.team.agent")}</option>
+                  {canInviteAdminSeats ? <option value="admin">{t("role.admin")}</option> : null}
+                  {canInviteAdminSeats ? <option value="owner">{t("role.owner")}</option> : null}
                 </Select>
                 <Button type="submit" disabled={savingInvite}>
-                  {savingInvite ? "Sending..." : "Send invite"}
+                  {savingInvite ? t("vendor.team.sending") : t("vendor.team.sendInvite")}
                 </Button>
               </Form>
             </>
@@ -413,35 +454,34 @@ export function VendorTeamView() {
         <Card>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 8, color: "#f8fafc", fontWeight: 700 }}>
             <ShieldPlus size={18} color="#ff5d78" />
-            <span>Workspace summary</span>
+            <span>{t("vendor.team.workspaceSummary")}</span>
           </div>
-          <Empty>{activeCount} active seats across this vendor workspace.</Empty>
+          <Empty>{t("vendor.team.activeSeats", { count: activeCount })}</Empty>
           <Empty>
-            Roles:
-            <br />
-            Owner: full vendor control
-            <br />
-            Admin: operational and team management
-            <br />
-            Agent: day-to-day workspace access and field operations
+            {t("vendor.team.rolesSummary").split("\n").map((line, index) => (
+              <span key={`team-role-summary-${index}`}>
+                {line}
+                {index < 3 ? <br /> : null}
+              </span>
+            ))}
           </Empty>
         </Card>
       </Grid>
 
       <Card>
         <Title as="h2" style={{ fontSize: "1.2rem" }}>
-          Current members
+          {t("vendor.team.currentMembers")}
         </Title>
         {!members.length ? (
-          <Empty>No team members found for this workspace yet.</Empty>
+          <Empty>{t("vendor.team.noMembers")}</Empty>
         ) : (
           <MembersList>
             {members.map((member) => (
               <MemberCard key={member.user_id}>
                 <MemberTop>
                   <div>
-                    <Name>{member.full_name || member.email || "Unnamed member"}</Name>
-                    <Meta>{member.email || "No email"}</Meta>
+                    <Name>{member.full_name || member.email || t("vendor.team.unnamed")}</Name>
+                    <Meta>{member.email || t("vendor.team.noEmail")}</Meta>
                     {member.phone ? <Meta>{member.phone}</Meta> : null}
                   </div>
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -449,7 +489,7 @@ export function VendorTeamView() {
                     <Pill>{labelize(member.status)}</Pill>
                   </div>
                 </MemberTop>
-                {canManage ? (
+                {canManageMember(member) ? (
                   <MemberActions
                     onSubmit={(event) => {
                       event.preventDefault();
@@ -462,16 +502,18 @@ export function VendorTeamView() {
                     }}
                     >
                       <Select name="role" defaultValue={member.role}>
-                      <option value="agent">Agent</option>
-                      <option value="admin">Admin</option>
-                      <option value="owner">Owner</option>
-                    </Select>
+                        {member.role !== "owner" || ownerCount > 1 ? <option value="agent">{t("vendor.team.agent")}</option> : null}
+                        {workspaceRole === "owner" && (member.role !== "owner" || ownerCount > 1) ? <option value="admin">{t("role.admin")}</option> : null}
+                        {workspaceRole === "owner" ? <option value="owner">{t("role.owner")}</option> : null}
+                      </Select>
                     <Select name="status" defaultValue={member.status}>
-                      <option value="active">Active</option>
-                      <option value="inactive">Inactive</option>
+                      <option value="active">{t("vendor.team.active")}</option>
+                      {member.role !== "owner" || member.status !== "active" || ownerCount > 1 ? (
+                        <option value="inactive">{t("vendor.team.inactive")}</option>
+                      ) : null}
                     </Select>
                     <SecondaryButton type="submit" disabled={savingUserId === member.user_id}>
-                      {savingUserId === member.user_id ? "Saving..." : "Save"}
+                      {savingUserId === member.user_id ? t("vendor.team.saving") : t("vendor.team.save")}
                     </SecondaryButton>
                   </MemberActions>
                 ) : null}

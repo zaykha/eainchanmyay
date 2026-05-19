@@ -30,6 +30,9 @@ type VendorRow = {
   slug: string | null;
   tagline: string | null;
   description: string | null;
+  contact_phone: string | null;
+  contact_email: string | null;
+  viber_phone: string | null;
   logo_url: string | null;
   cover_image_url: string | null;
   plan: string | null;
@@ -70,16 +73,6 @@ function toNumber(value: unknown) {
     return Number.isFinite(parsed) ? parsed : null;
   }
   return null;
-}
-
-function toTitleCase(value: string | null | undefined) {
-  const normalized = String(value ?? "").trim().toLowerCase();
-  if (!normalized) return "";
-  return normalized
-    .split(/[_\s-]+/)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
 }
 
 function toLogoText(value: string | null | undefined) {
@@ -160,7 +153,7 @@ export async function GET() {
   const [vendorsResult, listingsResult] = await Promise.all([
     supabase
       .from("vendors")
-      .select("id,name,slug,tagline,description,logo_url,cover_image_url,plan,verified_status:verification_status,public_storefront_enabled")
+      .select("id,name,slug,tagline,description,contact_phone,contact_email,viber_phone,logo_url,cover_image_url,plan,verified_status:verification_status,public_storefront_enabled")
       .in("id", vendorIds),
     listingIds.length
       ? supabase
@@ -288,15 +281,16 @@ export async function GET() {
           id: String(promotion.id ?? ""),
           kind: "agency",
           name: vendor.name,
-          tagline: promotion.title || vendor.tagline || "Verified agency spotlight",
-          summary: promotion.description || vendor.description || "Promote your agency profile in the homepage hero rotation.",
+          tagline: vendor.tagline || "Trusted. Verified. Results.",
+          summary: vendor.description || "View this verified agency profile, browse listings, and contact the agency directly.",
           logoText: toLogoText(vendor.name),
           logoUrl: vendor.logo_url,
           coverImageUrl: vendor.cover_image_url,
           areaFocus: stats.areaFocus || "Myanmar",
           activeListingsLabel: String(stats.activeListingsCount || 0),
-          planLabel: toTitleCase(vendor.plan) || "Agency",
-          verifiedLabel: vendor.verified_status === "approved" ? "Verified" : "Agency",
+          contactPhone: vendor.contact_phone || null,
+          contactEmail: vendor.contact_email || null,
+          viberPhone: vendor.viber_phone || null,
           targetUrl,
         };
       }

@@ -7,6 +7,8 @@ import { MarketplaceHeader } from "@/app/living-site/components/MarketplaceHeade
 import { VendorPlanSelection } from "@/app/living-site/components/vendor/VendorPlanSelection";
 import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
 import { useAppState } from "@/app/living-site/lib/app-state";
+import { readActiveVendorWorkspace, withActiveVendorHeaders } from "@/app/living-site/lib/active-context";
+import { useI18n } from "@/app/living-site/lib/i18n";
 import type { VendorPlanKey } from "@/lib/vendor-plans";
 
 const Page = styled.main`
@@ -83,10 +85,14 @@ type WorkspacePayload = {
     plan: string | null;
     billing_status: string | null;
   };
+  membership?: {
+    role?: string | null;
+  };
   error?: string;
 };
 
 export default function HubUpgradePage() {
+  const { t } = useI18n();
   const router = useRouter();
   const { user, profileReady, profileRole, authToken } = useAppState();
   const [loading, setLoading] = useState(true);
@@ -127,11 +133,15 @@ export default function HubUpgradePage() {
     const loadWorkspace = async () => {
       setLoading(true);
       setMessage(null);
+      const activeVendorId = readActiveVendorWorkspace(user.id);
 
       const response = await fetch("/api/vendor/workspace?includeUsage=false", {
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-        },
+        headers: withActiveVendorHeaders(
+          {
+            Authorization: `Bearer ${authToken}`,
+          },
+          activeVendorId
+        ),
       });
 
       const payload = (await response.json().catch(() => null)) as WorkspacePayload | null;
@@ -146,9 +156,9 @@ export default function HubUpgradePage() {
 
           if (errorMessage === "Vendor membership not found.") {
             setUpgradeGateError({
-              title: "Set up your agency before upgrading",
-              text: "To upgrade your agency, you need to set up your public agency profile in the app first.",
-              primaryLabel: "Set up agency",
+              title: t("upgrade.setupFirstTitle"),
+              text: t("upgrade.setupFirstCopy"),
+              primaryLabel: t("upgrade.setupAgency"),
               onPrimary: () => router.replace("/agency-setup"),
             });
             setLoading(false);
@@ -156,9 +166,9 @@ export default function HubUpgradePage() {
           }
 
           setUpgradeGateError({
-            title: "Upgrade is limited to your own agency",
-            text: "You can only upgrade the agency that belongs to your account.",
-            primaryLabel: "Back to Hub",
+            title: t("upgrade.ownAgencyTitle"),
+            text: t("upgrade.ownAgencyCopy"),
+            primaryLabel: t("upgrade.backToHub"),
             onPrimary: () => router.replace("/hub"),
           });
           setLoading(false);
@@ -175,6 +185,18 @@ export default function HubUpgradePage() {
         return;
       }
 
+      const workspaceRole = String(payload.membership?.role ?? "").trim().toLowerCase();
+      if (workspaceRole !== "owner") {
+        setUpgradeGateError({
+          title: t("upgrade.ownerOnlyTitle"),
+          text: t("upgrade.ownerOnlyCopy"),
+          primaryLabel: t("upgrade.backToHub"),
+          onPrimary: () => router.replace("/hub"),
+        });
+        setLoading(false);
+        return;
+      }
+
       setWorkspace(payload.vendor);
       setLoading(false);
     };
@@ -187,21 +209,26 @@ export default function HubUpgradePage() {
   }, [authToken, profileReady, profileRole, router, user]);
 
   const handleStartPaidCheckout = async (planKey: VendorPlanKey) => {
-    if (!authToken || planKey === "free") return;
+    if (!authToken || !user || planKey === "free") return;
     setCreatingPlan(planKey);
     setMessage(null);
 
     try {
+      const activeVendorId = readActiveVendorWorkspace(user.id);
       const response = await fetch("/api/vendor/billing/checkout", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${authToken}`,
-        },
+        headers: withActiveVendorHeaders(
+          {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${authToken}`,
+          },
+          activeVendorId
+        ),
         body: JSON.stringify({
           plan: planKey,
           vendorType: "agency",
           vendorName: workspace?.name,
+          vendorId: activeVendorId,
         }),
       });
 
@@ -210,18 +237,18 @@ export default function HubUpgradePage() {
         | null;
 
       if (!response.ok || !payload?.checkoutUrl) {
-        throw new Error(payload?.error ?? "Unable to start Dinger checkout.");
+        throw new Error(payload?.error ?? t("upgrade.startCheckoutFailed"));
       }
 
       window.location.href = payload.checkoutUrl;
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Unable to start Dinger checkout.");
+      setMessage(error instanceof Error ? error.message : t("upgrade.startCheckoutFailed"));
       setCreatingPlan(null);
     }
   };
 
   if (!profileReady || loading) {
-    return <LoadingOverlay message="Preparing upgrade options..." />;
+    return <LoadingOverlay message={t("upgrade.loading")} />;
   }
 
   // If upgrade gating is triggered, show popup instead of the plan grid.
@@ -235,7 +262,7 @@ export default function HubUpgradePage() {
             <ModalText>{upgradeGateError.text}</ModalText>
             <AccessActions>
               <SecondaryAction type="button" onClick={() => setUpgradeGateError(null)}>
-                Back
+                {t("common.back")}
               </SecondaryAction>
               <PrimaryAction
                 type="button"
