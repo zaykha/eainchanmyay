@@ -6,6 +6,7 @@ import styled from "styled-components";
 import { ArrowUpRight, Pencil, MapPinned, Images, CalendarClock } from "lucide-react";
 import { useAppState } from "@/app/living-site/lib/app-state";
 import { formatCurrency } from "@/app/living-site/lib/format";
+import { useI18n } from "@/app/living-site/lib/i18n";
 import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
 
 const Page = styled.div`
@@ -237,6 +238,7 @@ function formatDate(value: string | null | undefined) {
 
 export function VendorPropertyDetailView({ propertyId }: { propertyId: string }) {
   const { authToken } = useAppState();
+  const { t, language } = useI18n();
   const [property, setProperty] = useState<PropertyDetail | null>(null);
   const [images, setImages] = useState<PropertyImage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -341,7 +343,7 @@ export function VendorPropertyDetailView({ propertyId }: { propertyId: string })
 
           <Row>
             <Label>Price</Label>
-            <Value>{formatCurrency(property.price ?? undefined, property.currency ?? "MMK", "Contact")}</Value>
+            <Value>{formatCurrency(property.price ?? undefined, property.currency ?? "MMK", "Contact", language)}</Value>
           </Row>
           <Row>
             <Label>Location</Label>

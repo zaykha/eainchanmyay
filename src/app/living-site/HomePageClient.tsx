@@ -14,7 +14,7 @@ import { formatCurrency } from "@/app/living-site/lib/format";
 import { resolveHeaderAccountPresentation } from "@/app/living-site/lib/header-account";
 import { useI18n } from "@/app/living-site/lib/i18n";
 import { formatPropertyTypeValue, isBedBathPropertyType } from "@/lib/property-types";
-import { getDistricts, getStates, getTownships } from "@/app/living-site/lib/myanmar-geo";
+import { getDistricts, getStates, getTownships, translateLocationName } from "@/app/living-site/lib/myanmar-geo";
 
 const PageFrame = styled.div`
   min-height: 100vh;
@@ -549,16 +549,20 @@ const HeroSceneEyebrow = styled.div<{ $tone?: "listing" | "agency" }>`
   text-transform: uppercase;
 `;
 
-const HeroSceneTitle = styled.h2<{ $accent?: boolean }>`
+const HeroSceneTitle = styled.h2<{ $accent?: boolean; $compactMyanmar?: boolean }>`
   margin: 0;
   color: ${(props) => (props.$accent ? "#ff4b65" : "#fff")};
-  font-size: clamp(2rem, 3.6vw, 3.1rem);
-  line-height: 0.94;
+  font-size: ${(props) =>
+    props.$compactMyanmar ? "clamp(1.2rem, 2.16vw, 1.86rem)" : "clamp(2rem, 3.6vw, 3.1rem)"};
+  line-height: ${(props) => (props.$compactMyanmar ? 1.5 : 0.94)};
   font-weight: 800;
   letter-spacing: -0.04em;
+  padding-top: ${(props) => (props.$compactMyanmar ? "0.16em" : "0")};
+  padding-bottom: ${(props) => (props.$compactMyanmar ? "0.28em" : "0")};
 
   @media (max-width: 720px) {
-    font-size: 1.8rem;
+    font-size: ${(props) => (props.$compactMyanmar ? "1.08rem" : "1.8rem")};
+    line-height: ${(props) => (props.$compactMyanmar ? 1.44 : 0.94)};
   }
 `;
 
@@ -1576,22 +1580,22 @@ const toNumber = (value: string) => {
 };
 
 const heroTabs = [
-  { key: "buy", label: "BUY", dealType: "sale" },
-  { key: "rent", label: "RENT", dealType: "rent" },
+  { key: "buy", labelKey: "home.buy", dealType: "sale" },
+  { key: "rent", labelKey: "home.rent", dealType: "rent" },
 ] as const;
 
 const navLinks = [
-  { label: "Articles", href: "/faq" },
-  { label: "Our Partners", href: "#partners" },
-  { label: "Collections", href: "#collections" },
+  { labelKey: "header.articles", href: "/faq" },
+  { labelKey: "header.ourPartners", href: "#partners" },
+  { labelKey: "header.collections", href: "#collections" },
 ];
 
 const footerLinks = [
-  { label: "Partners", href: "#partners" },
-  { label: "Support", href: "/faq" },
-  { label: "About Us", href: "/terms" },
-  { label: "Agent", href: "/vendor" },
-  { label: "Contact Us", href: "/privacy" },
+  { labelKey: "header.ourPartners", href: "#partners" },
+  { labelKey: "header.support", href: "/faq" },
+  { labelKey: "header.aboutUs", href: "/terms" },
+  { labelKey: "header.agent", href: "/vendor" },
+  { labelKey: "header.contactUs", href: "/privacy" },
 ];
 
 const propertyCards = [
@@ -1671,8 +1675,13 @@ type PublicHeroSlide =
 
 const heroRotationIntervalMs = 5200;
 
-function formatHeroPrice(value: number | undefined, currency: string | undefined, t: (key: string) => string) {
-  return formatCurrency(value, currency, t("listing.contactPrice"));
+function formatHeroPrice(
+  value: number | undefined,
+  currency: string | undefined,
+  t: (key: string) => string,
+  language?: string
+) {
+  return formatCurrency(value, currency, t("listing.contactPrice"), language);
 }
 
 function formatHomeDealType(value: string | undefined, t: (key: string) => string) {
@@ -1687,7 +1696,7 @@ function formatHeroArea(value: number | undefined, t: (key: string) => string) {
 
 export function HomePageClient() {
   const router = useRouter();
-  const { t } = useI18n();
+  const { t, language: i18nLanguage } = useI18n();
   const { user, profileRole, profileReady, loading: authLoading } = useAppState();
   const { language, setLanguage } = useLanguage();
   const params = useSearchParams();
@@ -1808,6 +1817,10 @@ export function HomePageClient() {
     languageOptions.find((option) => option.value === language) ?? languageOptions[0];
 
   const locationSummary = [stateRegion, district, township].filter(Boolean).join(" / ");
+  const localizedLocationSummary = [stateRegion, district, township]
+    .map((v) => (v ? translateLocationName(v, language) : v))
+    .filter(Boolean)
+    .join(" / ");
   const resolvedAccount = useMemo(
     () =>
       resolveHeaderAccountPresentation({
@@ -1826,7 +1839,7 @@ export function HomePageClient() {
       tagline: t("home.heroFallbackTagline"),
       summary: t("home.heroFallbackSummary"),
       logoText: "EC",
-      areaFocus: "Myanmar",
+      areaFocus: t("home.myanmar"),
       activeListingsLabel: String(listings.length || 0),
       isPlatformFallback: true,
     }),
@@ -1852,11 +1865,13 @@ export function HomePageClient() {
 
   useEffect(() => {
     let active = true;
+    console.debug("HomePageClient: loading hero promotions...");
     fetch("/api/public/hero-promotions")
       .then(async (response) => {
         const payload = (await response.json().catch(() => null)) as
           | { slides?: Array<Record<string, unknown>>; error?: string }
           | null;
+        console.debug("HomePageClient: hero-promotions response", response.status, payload?.error ? { error: payload.error } : { slides: Array.isArray(payload?.slides) ? payload.slides.length : 0 });
         if (!response.ok) {
           throw new Error(payload?.error || "Unable to load hero promotions.");
         }
@@ -1867,13 +1882,14 @@ export function HomePageClient() {
                 if (slide.kind === "agency") {
                   return {
                     kind: "agency" as const,
-                    name: typeof slide.name === "string" ? slide.name : "Agency",
-                    tagline: typeof slide.tagline === "string" ? slide.tagline : "Verified agency spotlight",
+                    name: typeof slide.name === "string" ? slide.name : t("agency.label"),
+                    tagline:
+                      typeof slide.tagline === "string" ? slide.tagline : t("home.verifiedAgencySpotlight"),
                     summary: typeof slide.summary === "string" ? slide.summary : "",
                     logoText: typeof slide.logoText === "string" ? slide.logoText : "AG",
                     logoUrl: typeof slide.logoUrl === "string" ? slide.logoUrl : null,
                     coverImageUrl: typeof slide.coverImageUrl === "string" ? slide.coverImageUrl : null,
-                    areaFocus: typeof slide.areaFocus === "string" ? slide.areaFocus : "Myanmar",
+                    areaFocus: typeof slide.areaFocus === "string" ? slide.areaFocus : t("home.myanmar"),
                     activeListingsLabel: typeof slide.activeListingsLabel === "string" ? slide.activeListingsLabel : "0",
                     contactPhone: typeof slide.contactPhone === "string" ? slide.contactPhone : null,
                     contactEmail: typeof slide.contactEmail === "string" ? slide.contactEmail : null,
@@ -1885,20 +1901,21 @@ export function HomePageClient() {
                 if (slide.kind === "listing") {
                   return {
                     kind: "listing" as const,
-                    title: typeof slide.title === "string" ? slide.title : "Featured listing",
+                    title: typeof slide.title === "string" ? slide.title : t("home.featuredListing"),
                     listingTitle: typeof slide.listingTitle === "string" ? slide.listingTitle : undefined,
                     location: typeof slide.location === "string" ? slide.location : "",
                     price: formatHeroPrice(
                       typeof slide.price === "number" ? slide.price : undefined,
                       typeof slide.currency === "string" ? slide.currency : undefined,
-                      t
+                      t,
+                      i18nLanguage
                     ),
                     summary: typeof slide.summary === "string" ? slide.summary : "",
                     propertyType:
                       formatPropertyTypeValue(
                         typeof slide.propertyType === "string" ? slide.propertyType : "",
                         t
-                      ) || "Property",
+                      ) || t("listing.property"),
                     bedrooms: typeof slide.bedrooms === "number" ? slide.bedrooms : undefined,
                     bathrooms: typeof slide.bathrooms === "number" ? slide.bathrooms : undefined,
                     areaSqft: typeof slide.areaSqft === "number" ? slide.areaSqft : undefined,
@@ -1915,7 +1932,8 @@ export function HomePageClient() {
           : [];
         setHeroPromotionSlides(nextSlides);
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error("HomePageClient: failed to load hero promotions", err);
         if (!active) return;
         setHeroPromotionSlides([]);
       });
@@ -1923,7 +1941,7 @@ export function HomePageClient() {
     return () => {
       active = false;
     };
-  }, [t]);
+  }, [t, i18nLanguage, language]);
 
   useEffect(() => {
     if (!hasMore || loading) return;
@@ -2010,7 +2028,7 @@ export function HomePageClient() {
               <HeaderInner>
                 <MobileMenuButton
                   type="button"
-                  aria-label="Open navigation menu"
+                  aria-label={t("header.openNavigationMenu")}
                   onClick={() => setMobileMenuOpen(true)}
                 >
                   <Menu />
@@ -2026,8 +2044,8 @@ export function HomePageClient() {
                 </Brand>
                 <HeaderLinks>
                   {navLinks.map((item) => (
-                    <Link key={item.label} href={item.href}>
-                      {item.label}
+                    <Link key={item.labelKey} href={item.href}>
+                      {t(item.labelKey)}
                     </Link>
                   ))}
                   <Link href={accountHref}>{accountLabel}</Link>
@@ -2035,7 +2053,7 @@ export function HomePageClient() {
                 <HeaderActions>
                   <LanguageTrigger
                     type="button"
-                    aria-label="Open language selector"
+                    aria-label={t("header.openLanguageSelector")}
                     onClick={() => setLanguageOpen(true)}
                   >
                     {activeLanguage.flag}
@@ -2057,7 +2075,7 @@ export function HomePageClient() {
                         setDealType(tab.dealType);
                       }}
                     >
-                      {tab.label}
+                      {t(tab.labelKey)}
                     </DealTab>
                   ))}
                 </DealTabs>
@@ -2070,11 +2088,13 @@ export function HomePageClient() {
                       <HeroSceneCopy>
                         <HeroSceneEyebrow $tone="agency">
                           {currentHeroSlide.isPlatformFallback ? <Sparkles size={15} /> : <ShieldCheck size={15} />}
-                          {currentHeroSlide.isPlatformFallback ? "Eain Chan Myay" : "Verified agency spotlight"}
+                          {currentHeroSlide.isPlatformFallback ? "Eain Chan Myay" : t("home.verifiedAgencySpotlight")}
                         </HeroSceneEyebrow>
                         <div>
                           <HeroSceneTitle>{currentHeroSlide.name}</HeroSceneTitle>
-                          <HeroSceneTitle $accent>{currentHeroSlide.tagline}</HeroSceneTitle>
+                          <HeroSceneTitle $accent $compactMyanmar={i18nLanguage === "mm"}>
+                            {currentHeroSlide.tagline}
+                          </HeroSceneTitle>
                         </div>
                         <HeroSceneSummary>{currentHeroSlide.summary}</HeroSceneSummary>
                         {currentHeroSlide.isPlatformFallback ? (
@@ -2118,7 +2138,7 @@ export function HomePageClient() {
                                 }}
                               >
                                 <Building2 size={18} />
-                                View Agency Profile
+                                {t("home.viewAgencyProfile")}
                               </HeroSceneAction>
                               <HeroSceneAction
                                 type="button"
@@ -2130,7 +2150,7 @@ export function HomePageClient() {
                                 }}
                               >
                                 <ArrowUpRight size={18} />
-                                See Agency
+                                {t("home.seeAgency")}
                               </HeroSceneAction>
                             </HeroSceneActions>
                             <HeroSceneFactRow>
@@ -2144,7 +2164,7 @@ export function HomePageClient() {
                               </HeroSceneFact>
                               <HeroSceneFact>
                                 <Star size={16} />
-                                More trust
+                                {t("home.moreTrust")}
                               </HeroSceneFact>
                             </HeroSceneFactRow>
                           </>
@@ -2170,30 +2190,30 @@ export function HomePageClient() {
                               <HeroAgencyStatValue $compact={!currentHeroSlide.isPlatformFallback}>
                                 {currentHeroSlide.isPlatformFallback
                                   ? currentHeroSlide.activeListingsLabel
-                                  : currentHeroSlide.contactPhone || "Not shared"}
+                                  : currentHeroSlide.contactPhone || t("common.notShared")}
                               </HeroAgencyStatValue>
                               <HeroAgencyStatLabel>
-                              {currentHeroSlide.isPlatformFallback ? "Live Listings" : t("agency.phone")}
+                              {currentHeroSlide.isPlatformFallback ? t("home.liveListings") : t("agency.phone")}
                               </HeroAgencyStatLabel>
                             </HeroAgencyStat>
                             <HeroAgencyStat>
                               <HeroAgencyStatValue $compact={!currentHeroSlide.isPlatformFallback}>
                                 {currentHeroSlide.isPlatformFallback
                                   ? currentHeroSlide.areaFocus
-                                  : currentHeroSlide.contactEmail || "Not shared"}
+                                  : currentHeroSlide.contactEmail || t("common.notShared")}
                               </HeroAgencyStatValue>
                               <HeroAgencyStatLabel>
-                                {currentHeroSlide.isPlatformFallback ? "Areas Covered" : t("agency.email")}
+                                {currentHeroSlide.isPlatformFallback ? t("home.areasCovered") : t("agency.email")}
                               </HeroAgencyStatLabel>
                             </HeroAgencyStat>
                             <HeroAgencyStat>
                               <HeroAgencyStatValue $compact={!currentHeroSlide.isPlatformFallback}>
                                 {currentHeroSlide.isPlatformFallback
-                                  ? "Map"
-                                  : currentHeroSlide.viberPhone || "Not shared"}
+                                  ? t("home.map")
+                                  : currentHeroSlide.viberPhone || t("common.notShared")}
                               </HeroAgencyStatValue>
                               <HeroAgencyStatLabel>
-                                {currentHeroSlide.isPlatformFallback ? "Discovery" : "Viber"}
+                                {currentHeroSlide.isPlatformFallback ? t("home.discovery") : t("agency.viber")}
                               </HeroAgencyStatLabel>
                             </HeroAgencyStat>
                           </HeroAgencyStats>
@@ -2202,7 +2222,7 @@ export function HomePageClient() {
                               {currentHeroSlide.isPlatformFallback ? t("home.platformDefault") : t("agency.verifiedStatus")}
                             </HeroSceneTagPill>
                             <HeroSceneTagPill $tone="agency">
-                              {currentHeroSlide.isPlatformFallback ? t("map.search") : "Trusted Profile"}
+                              {currentHeroSlide.isPlatformFallback ? t("map.search") : t("home.trustedProfile")}
                             </HeroSceneTagPill>
                             <HeroSceneTagPill $tone="agency">
                               {currentHeroSlide.isPlatformFallback ? t("home.showMap") : t("home.homepageSpotlight")}
@@ -2216,11 +2236,13 @@ export function HomePageClient() {
                       <HeroSceneCopy>
                         <HeroSceneEyebrow $tone="listing">
                           <Sparkles size={15} />
-                          Hero section ad
+                          {t("home.heroSectionAd")}
                         </HeroSceneEyebrow>
                         <div>
-                          <HeroSceneTitle>{currentHeroSlide.title ?? "Featured listing"}</HeroSceneTitle>
-                          <HeroSceneTitle $accent>{formatHomeDealType(currentHeroSlide.dealType, t) || t("listing.forSale")}</HeroSceneTitle>
+                          <HeroSceneTitle>{currentHeroSlide.title ?? t("home.featuredListing")}</HeroSceneTitle>
+                          <HeroSceneTitle $accent $compactMyanmar={i18nLanguage === "mm"}>
+                            {formatHomeDealType(currentHeroSlide.dealType, t) || t("listing.forSale")}
+                          </HeroSceneTitle>
                         </div>
                         <HeroSceneLocation>
                           <MapPin size={18} />
@@ -2274,7 +2296,7 @@ export function HomePageClient() {
                           <HeroSceneCardBadge>{formatHomeDealType(currentHeroSlide.dealType, t) || t("listing.forSale")}</HeroSceneCardBadge>
                           <HeroSceneCardBadge $dark>
                             <Star size={14} />
-                            Featured
+                            {t("home.featured")}
                           </HeroSceneCardBadge>
                         </HeroSceneCardBadges>
                         <HeroSceneCardOverlay>
@@ -2296,13 +2318,13 @@ export function HomePageClient() {
                             {currentHeroSlide.bedrooms ? (
                               <HeroSceneCardFact>
                                 <BedDouble size={15} />
-                                {currentHeroSlide.bedrooms} Bedrooms
+                                {currentHeroSlide.bedrooms} {t("filter.bedrooms")}
                               </HeroSceneCardFact>
                             ) : null}
                             {currentHeroSlide.bathrooms ? (
                               <HeroSceneCardFact>
                                 <Bath size={15} />
-                                {currentHeroSlide.bathrooms} Bathrooms
+                                {currentHeroSlide.bathrooms} {t("filter.bathrooms")}
                               </HeroSceneCardFact>
                             ) : null}
                                 {currentHeroSlide.areaSqft ? (
@@ -2360,7 +2382,7 @@ export function HomePageClient() {
                     <SearchSelectWrap>
                     <SearchSelectButton
                       type="button"
-                      aria-label={t("home.locationPlaceholder")}
+                      aria-label={t("home.selectLocation")}
                         onClick={() => {
                           setLocationStateDraft(stateRegion);
                           setLocationDistrictDraft(district);
@@ -2368,8 +2390,8 @@ export function HomePageClient() {
                           setLocationOpen(true);
                         }}
                     >
-                      <SearchSelectText $placeholder={!locationSummary}>
-                        {locationSummary || t("home.locationPlaceholder")}
+                      <SearchSelectText $placeholder={!localizedLocationSummary}>
+                        {localizedLocationSummary || t("home.locationPlaceholder")}
                       </SearchSelectText>
                       <span className="mobile-location-icon" aria-hidden="true">
                         <MapPin size={18} />
@@ -2399,7 +2421,7 @@ export function HomePageClient() {
 
                 <SearchButton type="submit">
                   <Search size={14} />
-                  <span>Search</span>
+                  <span>{t("home.search")}</span>
                 </SearchButton>
                 </SearchPanel>
               </SearchDock>
@@ -2408,7 +2430,7 @@ export function HomePageClient() {
             <Content>
               <CategorySection id="collections">
                 <CategoryGrid>
-                  <CategoryLabel>Property Type</CategoryLabel>
+                  <CategoryLabel>{t("home.propertyTypeSection")}</CategoryLabel>
                   <CategoryCardsWrap>
                     <CategoryCards>
                       {propertyCards.map((card) => (
@@ -2443,14 +2465,15 @@ export function HomePageClient() {
           </Shell>
 
           <MobileFloatActions aria-hidden="true">
-            <FloatCircleButton type="button" aria-label="Add">
+            <FloatCircleButton type="button" aria-label={t("home.add")}>{/* visually hidden label for icon button */}
               <Plus />
             </FloatCircleButton>
-            <FloatPillButton type="button" aria-label="Show map" onClick={openMapView}>
+            <FloatPillButton type="button" aria-label={t("home.showMap")} onClick={openMapView}>
               <span>{t("home.showMap")}</span>
               <Map />
             </FloatPillButton>
-            <FloatCircleButton type="button" aria-label="Chat">
+            <FloatCircleButton type="button" aria-label={t("home.chat")}
+            >
               <MessageCircleMore />
             </FloatCircleButton>
           </MobileFloatActions>
@@ -2458,18 +2481,18 @@ export function HomePageClient() {
 
         <DesktopFloatActions aria-hidden="true">
           <DesktopFloatActionLeft>
-            <FloatCircleButton type="button" aria-label="Add">
+            <FloatCircleButton type="button" aria-label={t("home.add")}>
               <Plus />
             </FloatCircleButton>
           </DesktopFloatActionLeft>
           <DesktopFloatActionCenter>
-            <FloatPillButton type="button" aria-label="Show map" onClick={openMapView}>
+            <FloatPillButton type="button" aria-label={t("home.showMap")} onClick={openMapView}>
               <span>{t("home.showMap")}</span>
               <Map />
             </FloatPillButton>
           </DesktopFloatActionCenter>
           <DesktopFloatActionRight>
-            <FloatCircleButton type="button" aria-label="Chat">
+            <FloatCircleButton type="button" aria-label={t("home.chat")}>
               <MessageCircleMore />
             </FloatCircleButton>
           </DesktopFloatActionRight>
@@ -2480,8 +2503,8 @@ export function HomePageClient() {
             <span>© 2023, EainChanMyay.com</span>
             <FooterLinks id="partners">
               {footerLinks.map((item) => (
-                <Link key={item.label} href={item.href}>
-                  {item.label}
+                <Link key={item.labelKey} href={item.href}>
+                  {t(item.labelKey)}
                 </Link>
               ))}
             </FooterLinks>
@@ -2493,10 +2516,10 @@ export function HomePageClient() {
         <MobileMenuOverlay onClick={() => setMobileMenuOpen(false)}>
           <MobileMenuDrawer onClick={(event) => event.stopPropagation()}>
             <MobileMenuHeader>
-              <MobileMenuTitle>Menu</MobileMenuTitle>
+              <MobileMenuTitle>{t("header.menu")}</MobileMenuTitle>
               <LanguageClose
                 type="button"
-                aria-label="Close navigation menu"
+                aria-label={t("header.close")}
                 onClick={() => setMobileMenuOpen(false)}
               >
                 <X size={16} />
@@ -2504,8 +2527,8 @@ export function HomePageClient() {
             </MobileMenuHeader>
             <MobileMenuLinks>
               {navLinks.map((item) => (
-                <Link key={item.label} href={item.href} onClick={() => setMobileMenuOpen(false)}>
-                  {item.label}
+                <Link key={item.labelKey} href={item.href} onClick={() => setMobileMenuOpen(false)}>
+                  {t(item.labelKey)}
                 </Link>
               ))}
               <Link href={accountHref} onClick={() => setMobileMenuOpen(false)}>
@@ -2520,10 +2543,10 @@ export function HomePageClient() {
         <LanguageOverlay onClick={() => setLanguageOpen(false)}>
           <LanguageDialog onClick={(event) => event.stopPropagation()}>
             <LanguageDialogHeader>
-              <LanguageDialogTitle>Choose language</LanguageDialogTitle>
+              <LanguageDialogTitle>{t("header.languagePrompt")}</LanguageDialogTitle>
               <LanguageClose
                 type="button"
-                aria-label="Close language popup"
+                aria-label={t("header.close")}
                 onClick={() => setLanguageOpen(false)}
               >
                 <X size={16} />
@@ -2583,7 +2606,7 @@ export function HomePageClient() {
                 >
                   {stateOptions.map((state) => (
                     <option key={state.pcode} value={state.name_en}>
-                      {state.name_en}
+                      {translateLocationName(state.name_en, language)}
                     </option>
                   ))}
                 </CustomSelect>
@@ -2602,7 +2625,7 @@ export function HomePageClient() {
                 >
                   {locationDistrictOptions.map((item) => (
                     <option key={item.pcode} value={item.name_en}>
-                      {item.name_en}
+                      {translateLocationName(item.name_en, language)}
                     </option>
                   ))}
                 </CustomSelect>
@@ -2618,7 +2641,7 @@ export function HomePageClient() {
                 >
                   {locationTownshipOptions.map((item) => (
                     <option key={item.pcode} value={item.name_en}>
-                      {item.name_en}
+                      {translateLocationName(item.name_en, language)}
                     </option>
                   ))}
                 </CustomSelect>
@@ -2749,7 +2772,7 @@ export function HomePageClient() {
                   setFiltersOpen(false);
                 }}
               >
-                {t("home.filters")}
+                {t("filter.apply")}
               </ApplyButton>
             </FilterFooter>
           </FilterCard>

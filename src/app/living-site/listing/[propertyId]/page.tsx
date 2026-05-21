@@ -34,8 +34,8 @@ import { useAppState } from "@/app/living-site/lib/app-state";
 import { CustomInput } from "@/app/living-site/components/form-controls/CustomInput";
 import { CustomSelect } from "@/app/living-site/components/form-controls/CustomSelect";
 import { CustomTextarea } from "@/app/living-site/components/form-controls/CustomTextarea";
-import { useLanguage } from "@/app/living-site/components/Providers";
 import { useI18n } from "@/app/living-site/lib/i18n";
+import { translateLocationName } from "@/app/living-site/lib/myanmar-geo";
 import { formatPropertyTypeValue, isBedBathPropertyType } from "@/lib/property-types";
 
 const PageShell = styled.div`
@@ -1007,8 +1007,7 @@ export default function ListingDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { user, authToken, profileRole } = useAppState();
-  const { language } = useLanguage();
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const propertyId = params?.propertyId as string | undefined;
   const { detail, loading } = useListingDetail(propertyId);
   const [viewingOpen, setViewingOpen] = useState(false);
@@ -1329,15 +1328,18 @@ export default function ListingDetailPage() {
   const dealType = formatDealType(property.deal_type as string, t);
   const propertyType = formatPropertyType(property.property_type as string, t);
   const propertyTypeRaw = String(property.property_type ?? "").toLowerCase();
-  const locationParts = [
+  const locationPartValues = [
     property.township,
     property.district,
     property.state_region,
-  ]
-    .filter((part) => typeof part === "string" && part.trim().length > 0)
+  ].filter((part): part is string => typeof part === "string" && part.trim().length > 0);
+  const locationParts = locationPartValues.join(", ");
+  const localizedLocationParts = locationPartValues
+    .map((part) => translateLocationName(part, language))
     .join(", ");
   const addressText = (property.address_text as string) || "";
   const city = (property.city as string) || "";
+  const localizedCity = city ? translateLocationName(city, language) : "";
   const latitude =
     getNumber(property.latitude) ??
     getNumber(property.lat) ??
@@ -1379,6 +1381,13 @@ export default function ListingDetailPage() {
   const showVerifiedAgency = !showVerifiedListing && agencyVerificationStatus === "approved";
   const showBeds = isBedBathPropertyType(propertyTypeRaw) && bedrooms !== undefined;
   const showBaths = isBedBathPropertyType(propertyTypeRaw) && bathrooms !== undefined;
+  const reportReasonOptions = [
+    { value: "spam", label: t("listing.reportReason.spam") },
+    { value: "inappropriate", label: t("listing.reportReason.inappropriate") },
+    { value: "illegal", label: t("listing.reportReason.illegal") },
+    { value: "duplicate", label: t("listing.reportReason.duplicate") },
+    { value: "other", label: t("listing.reportReason.other") },
+  ];
   const featureItems: Array<{ key: string; label: string; icon: React.ElementType }> = [];
   if (showBeds) {
     featureItems.push({ key: "beds", label: `${bedrooms} ${t("listing.bedrooms")}`, icon: BedDouble });
@@ -1497,7 +1506,7 @@ export default function ListingDetailPage() {
     setReportSubmitting(false);
     if (!response.ok) {
       const payload = (await response.json().catch(() => null)) as { message?: string } | null;
-      setReportError(payload?.message ?? "Unable to submit your report right now.");
+      setReportError(payload?.message ?? t("listing.unableSubmitReport"));
       return;
     }
     setReportSuccess(true);
@@ -1512,14 +1521,14 @@ export default function ListingDetailPage() {
             <SectionTitle>{title}</SectionTitle>
             <Location>
               <MapPin size={16} />
-              {locationParts || city || t("listing.locationTbd")}
+              {localizedLocationParts || localizedCity || t("listing.locationTbd")}
             </Location>
             <TagRow>
               {dealType && <TagPill>{dealType}</TagPill>}
               {propertyType && <TagPill>{propertyType}</TagPill>}
             </TagRow>
           </TitleBlock>
-          <PriceBadge>{formatCurrency(price, currency, t("listing.contactPrice"))}</PriceBadge>
+          <PriceBadge>{formatCurrency(price, currency, t("listing.contactPrice"), language)}</PriceBadge>
         </HeaderRow>
         <Gallery>
           {galleryUrls.length ? (
@@ -1642,9 +1651,9 @@ export default function ListingDetailPage() {
             </SectionBlock>
             <SectionBlock>
               <SectionTitle>{t("listing.location")}</SectionTitle>
-              <MetaText>{locationParts || city || t("listing.locationDetailsSoon")}</MetaText>
+              <MetaText>{localizedLocationParts || localizedCity || t("listing.locationDetailsSoon")}</MetaText>
               {addressText && <MetaText>{addressText}</MetaText>}
-              {city && !locationParts.includes(city) && <MetaText>{city}</MetaText>}
+              {localizedCity && !locationPartValues.includes(city) && <MetaText>{localizedCity}</MetaText>}
               {mapsUrl && (
                 <MapLink href={mapsUrl} target="_blank" rel="noreferrer">
                   <MapPin size={16} />
@@ -1655,17 +1664,17 @@ export default function ListingDetailPage() {
           </div>
           <ContactCard>
             <ContactTitle>
-              {isOwnListing ? "Manage your listing" : isAgencyListing ? t("listing.contactAgent") : "Contact seller"}
+              {isOwnListing ? t("listing.manageYourListing") : isAgencyListing ? t("listing.contactAgent") : t("listing.contactSeller")}
             </ContactTitle>
-            {showVerifiedListing ? <TrustPill>Verified listing</TrustPill> : null}
+            {showVerifiedListing ? <TrustPill>{t("listing.verifiedListing")}</TrustPill> : null}
             {showVerifiedAgency ? <TrustPill>{t("listing.verifiedAgent")}</TrustPill> : null}
             <ContactRow>
               <strong>{isOwnListing ? title : contactName}</strong>
               {isOwnListing ? (
                 <span>
                   {isOwnAgencyListing
-                    ? "This is one of your agency listings."
-                    : "This is your direct owner listing."}
+                    ? t("listing.ownAgencyListing")
+                    : t("listing.ownDirectListing")}
                 </span>
               ) : (
                 <>
@@ -1679,18 +1688,18 @@ export default function ListingDetailPage() {
             {isOwnAgencyListing ? (
               <ManagedAgencyCard>
                 <ManagedAgencyLogo>
-                  {agencyLogo ? <img src={agencyLogo} alt={agencyName || "Agency logo"} /> : <Home size={24} />}
+                  {agencyLogo ? <img src={agencyLogo} alt={agencyName || t("agency.label")} /> : <Home size={24} />}
                 </ManagedAgencyLogo>
                 <ManagedAgencyInfo>
-                  <strong>{agencyName || "Your agency"}</strong>
-                  <span>{agencyTagline || "Manage this listing from your agency workspace."}</span>
+                  <strong>{agencyName || t("listing.yourAgency")}</strong>
+                  <span>{agencyTagline || t("listing.manageAgencyListing")}</span>
                 </ManagedAgencyInfo>
               </ManagedAgencyCard>
             ) : null}
             {!isOwnListing && agencySlug ? (
               <AgencyCard href={`/agency/${agencySlug}`}>
-                <strong>{agencyName || "Agency profile"}</strong>
-                <span>{agencyTagline || "Open the public agency storefront and browse more listings."}</span>
+                <strong>{agencyName || t("listing.agencyProfile")}</strong>
+                <span>{agencyTagline || t("listing.browseAgencyStorefront")}</span>
               </AgencyCard>
             ) : null}
             {isOwnListing ? (
@@ -1699,7 +1708,7 @@ export default function ListingDetailPage() {
                 type="button"
                 onClick={() => router.push("/hub?section=manage-listings")}
               >
-                Manage your listing
+                {t("listing.manageYourListing")}
               </SecondaryButton>
             ) : (
               <>
@@ -1711,7 +1720,7 @@ export default function ListingDetailPage() {
                   }}
                 >
                   <Phone size={16} style={{ marginRight: 6 }} />
-                  {isAgencyListing ? t("listing.contactAgent") : "Contact seller"}
+                  {isAgencyListing ? t("listing.contactAgent") : t("listing.contactSeller")}
                 </ContactButton>
                 <SaveButton type="button" onClick={handleSave} disabled={saveSubmitting} $active={saved}>
                   {saved ? t("listing.saved") : t("listing.saveProperty")}
@@ -1745,7 +1754,7 @@ export default function ListingDetailPage() {
                   }}
                 >
                   <Flag size={16} />
-                  Report listing
+                  {t("listing.reportListing")}
                 </ReportButton>
               </>
             )}
@@ -1795,18 +1804,18 @@ export default function ListingDetailPage() {
             <SectionTitle>{t("listing.contactAgent")}</SectionTitle>
             <strong>{contactName}</strong>
             <MetaText>{primaryContact}</MetaText>
-            {contactCopied ? <SuccessCard><strong>Number copied.</strong></SuccessCard> : null}
+            {contactCopied ? <SuccessCard><strong>{t("listing.numberCopied")}</strong></SuccessCard> : null}
             <ContactChoice
               type="button"
               onClick={() => {
                 window.location.href = `tel:${primaryContact}`;
               }}
             >
-              <span>Call now</span>
+              <span>{t("listing.callNow")}</span>
               <Phone size={18} />
             </ContactChoice>
             <ContactChoice type="button" onClick={() => void handleCopyContact()}>
-              <span>Copy number</span>
+              <span>{t("listing.copyNumber")}</span>
               <Tag size={18} />
             </ContactChoice>
             <ModalActions>
@@ -1928,30 +1937,30 @@ export default function ListingDetailPage() {
       {reportOpen && (
         <ModalOverlay onClick={() => setReportOpen(false)}>
           <ModalCard onClick={(event) => event.stopPropagation()}>
-            <SectionTitle>Report listing</SectionTitle>
+            <SectionTitle>{t("listing.reportListing")}</SectionTitle>
             {reportSuccess ? (
               <SuccessCard>
-                <strong>Thanks for the report.</strong>
-                <p>We received it and will review this listing.</p>
+                <strong>{t("listing.reportThanks")}</strong>
+                <p>{t("listing.reportReview")}</p>
               </SuccessCard>
             ) : (
               <>
                 <CustomSelect
                   id="report-reason"
-                  label="Reason"
+                  label={t("listing.reportReason")}
                   name="reason"
                   value={reportReason}
                   onChange={setReportReason}
                 >
-                  <option value="spam">Spam or misleading</option>
-                  <option value="inappropriate">Inappropriate content</option>
-                  <option value="illegal">Illegal goods or services</option>
-                  <option value="duplicate">Duplicate listing</option>
-                  <option value="other">Other</option>
+                  {reportReasonOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
                 </CustomSelect>
                 <CustomTextarea
                   id="report-details"
-                  label="Details (optional)"
+                  label={t("listing.reportDetails")}
                   name="details"
                   value={reportDetails}
                   onChange={(event) => setReportDetails(event.target.value)}
@@ -1961,11 +1970,11 @@ export default function ListingDetailPage() {
             )}
             <ModalActions>
               <GhostButton type="button" onClick={() => setReportOpen(false)}>
-                {reportSuccess ? t("common.close") : "Cancel"}
+                {reportSuccess ? t("common.close") : t("listing.cancel")}
               </GhostButton>
               {!reportSuccess ? (
                 <SubmitButton type="button" onClick={handleReportSubmit} disabled={reportSubmitting}>
-                  {reportSubmitting ? t("common.submitting") : "Submit report"}
+                  {reportSubmitting ? t("common.submitting") : t("listing.submitReport")}
                 </SubmitButton>
               ) : null}
             </ModalActions>

@@ -7187,7 +7187,8 @@ export default function AccountPage() {
                                     {formatCurrency(
                                       selectedHubPropertyDetail.property.price ?? undefined,
                                       selectedHubPropertyDetail.property.currency ?? "MMK",
-                                      "Contact"
+                                      "Contact",
+                                      language
                                     )}
                                   </ListingDetailPrice>
                                   {canManagePromotions &&
@@ -8046,7 +8047,7 @@ export default function AccountPage() {
                           <HubInsightBody>
                             <HubInsightCardInner>
                               <HubInsightCardValueCentered>
-                                {formatCurrency(summaryPortfolioValue, "MMK", "MMK 0")}
+                                {formatCurrency(summaryPortfolioValue, "MMK", "MMK 0", language)}
                               </HubInsightCardValueCentered>
                             </HubInsightCardInner>
                           </HubInsightBody>
@@ -8192,8 +8193,8 @@ export default function AccountPage() {
                                       <HubInsightRangeMeta>
                                         <span>{labelize(item.key)}</span>
                                         <span>
-                                          {formatCurrency(item.min, item.currency, "MMK 0")} -{" "}
-                                          {formatCurrency(item.max, item.currency, "MMK 0")}
+                                          {formatCurrency(item.min, item.currency, "MMK 0", language)} -{" "}
+                                          {formatCurrency(item.max, item.currency, "MMK 0", language)}
                                         </span>
                                       </HubInsightRangeMeta>
                                       <HubInsightRangeTrack>
@@ -8432,7 +8433,7 @@ export default function AccountPage() {
                               </IconLabel>
                               <IconLabel>
                                 <TagIcon />
-                                {formatCurrency(price, currency) || t("account.requestedTbd")}
+                                {formatCurrency(price, currency, undefined, language) || t("account.requestedTbd")}
                               </IconLabel>
                             </DetailRow>
                             <DetailRowHorizontal>
@@ -8526,7 +8527,7 @@ export default function AccountPage() {
                               </IconLabel>
                               <IconLabel>
                                 <TagIcon />
-                                {formatCurrency(price, currency) || t("account.requestedTbd")}
+                                {formatCurrency(price, currency, undefined, language) || t("account.requestedTbd")}
                               </IconLabel>
                               <IconLabel>
                                 <Home />
@@ -8703,7 +8704,7 @@ export default function AccountPage() {
                               </IconLabel>
                               <IconLabel>
                                 <TagIcon />
-                                {formatCurrency(item.price as number, item.currency as string) || t("account.requestedTbd")}
+                                {formatCurrency(item.price as number, item.currency as string, undefined, language) || t("account.requestedTbd")}
                               </IconLabel>
                               <IconLabel>
                                 <Home />
@@ -9331,7 +9332,7 @@ export default function AccountPage() {
             <DetailRow>
               <IconLabel>
                 <TagIcon />
-                {formatCurrency(activeSale.price as number, activeSale.currency as string) || t("account.priceTbd")}
+                {formatCurrency(activeSale.price as number, activeSale.currency as string, undefined, language) || t("account.priceTbd")}
               </IconLabel>
               <IconLabel>
                 <Home />

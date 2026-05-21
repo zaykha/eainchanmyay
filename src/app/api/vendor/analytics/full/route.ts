@@ -354,7 +354,7 @@ export async function GET(request: Request) {
           id: item.id,
           listingId: item.listing_id ? String(item.listing_id) : null,
           promotionType: (item.promotion_type ?? "").trim().toLowerCase() || "unknown",
-          targetType: (item.target_type ?? "").trim().toLowerCase() || "listing",
+          targetType: normalizePromotionTargetType(item.target_type) ?? (item.listing_id ? "listing" : "agency_profile"),
           status: (item.status ?? "").trim().toLowerCase() || "draft",
           title:
             item.title?.trim() ||

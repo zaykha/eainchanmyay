@@ -18,6 +18,7 @@ import styled from "styled-components";
 import type { Listing } from "@/app/living-site/lib/data";
 import { formatCurrency } from "@/app/living-site/lib/format";
 import { useI18n } from "@/app/living-site/lib/i18n";
+import { translateLocationName } from "@/app/living-site/lib/myanmar-geo";
 import { formatPropertyTypeValue } from "@/lib/property-types";
 
 const Card = styled.article`
@@ -221,13 +222,19 @@ const getPropertyTypeIcon = (value?: string, size = 20) => {
 };
 
 export function ListingCard({ listing }: ListingCardProps) {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const normalizedDealType = listing.dealType?.toLowerCase();
   const dealLabel = formatDealType(listing.dealType, t) || t("listing.forSale");
-  const cityLabel = listing.city || listing.location;
-  const townshipLabel = listing.township || listing.district || "";
+  const townshipLabel = translateLocationName(
+    listing.township || listing.district || listing.stateRegion || "",
+    language
+  );
+  const cityLabel = translateLocationName(
+    listing.district || listing.stateRegion || listing.city || "",
+    language
+  );
   const areaLabel = listing.areaSqft
-    ? `${listing.areaSqft.toLocaleString("en-US")} ${t("listing.areaSqft")}`
+    ? `${listing.areaSqft.toLocaleString(language === "mm" ? "my-MM" : "en-US")} ${t("listing.areaSqft")}`
     : "";
   const title = listing.title || t("listing.property");
   return (
@@ -257,7 +264,7 @@ export function ListingCard({ listing }: ListingCardProps) {
           ) : null}
           <DealRibbon $dealType={normalizedDealType}>{dealLabel}</DealRibbon>
           <PricePill>
-            {formatCurrency(listing.price, listing.currency, t("listing.contactPrice"))}
+            {formatCurrency(listing.price, listing.currency, t("listing.contactPrice"), language)}
           </PricePill>
         </Cover>
         <Content>

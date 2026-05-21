@@ -5,6 +5,7 @@ import styled from "styled-components";
 import { ClipboardList } from "lucide-react";
 import { useAppState } from "@/app/living-site/lib/app-state";
 import { formatCurrency } from "@/app/living-site/lib/format";
+import { useI18n } from "@/app/living-site/lib/i18n";
 import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
 
 const Page = styled.div`
@@ -109,6 +110,7 @@ function labelize(value: string | null | undefined) {
 
 export function VendorSalesRequestsView() {
   const { authToken } = useAppState();
+  const { t, language } = useI18n();
   const [items, setItems] = useState<SalesRequestItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -194,7 +196,7 @@ export function VendorSalesRequestsView() {
               </Row>
               <Row>
                 <span>Price</span>
-                <strong>{formatCurrency(item.price ?? undefined, item.currency ?? "MMK", "Contact")}</strong>
+                <strong>{formatCurrency(item.price ?? undefined, item.currency ?? "MMK", "Contact", language)}</strong>
               </Row>
             </Card>
           ))}

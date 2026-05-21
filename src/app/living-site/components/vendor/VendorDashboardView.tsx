@@ -6,6 +6,7 @@ import styled from "styled-components";
 import { CalendarClock, ClipboardList, Eye, FolderKanban, Layers3, TrendingUp, Wallet } from "lucide-react";
 import { useAppState } from "@/app/living-site/lib/app-state";
 import { formatCurrency } from "@/app/living-site/lib/format";
+import { useI18n } from "@/app/living-site/lib/i18n";
 import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
 
 const Page = styled.div`
@@ -329,6 +330,7 @@ function labelize(value: string | null | undefined) {
 
 export function VendorDashboardView() {
   const { authToken } = useAppState();
+  const { t, language } = useI18n();
   const [data, setData] = useState<OverviewPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -427,8 +429,8 @@ export function VendorDashboardView() {
             <MetricTitle>Portfolio value</MetricTitle>
             <Wallet size={18} color="#ff5d78" />
           </MetricTop>
-          <MetricValue>{formatCurrency(data.metrics.totalValue, "MMK", "MMK 0")}</MetricValue>
-          <BlockCopy>{formatCurrency(data.metrics.publishedValue, "MMK", "MMK 0")} currently public.</BlockCopy>
+          <MetricValue>{formatCurrency(data.metrics.totalValue, "MMK", "MMK 0", language)}</MetricValue>
+          <BlockCopy>{formatCurrency(data.metrics.publishedValue, "MMK", "MMK 0", language)} currently public.</BlockCopy>
         </Card>
 
         <Card>
@@ -554,7 +556,7 @@ export function VendorDashboardView() {
                     </RecentLink>
                   </RecentTitle>
                   <RecentMeta>
-                    {labelize(property.deal_type)} • {labelize(property.status)} • {formatCurrency(property.price ?? undefined, property.currency ?? "MMK", "Contact")}
+                    {labelize(property.deal_type)} • {labelize(property.status)} • {formatCurrency(property.price ?? undefined, property.currency ?? "MMK", "Contact", language)}
                   </RecentMeta>
                 </RecentRow>
               ))}

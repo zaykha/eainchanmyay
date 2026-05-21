@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { resolveListingImage } from "@/app/living-site/lib/images";
 import { publicListingQueryStatuses } from "@/lib/lifecycle";
-import { normalizePromotionTargetType, selectActiveHeroPromotions } from "@/lib/vendor-promotions";
+import { resolvePromotionTargetType, selectActiveHeroPromotions } from "@/lib/vendor-promotions";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
@@ -270,7 +270,7 @@ export async function GET() {
     .map((promotion) => {
       const vendor = vendors.get(String(promotion.vendor_id ?? ""));
       if (!vendor?.id || !vendor.name) return null;
-      const targetType = normalizePromotionTargetType(promotion.target_type);
+      const targetType = resolvePromotionTargetType(promotion);
 
       if (targetType === "agency_profile") {
         const stats = vendorStats.get(String(vendor.id ?? "")) ?? { activeListingsCount: 0, areaFocus: "" };

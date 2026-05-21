@@ -1445,7 +1445,7 @@ export function VendorPromotionsView({
   onBack,
 }: Props) {
   const { authToken } = useAppState();
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const [data, setData] = useState<PromotionsPayload | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -1999,7 +1999,7 @@ export function VendorPromotionsView({
                               {formatDateTime(item.starts_at)}
                             </span>
                             <span>•</span>
-                            <span>{formatCurrency(item.price_per_24h ?? undefined, "MMK", "N/A")} / 24h</span>
+                            <span>{formatCurrency(item.price_per_24h ?? undefined, "MMK", "N/A", language)} / 24h</span>
                             <span>•</span>
                             <span>{item.duration_hours ? `${item.duration_hours}h` : "N/A"}</span>
                           </PromotionMeta>
@@ -2286,7 +2286,7 @@ export function VendorPromotionsView({
                         {selectedListing.township || selectedListing.city || "N/A"}
                       </ListingMiniMeta>
                       <ListingMiniMeta>
-                        {formatCurrency(selectedListing.price ?? undefined, selectedListing.currency ?? "MMK", "Contact")}
+                        {formatCurrency(selectedListing.price ?? undefined, selectedListing.currency ?? "MMK", "Contact", language)}
                       </ListingMiniMeta>
                     </div>
                   </ListingMini>
@@ -2322,8 +2322,8 @@ export function VendorPromotionsView({
                         ) : null}
                       </PlanTop>
                       <PlanTitle>{plan.label}</PlanTitle>
-                      <PlanMeta>{formatCurrency(plan.pricePer24h, "MMK", "N/A")} / 24h</PlanMeta>
-                      <PlanMeta>Total {formatCurrency(plan.totalPrice, "MMK", "N/A")}</PlanMeta>
+                      <PlanMeta>{formatCurrency(plan.pricePer24h, "MMK", "N/A", language)} / 24h</PlanMeta>
+                      <PlanMeta>Total {formatCurrency(plan.totalPrice, "MMK", "N/A", language)}</PlanMeta>
                       {savedPercent > 0 ? (
                         <PlanSaving>
                           <Percent size={13} />
@@ -2449,7 +2449,7 @@ export function VendorPromotionsView({
                   <span>•</span>
                   <span>{selectedPlan?.label || "Selected plan"}</span>
                   <span>•</span>
-                  <span>{formatCurrency(selectedPlan?.totalPrice ?? undefined, "MMK", "N/A")}</span>
+                  <span>{formatCurrency(selectedPlan?.totalPrice ?? undefined, "MMK", "N/A", language)}</span>
                 </PaymentMeta>
                 <PaymentMeta>
                   <span>Status: {createdPromotion.status || "draft"}</span>

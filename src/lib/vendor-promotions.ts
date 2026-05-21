@@ -76,6 +76,14 @@ export function normalizePromotionTargetType(value: string | null | undefined): 
   return promotionTargetTypeValues.find((item) => item === normalized) ?? null;
 }
 
+export function resolvePromotionTargetType(
+  promotion: Pick<PromotionRecordLike, "target_type" | "listing_id">
+): PromotionTargetType {
+  const explicit = normalizePromotionTargetType(promotion.target_type);
+  if (explicit) return explicit;
+  return promotion.listing_id ? "listing" : "agency_profile";
+}
+
 export function normalizePromotionStatus(value: string | null | undefined): PromotionStatus | null {
   const normalized = String(value ?? "").trim().toLowerCase();
   return promotionStatusValues.find((item) => item === normalized) ?? null;

@@ -575,7 +575,7 @@ export function VendorPropertiesView({
   vendorId = null,
 }: VendorPropertiesViewProps = {}) {
   const { authToken } = useAppState();
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const [items, setItems] = useState<VendorPropertyItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -836,7 +836,7 @@ export function VendorPropertiesView({
                           {getDealTypeLabel(property.deal_type)}
                         </EmbeddedPill>
                         <EmbeddedPill $embedded $tone="price">
-                          {formatCurrency(property.price ?? undefined, property.currency ?? "MMK", t("listing.contactPrice"))}
+                          {formatCurrency(property.price ?? undefined, property.currency ?? "MMK", t("listing.contactPrice"), language)}
                         </EmbeddedPill>
                       </EmbeddedFloatingPills>
                       <EmbeddedCardRow>
@@ -903,7 +903,7 @@ export function VendorPropertiesView({
                   </Meta>
                   <Row>
                     <span>{t("vendor.properties.price")}</span>
-                    <Strong>{formatCurrency(property.price ?? undefined, property.currency ?? "MMK", t("listing.contactPrice"))}</Strong>
+                    <Strong>{formatCurrency(property.price ?? undefined, property.currency ?? "MMK", t("listing.contactPrice"), language)}</Strong>
                   </Row>
                   <Row>
                     <span>{t("vendor.properties.location")}</span>
