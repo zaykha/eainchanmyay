@@ -436,7 +436,9 @@ const AgencyCard = styled(Link)`
   padding: 14px 16px;
   background: var(--color-surface-2);
   display: grid;
-  gap: 6px;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: center;
   color: inherit;
 `;
 
@@ -1668,23 +1670,25 @@ export default function ListingDetailPage() {
             </ContactTitle>
             {showVerifiedListing ? <TrustPill>{t("listing.verifiedListing")}</TrustPill> : null}
             {showVerifiedAgency ? <TrustPill>{t("listing.verifiedAgent")}</TrustPill> : null}
-            <ContactRow>
-              <strong>{isOwnListing ? title : contactName}</strong>
-              {isOwnListing ? (
-                <span>
-                  {isOwnAgencyListing
-                    ? t("listing.ownAgencyListing")
-                    : t("listing.ownDirectListing")}
-                </span>
-              ) : (
-                <>
-                  <span>{t("listing.contactSubtitle")}</span>
+            {!isAgencyListing || isOwnListing ? (
+              <ContactRow>
+                <strong>{isOwnListing ? title : contactName}</strong>
+                {isOwnListing ? (
                   <span>
-                    {t("listing.hotline")}: <a href={`tel:${primaryContact}`}>{primaryContact}</a>
+                    {isOwnAgencyListing
+                      ? t("listing.ownAgencyListing")
+                      : t("listing.ownDirectListing")}
                   </span>
-                </>
-              )}
-            </ContactRow>
+                ) : (
+                  <>
+                    <span>{t("listing.contactSubtitle")}</span>
+                    <span>
+                      {t("listing.hotline")}: <a href={`tel:${primaryContact}`}>{primaryContact}</a>
+                    </span>
+                  </>
+                )}
+              </ContactRow>
+            ) : null}
             {isOwnAgencyListing ? (
               <ManagedAgencyCard>
                 <ManagedAgencyLogo>
@@ -1698,8 +1702,16 @@ export default function ListingDetailPage() {
             ) : null}
             {!isOwnListing && agencySlug ? (
               <AgencyCard href={`/agency/${agencySlug}`}>
-                <strong>{agencyName || t("listing.agencyProfile")}</strong>
-                <span>{agencyTagline || t("listing.browseAgencyStorefront")}</span>
+                <ManagedAgencyLogo>
+                  {agencyLogo ? <img src={agencyLogo} alt={agencyName || t("agency.label")} /> : <Home size={24} />}
+                </ManagedAgencyLogo>
+                <ManagedAgencyInfo>
+                  <strong>{agencyName || t("listing.agencyProfile")}</strong>
+                  <span>{t("listing.contactSubtitle")}</span>
+                  <span>
+                    {t("listing.hotline")}: {primaryContact}
+                  </span>
+                </ManagedAgencyInfo>
               </AgencyCard>
             ) : null}
             {isOwnListing ? (

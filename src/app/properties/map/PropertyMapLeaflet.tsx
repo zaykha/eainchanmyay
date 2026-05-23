@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import { createGlobalStyle } from "styled-components";
-import { MapContainer, Marker, useMap, useMapEvents, ZoomControl } from "react-leaflet";
+import { MapContainer, Marker, useMap, useMapEvents } from "react-leaflet";
 import type { Listing } from "@/app/living-site/lib/data";
 import type { ListingQueryBounds } from "@/app/living-site/hooks/useInfiniteListings";
 
@@ -234,6 +234,37 @@ function BaseTileLayer() {
   return null;
 }
 
+function BottomRightZoomControl() {
+  const map = useMap();
+
+  useEffect(() => {
+    const control = L.control.zoom({ position: "bottomright" });
+    let disposed = false;
+
+    const attachControl = () => {
+      if (disposed) return;
+      try {
+        control.addTo(map);
+      } catch {
+        return;
+      }
+    };
+
+    map.whenReady(attachControl);
+
+    return () => {
+      disposed = true;
+      try {
+        control.remove();
+      } catch {
+        return;
+      }
+    };
+  }, [map]);
+
+  return null;
+}
+
 export default function PropertyMapLeaflet({
   listings,
   selectedId,
@@ -275,7 +306,7 @@ export default function PropertyMapLeaflet({
         zoomControl={false}
       >
         <BaseTileLayer />
-        <ZoomControl position="bottomright" />
+        <BottomRightZoomControl />
         <ViewportController
           listings={visibleListings}
           focusedListing={focusedListing}

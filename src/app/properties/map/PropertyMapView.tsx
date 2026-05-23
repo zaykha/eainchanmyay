@@ -26,7 +26,7 @@ import {
   type ListingQueryBounds,
 } from "@/app/living-site/hooks/useInfiniteListings";
 import { useI18n } from "@/app/living-site/lib/i18n";
-import { getDistricts, getStates, getTownships } from "@/app/living-site/lib/myanmar-geo";
+import { getDistricts, getStates, getTownships, translateLocationName } from "@/app/living-site/lib/myanmar-geo";
 import { formatPropertyTypeValue, propertyTypeDefinitions } from "@/lib/property-types";
 
 const PropertyMapLeaflet = dynamic(() => import("./PropertyMapLeaflet"), {
@@ -622,11 +622,11 @@ const SkeletonCard = styled.div`
 `;
 
 const propertyTypeOptions = [
-  { value: "", label: "All property types" },
+  { value: "", labelKey: "filter.allTypes" },
   ...propertyTypeDefinitions.map((item) => ({ value: item.value, label: item.label })),
-  { value: "house_land", label: "House + Land" },
-  { value: "commercial", label: "Commercial" },
-  { value: "hotel_restaurant", label: "Hotel / Restaurant" },
+  { value: "house_land", labelKey: "property.houseLand" },
+  { value: "commercial", labelKey: "property.commercial" },
+  { value: "hotel_restaurant", labelKey: "property.hotelRestaurant" },
 ];
 
 const hasCoordinates = (listing: Listing) =>
@@ -660,17 +660,30 @@ function MapListingCard({
   selected,
   onSelect,
   registerRef,
+  t,
+  language,
 }: {
   listing: Listing;
   selected: boolean;
   onSelect: () => void;
   registerRef?: (node: HTMLElement | null) => void;
+  t: (key: string, params?: Record<string, string | number | null | undefined>) => string;
+  language: string;
 }) {
-  const locationLine = [listing.township, listing.district || listing.city].filter(Boolean).join(", ");
+  const locationLine = [listing.township, listing.district || listing.city]
+    .filter(Boolean)
+    .map((part) => translateLocationName(String(part), language))
+    .join(", ");
   const facts = [
-    listing.bedrooms ? { key: "beds", icon: <BedDouble size={15} />, label: `${listing.bedrooms} bed` } : null,
-    listing.bathrooms ? { key: "baths", icon: <Bath size={15} />, label: `${listing.bathrooms} bath` } : null,
-    listing.areaSqft ? { key: "area", icon: <Ruler size={15} />, label: `${listing.areaSqft.toLocaleString("en-US")} sqft` } : null,
+    listing.bedrooms ? { key: "beds", icon: <BedDouble size={15} />, label: `${listing.bedrooms} ${t("listing.bedrooms")}` } : null,
+    listing.bathrooms ? { key: "baths", icon: <Bath size={15} />, label: `${listing.bathrooms} ${t("listing.bathrooms")}` } : null,
+    listing.areaSqft
+      ? {
+          key: "area",
+          icon: <Ruler size={15} />,
+          label: `${listing.areaSqft.toLocaleString(language === "mm" ? "my-MM" : "en-US")} ${t("listing.areaSqft")}`,
+        }
+      : null,
   ].filter(Boolean) as Array<{ key: string; icon: ReactNode; label: string }>;
 
   return (
@@ -696,23 +709,23 @@ function MapListingCard({
         <ListingContent>
           <ListingTop>
             <div>
-              <ListingTitle>{listing.title || "Property listing"}</ListingTitle>
+              <ListingTitle>{listing.title || t("listing.property")}</ListingTitle>
               <MetaLine>
-                <MiniPill>{String(listing.dealType ?? "N/A").toUpperCase()}</MiniPill>
-                <MiniPill>{formatPropertyTypeValue(listing.propertyType) || "Property"}</MiniPill>
+                <MiniPill>{listing.dealType ? (listing.dealType === "rent" ? t("listing.forRent") : t("listing.forSale")) : t("common.notAvailable")}</MiniPill>
+                <MiniPill>{formatPropertyTypeValue(listing.propertyType, t) || t("listing.property")}</MiniPill>
                 {listing.verificationStatus === "approved" ? (
                   <MiniPill $tone="accent">
                     <BadgeCheck size={14} />
-                    Verified
+                    {t("agency.verifiedStatus")}
                   </MiniPill>
                 ) : null}
               </MetaLine>
             </div>
-            <PriceLabel>{formatCurrency(listing.price, listing.currency, "Contact")}</PriceLabel>
+            <PriceLabel>{formatCurrency(listing.price, listing.currency, t("listing.contactPrice"), language)}</PriceLabel>
           </ListingTop>
           <MetaLine>
             <MapPin size={15} />
-            {locationLine || listing.stateRegion || "Location pending"}
+            {locationLine || (listing.stateRegion ? translateLocationName(listing.stateRegion, language) : "") || t("map.locationPending")}
           </MetaLine>
           {facts.length ? (
             <FactsRow>
@@ -725,9 +738,9 @@ function MapListingCard({
             </FactsRow>
           ) : null}
           <CardActions onClick={(event) => event.stopPropagation()}>
-            <CardLink href={`/listing/${listing.id}`}>View details</CardLink>
+            <CardLink href={`/listing/${listing.id}`}>{t("map.viewDetails")}</CardLink>
             <CardLink href={`/listing/${listing.id}#contact`} $accent>
-              Contact
+              {t("map.contact")}
             </CardLink>
           </CardActions>
         </ListingContent>
@@ -739,7 +752,7 @@ function MapListingCard({
 export default function PropertyMapView() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { t } = useI18n();
+  const { t, language } = useI18n();
 
   const initialQuery = searchParams.get("q") ?? "";
   const initialDealType = searchParams.get("deal") ?? "";
@@ -821,7 +834,7 @@ export default function PropertyMapView() {
     fetch(`/api/listings?${queryString}`)
       .then(async (response) => {
         if (!response.ok) {
-          throw new Error("Unable to load map listings.");
+          throw new Error(t("map.unableLoad"));
         }
         return (await response.json()) as ListingsResponse;
       })
@@ -834,7 +847,7 @@ export default function PropertyMapView() {
         if (requestIdRef.current !== requestId) return;
         setListings([]);
         setTotal(0);
-        setError(fetchError instanceof Error ? fetchError.message : "Unable to load map listings.");
+        setError(fetchError instanceof Error ? fetchError.message : t("map.unableLoad"));
       })
       .finally(() => {
         if (requestIdRef.current === requestId) {
@@ -932,7 +945,7 @@ export default function PropertyMapView() {
     }
 
     if (!listings.length) {
-      return <EmptyState>No active listings match the current map filters.</EmptyState>;
+      return <EmptyState>{t("map.noMatches")}</EmptyState>;
     }
 
     return listings.map((listing) => (
@@ -944,6 +957,8 @@ export default function PropertyMapView() {
           setSelectedId(listing.id);
           setMobileListOpen(false);
         }}
+        t={t}
+        language={language}
         registerRef={(node) => {
           cardRefs.current[listing.id] = node;
         }}
@@ -953,41 +968,50 @@ export default function PropertyMapView() {
 
   const previewCard = selectedListing ? (
     <MapPreviewCard>
-      <PreviewImage>{selectedListing.imageUrl ? <img src={selectedListing.imageUrl} alt={selectedListing.title} /> : null}</PreviewImage>
+      <PreviewImage>{selectedListing.imageUrl ? <img src={selectedListing.imageUrl} alt={selectedListing.title || t("listing.property")} /> : null}</PreviewImage>
       <ListingContent>
         <ListingTop>
           <div>
-            <ListingTitle>{selectedListing.title || "Property listing"}</ListingTitle>
+            <ListingTitle>{selectedListing.title || t("listing.property")}</ListingTitle>
             <MetaLine>
-              <MiniPill>{String(selectedListing.dealType ?? "N/A").toUpperCase()}</MiniPill>
-              <MiniPill>{formatPropertyTypeValue(selectedListing.propertyType) || "Property"}</MiniPill>
+              <MiniPill>
+                {selectedListing.dealType
+                  ? selectedListing.dealType === "rent"
+                    ? t("listing.forRent")
+                    : t("listing.forSale")
+                  : t("common.notAvailable")}
+              </MiniPill>
+              <MiniPill>{formatPropertyTypeValue(selectedListing.propertyType, t) || t("listing.property")}</MiniPill>
             </MetaLine>
           </div>
-          <PriceLabel>{formatCurrency(selectedListing.price, selectedListing.currency, t("listing.contactPrice"))}</PriceLabel>
+          <PriceLabel>{formatCurrency(selectedListing.price, selectedListing.currency, t("listing.contactPrice"), language)}</PriceLabel>
         </ListingTop>
         <MetaLine>
           <MapPin size={15} />
-          {[selectedListing.township, selectedListing.district || selectedListing.city].filter(Boolean).join(", ") ||
-            selectedListing.stateRegion ||
+          {[selectedListing.township, selectedListing.district || selectedListing.city]
+            .filter(Boolean)
+            .map((part) => translateLocationName(String(part), language))
+            .join(", ") ||
+            (selectedListing.stateRegion ? translateLocationName(selectedListing.stateRegion, language) : "") ||
             t("map.locationPending")}
         </MetaLine>
         <FactsRow>
           {selectedListing.bedrooms ? (
             <Fact>
               <BedDouble size={15} />
-              {selectedListing.bedrooms} bed
+              {selectedListing.bedrooms} {t("listing.bedrooms")}
             </Fact>
           ) : null}
           {selectedListing.bathrooms ? (
             <Fact>
               <Bath size={15} />
-              {selectedListing.bathrooms} bath
+              {selectedListing.bathrooms} {t("listing.bathrooms")}
             </Fact>
           ) : null}
           {selectedListing.areaSqft ? (
             <Fact>
               <Ruler size={15} />
-              {selectedListing.areaSqft.toLocaleString("en-US")} sqft
+              {selectedListing.areaSqft.toLocaleString(language === "mm" ? "my-MM" : "en-US")} {t("listing.areaSqft")}
             </Fact>
           ) : null}
         </FactsRow>
@@ -1147,7 +1171,7 @@ export default function PropertyMapView() {
               </MobileTopCard>
               <ChipRow>
                 <Chip $active={!propertyType} onClick={() => setPropertyType("")}>
-                  All
+                  {t("filter.allTypes")}
                 </Chip>
                 {propertyTypeDefinitions.slice(0, 6).map((item) => (
                   <Chip
@@ -1155,7 +1179,7 @@ export default function PropertyMapView() {
                     $active={propertyType === item.value}
                     onClick={() => setPropertyType((current) => (current === item.value ? "" : item.value))}
                   >
-                    {item.label}
+                    {formatPropertyTypeValue(item.value, t) || item.label}
                   </Chip>
                 ))}
               </ChipRow>
@@ -1234,7 +1258,7 @@ export default function PropertyMapView() {
               >
                 {propertyTypeOptions.map((item) => (
                   <option key={item.value || "all"} value={item.value}>
-                    {item.label}
+                    {"labelKey" in item ? t(item.labelKey) : formatPropertyTypeValue(item.value, t) || item.label}
                   </option>
                 ))}
               </CustomSelect>
@@ -1253,7 +1277,7 @@ export default function PropertyMapView() {
                 <option value="">{t("filter.allStates")}</option>
                 {stateOptions.map((item) => (
                   <option key={item.pcode ?? item.name_en} value={item.name_en}>
-                    {item.name_en}
+                    {translateLocationName(item.name_en, language)}
                   </option>
                 ))}
               </CustomSelect>
@@ -1272,7 +1296,7 @@ export default function PropertyMapView() {
                 <option value="">{t("filter.allDistricts")}</option>
                 {districtOptions.map((item) => (
                   <option key={item.pcode ?? item.name_en} value={item.name_en}>
-                    {item.name_en}
+                    {translateLocationName(item.name_en, language)}
                   </option>
                 ))}
               </CustomSelect>
@@ -1288,7 +1312,7 @@ export default function PropertyMapView() {
                 <option value="">{t("filter.allTownships")}</option>
                 {townshipOptions.map((item) => (
                   <option key={item.pcode ?? item.name_en} value={item.name_en}>
-                    {item.name_en}
+                    {translateLocationName(item.name_en, language)}
                   </option>
                 ))}
               </CustomSelect>

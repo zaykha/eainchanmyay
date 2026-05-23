@@ -32,6 +32,12 @@ body {
   min-height: 100%;
 }
 
+@media (max-width: 720px) {
+  html {
+    font-size: 15px;
+  }
+}
+
 body {
   margin: 0;
   min-height: 100vh;

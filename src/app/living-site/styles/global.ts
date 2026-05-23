@@ -29,6 +29,12 @@ export const GlobalStyle = createGlobalStyle`
     --font-scale: 1;
   }
 
+  @media (max-width: 720px) {
+    :root {
+      --font-scale: 0.94;
+    }
+  }
+
   * {
     box-sizing: border-box;
   }

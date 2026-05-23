@@ -1,0 +1,519 @@
+{
+  "project": "Eain Chan Myay",
+  "purpose": "Temporary article-page seed data for Codex implementation",
+  "language": "en",
+  "fetchedAt": "2026-05-23",
+  "count": 24,
+  "disclaimer": "This is source-backed placeholder content for development. Verify each source and rewrite copy before public publishing, especially subscription-limited Frontier Myanmar Monitor items.",
+  "notesForCodex": [
+    "Use these as temporary article cards or seed records.",
+    "Do not treat summaries as final editorial content.",
+    "Keep sourceUrl and sourceName visible in admin/dev data, but decide later whether to expose sources publicly.",
+    "Articles, Partners, and Collections strategy is pending partner confirmation."
+  ],
+  "articles": [
+    {
+      "id": "mm-market-001",
+      "slug": "yangon-market-stable-after-thingyan-rental-demand-rises",
+      "title": "Yangon Market Holds Firm After Thingyan as Rental Demand Rises",
+      "category": "Market Update",
+      "region": "Yangon",
+      "publishedDate": "2026-04-23",
+      "sourceName": "Global New Light of Myanmar",
+      "sourceTitle": "Yangon property market holds firm post-Thingyan as rental demand rises",
+      "sourceUrl": "https://www.gnlm.com.mm/yangon-property-market-holds-firm-post-thingyan-as-rental-demand-rises/",
+      "summary": "Yangon’s housing, land, and apartment transactions reportedly stayed stable after Thingyan. Realistic apartment prices around K100 million to K400 million continued to see activity, while overpriced properties attracted weaker buyer interest.",
+      "marketTakeaway": "Demand is selective: buyers are still active, but pricing discipline matters.",
+      "tags": [
+        "Yangon",
+        "Sales",
+        "Rental Demand",
+        "Pricing"
+      ],
+      "suggestedPlacement": "articles.market_updates",
+      "temporary": true
+    },
+    {
+      "id": "mm-market-002",
+      "slug": "dala-prices-rise-after-bridge-opening-sales-slow",
+      "title": "Dala Prices Rise After Bridge Opening, but Sales Remain Selective",
+      "category": "Infrastructure Impact",
+      "region": "Dala, Yangon",
+      "publishedDate": "2026-02-25",
+      "sourceName": "Global New Light of Myanmar",
+      "sourceTitle": "Dala property prices surge after bridge opening, sales slow",
+      "sourceUrl": "https://www.gnlm.com.mm/dala-property-prices-surge-after-bridge-opening-sales-slow/",
+      "summary": "Dala property prices rose significantly after the Myanmar-Korea Friendship Bridge opened. Some plots near major roads were listed at very high prices, but agents reported that only properly priced plots were actually moving.",
+      "marketTakeaway": "Infrastructure can lift asking prices quickly, but buyer conversion still depends on realistic pricing.",
+      "tags": [
+        "Dala",
+        "Bridge",
+        "Land",
+        "Infrastructure"
+      ],
+      "suggestedPlacement": "articles.infrastructure",
+      "temporary": true
+    },
+    {
+      "id": "mm-market-003",
+      "slug": "yangon-apartment-mini-condo-sales-rebound-2025",
+      "title": "Yangon Apartment and Mini-Condo Sales Rebound After a Slower Period",
+      "category": "Residential Sales",
+      "region": "Yangon",
+      "publishedDate": "2025-05-31",
+      "sourceName": "Global New Light of Myanmar",
+      "sourceTitle": "Yangon apartment and mini-condo sales rebound",
+      "sourceUrl": "https://www.gnlm.com.mm/yangon-apartment-and-mini-condo-sales-rebound/",
+      "summary": "Yangon apartment and mini-condo sales recovered after a slowdown, with prices varying by township, floor, and location. The report also noted active rentals and stable land prices in some areas.",
+      "marketTakeaway": "Small-unit residential demand remains resilient, especially where prices match local affordability.",
+      "tags": [
+        "Yangon",
+        "Apartment",
+        "Mini Condo",
+        "Sales"
+      ],
+      "suggestedPlacement": "articles.residential",
+      "temporary": true
+    },
+    {
+      "id": "mm-market-004",
+      "slug": "yangon-rentals-go-up-pre-monsoon-2025",
+      "title": "Yangon Rentals Stay Active During Pre-Monsoon Moving Season",
+      "category": "Rental Market",
+      "region": "Yangon",
+      "publishedDate": "2025-05-18",
+      "sourceName": "Global New Light of Myanmar",
+      "sourceTitle": "Rentals go up in Yangon property market",
+      "sourceUrl": "https://www.gnlm.com.mm/rentals-go-up-in-yangon-property-market/",
+      "summary": "Rental activity increased during the pre-monsoon moving period. Reported monthly rents varied by area and neighborhood, with common levels around K250,000, K300,000, and K400,000.",
+      "marketTakeaway": "Rental demand is supported by relocation, training, and work-related movement into Yangon.",
+      "tags": [
+        "Yangon",
+        "Rentals",
+        "Pre-Monsoon",
+        "Tenants"
+      ],
+      "suggestedPlacement": "articles.rentals",
+      "temporary": true
+    },
+    {
+      "id": "mm-market-005",
+      "slug": "yangon-real-estate-rent-market-continues-rise-2025",
+      "title": "Yangon Rental Market Continues Rising as Tenants Compete for Rooms",
+      "category": "Rental Market",
+      "region": "Yangon",
+      "publishedDate": "2025-03-06",
+      "sourceName": "Global New Light of Myanmar",
+      "sourceTitle": "Yangon's real estate rent market on the rise",
+      "sourceUrl": "https://www.gnlm.com.mm/rent-market-continues-to-rise-in-yangon-real-estate-sector/",
+      "summary": "Agents reported that apartment and house rents in Yangon remained high, supported by office workers, families relocating from other cities, and people attending training. Vacant units were said to be quickly replaced by new tenants.",
+      "marketTakeaway": "Rental supply in desirable townships remains tight relative to active tenant demand.",
+      "tags": [
+        "Yangon",
+        "Rent",
+        "Apartments",
+        "Tenant Demand"
+      ],
+      "suggestedPlacement": "articles.rentals",
+      "temporary": true
+    },
+    {
+      "id": "mm-market-006",
+      "slug": "yangon-rental-market-surges-as-sales-slow-2025",
+      "title": "Yangon Rental Market Surges While Sales Slow",
+      "category": "Rental Market",
+      "region": "Yangon",
+      "publishedDate": "2025-10-15",
+      "sourceName": "Global New Light of Myanmar",
+      "sourceTitle": "Yangon rental market surges as property sales slow",
+      "sourceUrl": "https://www.gnlm.com.mm/yangon-rental-market-surges-as-property-sales-slow/",
+      "summary": "Rental fees for Yangon flats reportedly rose by K50,000 to K200,000 within six months to a year. Flats under K1 million were among the most frequently rented as more people moved to Yangon.",
+      "marketTakeaway": "Rental affordability bands matter: sub-K1 million units appear especially active.",
+      "tags": [
+        "Yangon",
+        "Rent",
+        "Affordability",
+        "Sales Slowdown"
+      ],
+      "suggestedPlacement": "articles.rentals",
+      "temporary": true
+    },
+    {
+      "id": "mm-market-007",
+      "slug": "yangon-rents-rise-during-buddhist-lent-2025",
+      "title": "Yangon Rents Rise Even During Buddhist Lent",
+      "category": "Rental Market",
+      "region": "Yangon",
+      "publishedDate": "2025-08-10",
+      "sourceName": "Global New Light of Myanmar",
+      "sourceTitle": "Real estate rents increase in Yangon despite Buddhist lent period",
+      "sourceUrl": "https://www.gnlm.com.mm/real-estate-rents-increase-in-yangon-despite-vassa-period/",
+      "summary": "Rental activity reportedly remained strong even during Buddhist Lent, a period that can slow moving activity. Agents linked demand to displacement, training-related migration, and shared living among families and workers.",
+      "marketTakeaway": "Seasonal slowdowns may be less pronounced when relocation pressure is high.",
+      "tags": [
+        "Yangon",
+        "Rentals",
+        "Seasonality",
+        "Migration"
+      ],
+      "suggestedPlacement": "articles.rentals",
+      "temporary": true
+    },
+    {
+      "id": "mm-market-008",
+      "slug": "lower-floor-apartments-houses-rent-demand-yangon-2025",
+      "title": "Lower-Floor Apartments and Houses Attract Strong Rental Interest",
+      "category": "Rental Market",
+      "region": "Yangon",
+      "publishedDate": "2025-04-20",
+      "sourceName": "Global New Light of Myanmar",
+      "sourceTitle": "Public interests high in house and lower-floor apartment rent",
+      "sourceUrl": "https://www.gnlm.com.mm/public-interests-is-high-in-house-and-lower-floor-apartment-rent/",
+      "summary": "Estate agents reported higher interest in houses and lower-floor apartments, with rental demand rising after Thingyan amid home moves and displaced people entering the city.",
+      "marketTakeaway": "Accessibility and perceived safety can shape rental preferences, especially after major shocks.",
+      "tags": [
+        "Yangon",
+        "Lower Floors",
+        "Houses",
+        "Rental Preference"
+      ],
+      "suggestedPlacement": "articles.rentals",
+      "temporary": true
+    },
+    {
+      "id": "mm-market-009",
+      "slug": "high-rise-apartment-sales-decline-after-earthquake-yangon-2025",
+      "title": "High-Rise Apartment Sales Slow After Earthquake Concerns",
+      "category": "Residential Sales",
+      "region": "Yangon",
+      "publishedDate": "2025-04-23",
+      "sourceName": "Global New Light of Myanmar",
+      "sourceTitle": "Yangon's high-rise apartment sales decline",
+      "sourceUrl": "https://www.gnlm.com.mm/yangons-high-rise-apartment-sales-decline/",
+      "summary": "High-rise apartment sales reportedly slowed after the March earthquake as some residents became anxious about living in taller buildings. The event affected buyer sentiment toward upper-floor and high-rise units.",
+      "marketTakeaway": "Post-disaster confidence can temporarily shift demand toward lower floors and lower-rise housing.",
+      "tags": [
+        "Yangon",
+        "High-Rise",
+        "Earthquake",
+        "Buyer Sentiment"
+      ],
+      "suggestedPlacement": "articles.residential",
+      "temporary": true
+    },
+    {
+      "id": "mm-market-010",
+      "slug": "north-dagon-property-market-high-prices-2025",
+      "title": "North Dagon Property Market Reaches New Highs",
+      "category": "Township Spotlight",
+      "region": "North Dagon, Yangon",
+      "publishedDate": "2025-11-14",
+      "sourceName": "Global New Light of Myanmar",
+      "sourceTitle": "North Dagon property market hits new highs in Yangon",
+      "sourceUrl": "https://www.gnlm.com.mm/yangons-north-dagon-real-estate-market-reaches-high-prices/",
+      "summary": "North Dagon attracted attention due to accessibility and improved amenities such as hospitals, clinics, schools, and restaurants. The township’s property market reportedly reached higher price levels.",
+      "marketTakeaway": "Amenity-rich suburban townships can command stronger buyer attention.",
+      "tags": [
+        "North Dagon",
+        "Yangon",
+        "Township",
+        "Amenities"
+      ],
+      "suggestedPlacement": "articles.township_spotlight",
+      "temporary": true
+    },
+    {
+      "id": "mm-market-011",
+      "slug": "real-estate-vlogs-attract-attention-myanmar-2025",
+      "title": "Real Estate Vlogs Become a Popular Marketing Tool",
+      "category": "Digital Marketing",
+      "region": "Myanmar",
+      "publishedDate": "2025-07-21",
+      "sourceName": "Global New Light of Myanmar",
+      "sourceTitle": "Real estate vlogs attract wide attention",
+      "sourceUrl": "https://www.gnlm.com.mm/real-estates-vlogs-draw-many-attentions/",
+      "summary": "Real estate agents reported that property vlogs, especially on TikTok and similar platforms, are attracting attention by giving buyers more detailed visual presentations than ordinary listings.",
+      "marketTakeaway": "Video-first listing marketing can increase buyer confidence and engagement.",
+      "tags": [
+        "Digital Marketing",
+        "TikTok",
+        "Video Listings",
+        "Agents"
+      ],
+      "suggestedPlacement": "articles.agent_guides",
+      "temporary": true
+    },
+    {
+      "id": "mm-market-012",
+      "slug": "myanmar-residential-market-2026-2031-growth-outlook",
+      "title": "Myanmar Residential Real Estate Market Forecast Shows Resilient Growth",
+      "category": "Market Research",
+      "region": "Myanmar",
+      "publishedDate": "2026-01-15",
+      "sourceName": "Mordor Intelligence",
+      "sourceTitle": "Myanmar Residential Real Estate Market Analysis",
+      "sourceUrl": "https://www.mordorintelligence.com/industry-reports/residential-real-estate-market-in-myanmar",
+      "summary": "Mordor Intelligence estimates Myanmar’s residential real estate market at USD 1.71 billion in 2026 and projects USD 2.56 billion by 2031, with condominiums holding a leading share of the property mix.",
+      "marketTakeaway": "Despite instability, long-term urban housing demand remains a core market driver.",
+      "tags": [
+        "Market Size",
+        "Residential",
+        "Condominiums",
+        "Forecast"
+      ],
+      "suggestedPlacement": "articles.market_research",
+      "temporary": true
+    },
+    {
+      "id": "mm-market-013",
+      "slug": "technavio-myanmar-residential-market-2025-2029",
+      "title": "Residential Market Forecast Points to Incremental Growth Through 2029",
+      "category": "Market Research",
+      "region": "Myanmar",
+      "publishedDate": "2025-2029 forecast",
+      "sourceName": "Technavio",
+      "sourceTitle": "Myanmar Residential Real Estate Market Size 2025-2029",
+      "sourceUrl": "https://www.technavio.com/report/myanmar-residential-real-estate-market-analysis",
+      "summary": "Technavio forecasts Myanmar’s residential real estate market to increase by about USD 233.2 million from 2024 to 2029, with a reported CAGR of 4.7%.",
+      "marketTakeaway": "Forecasts differ by methodology, but several market-research providers still see expansion over the medium term.",
+      "tags": [
+        "Forecast",
+        "Residential",
+        "Market Research"
+      ],
+      "suggestedPlacement": "articles.market_research",
+      "temporary": true
+    },
+    {
+      "id": "mm-market-014",
+      "slug": "world-bank-yangon-private-residential-construction-permits-decline",
+      "title": "Private Residential Construction Permits Decline in Yangon",
+      "category": "Construction",
+      "region": "Yangon",
+      "publishedDate": "2025-06",
+      "sourceName": "World Bank",
+      "sourceTitle": "Myanmar Economic Monitor June 2025",
+      "sourceUrl": "https://documents1.worldbank.org/curated/en/099061125205014652/pdf/P507203-cbcf81b5-0107-4517-8ad7-82b588a6328f.pdf",
+      "summary": "The World Bank reported that private residential construction permits in Yangon fell by an average of 9% monthly from October 2024 to April 2025, reflecting tighter lending, foreign-exchange constraints, and construction input challenges.",
+      "marketTakeaway": "New private supply may remain constrained when credit, FX, and materials are difficult to access.",
+      "tags": [
+        "Construction",
+        "Permits",
+        "World Bank",
+        "Yangon"
+      ],
+      "suggestedPlacement": "articles.construction",
+      "temporary": true
+    },
+    {
+      "id": "mm-market-015",
+      "slug": "world-bank-earthquake-economic-impact-myanmar-2025",
+      "title": "Earthquake Deepens Myanmar’s Economic Pressure and Affects Property Confidence",
+      "category": "Economy",
+      "region": "Myanmar",
+      "publishedDate": "2025-06-12",
+      "sourceName": "Reuters / World Bank",
+      "sourceTitle": "Earthquake worsens Myanmar's economic decline, World Bank says",
+      "sourceUrl": "https://www.reuters.com/markets/asia/earthquake-worsens-myanmars-economic-decline-world-bank-says-2025-06-12/",
+      "summary": "Reuters reported World Bank estimates that Myanmar’s economy would contract 2.5% in FY2025/26 after the March earthquake, with direct damage to property and infrastructure estimated at USD 11 billion.",
+      "marketTakeaway": "Disaster recovery, reconstruction, and household stress are now important context for real estate demand and supply.",
+      "tags": [
+        "Economy",
+        "Earthquake",
+        "World Bank",
+        "Infrastructure"
+      ],
+      "suggestedPlacement": "articles.economy",
+      "temporary": true
+    },
+    {
+      "id": "mm-market-016",
+      "slug": "adb-non-food-inflation-housing-transport-myanmar-2025",
+      "title": "Housing and Transport Costs Add to Non-Food Inflation Pressure",
+      "category": "Economy",
+      "region": "Myanmar",
+      "publishedDate": "2025",
+      "sourceName": "Asian Development Bank",
+      "sourceTitle": "Myanmar: Economy",
+      "sourceUrl": "https://www.adb.org/where-we-work/myanmar/economy",
+      "summary": "ADB notes that non-food inflation increased in the first half of 2025, driven in part by higher healthcare, housing, and transport costs.",
+      "marketTakeaway": "Rising household costs can affect rent affordability, relocation choices, and buyer purchasing power.",
+      "tags": [
+        "Inflation",
+        "Housing Costs",
+        "Economy",
+        "ADB"
+      ],
+      "suggestedPlacement": "articles.economy",
+      "temporary": true
+    },
+    {
+      "id": "mm-market-017",
+      "slug": "myanmar-buyers-thai-condos-surge-2024",
+      "title": "Myanmar Buyers Become a Major Force in Thai Condo Purchases",
+      "category": "Cross-Border Investment",
+      "region": "Myanmar / Thailand",
+      "publishedDate": "2024-11-20",
+      "sourceName": "Reuters",
+      "sourceTitle": "Conflict in Myanmar sparks surge in Thai property purchases",
+      "sourceUrl": "https://www.reuters.com/markets/asia/conflict-myanmar-sparks-surge-thai-property-purchases-2024-11-20/",
+      "summary": "Reuters reported that Myanmar nationals became the second-largest foreign buyer group for Thai condos in the first nine months of 2024, with more than 1,000 units purchased amid conflict, inflation, and currency concerns at home.",
+      "marketTakeaway": "Cross-border real estate demand can reflect domestic uncertainty and capital preservation behavior.",
+      "tags": [
+        "Thailand",
+        "Condo",
+        "Cross-Border",
+        "Investment"
+      ],
+      "suggestedPlacement": "articles.investment",
+      "temporary": true
+    },
+    {
+      "id": "mm-market-018",
+      "slug": "yangon-commercial-rents-continue-upward-early-2026",
+      "title": "Yangon Commercial Rents Continue Their Upward Trend",
+      "category": "Commercial Market",
+      "region": "Yangon",
+      "publishedDate": "2026-03-12",
+      "sourceName": "Myanmar Real Estate and Construction Monitor",
+      "sourceTitle": "Data: Yangon commercial rents continue upward trend in early 2026",
+      "sourceUrl": "https://realestate.frontiermyanmar.com/news/commercial-and-industrial/data-yangon-commercial-rents-continue-upward-trend-early-2026",
+      "summary": "Myanmar Real Estate and Construction Monitor reported that Yangon commercial rents continued rising in early 2026. The article itself is subscription-limited, but the headline is useful as a temporary market signal.",
+      "marketTakeaway": "Commercial rent pressure may matter for retailers, offices, and mixed-use property investors.",
+      "tags": [
+        "Commercial",
+        "Rents",
+        "Yangon",
+        "Frontier"
+      ],
+      "suggestedPlacement": "articles.commercial",
+      "temporary": true
+    },
+    {
+      "id": "mm-market-019",
+      "slug": "yangon-average-commercial-rents-rise-43-2025",
+      "title": "Yangon Average Commercial Rents Reportedly Rose 43% in 2025",
+      "category": "Commercial Market",
+      "region": "Yangon",
+      "publishedDate": "2026-01-15",
+      "sourceName": "Myanmar Real Estate and Construction Monitor",
+      "sourceTitle": "Yangon’s average commercial rents rise 43% in 2025",
+      "sourceUrl": "https://realestate.frontiermyanmar.com/index.php/news/commercial-and-industrial/yangons-average-commercial-rents-rise-43-2025",
+      "summary": "Myanmar Real Estate and Construction Monitor reported that Yangon’s average commercial rents rose 43% in 2025. This source is subscription-limited, so use the figure as a cited market headline only until verified with full access.",
+      "marketTakeaway": "Commercial rent inflation can influence business location decisions and tenant churn.",
+      "tags": [
+        "Commercial",
+        "Rent Growth",
+        "Yangon",
+        "2025"
+      ],
+      "suggestedPlacement": "articles.commercial",
+      "temporary": true
+    },
+    {
+      "id": "mm-market-020",
+      "slug": "yangon-property-prices-surge-rents-nearly-double-early-2026",
+      "title": "Yangon Property Prices Surge as Rents Nearly Double in Early 2026",
+      "category": "Residential Market",
+      "region": "Yangon",
+      "publishedDate": "2026-01-29",
+      "sourceName": "Myanmar Real Estate and Construction Monitor",
+      "sourceTitle": "Yangon property prices surge as rents nearly double in early 2026",
+      "sourceUrl": "https://realestate.frontiermyanmar.com/index.php/news/residential/yangon-property-prices-surge-rents-nearly-double-early-2026",
+      "summary": "Myanmar Real Estate and Construction Monitor reported that Yangon property prices surged and rents nearly doubled in early 2026. The page is subscription-limited, so treat it as a temporary headline signal.",
+      "marketTakeaway": "The rental and sales markets may be moving together in some Yangon segments, but full details require verification.",
+      "tags": [
+        "Yangon",
+        "Residential",
+        "Rent Growth",
+        "Price Growth"
+      ],
+      "suggestedPlacement": "articles.residential",
+      "temporary": true
+    },
+    {
+      "id": "mm-market-021",
+      "slug": "aung-zeya-city-condominium-sales-launch-hlaingtharyar",
+      "title": "Aung Zeya City Condominium Sales Launch in Hlaingtharyar",
+      "category": "Project Launch",
+      "region": "Hlaingtharyar, Yangon",
+      "publishedDate": "2026-02-26",
+      "sourceName": "Myanmar Real Estate and Construction Monitor",
+      "sourceTitle": "Sales launched for Aung Zeya City Condominium in Hlaingtharyar",
+      "sourceUrl": "https://realestate.frontiermyanmar.com/news/residential/sales-launched-aung-zeya-city-condominium-hlaingtharyar",
+      "summary": "Aung Zeya City Condominium launched sales in Hlaingtharyar in February 2026, adding another condominium project signal to the Yangon suburban market.",
+      "marketTakeaway": "Condo projects continue to appear outside central Yangon, reflecting broader township expansion.",
+      "tags": [
+        "Condominium",
+        "Hlaingtharyar",
+        "Project Launch",
+        "Yangon"
+      ],
+      "suggestedPlacement": "articles.project_launches",
+      "temporary": true
+    },
+    {
+      "id": "mm-market-022",
+      "slug": "chid-bank-housing-loans-90-billion-kyats",
+      "title": "CHID Bank Housing Loans Reach Nearly K90 Billion Over 11 Years",
+      "category": "Housing Finance",
+      "region": "Myanmar",
+      "publishedDate": "2026-05-21",
+      "sourceName": "Myanmar Real Estate and Construction Monitor",
+      "sourceTitle": "CHID Bank disburses nearly Ks90bn in housing loans over 11 years",
+      "sourceUrl": "https://realestate.frontiermyanmar.com/",
+      "summary": "Myanmar Real Estate and Construction Monitor listed a May 2026 item reporting that CHID Bank had disbursed nearly K90 billion in housing loans over 11 years.",
+      "marketTakeaway": "Housing finance remains a key constraint and opportunity area for Myanmar’s residential market.",
+      "tags": [
+        "Housing Finance",
+        "CHID Bank",
+        "Loans",
+        "Affordability"
+      ],
+      "suggestedPlacement": "articles.finance",
+      "temporary": true
+    },
+    {
+      "id": "mm-market-023",
+      "slug": "magway-property-prices-rise-displaced-people",
+      "title": "Magway Property Prices Rise Amid Influx of Displaced People",
+      "category": "Regional Market",
+      "region": "Magway",
+      "publishedDate": "2026-05-21",
+      "sourceName": "Myanmar Real Estate and Construction Monitor",
+      "sourceTitle": "Magway property prices rise amid influx of displaced people",
+      "sourceUrl": "https://realestate.frontiermyanmar.com/",
+      "summary": "Myanmar Real Estate and Construction Monitor listed a May 2026 item reporting rising property prices in Magway amid an influx of displaced people.",
+      "marketTakeaway": "Internal displacement can reshape demand in regional cities, not only Yangon.",
+      "tags": [
+        "Magway",
+        "Regional Market",
+        "Displacement",
+        "Prices"
+      ],
+      "suggestedPlacement": "articles.regional",
+      "temporary": true
+    },
+    {
+      "id": "mm-market-024",
+      "slug": "post-earthquake-reconstruction-labor-shortages-naypyitaw",
+      "title": "Labor Shortages Slow Post-Earthquake Reconstruction in Naypyitaw",
+      "category": "Construction",
+      "region": "Naypyitaw",
+      "publishedDate": "2026-01-15",
+      "sourceName": "Myanmar Real Estate and Construction Monitor",
+      "sourceTitle": "Labor shortages slow post-earthquake reconstruction in Naypyitaw",
+      "sourceUrl": "https://realestate.frontiermyanmar.com/news/residential",
+      "summary": "Myanmar Real Estate and Construction Monitor listed a January 2026 item on labor shortages slowing post-earthquake reconstruction in Naypyitaw.",
+      "marketTakeaway": "Construction labor availability can affect rebuilding timelines and housing supply recovery.",
+      "tags": [
+        "Naypyitaw",
+        "Construction",
+        "Reconstruction",
+        "Labor"
+      ],
+      "suggestedPlacement": "articles.construction",
+      "temporary": true
+    }
+  ]
+}

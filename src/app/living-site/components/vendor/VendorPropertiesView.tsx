@@ -67,10 +67,16 @@ const ActionLink = styled(Link)<{ $embedded?: boolean }>`
   font-weight: 700;
 `;
 
-const Filters = styled.form`
+const Filters = styled.form<{ $compact?: boolean }>`
   display: grid;
   grid-template-columns: minmax(220px, 1.5fr) repeat(3, minmax(0, 0.6fr));
   gap: 12px;
+
+  .SelectTrigger,
+  .SelectOption,
+  .SelectGroupLabel {
+    font-size: ${(props) => (props.$compact ? "0.88rem" : "0.98rem")};
+  }
 
   @media (max-width: 980px) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -86,7 +92,7 @@ const SearchField = styled.div<{ $embedded?: boolean }>`
   min-width: 0;
 `;
 
-const Input = styled.input<{ $embedded?: boolean }>`
+const Input = styled.input<{ $embedded?: boolean; $compact?: boolean }>`
   min-height: 46px;
   border-radius: 14px;
   border: 1px solid ${(props) => (props.$embedded ? "var(--color-outline)" : "rgba(255, 255, 255, 0.08)")};
@@ -94,6 +100,7 @@ const Input = styled.input<{ $embedded?: boolean }>`
   color: ${(props) => (props.$embedded ? "var(--color-text)" : "#f8fafc")};
   padding: 0 52px 0 14px;
   width: 100%;
+  font-size: ${(props) => (props.$compact ? "0.88rem" : "0.98rem")};
 `;
 
 const SearchButton = styled.button<{ $embedded?: boolean }>`
@@ -304,7 +311,7 @@ const EmbeddedPrice = styled.div`
   line-height: 1.2;
 `;
 
-const Pill = styled.span<{ $embedded?: boolean; $tone?: "neutral" | "deal" | "price" | "status-success" | "status-warning" | "status-danger" | "status-muted" }>`
+const Pill = styled.span<{ $embedded?: boolean; $compact?: boolean; $tone?: "neutral" | "deal" | "price" | "status-success" | "status-warning" | "status-danger" | "status-muted" }>`
   min-height: 28px;
   padding: 0 10px;
   border-radius: 999px;
@@ -338,14 +345,14 @@ const Pill = styled.span<{ $embedded?: boolean; $tone?: "neutral" | "deal" | "pr
   }};
   display: inline-flex;
   align-items: center;
-  font-size: ${(props) => (props.$embedded ? "0.75rem" : "0.82rem")};
+  font-size: ${(props) => (props.$compact ? "0.67rem" : props.$embedded ? "0.75rem" : "0.82rem")};
   font-weight: 600;
 `;
 
 const EmbeddedPill = styled(Pill)<{ $tone?: "neutral" | "deal" | "price" | "status-success" | "status-warning" | "status-danger" | "status-muted" }>`
   min-height: 24px;
   padding: 0 8px;
-  font-size: 0.72rem;
+  font-size: ${(props) => (props.$compact ? "0.66rem" : "0.72rem")};
 `;
 
 const IconPill = styled(Pill)`
@@ -420,7 +427,7 @@ const EmbeddedLeftStack = styled.div`
   min-width: 0;
 `;
 
-const PropertyTypeTag = styled.div`
+const PropertyTypeTag = styled.div<{ $compact?: boolean }>`
   display: inline-flex;
   flex-direction: column;
   align-items: center;
@@ -431,7 +438,7 @@ const PropertyTypeTag = styled.div`
   padding: 8px 4px;
   border-left: 1px solid var(--color-outline);
   color: var(--color-muted);
-  font-size: 0.74rem;
+  font-size: ${(props) => (props.$compact ? "0.68rem" : "0.74rem")};
   text-align: center;
 
   svg {
@@ -529,10 +536,18 @@ function labelize(value: string | null | undefined) {
     .join(" ");
 }
 
-function getDealTypeLabel(value: string | null | undefined) {
+function getDealTypeLabel(value: string | null | undefined, t: (key: string) => string) {
   const normalized = String(value ?? "").trim().toLowerCase();
-  if (normalized === "sale") return "Sale";
-  if (normalized === "rent") return "Rent";
+  if (normalized === "sale") return t("listing.forSale");
+  if (normalized === "rent") return t("listing.forRent");
+  return labelize(value);
+}
+
+function getListingStatusLabel(value: string | null | undefined, t: (key: string) => string) {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  const key = normalized ? `vendor.properties.status.${normalized}` : "";
+  const translated = key ? t(key) : "";
+  if (translated && translated !== key) return translated;
   return labelize(value);
 }
 
@@ -576,6 +591,7 @@ export function VendorPropertiesView({
 }: VendorPropertiesViewProps = {}) {
   const { authToken } = useAppState();
   const { t, language } = useI18n();
+  const isMyanmar = language === "mm";
   const [items, setItems] = useState<VendorPropertyItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -598,7 +614,7 @@ export function VendorPropertiesView({
         property.city,
         property.district,
         property.township,
-        formatPropertyTypeValue(property.property_type),
+        formatPropertyTypeValue(property.property_type, t),
       ]
         .filter(Boolean)
         .join(" ")
@@ -728,6 +744,7 @@ export function VendorPropertiesView({
       ) : null}
 
       <Filters
+        $compact={isMyanmar}
         onSubmit={(event) => {
           event.preventDefault();
           applySearch();
@@ -736,6 +753,7 @@ export function VendorPropertiesView({
         <SearchField $embedded={embedded}>
           <Input
             $embedded={embedded}
+            $compact={isMyanmar}
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
             placeholder={t("vendor.properties.searchPlaceholder")}
@@ -754,15 +772,15 @@ export function VendorPropertiesView({
           hideLabel
         >
           <option value="">{t("vendor.properties.allStatuses")}</option>
-          <option value="draft">Draft</option>
-          <option value="active">Active</option>
-          <option value="paused">Paused</option>
-          <option value="reserved">Reserved</option>
-          <option value="sold">Sold</option>
-          <option value="rented">Rented</option>
-          <option value="expired">Expired</option>
-          <option value="archived">Archived</option>
-          <option value="rejected">Rejected</option>
+          <option value="draft">{t("vendor.properties.status.draft")}</option>
+          <option value="active">{t("vendor.properties.status.active")}</option>
+          <option value="paused">{t("vendor.properties.status.paused")}</option>
+          <option value="reserved">{t("vendor.properties.status.reserved")}</option>
+          <option value="sold">{t("vendor.properties.status.sold")}</option>
+          <option value="rented">{t("vendor.properties.status.rented")}</option>
+          <option value="expired">{t("vendor.properties.status.expired")}</option>
+          <option value="archived">{t("vendor.properties.status.archived")}</option>
+          <option value="rejected">{t("vendor.properties.status.rejected")}</option>
         </CustomSelect>
         <CustomSelect
           id="vendor-property-deal"
@@ -773,8 +791,8 @@ export function VendorPropertiesView({
           hideLabel
         >
           <option value="">{t("vendor.properties.allDeals")}</option>
-          <option value="sale">{getDealTypeLabel("sale")}</option>
-          <option value="rent">{getDealTypeLabel("rent")}</option>
+          <option value="sale">{getDealTypeLabel("sale", t)}</option>
+          <option value="rent">{getDealTypeLabel("rent", t)}</option>
         </CustomSelect>
         <CustomSelect
           id="vendor-property-type"
@@ -787,7 +805,7 @@ export function VendorPropertiesView({
           <option value="">{t("vendor.properties.allTypes")}</option>
           {propertyTypeDefinitions.map((option) => (
             <option key={option.value} value={option.value}>
-              {option.label}
+              {formatPropertyTypeValue(option.value, t)}
             </option>
           ))}
         </CustomSelect>
@@ -826,16 +844,16 @@ export function VendorPropertiesView({
                       onClick={() => {
                         onSelectProperty?.(property);
                       }}
-                      aria-label={`Open ${property.title || t("listing.property")} details`}
+                        aria-label={`Open ${property.title || t("listing.property")} details`}
                     >
                       <EmbeddedFloatingPills>
-                        <EmbeddedPill $embedded $tone={getListingStatusTone(property.status)}>
-                          {labelize(property.status)}
+                        <EmbeddedPill $embedded $compact={isMyanmar} $tone={getListingStatusTone(property.status)}>
+                          {getListingStatusLabel(property.status, t)}
                         </EmbeddedPill>
-                        <EmbeddedPill $embedded $tone="deal">
-                          {getDealTypeLabel(property.deal_type)}
+                        <EmbeddedPill $embedded $compact={isMyanmar} $tone="deal">
+                          {getDealTypeLabel(property.deal_type, t)}
                         </EmbeddedPill>
-                        <EmbeddedPill $embedded $tone="price">
+                        <EmbeddedPill $embedded $compact={isMyanmar} $tone="price">
                           {formatCurrency(property.price ?? undefined, property.currency ?? "MMK", t("listing.contactPrice"), language)}
                         </EmbeddedPill>
                       </EmbeddedFloatingPills>
@@ -860,9 +878,9 @@ export function VendorPropertiesView({
                             </EmbeddedFooterMeta>
                           </EmbeddedLeftStack>
                         </EmbeddedCardBody>
-                        <PropertyTypeTag>
+                        <PropertyTypeTag $compact={isMyanmar}>
                           <PropertyTypeIcon type={property.property_type} />
-                          <span>{formatPropertyTypeValue(property.property_type)}</span>
+                          <span>{formatPropertyTypeValue(property.property_type, t)}</span>
                         </PropertyTypeTag>
                       </EmbeddedCardRow>
                     </EmbeddedCardButton>
@@ -892,12 +910,12 @@ export function VendorPropertiesView({
                 <Card key={property.id}>
                   <CardTop>
                     <CardTitle>{property.title || t("vendor.properties.untitled")}</CardTitle>
-                    <Pill $tone={getListingStatusTone(property.status)}>{labelize(property.status)}</Pill>
+                    <Pill $compact={isMyanmar} $tone={getListingStatusTone(property.status)}>{getListingStatusLabel(property.status, t)}</Pill>
                   </CardTop>
                   <Meta>
-                    <Pill $tone="deal">{labelize(property.deal_type)}</Pill>
-                    <Pill>{labelize(property.property_type)}</Pill>
-                    <Pill $tone={property.verification_status === "verified" || property.verification_status === "approved" ? "status-success" : "status-muted"}>
+                    <Pill $compact={isMyanmar} $tone="deal">{getDealTypeLabel(property.deal_type, t)}</Pill>
+                    <Pill $compact={isMyanmar}>{formatPropertyTypeValue(property.property_type, t)}</Pill>
+                    <Pill $compact={isMyanmar} $tone={property.verification_status === "verified" || property.verification_status === "approved" ? "status-success" : "status-muted"}>
                       {`${t("vendor.properties.verification")}: ${labelize(property.verification_status)}`}
                     </Pill>
                   </Meta>

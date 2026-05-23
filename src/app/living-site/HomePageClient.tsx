@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowUpRight, Bath, BedDouble, Building2, House, Map, MapPin, Menu, MessageCircleMore, Phone, Plus, Search, ShieldCheck, SlidersHorizontal, Sparkles, Star, X } from "lucide-react";
+import { ArrowUpRight, Bath, BedDouble, Building2, House, Map, MapPin, Menu, MessageCircleMore, Plus, Search, ShieldCheck, SlidersHorizontal, Sparkles, Star, X } from "lucide-react";
 import styled, { keyframes } from "styled-components";
 import { ListingGrid } from "@/app/living-site/components/ListingGrid";
 import { CustomSelect } from "@/app/living-site/components/form-controls/CustomSelect";
@@ -399,14 +399,14 @@ const HeroSection = styled.section`
   box-shadow: 0 28px 54px rgba(15, 23, 42, 0.14);
 
   @media (max-width: 960px) {
-    height: 700px;
+    height: 780px;
     padding: 23px 24px 112px;
   }
 
   @media (max-width: 720px) {
     border-radius: 0;
-    padding: 21px 16px 144px;
-    height: 760px;
+    padding: 21px 16px 41px;
+    height: auto;
   }
 `;
 
@@ -428,12 +428,18 @@ const DealTabs = styled.div`
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.98);
   box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
+
+  @media (max-width: 720px) {
+    gap: 3px;
+    padding: 3px;
+  }
 `;
 
 const DealTab = styled.button<{ $active: boolean }>`
   border: none;
   border-radius: 999px;
   padding: 12px 22px;
+  min-height: 48px;
   background: ${(props) => (props.$active ? "var(--color-primary)" : "transparent")};
   color: ${(props) => (props.$active ? "#fff" : "var(--color-text)")};
   font-weight: 700;
@@ -441,8 +447,9 @@ const DealTab = styled.button<{ $active: boolean }>`
   cursor: pointer;
 
   @media (max-width: 720px) {
-    padding: 10px 16px;
-    font-size: 0.82rem;
+    min-height: 40px;
+    padding: 8px 15px;
+    font-size: 0.8rem;
   }
 `;
 
@@ -472,12 +479,13 @@ const HeroMotionFrame = styled.div`
   border-radius: 30px;
 
   @media (max-width: 960px) {
-    height: 430px;
+    height: 520px;
   }
 
   @media (max-width: 720px) {
-    height: 446px;
+    height: auto;
     border-radius: 24px;
+    overflow: visible;
   }
 `;
 
@@ -515,8 +523,72 @@ const HeroScene = styled.section<{ $tone?: "listing" | "agency" }>`
 
   @media (max-width: 960px) {
     grid-template-columns: 1fr;
-    grid-template-rows: minmax(0, 1fr) 188px;
+    grid-template-rows: minmax(0, 1fr) 260px;
     padding: 18px;
+  }
+
+  @media (max-width: 720px) {
+    height: auto;
+    min-height: 0;
+    grid-template-rows: auto auto;
+    gap: 14px;
+    padding: 16px;
+    overflow: visible;
+  }
+`;
+
+const PlatformHeroScene = styled.section`
+  height: 100%;
+  min-height: 398px;
+  border-radius: 30px;
+  padding: 28px 36px;
+  display: flex;
+  align-items: center;
+  position: relative;
+  overflow: visible;
+
+  @media (max-width: 960px) {
+    min-height: 520px;
+    padding: 26px 28px;
+  }
+
+  @media (max-width: 720px) {
+    min-height: 540px;
+    border-radius: 24px;
+    padding: 28px 18px 22px;
+    align-items: flex-start;
+  }
+`;
+
+const PlatformHeroCopy = styled.div`
+  position: relative;
+  z-index: 1;
+  max-width: 840px;
+  display: grid;
+  gap: 12px;
+
+  @media (max-width: 720px) {
+    max-width: 100%;
+  }
+`;
+
+const PlatformHeroTitle = styled.h2<{ $compactMyanmar?: boolean }>`
+  margin: 0;
+  color: #fff;
+  font-size: ${(props) =>
+    props.$compactMyanmar ? "clamp(1.8rem, 4vw, 3.45rem)" : "clamp(3.4rem, 6vw, 5.6rem)"};
+  line-height: ${(props) => (props.$compactMyanmar ? 1.34 : 0.92)};
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  text-wrap: balance;
+
+  @media (max-width: 960px) {
+    font-size: ${(props) => (props.$compactMyanmar ? "2.1rem" : "3rem")};
+  }
+
+  @media (max-width: 720px) {
+    font-size: ${(props) => (props.$compactMyanmar ? "2rem" : "2.7rem")};
+    line-height: ${(props) => (props.$compactMyanmar ? 1.3 : 0.96)};
   }
 `;
 
@@ -527,6 +599,11 @@ const HeroSceneCopy = styled.div`
   align-content: center;
   gap: 10px;
   min-height: 0;
+
+  @media (max-width: 720px) {
+    gap: 8px;
+    align-content: start;
+  }
 `;
 
 const HeroSceneEyebrow = styled.div<{ $tone?: "listing" | "agency" }>`
@@ -573,6 +650,11 @@ const HeroSceneLocation = styled.div`
   color: rgba(255, 242, 245, 0.88);
   font-size: 0.94rem;
   min-height: 22px;
+
+  @media (max-width: 720px) {
+    gap: 6px;
+    font-size: 0.84rem;
+  }
 `;
 
 const HeroScenePrice = styled.div`
@@ -580,6 +662,10 @@ const HeroScenePrice = styled.div`
   font-size: clamp(1.55rem, 2.3vw, 2.2rem);
   font-weight: 800;
   letter-spacing: -0.03em;
+
+  @media (max-width: 720px) {
+    font-size: 1.4rem;
+  }
 `;
 
 const HeroSceneSummary = styled.p`
@@ -593,39 +679,11 @@ const HeroSceneSummary = styled.p`
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-`;
 
-const HeroSceneActions = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-`;
-
-const HeroSceneAction = styled.button<{ $primary?: boolean; $tone?: "listing" | "agency" }>`
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 48px;
-  padding: 0 20px;
-  border-radius: 18px;
-  border: 1px solid
-    ${(props) =>
-      props.$primary
-        ? "transparent"
-        : props.$tone === "agency"
-          ? "rgba(203, 190, 255, 0.42)"
-          : "rgba(255, 214, 220, 0.38)"};
-  background: ${(props) =>
-      props.$primary
-        ? props.$tone === "agency"
-          ? "linear-gradient(135deg, #c04b79, #a03661)"
-        : "linear-gradient(135deg, #ff5b73, #f43f5e)"
-      : "transparent"};
-  color: #fff;
-  font-size: 0.94rem;
-  font-weight: 800;
-  box-shadow: ${(props) => (props.$primary ? "0 18px 34px rgba(15, 23, 42, 0.2)" : "none")};
+  @media (max-width: 720px) {
+    font-size: 0.84rem;
+    min-height: auto;
+  }
 `;
 
 const HeroSceneFactRow = styled.div`
@@ -633,6 +691,10 @@ const HeroSceneFactRow = styled.div`
   flex-wrap: wrap;
   gap: 12px;
   color: rgba(255, 242, 245, 0.92);
+
+  @media (max-width: 720px) {
+    gap: 10px;
+  }
 `;
 
 const HeroSceneFact = styled.span`
@@ -645,6 +707,16 @@ const HeroSceneFact = styled.span`
   svg {
     width: 16px;
     height: 16px;
+  }
+
+  @media (max-width: 720px) {
+    gap: 6px;
+    font-size: 0.8rem;
+
+    svg {
+      width: 14px;
+      height: 14px;
+    }
   }
 `;
 
@@ -667,6 +739,11 @@ const HeroSceneCard = styled.div<{ $agency?: boolean; $image?: string }>`
   align-content: ${(props) => (props.$agency ? "stretch" : "end")};
   grid-template-rows: ${(props) => (props.$agency ? "1fr" : "auto")};
   padding: ${(props) => (props.$agency ? "0" : "14px")};
+
+  @media (max-width: 720px) {
+    border-radius: 22px;
+    padding: ${(props) => (props.$agency ? "0" : "10px")};
+  }
 `;
 
 const HeroSceneCardBadges = styled.div`
@@ -678,6 +755,13 @@ const HeroSceneCardBadges = styled.div`
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+
+  @media (max-width: 720px) {
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    gap: 8px;
+  }
 `;
 
 const HeroSceneCardBadge = styled.span<{ $dark?: boolean }>`
@@ -692,6 +776,12 @@ const HeroSceneCardBadge = styled.span<{ $dark?: boolean }>`
   font-size: 0.78rem;
   font-weight: 800;
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.2);
+
+  @media (max-width: 720px) {
+    min-height: 28px;
+    padding: 0 10px;
+    font-size: 0.7rem;
+  }
 `;
 
 const HeroSceneCardOverlay = styled.div<{ $fill?: boolean }>`
@@ -709,8 +799,14 @@ const HeroSceneCardOverlay = styled.div<{ $fill?: boolean }>`
     ${(props) => (props.$fill ? "rgba(223, 171, 193, 0.14)" : "rgba(255, 255, 255, 0.12)")};
   backdrop-filter: blur(10px);
   color: #fff;
-  align-content: ${(props) => (props.$fill ? "stretch" : "center")};
-  grid-template-rows: ${(props) => (props.$fill ? "auto auto 1fr auto" : "auto")};
+  align-content: ${(props) => (props.$fill ? "start" : "center")};
+  grid-template-rows: ${(props) => (props.$fill ? "auto auto auto auto" : "auto")};
+
+  @media (max-width: 720px) {
+    gap: 8px;
+    padding: ${(props) => (props.$fill ? "16px" : "12px")};
+    border-radius: ${(props) => (props.$fill ? "22px" : "18px")};
+  }
 `;
 
 const HeroSceneCardTitleRow = styled.div`
@@ -718,12 +814,22 @@ const HeroSceneCardTitleRow = styled.div`
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+
+  @media (max-width: 720px) {
+    gap: 8px;
+    flex-wrap: wrap;
+  }
 `;
 
 const HeroSceneCardTitle = styled.div`
   font-size: 1.25rem;
   line-height: 1;
   font-weight: 800;
+
+  @media (max-width: 720px) {
+    font-size: 1rem;
+    line-height: 1.08;
+  }
 `;
 
 const HeroSceneCardSubtitle = styled.div`
@@ -732,6 +838,11 @@ const HeroSceneCardSubtitle = styled.div`
   gap: 8px;
   color: rgba(255, 243, 246, 0.88);
   font-size: 0.88rem;
+
+  @media (max-width: 720px) {
+    gap: 6px;
+    font-size: 0.78rem;
+  }
 `;
 
 const HeroSceneCardPrice = styled.div`
@@ -739,6 +850,11 @@ const HeroSceneCardPrice = styled.div`
   font-size: 0.92rem;
   font-weight: 800;
   white-space: nowrap;
+
+  @media (max-width: 720px) {
+    font-size: 0.8rem;
+    white-space: normal;
+  }
 `;
 
 const HeroSceneCardFacts = styled.div`
@@ -754,12 +870,21 @@ const HeroSceneCardFact = styled.span`
   color: rgba(255, 246, 248, 0.94);
   font-size: 0.8rem;
   font-weight: 700;
+
+  @media (max-width: 720px) {
+    gap: 6px;
+    font-size: 0.74rem;
+  }
 `;
 
 const HeroSceneCardFooter = styled.div`
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+
+  @media (max-width: 720px) {
+    gap: 5px;
+  }
 `;
 
 const HeroSceneTagPill = styled.span<{ $tone?: "listing" | "agency" }>`
@@ -776,6 +901,13 @@ const HeroSceneTagPill = styled.span<{ $tone?: "listing" | "agency" }>`
   color: #fff;
   font-size: 0.76rem;
   font-weight: 800;
+
+  @media (max-width: 720px) {
+    min-height: 26px;
+    padding: 0 8px;
+    border-radius: 9px;
+    font-size: 0.68rem;
+  }
 `;
 
 const HeroAgencyCardTop = styled.div`
@@ -800,17 +932,33 @@ const HeroAgencyLogo = styled.div<{ $image?: string }>`
   font-weight: 800;
   letter-spacing: 0.03em;
   box-shadow: 0 20px 30px rgba(15, 23, 42, 0.18);
+
+  @media (max-width: 720px) {
+    width: 58px;
+    height: 58px;
+    border-radius: 18px;
+    font-size: 1.5rem;
+  }
 `;
 
 const HeroAgencyIdentity = styled.div`
   display: grid;
   gap: 6px;
+
+  @media (max-width: 720px) {
+    gap: 4px;
+  }
 `;
 
 const HeroAgencyName = styled.div`
   font-size: 1.8rem;
   line-height: 1;
   font-weight: 800;
+
+  @media (max-width: 720px) {
+    font-size: 1.18rem;
+    line-height: 1.08;
+  }
 `;
 
 const HeroAgencyVerified = styled.div`
@@ -820,6 +968,11 @@ const HeroAgencyVerified = styled.div`
   color: #f2b8cc;
   font-size: 0.92rem;
   font-weight: 700;
+
+  @media (max-width: 720px) {
+    gap: 6px;
+    font-size: 0.78rem;
+  }
 `;
 
 const HeroAgencySummary = styled.div`
@@ -832,12 +985,24 @@ const HeroAgencySummary = styled.div`
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+
+  @media (max-width: 720px) {
+    font-size: 0.82rem;
+    line-height: 1.45;
+    min-height: auto;
+  }
 `;
 
 const HeroAgencyStats = styled.div`
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
+  align-items: start;
+  align-self: start;
+
+  @media (max-width: 720px) {
+    gap: 8px;
+  }
 `;
 
 const HeroAgencyStat = styled.div`
@@ -845,6 +1010,11 @@ const HeroAgencyStat = styled.div`
   gap: 4px;
   padding-top: 12px;
   border-top: 1px solid rgba(255, 255, 255, 0.12);
+
+  @media (max-width: 720px) {
+    gap: 3px;
+    padding-top: 8px;
+  }
 `;
 
 const HeroAgencyStatValue = styled.div<{ $compact?: boolean }>`
@@ -853,12 +1023,21 @@ const HeroAgencyStatValue = styled.div<{ $compact?: boolean }>`
   line-height: ${(props) => (props.$compact ? "1.35" : "1.05")};
   font-weight: 800;
   word-break: break-word;
+
+  @media (max-width: 720px) {
+    font-size: ${(props) => (props.$compact ? "0.78rem" : "1rem")};
+    line-height: 1.25;
+  }
 `;
 
 const HeroAgencyStatLabel = styled.div`
   color: rgba(250, 229, 237, 0.78);
   font-size: 0.86rem;
   font-weight: 600;
+
+  @media (max-width: 720px) {
+    font-size: 0.72rem;
+  }
 `;
 
 const HeroDots = styled.div`
@@ -1585,13 +1764,12 @@ const heroTabs = [
 ] as const;
 
 const navLinks = [
-  { labelKey: "header.articles", href: "/faq" },
-  { labelKey: "header.ourPartners", href: "#partners" },
-  { labelKey: "header.collections", href: "#collections" },
+  { labelKey: "header.articles", href: "/articles" },
+  { labelKey: "header.ourPartners", href: "/partners" },
 ];
 
 const footerLinks = [
-  { labelKey: "header.ourPartners", href: "#partners" },
+  { labelKey: "header.ourPartners", href: "/partners" },
   { labelKey: "header.support", href: "/faq" },
   { labelKey: "header.aboutUs", href: "/terms" },
   { labelKey: "header.agent", href: "/vendor" },
@@ -2083,7 +2261,15 @@ export function HomePageClient() {
 
               <HeroBody>
                 <HeroMotionFrame key={`hero-${currentHeroSlideIndex}`}>
-                  {currentHeroSlide.kind === "agency" ? (
+                  {currentHeroSlide.kind === "agency" && currentHeroSlide.isPlatformFallback ? (
+                    <PlatformHeroScene>
+                      <PlatformHeroCopy>
+                        <PlatformHeroTitle $compactMyanmar={i18nLanguage === "mm"}>
+                          {currentHeroSlide.tagline}
+                        </PlatformHeroTitle>
+                      </PlatformHeroCopy>
+                    </PlatformHeroScene>
+                  ) : currentHeroSlide.kind === "agency" ? (
                     <HeroScene $tone="agency">
                       <HeroSceneCopy>
                         <HeroSceneEyebrow $tone="agency">
@@ -2099,16 +2285,6 @@ export function HomePageClient() {
                         <HeroSceneSummary>{currentHeroSlide.summary}</HeroSceneSummary>
                         {currentHeroSlide.isPlatformFallback ? (
                           <>
-                            <HeroSceneActions>
-                              <HeroSceneAction type="button" $primary $tone="agency" onClick={submitHeroSearch}>
-                                <Search size={18} />
-                                {t("home.searchProperties")}
-                              </HeroSceneAction>
-                              <HeroSceneAction type="button" $tone="agency" onClick={openMapView}>
-                                <Map size={18} />
-                                {t("home.showMap")}
-                              </HeroSceneAction>
-                            </HeroSceneActions>
                             <HeroSceneFactRow>
                               <HeroSceneFact>
                                 <Sparkles size={16} />
@@ -2126,33 +2302,6 @@ export function HomePageClient() {
                           </>
                         ) : (
                           <>
-                            <HeroSceneActions>
-                              <HeroSceneAction
-                                type="button"
-                                $primary
-                                $tone="agency"
-                                onClick={() => {
-                                  if (currentHeroSlide.targetUrl) {
-                                    router.push(currentHeroSlide.targetUrl);
-                                  }
-                                }}
-                              >
-                                <Building2 size={18} />
-                                {t("home.viewAgencyProfile")}
-                              </HeroSceneAction>
-                              <HeroSceneAction
-                                type="button"
-                                $tone="agency"
-                                onClick={() => {
-                                  if (currentHeroSlide.targetUrl) {
-                                    router.push(currentHeroSlide.targetUrl);
-                                  }
-                                }}
-                              >
-                                <ArrowUpRight size={18} />
-                                {t("home.seeAgency")}
-                              </HeroSceneAction>
-                            </HeroSceneActions>
                             <HeroSceneFactRow>
                               <HeroSceneFact>
                                 <ShieldCheck size={16} />
@@ -2184,7 +2333,6 @@ export function HomePageClient() {
                               </HeroAgencyVerified>
                             </HeroAgencyIdentity>
                           </HeroAgencyCardTop>
-                          <HeroAgencySummary>{currentHeroSlide.summary}</HeroAgencySummary>
                           <HeroAgencyStats>
                             <HeroAgencyStat>
                               <HeroAgencyStatValue $compact={!currentHeroSlide.isPlatformFallback}>
@@ -2249,33 +2397,6 @@ export function HomePageClient() {
                           <span>{currentHeroSlide.location}</span>
                         </HeroSceneLocation>
                         <HeroScenePrice>{currentHeroSlide.price}</HeroScenePrice>
-                        <HeroSceneActions>
-                          <HeroSceneAction
-                            type="button"
-                            $primary
-                            $tone="listing"
-                            onClick={() => {
-                              if (currentHeroSlide.targetUrl) {
-                                router.push(currentHeroSlide.targetUrl);
-                              }
-                            }}
-                          >
-                            <ArrowUpRight size={18} />
-                            {t("map.viewDetails")}
-                          </HeroSceneAction>
-                          <HeroSceneAction
-                            type="button"
-                            $tone="listing"
-                            onClick={() => {
-                              if (currentHeroSlide.targetUrl) {
-                                router.push(currentHeroSlide.targetUrl);
-                              }
-                            }}
-                          >
-                            <Phone size={18} />
-                            {t("listing.contactAgent")}
-                          </HeroSceneAction>
-                        </HeroSceneActions>
                         <HeroSceneFactRow>
                           <HeroSceneFact>
                             <ShieldCheck size={16} />

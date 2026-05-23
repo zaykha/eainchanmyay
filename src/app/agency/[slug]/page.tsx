@@ -431,8 +431,8 @@ export default function AgencyStorefrontPage() {
       <Page>
         {error || !agency ? (
           <Card>
-            <SectionTitle>Agency profile unavailable</SectionTitle>
-            <BodyCopy>{error || "This agency profile could not be loaded."}</BodyCopy>
+            <SectionTitle>{t("agency.profileUnavailable")}</SectionTitle>
+            <BodyCopy>{error || t("agency.profileUnavailableCopy")}</BodyCopy>
           </Card>
         ) : (
           <>
@@ -535,7 +535,7 @@ export default function AgencyStorefrontPage() {
                     ) : null}
                     {agency.facebook_url ? (
                       <ContactItem>
-                        <strong>Facebook</strong>
+                        <strong>{t("agency.facebook")}</strong>
                         <a href={agency.facebook_url} target="_blank" rel="noreferrer">
                           {agency.facebook_url}
                         </a>
@@ -543,7 +543,7 @@ export default function AgencyStorefrontPage() {
                     ) : null}
                     {agency.telegram_url ? (
                       <ContactItem>
-                        <strong>Telegram</strong>
+                        <strong>{t("agency.telegram")}</strong>
                         <a href={agency.telegram_url} target="_blank" rel="noreferrer">
                           {agency.telegram_url}
                         </a>
@@ -551,13 +551,13 @@ export default function AgencyStorefrontPage() {
                     ) : null}
                     {agency.viber_phone ? (
                       <ContactItem>
-                        <strong>Viber</strong>
+                        <strong>{t("agency.viber")}</strong>
                         <a href={`tel:${agency.viber_phone}`}>{agency.viber_phone}</a>
                       </ContactItem>
                     ) : null}
                     {agency.tiktok_url ? (
                       <ContactItem>
-                        <strong>TikTok</strong>
+                        <strong>{t("agency.tiktok")}</strong>
                         <a href={agency.tiktok_url} target="_blank" rel="noreferrer">
                           {agency.tiktok_url}
                         </a>
@@ -565,7 +565,7 @@ export default function AgencyStorefrontPage() {
                     ) : null}
                     {agency.website_url ? (
                       <ContactItem>
-                        <strong>Website</strong>
+                        <strong>{t("agency.website")}</strong>
                         <a href={agency.website_url} target="_blank" rel="noreferrer">
                           {agency.website_url}
                         </a>

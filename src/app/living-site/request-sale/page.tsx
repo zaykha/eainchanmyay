@@ -830,10 +830,10 @@ const stepKeys = [
 const propertyGroupOrder = ["residential", "commercial", "industrial", "special"] as const;
 
 const propertyGroupLabels: Record<(typeof propertyGroupOrder)[number], string> = {
-  residential: "Residential",
-  commercial: "Commercial",
-  industrial: "Industrial",
-  special: "Special",
+  residential: "requestSale.group.residential",
+  commercial: "requestSale.group.commercial",
+  industrial: "requestSale.group.industrial",
+  special: "requestSale.group.special",
 };
 
 const MYANMAR_CENTER: [number, number] = [21.9162, 95.956];
@@ -968,39 +968,47 @@ const REQUEST_ADDRESS_MIN_LENGTH = 8;
 
 const countWords = (value: string) => value.trim().split(/\s+/).filter(Boolean).length;
 
-const validateTitle = (value: string) => {
+type RequestSaleTranslate = (key: string, params?: Record<string, string | number>) => string;
+
+const validateTitle = (value: string, t: RequestSaleTranslate) => {
   const trimmed = value.trim();
-  if (!trimmed) return "Title is required.";
-  if (trimmed.length > REQUEST_TITLE_MAX_LENGTH) return `Keep the title under ${REQUEST_TITLE_MAX_LENGTH} characters.`;
-  if (countWords(trimmed) > REQUEST_TITLE_MAX_WORDS) return `Keep the title under ${REQUEST_TITLE_MAX_WORDS} words.`;
+  if (!trimmed) return t("requestSale.error.titleRequired");
+  if (trimmed.length > REQUEST_TITLE_MAX_LENGTH) {
+    return t("requestSale.error.titleMaxChars", { count: REQUEST_TITLE_MAX_LENGTH });
+  }
+  if (countWords(trimmed) > REQUEST_TITLE_MAX_WORDS) {
+    return t("requestSale.error.titleMaxWords", { count: REQUEST_TITLE_MAX_WORDS });
+  }
   return null;
 };
 
-const validateDescription = (value: string) => {
+const validateDescription = (value: string, t: RequestSaleTranslate) => {
   const trimmed = value.trim();
-  if (!trimmed) return "Description is required.";
+  if (!trimmed) return t("requestSale.error.descriptionRequired");
   return null;
 };
 
-const validateAddressText = (value: string) => {
+const validateAddressText = (value: string, t: RequestSaleTranslate) => {
   const trimmed = value.trim();
-  if (!trimmed) return "Address is required.";
-  if (trimmed.length < REQUEST_ADDRESS_MIN_LENGTH) return "Add a clearer address or landmark.";
+  if (!trimmed) return t("requestSale.error.addressRequired");
+  if (trimmed.length < REQUEST_ADDRESS_MIN_LENGTH) {
+    return t("requestSale.error.addressTooShort");
+  }
   return null;
 };
 
-const validatePrice = (value: string) => {
+const validatePrice = (value: string, t: RequestSaleTranslate) => {
   const trimmed = value.trim();
-  if (!trimmed) return "Price is required.";
+  if (!trimmed) return t("requestSale.error.priceRequired");
   const parsed = Number(trimmed);
-  if (!Number.isFinite(parsed) || parsed <= 0) return "Enter a valid price.";
+  if (!Number.isFinite(parsed) || parsed <= 0) return t("requestSale.error.priceInvalid");
   return null;
 };
 
-const validatePhone = (value: string) => {
+const validatePhone = (value: string, t: RequestSaleTranslate) => {
   const digits = value.replace(/\D/g, "");
-  if (!digits) return "Phone number is required.";
-  if (digits.length < 7) return "Enter a valid phone number.";
+  if (!digits) return t("requestSale.error.phoneRequired");
+  if (digits.length < 7) return t("requestSale.error.phoneInvalid");
   return null;
 };
 
@@ -1015,19 +1023,22 @@ const fromStoredPrice = (value: unknown, currency: string) => {
   return currency === "MMK" ? String(value / 100000) : String(value);
 };
 
-const validatePositiveCount = (value: string, label: string) => {
+const validatePositiveCount = (value: string, labelKey: string, t: RequestSaleTranslate) => {
   const trimmed = value.trim();
-  if (!trimmed) return `${label} is required.`;
+  const label = t(labelKey);
+  if (!trimmed) return t("requestSale.error.fieldRequired", { field: label });
   const parsed = Number(trimmed);
-  if (!Number.isFinite(parsed) || parsed <= 0) return `Enter a valid ${label.toLowerCase()}.`;
+  if (!Number.isFinite(parsed) || parsed <= 0) return t("requestSale.error.fieldInvalid", { field: label });
   return null;
 };
 
-const validateOptionalPositiveCount = (value: string, label: string) => {
+const validateOptionalPositiveCount = (value: string, labelKey: string, t: RequestSaleTranslate) => {
   const trimmed = value.trim();
   if (!trimmed) return null;
   const parsed = Number(trimmed);
-  if (!Number.isFinite(parsed) || parsed <= 0) return `Enter a valid ${label.toLowerCase()}.`;
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return t("requestSale.error.fieldInvalid", { field: t(labelKey) });
+  }
   return null;
 };
 
@@ -1189,10 +1200,10 @@ export function RequestSalePageContent({
     () =>
       propertyGroupOrder.map((group) => ({
         key: group,
-        label: propertyGroupLabels[group],
+        label: t(propertyGroupLabels[group]),
         items: propertyTiles.filter((item) => item.group === group),
       })),
-    [propertyTiles]
+    [propertyTiles, t]
   );
   const prevLocationRef = useRef({
     state_region: "",
@@ -1341,31 +1352,31 @@ export function RequestSalePageContent({
   const showBackupPower =
     Boolean(selectedPropertyType) && backupEligiblePropertyTypes.has(selectedPropertyType as PropertyType);
   const locationReady = Boolean(form.state_region && form.district && form.township);
-  const titleError = validateTitle(form.title);
-  const descriptionError = validateDescription(form.description);
-  const propertyTypeError = form.property_type ? null : "Property type is required.";
-  const imageError = !isEdit && imageFiles.length === 0 ? "At least 1 property image is required." : null;
-  const addressTextError = validateAddressText(form.address_text);
+  const titleError = validateTitle(form.title, t);
+  const descriptionError = validateDescription(form.description, t);
+  const propertyTypeError = form.property_type ? null : t("requestSale.error.propertyTypeRequired");
+  const imageError = !isEdit && imageFiles.length === 0 ? t("requestSale.error.imageRequired") : null;
+  const addressTextError = validateAddressText(form.address_text, t);
   const mapPinError = isUsableMapCoordinate(Number(form.latitude), Number(form.longitude))
     ? null
-    : "Place a pin on the map or use lat/lng.";
-  const areaError = form.area_sqft.trim() ? null : "Area is required.";
+    : t("requestSale.error.mapPinRequired");
+  const areaError = form.area_sqft.trim() ? null : t("requestSale.error.areaRequired");
   const bedroomsError = showBedrooms
     ? bedroomRequiredPropertyTypes.has(selectedPropertyType as PropertyType)
-      ? validatePositiveCount(form.bedrooms, "Bedroom count")
-      : validateOptionalPositiveCount(form.bedrooms, "Bedroom count")
+      ? validatePositiveCount(form.bedrooms, "requestSale.bedroomsLabel", t)
+      : validateOptionalPositiveCount(form.bedrooms, "requestSale.bedroomsLabel", t)
     : null;
   const bathroomsError = showBathrooms
     ? bathroomRequiredPropertyTypes.has(selectedPropertyType as PropertyType)
-      ? validatePositiveCount(form.bathrooms, "Bathroom count")
-      : validateOptionalPositiveCount(form.bathrooms, "Bathroom count")
+      ? validatePositiveCount(form.bathrooms, "requestSale.bathroomsLabel", t)
+      : validateOptionalPositiveCount(form.bathrooms, "requestSale.bathroomsLabel", t)
     : null;
-  const floorCountError = showFloorCount ? validatePositiveCount(form.floor_count, "Floor count") : null;
-  const roomCountError = showRoomCount ? validatePositiveCount(form.room_count, "Room count") : null;
-  const priceError = validatePrice(form.price);
+  const floorCountError = showFloorCount ? validatePositiveCount(form.floor_count, "requestSale.floorCountLabel", t) : null;
+  const roomCountError = showRoomCount ? validatePositiveCount(form.room_count, "requestSale.roomCountLabel", t) : null;
+  const priceError = validatePrice(form.price, t);
   const isAgencyContact = isVendorFlow && useAgencyContact;
-  const ownerNameError = isAgencyContact || form.owner_name.trim() ? null : t("requestSale.contactNameLabel") + " is required.";
-  const ownerPhoneError = isAgencyContact ? null : validatePhone(form.owner_phone);
+  const ownerNameError = isAgencyContact || form.owner_name.trim() ? null : t("requestSale.error.contactNameRequired");
+  const ownerPhoneError = isAgencyContact ? null : validatePhone(form.owner_phone, t);
   // Contact validation (must be before stepValidity)
   const listingContactNameError = (form.contact_source === "custom_contact" || !isVendorFlow) && !form.listing_contact_name.trim() 
     ? t("requestSale.listingContactNameError") : null;
@@ -1374,7 +1385,10 @@ export function RequestSalePageContent({
   
   const contactError = listingContactNameError || listingContactPhoneError;
   
-  const priceLabel = form.currency === "MMK" ? t("requestSale.priceLabel") : `Price (${form.currency})`;
+  const priceLabel =
+    form.currency === "MMK"
+      ? t("requestSale.priceLabel")
+      : t("requestSale.priceLabelWithCurrency", { currency: form.currency });
   const imagePreviews = useMemo(() => imageFiles.map((file) => URL.createObjectURL(file)), [imageFiles]);
   useEffect(
     () => () => {
@@ -1614,7 +1628,7 @@ export function RequestSalePageContent({
     if (!mapPosition) {
       setMapCenter(MYANMAR_CENTER);
       setMapZoom(DEFAULT_ZOOM);
-      setMapError("Map opened in Myanmar default view. Move the map and place the pin manually.");
+      setMapError(t("requestSale.error.mapDefaultView"));
     }
   };
 
@@ -1670,7 +1684,7 @@ export function RequestSalePageContent({
     if (words.length > REQUEST_TITLE_MAX_WORDS) {
       const trimmedValue = words.slice(0, REQUEST_TITLE_MAX_WORDS).join(" ");
       setField("title", trimmedValue);
-      setLimitPopup(`Title is limited to ${REQUEST_TITLE_MAX_WORDS} words.`);
+      setLimitPopup(t("requestSale.limit.titleWords", { count: REQUEST_TITLE_MAX_WORDS }));
       return;
     }
     setField("title", rawValue);
@@ -1679,7 +1693,7 @@ export function RequestSalePageContent({
   const handleDescriptionChange = (rawValue: string) => {
     if (rawValue.length > REQUEST_DESCRIPTION_MAX_LENGTH) {
       setField("description", rawValue.slice(0, REQUEST_DESCRIPTION_MAX_LENGTH));
-      setLimitPopup(`Description is limited to ${REQUEST_DESCRIPTION_MAX_LENGTH} characters.`);
+      setLimitPopup(t("requestSale.limit.descriptionChars", { count: REQUEST_DESCRIPTION_MAX_LENGTH }));
       return;
     }
     setField("description", rawValue);
@@ -1690,12 +1704,12 @@ export function RequestSalePageContent({
     setStepAttempted((current) => ({ ...current, [step]: true }));
     if (!stepValidity[step]) {
       if (step === 0) {
-        setError(titleError || descriptionError || propertyTypeError || imageError || "Complete the basics before continuing.");
+        setError(titleError || descriptionError || propertyTypeError || imageError || t("requestSale.error.basicsRequired"));
       } else if (step === 1) {
         setError(
           !form.state_region.trim() || !form.district.trim() || !form.township.trim()
             ? t("requestSale.error.locationRequired")
-          : addressTextError || mapPinError || "Complete the address and map pin before continuing."
+          : addressTextError || mapPinError || t("requestSale.error.addressMapRequired")
         );
       } else if (step === 2) {
         setError(
@@ -1704,12 +1718,12 @@ export function RequestSalePageContent({
             bathroomsError ||
             floorCountError ||
             roomCountError ||
-            "Complete the required details before continuing."
+            t("requestSale.error.detailsRequired")
         );
       } else if (step === 3) {
         setError(priceError || t("requestSale.error.priceRequired"));
       } else if (step === 4) {
-        setError(ownerNameError || ownerPhoneError || "Add the contact person details.");
+        setError(ownerNameError || ownerPhoneError || t("requestSale.error.contactRequired"));
       }
       return;
     }
@@ -1749,8 +1763,7 @@ export function RequestSalePageContent({
     });
     if (moderationResult.blocked) {
       setModerationPopup(
-        moderationResult.message ||
-          "Your title or description contains prohibited or suspicious wording. Remove profanity, drug-sale language, or spam/contact promotion and try again."
+        moderationResult.message || t("requestSale.error.moderationBlocked")
       );
       setStep(0);
       return;
@@ -2580,7 +2593,7 @@ export function RequestSalePageContent({
                     : isEdit
                       ? t("common.saveChanges")
                       : canCreateVendorListing
-                        ? t("listing.submitRequest")
+                        ? t("requestSale.publishListing")
                         : t("requestSale.publishListing")}
               </PrimaryButton>
             )}

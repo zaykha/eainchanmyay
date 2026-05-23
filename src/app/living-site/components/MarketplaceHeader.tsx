@@ -455,9 +455,8 @@ export function MarketplaceHeader({
   const [activeVendorId, setActiveVendorId] = useState<string | null>(null);
   const hasWorkspaceAccess = profileReady && profileRole === "vendor_user";
   const navLinks = [
-    { label: t("header.articles"), href: "/faq" },
-    { label: t("header.ourPartners"), href: "/#partners" },
-    { label: t("header.collections"), href: "/#collections" },
+    { label: t("header.articles"), href: "/articles" },
+    { label: t("header.ourPartners"), href: "/partners" },
   ];
 
   useEffect(() => {

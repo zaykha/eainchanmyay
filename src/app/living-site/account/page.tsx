@@ -65,6 +65,7 @@ import {
   getViewingRequestsForUser,
 } from "@/app/living-site/lib/data";
 import { useI18n } from "@/app/living-site/lib/i18n";
+import { translateLocationName } from "@/app/living-site/lib/myanmar-geo";
 import { getUpgradePlan, getVendorPlan } from "@/lib/vendor-plans";
 import { listingStatuses, normalizeListingStatus, type ListingStatus } from "@/lib/lifecycle";
 import { isVendorStorefrontSetupComplete } from "@/lib/vendor-storefront";
@@ -4083,10 +4084,16 @@ const StarterActionLabel = styled.div`
 
 const HubNavList = styled.div`
   display: grid;
+  grid-auto-rows: 64px;
   gap: 10px;
+
+  @media (max-width: 960px) {
+    grid-auto-rows: auto;
+  }
 `;
 
 const HubNavItem = styled(Link)<{ $active?: boolean; $disabled?: boolean; $expanded?: boolean }>`
+  box-sizing: border-box;
   border: 1px solid
     ${(props) =>
       props.$active
@@ -4094,6 +4101,8 @@ const HubNavItem = styled(Link)<{ $active?: boolean; $disabled?: boolean; $expan
         : "var(--color-outline)"};
   border-radius: 16px;
   padding: 10px 12px;
+  min-height: 64px;
+  height: 64px;
   background: ${(props) =>
     props.$active ? "color-mix(in srgb, var(--color-primary) 10%, white)" : "var(--color-surface)"};
   display: grid;
@@ -4122,6 +4131,8 @@ const HubNavItem = styled(Link)<{ $active?: boolean; $disabled?: boolean; $expan
   }
 
   @media (max-width: 960px) {
+    min-height: 56px;
+    height: auto;
     grid-template-columns: 36px minmax(0,1fr) 18px;
     gap: 12px;
     justify-content: stretch;
@@ -4129,6 +4140,7 @@ const HubNavItem = styled(Link)<{ $active?: boolean; $disabled?: boolean; $expan
 `;
 
 const HubNavButton = styled.button<{ $active?: boolean; $expanded?: boolean }>`
+  box-sizing: border-box;
   border: 1px solid
     ${(props) =>
       props.$active
@@ -4136,6 +4148,8 @@ const HubNavButton = styled.button<{ $active?: boolean; $expanded?: boolean }>`
         : "var(--color-outline)"};
   border-radius: 16px;
   padding: 10px 12px;
+  min-height: 64px;
+  height: 64px;
   background: ${(props) =>
     props.$active ? "color-mix(in srgb, var(--color-primary) 10%, white)" : "var(--color-surface)"};
   display: grid;
@@ -4162,6 +4176,8 @@ const HubNavButton = styled.button<{ $active?: boolean; $expanded?: boolean }>`
   }
 
   @media (max-width: 960px) {
+    min-height: 56px;
+    height: auto;
     grid-template-columns: 36px minmax(0,1fr) 18px;
     gap: 12px;
     justify-content: stretch;
@@ -4417,9 +4433,8 @@ function AccountHeader({ isVendor }: { isVendor: boolean }) {
   const [languageOpen, setLanguageOpen] = useState(false);
   const [activeContext, setActiveContext] = useState<"personal" | "vendor">("personal");
   const navLinks = [
-    { label: t("header.articles"), href: "/faq" },
-    { label: t("header.ourPartners"), href: "/#partners" },
-    { label: t("header.collections"), href: "/#collections" },
+    { label: t("header.articles"), href: "/articles" },
+    { label: t("header.ourPartners"), href: "/partners" },
   ];
   const languageOptions = [
     { value: "en", flag: "🇬🇧", name: "English", label: "Eng" },
@@ -5370,10 +5385,10 @@ export default function AccountPage() {
             }
           : current
       );
-      setSelectedHubPropertyStatusNotice("Listing status updated.");
+      setSelectedHubPropertyStatusNotice(t("hub.statusUpdated"));
       setListingStatusModalOpen(false);
     } catch (error) {
-      setSelectedHubPropertyStatusError(error instanceof Error ? error.message : "Unable to update listing status.");
+      setSelectedHubPropertyStatusError(error instanceof Error ? error.message : t("hub.updateStatusError"));
     } finally {
       setSelectedHubPropertyStatusSaving(false);
     }
@@ -5394,16 +5409,16 @@ export default function AccountPage() {
 
       const payload = (await response.json().catch(() => null)) as { error?: string } | null;
       if (!response.ok) {
-        throw new Error(payload?.error || "Unable to delete listing.");
+        throw new Error(payload?.error || t("hub.deleteListingError"));
       }
 
-      setSelectedHubPropertyStatusNotice("Listing deleted.");
+      setSelectedHubPropertyStatusNotice(t("hub.listingDeleted"));
       setListingDeleteModalOpen(false);
       setSelectedHubPropertyDetail(null);
       setSelectedHubProperty(null);
       updateHubSection("manage-listings");
     } catch (error) {
-      setSelectedHubPropertyStatusError(error instanceof Error ? error.message : "Unable to delete listing.");
+      setSelectedHubPropertyStatusError(error instanceof Error ? error.message : t("hub.deleteListingError"));
     } finally {
       setSelectedHubPropertyDeleting(false);
     }
@@ -5448,7 +5463,7 @@ export default function AccountPage() {
               error?: string }
           | null;
         if (!response.ok) {
-          throw new Error(payload?.error || "Unable to load team.");
+          throw new Error(payload?.error || t("vendor.team.loadingError"));
         }
         if (!cancelled) {
           setTeamMembers(payload?.members ?? []);
@@ -5457,7 +5472,7 @@ export default function AccountPage() {
       })
       .catch((error) => {
         if (!cancelled) {
-          setTeamError(error instanceof Error ? error.message : "Unable to load team.");
+          setTeamError(error instanceof Error ? error.message : t("vendor.team.loadingError"));
         }
       })
       .finally(() => {
@@ -5997,7 +6012,7 @@ export default function AccountPage() {
         error?: string;
       } | null;
       if (!response.ok || !payload?.invite) {
-        throw new Error(payload?.error || "Unable to send team invite.");
+        throw new Error(payload?.error || t("vendor.team.inviteError"));
       }
       setTeamInvites((current) => [
         {
@@ -6016,7 +6031,7 @@ export default function AccountPage() {
       setTeamInviteEmail("");
       setTeamInviteRole("agent");
     } catch (error) {
-      setTeamError(error instanceof Error ? error.message : "Unable to send team invite.");
+      setTeamError(error instanceof Error ? error.message : t("vendor.team.inviteError"));
     } finally {
       setTeamSavingInvite(false);
     }
@@ -6041,7 +6056,9 @@ export default function AccountPage() {
       const payload = (await response.json().catch(() => null)) as { error?: string } | null;
 
       if (!response.ok) {
-        throw new Error(payload?.error || `Unable to ${actionVerb} team member.`);
+        throw new Error(
+          payload?.error || t(isRemoval ? "hub.teamMemberRemoveError" : "hub.teamMemberUpdateError")
+        );
       }
 
       setTeamMembers((current) =>
@@ -6055,10 +6072,11 @@ export default function AccountPage() {
             : member
         )
       );
-      showToast(`Team member ${isRemoval ? 'removed' : 'updated'} successfully!`, 'success');
+      showToast(t(isRemoval ? "hub.teamMemberRemoved" : "hub.teamMemberUpdated"), "success");
     } catch (error) {
-      setTeamError(error instanceof Error ? error.message : `Unable to ${actionVerb} team member.`);
-      showToast(`Failed to ${actionVerb} team member.`, 'error');
+      const fallbackMessage = t(isRemoval ? "hub.teamMemberRemoveError" : "hub.teamMemberUpdateError");
+      setTeamError(error instanceof Error ? error.message : fallbackMessage);
+      showToast(fallbackMessage, "error");
     } finally {
       setShowChangeRoleModalId(null);
       setTeamSavingUserId(null);
@@ -6123,10 +6141,10 @@ export default function AccountPage() {
   const agentLimit = vendorWorkspace?.limits?.agentLimit ?? currentVendorPlan.agentLimit;
   const agentUsage = vendorWorkspace?.limits?.agentCount ?? 1;
   const profileReadinessItems = [
-    { done: hasAgencyLogo, label: "Logo" },
-    { done: hasAgencyContact, label: "Contact" },
-    { done: hasAgencyBio, label: "Bio" },
-    { done: storefrontReady, label: "Storefront" },
+    { done: hasAgencyLogo, label: t("hub.logo") },
+    { done: hasAgencyContact, label: t("hub.contact") },
+    { done: hasAgencyBio, label: t("hub.bio") },
+    { done: storefrontReady, label: t("hub.storefront") },
   ];
   const profileReadinessDoneCount = profileReadinessItems.filter((item) => item.done).length;
   const freeSettingsHref = "/hub/settings";
@@ -6200,34 +6218,38 @@ export default function AccountPage() {
   const hubChecklist = [
     {
       done: profileReadinessDoneCount === profileReadinessItems.length,
-      title: "Profile readiness",
+      title: t("hub.profileReadiness"),
       hint:
         profileReadinessDoneCount === profileReadinessItems.length
-          ? "Logo, contact, bio, and storefront are all ready."
-          : `${profileReadinessDoneCount}/${profileReadinessItems.length} complete: ${profileReadinessItems
-              .map((item) => `${item.done ? "✓" : "○"} ${item.label}`)
-              .join("  •  ")}`,
+          ? t("hub.profileReadinessReady")
+          : t("hub.profileReadinessProgress", {
+              count: profileReadinessDoneCount,
+              total: profileReadinessItems.length,
+              summary: profileReadinessItems.map((item) => `${item.done ? "✓" : "○"} ${item.label}`).join("  •  "),
+            }),
       href: profileReadinessHref,
-      actionLabel: profileReadinessDoneCount === profileReadinessItems.length ? "Review" : "Complete",
+      actionLabel: profileReadinessDoneCount === profileReadinessItems.length ? t("hub.review") : t("hub.complete"),
     },
     {
       done: hasSocialChannel,
-      title: "Channel readiness",
+      title: t("hub.channelReadiness"),
       hint: hasSocialChannel
-        ? "At least one buyer channel is connected."
-        : "Add Facebook, Telegram, Viber, TikTok, or a website so buyers have another way to reach you.",
+        ? t("hub.channelReady")
+        : t("hub.channelMissing"),
       href: freeSettingsHref,
-      actionLabel: hasSocialChannel ? "Manage" : "Add channel",
+      actionLabel: hasSocialChannel ? t("hub.manage") : t("hub.addChannel"),
     },
     {
       done: liveListingCount > 0,
-      title: "First live listing published",
+      title: t("hub.firstLiveListing"),
       hint:
         liveListingCount > 0
-          ? `${liveListingCount} live listing${liveListingCount > 1 ? "s are" : " is"} already visible to buyers.`
-          : "Publish your first live listing to start receiving buyer attention.",
+          ? liveListingCount > 1
+            ? t("hub.liveListingPlural", { count: liveListingCount })
+            : t("hub.liveListingSingular", { count: liveListingCount })
+          : t("hub.publishFirstListing"),
       href: "/request-sale",
-      actionLabel: liveListingCount > 0 ? "Manage" : "Publish first",
+      actionLabel: liveListingCount > 0 ? t("hub.manage") : t("hub.publishFirst"),
     },
   ];
   const starterChecklistComplete = hubChecklist.every((item) => item.done);
@@ -6247,6 +6269,26 @@ export default function AccountPage() {
           .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
           .join(" ")
       : "Unknown";
+  const formatTeamRoleLabel = (value: string | null | undefined) => {
+    if (value === "owner") return t("role.owner");
+    if (value === "admin") return t("role.admin");
+    if (value === "agent") return t("vendor.team.agent");
+    if (value === "staff") return t("role.staff");
+    if (value === "member") return t("role.member");
+    return labelize(value);
+  };
+  const formatTeamStatusLabel = (value: string | null | undefined) => {
+    if (value === "active") return t("vendor.team.active");
+    if (value === "inactive") return t("vendor.team.inactive");
+    return labelize(value);
+  };
+  const formatInviteStatusLabel = (value: string | null | undefined) => {
+    if (value === "pending") return t("hub.inviteStatusPending");
+    if (value === "accepted") return t("hub.inviteStatusAccepted");
+    if (value === "expired") return t("hub.inviteStatusExpired");
+    if (value === "revoked") return t("hub.inviteStatusRevoked");
+    return labelize(value);
+  };
   const workspaceSnapshotView = useMemo(() => HUB_SNAPSHOT_TEMPLATE, []);
   const summaryPortfolioValue =
     vendorOverview?.metrics.totalValue ??
@@ -6255,7 +6297,7 @@ export default function AccountPage() {
     vendorOverview?.nextAppointment?.title ??
     (vendorWorkspace?.vendor.plan && vendorWorkspace.vendor.plan !== "free"
       ? HUB_SUMMARY_TEMPLATE.nextAppointmentTitle
-      : "No upcoming");
+      : t("hub.noUpcoming"));
   const summaryNextAppointmentAt =
     vendorOverview?.nextAppointment?.start_at ??
     (vendorWorkspace?.vendor.plan && vendorWorkspace.vendor.plan !== "free"
@@ -6318,13 +6360,13 @@ export default function AccountPage() {
               id: appointment.id,
               source: appointment.source,
               property: appointment.property_title,
-              assignee: appointment.assigned_staff_name || "Unassigned",
+              assignee: appointment.assigned_staff_name || t("hub.unassigned"),
               time: appointment.start_at
                 ? new Date(appointment.start_at).toLocaleTimeString(locale, {
                     hour: "numeric",
                     minute: "2-digit",
                   })
-                : "Unscheduled",
+                : t("hub.unscheduled"),
             }))
         : [];
       const count = details.length;
@@ -6416,13 +6458,13 @@ export default function AccountPage() {
               : "Unscheduled",
             dayLabel: startAt
               ? isToday
-                ? "Today"
+                ? t("hub.today")
                 : startAt.toLocaleDateString(locale, { month: "short", day: "numeric" })
-              : "TBD",
+              : t("hub.tbd"),
             property: appointment.property_title,
             client: appointment.client_name,
             location: appointment.property_location,
-            owner: appointment.assigned_staff_name || "Unassigned",
+            owner: appointment.assigned_staff_name || t("hub.unassigned"),
             status: labelize(appointment.status),
             rawStatus: appointment.status,
             assignedStaffId: appointment.assigned_staff_id,
@@ -6438,13 +6480,13 @@ export default function AccountPage() {
       id: appointment.id,
       time: appointment.start_at
         ? new Date(appointment.start_at).toLocaleTimeString(locale, { hour: "numeric", minute: "2-digit" })
-        : "Unscheduled",
-      title: appointment.title || selectedHubPropertyDetail.property.title || "Property viewing",
-      client: appointment.client_name || "Buyer",
-      assignee: appointment.assigned_staff_name || "Unassigned",
-      status: appointment.assigned_staff_id ? labelize(appointment.status) : "Awaiting staff",
+        : t("hub.unscheduled"),
+      title: appointment.title || selectedHubPropertyDetail.property.title || t("hub.propertyViewing"),
+      client: appointment.client_name || t("hub.buyer"),
+      assignee: appointment.assigned_staff_name || t("hub.unassigned"),
+      status: appointment.assigned_staff_id ? labelize(appointment.status) : t("hub.awaitingStaff"),
     }));
-  }, [locale, selectedHubPropertyDetail]);
+  }, [locale, selectedHubPropertyDetail, t]);
   const selectedPropertyStaff = useMemo(() => {
     if (!selectedHubPropertyDetail) return [];
     return selectedHubPropertyDetail.staff_summary;
@@ -6593,7 +6635,7 @@ export default function AccountPage() {
                       $active={workspaceMenuOpen}
                       $expanded={hubRailExpanded}
                       type="button"
-                      aria-label="Open organization switcher"
+                      aria-label={t("hub.openWorkspaceSwitcher")}
                       aria-expanded={workspaceMenuOpen}
                       onClick={() => setWorkspaceMenuOpen(true)}
                     >
@@ -6602,7 +6644,7 @@ export default function AccountPage() {
                       </HubNavIcon>
                       <HubNavBody $expanded={hubRailExpanded}>
                         <HubNavTitleRow>
-                          <HubNavTitle $active={workspaceMenuOpen}>Agency workspace</HubNavTitle>
+                          <HubNavTitle $active={workspaceMenuOpen}>{t("header.agencyWorkspace")}</HubNavTitle>
                         </HubNavTitleRow>
                       </HubNavBody>
                       <HubNavArrow $expanded={hubRailExpanded}>
@@ -6621,7 +6663,7 @@ export default function AccountPage() {
                         {!vendorWorkspace?.vendor.logo_url ? <Home /> : null}
                       </HubNavIcon>
                       <HubNavBody $expanded={hubRailExpanded}>
-                        <HubNavTitle $active={hubSection === "snapshot"}>Hub</HubNavTitle>
+                        <HubNavTitle $active={hubSection === "snapshot"}>{t("header.hub")}</HubNavTitle>
                       </HubNavBody>
                       <HubNavArrow $expanded={hubRailExpanded}>
                         <ArrowUpRight size={18} />
@@ -6635,7 +6677,7 @@ export default function AccountPage() {
                         <Plus />
                       </HubNavIcon>
                       <HubNavBody $expanded={hubRailExpanded}>
-                        <HubNavTitle>Manage listings</HubNavTitle>
+                        <HubNavTitle>{t("hub.manageListings")}</HubNavTitle>
                       </HubNavBody>
                       <HubNavArrow $expanded={hubRailExpanded}>
                         <ArrowUpRight size={18} />
@@ -6653,7 +6695,7 @@ export default function AccountPage() {
                       </HubNavIcon>
                       <HubNavBody $expanded={hubRailExpanded}>
                         <HubNavTitle $active={hubSection === "manage-listings" || hubSection === "listing-detail" || hubSection === "bulk-upload"}>
-                          Manage listings
+                          {t("hub.manageListings")}
                         </HubNavTitle>
                       </HubNavBody>
                       <HubNavArrow $expanded={hubRailExpanded}>
@@ -6668,7 +6710,7 @@ export default function AccountPage() {
                         <Calendar />
                       </HubNavIcon>
                       <HubNavBody $expanded={hubRailExpanded}>
-                        <HubNavTitle>Appointment management</HubNavTitle>
+                        <HubNavTitle>{t("hub.appointments")}</HubNavTitle>
                       </HubNavBody>
                       <HubNavArrow $expanded={hubRailExpanded}>
                         <ArrowUpRight size={18} />
@@ -6687,7 +6729,7 @@ export default function AccountPage() {
                       </HubNavIcon>
                       <HubNavBody $expanded={hubRailExpanded}>
                         <HubNavTitleRow>
-                          <HubNavTitle $active={hubSection === "appointments"}>Appointment management</HubNavTitle>
+                          <HubNavTitle $active={hubSection === "appointments"}>{t("hub.appointments")}</HubNavTitle>
                         </HubNavTitleRow>
                       </HubNavBody>
                       <HubNavArrow $expanded={hubRailExpanded}>
@@ -6707,7 +6749,7 @@ export default function AccountPage() {
                         <Megaphone />
                       </HubNavIcon>
                       <HubNavBody $expanded={hubRailExpanded}>
-                        <HubNavTitle $active={hubSection === "boostings"}>Boostings</HubNavTitle>
+                        <HubNavTitle $active={hubSection === "boostings"}>{t("hub.boostings")}</HubNavTitle>
                       </HubNavBody>
                       <HubNavArrow $expanded={hubRailExpanded}>
                         <ArrowUpRight size={18} />
@@ -6726,7 +6768,7 @@ export default function AccountPage() {
                         <BarChart3 />
                       </HubNavIcon>
                       <HubNavBody $expanded={hubRailExpanded}>
-                        <HubNavTitle $active={hubSection === "analytics"}>Analytics</HubNavTitle>
+                        <HubNavTitle $active={hubSection === "analytics"}>{t("hub.analytics")}</HubNavTitle>
                       </HubNavBody>
                       <HubNavArrow $expanded={hubRailExpanded}>
                         <ArrowUpRight size={18} />
@@ -6747,7 +6789,7 @@ export default function AccountPage() {
                       </HubNavIcon>
                       <HubNavBody $expanded={hubRailExpanded}>
                         <HubNavTitleRow>
-                          <HubNavTitle $active={hubSection === "lead-inbox"}>Lead inbox</HubNavTitle>
+                          <HubNavTitle $active={hubSection === "lead-inbox"}>{t("hub.leadInbox")}</HubNavTitle>
                         </HubNavTitleRow>
                       </HubNavBody>
                       <HubNavArrow $expanded={hubRailExpanded}>
@@ -6767,7 +6809,7 @@ export default function AccountPage() {
                         <Settings />
                       </HubNavIcon>
                       <HubNavBody $expanded={hubRailExpanded}>
-                        <HubNavTitle $active={hubSection === "settings"}>Organization settings</HubNavTitle>
+                        <HubNavTitle $active={hubSection === "settings"}>{t("hub.organizationSettings")}</HubNavTitle>
                       </HubNavBody>
                       <HubNavArrow $expanded={hubRailExpanded}>
                         <ArrowUpRight size={18} />
@@ -6781,7 +6823,7 @@ export default function AccountPage() {
                         <Users2 />
                       </HubNavIcon>
                       <HubNavBody $expanded={hubRailExpanded}>
-                        <HubNavTitle>Team</HubNavTitle>
+                        <HubNavTitle>{t("vendor.team.title")}</HubNavTitle>
                       </HubNavBody>
                       <HubNavArrow $expanded={hubRailExpanded}>
                         <ArrowUpRight size={18} />
@@ -6798,7 +6840,7 @@ export default function AccountPage() {
                         <Users2 />
                       </HubNavIcon>
                       <HubNavBody $expanded={hubRailExpanded}>
-                        <HubNavTitle $active={hubSection === "team"}>Team</HubNavTitle>
+                        <HubNavTitle $active={hubSection === "team"}>{t("vendor.team.title")}</HubNavTitle>
                       </HubNavBody>
                       <HubNavArrow $expanded={hubRailExpanded}>
                         <ArrowUpRight size={18} />
@@ -6812,7 +6854,7 @@ export default function AccountPage() {
                         <Globe2 />
                       </HubNavIcon>
                       <HubNavBody $expanded={hubRailExpanded}>
-                        <HubNavTitle>View public profile</HubNavTitle>
+                        <HubNavTitle>{t("hub.viewPublicProfile")}</HubNavTitle>
                       </HubNavBody>
                       <HubNavArrow $expanded={hubRailExpanded}>
                         <ArrowUpRight size={18} />
@@ -6832,7 +6874,7 @@ export default function AccountPage() {
                       <X />
                     </HubNavIcon>
                     <HubNavBody $expanded={hubRailExpanded}>
-                      <HubNavTitle>Sign out</HubNavTitle>
+                      <HubNavTitle>{t("hub.signOut")}</HubNavTitle>
                     </HubNavBody>
                     <HubNavArrow $expanded={hubRailExpanded}>
                       <ArrowUpRight size={18} />
@@ -6854,10 +6896,10 @@ export default function AccountPage() {
                             {!currentWorkspaceOption?.vendor.logo_url && !vendorWorkspace?.vendor.logo_url ? <Building2 size={22} /> : null}
                           </VendorLogoBadge>
                           <VendorHero>
-                            <VendorTitle>{currentWorkspaceOption?.vendor.name || vendorWorkspace?.vendor.name || "Agency account"}</VendorTitle>
+                            <VendorTitle>{currentWorkspaceOption?.vendor.name || vendorWorkspace?.vendor.name || t("hub.agencyAccount")}</VendorTitle>
                             {workspaceOptions.length > 0 ? (
                               <WorkspaceSwitchButton type="button" onClick={() => setWorkspaceMenuOpen(true)}>
-                                Switch agency
+                                {t("hub.switchAgency")}
                                 <ArrowUpRight size={16} />
                               </WorkspaceSwitchButton>
                             ) : null}
@@ -6866,15 +6908,15 @@ export default function AccountPage() {
                       </VendorIdentity>
                     </VendorHero>
 
-                    <StarterSummary>
+                      <StarterSummary>
                       <StarterSummaryItem>
-                        <StarterSummaryLabel>Listings</StarterSummaryLabel>
+                        <StarterSummaryLabel>{t("hub.listings")}</StarterSummaryLabel>
                         <StarterSummaryValue>
                           {listingUsage} / {listingLimit}
                         </StarterSummaryValue>
                       </StarterSummaryItem>
                       <StarterSummaryItem>
-                        <StarterSummaryLabel>Seats</StarterSummaryLabel>
+                        <StarterSummaryLabel>{t("hub.seats")}</StarterSummaryLabel>
                         <StarterSummaryValue>
                           {agentUsage} / {agentLimit}
                         </StarterSummaryValue>
@@ -6896,12 +6938,12 @@ export default function AccountPage() {
                           $tone={vendorWorkspace?.vendor.verified_status === "approved" ? "success" : "warning"}
                         >
                           {vendorWorkspace?.vendor.verified_status === "approved" ? <BadgeCheck size={14} /> : <ShieldCheck size={14} />}
-                          {vendorWorkspace?.vendor.verified_status === "approved" ? "Verified" : "Unverified"}
+                          {vendorWorkspace?.vendor.verified_status === "approved" ? t("agency.verifiedStatus") : t("agency.unverifiedStatus")}
                         </VendorPillLink>
                       ) : (
                         <AppointmentPill $tone={vendorWorkspace?.vendor.verified_status === "approved" ? "success" : "warning"}>
                           {vendorWorkspace?.vendor.verified_status === "approved" ? <BadgeCheck size={14} /> : <ShieldCheck size={14} />}
-                          {vendorWorkspace?.vendor.verified_status === "approved" ? "Verified" : "Unverified"}
+                          {vendorWorkspace?.vendor.verified_status === "approved" ? t("agency.verifiedStatus") : t("agency.unverifiedStatus")}
                         </AppointmentPill>
                       )}
                     </StarterSummary>
@@ -6917,12 +6959,12 @@ export default function AccountPage() {
                   <>
                     <HubFeatureHeader>
                       <HubFeatureTop>
-                        <HubFeatureTitle>Next steps</HubFeatureTitle>
+                        <HubFeatureTitle>{t("hub.nextSteps")}</HubFeatureTitle>
                         <HubProgressPill>
-                          {starterChecklistDoneCount}/{hubChecklist.length} complete
+                          {t("hub.completeCount", { done: starterChecklistDoneCount, total: hubChecklist.length })}
                         </HubProgressPill>
                       </HubFeatureTop>
-                      <HubFeatureCopy>Finish these basics to make your agency profile ready for buyers.</HubFeatureCopy>
+                      <HubFeatureCopy>{t("hub.finishBasics")}</HubFeatureCopy>
                     </HubFeatureHeader>
                     <HubChecklist>
                       {hubChecklist.map((item) => (
@@ -6945,12 +6987,12 @@ export default function AccountPage() {
                       <HubFeatureHeader>
                         <HubFeatureTitle>
                           {isFreeAgencyPlan
-                            ? "Premium workspace preview"
-                            : "Workspace snapshot"}
+                            ? t("hub.premiumWorkspacePreview")
+                            : t("hub.workspaceSnapshot")}
                         </HubFeatureTitle>
                         {isFreeAgencyPlan ? (
                           <HubFeatureCopy>
-                            Upgrade to unlock live sales and lead overview inside your hub.
+                            {t("hub.upgradeUnlockPreview")}
                           </HubFeatureCopy>
                         ) : null}
                       </HubFeatureHeader>
@@ -6960,31 +7002,31 @@ export default function AccountPage() {
                         <HubFeaturePreviewGrid>
                           <HubFeaturePreviewItem>
                             <HubFeaturePreviewTop>
-                              <span>Lead overview</span>
+                              <span>{t("hub.leadOverview")}</span>
                               <MessageSquareText />
                             </HubFeaturePreviewTop>
-                            <HubFeaturePreviewValue>Locked until upgrade</HubFeaturePreviewValue>
+                            <HubFeaturePreviewValue>{t("hub.lockedUntilUpgrade")}</HubFeaturePreviewValue>
                           </HubFeaturePreviewItem>
                           <HubFeaturePreviewItem>
                             <HubFeaturePreviewTop>
-                              <span>Sales performance</span>
+                              <span>{t("hub.salesPerformance")}</span>
                               <BarChart3 />
                             </HubFeaturePreviewTop>
-                            <HubFeaturePreviewValue>Locked until upgrade</HubFeaturePreviewValue>
+                            <HubFeaturePreviewValue>{t("hub.lockedUntilUpgrade")}</HubFeaturePreviewValue>
                           </HubFeaturePreviewItem>
                           <HubFeaturePreviewItem>
                             <HubFeaturePreviewTop>
-                              <span>Viewing demand</span>
+                              <span>{t("hub.viewingDemand")}</span>
                               <Calendar />
                             </HubFeaturePreviewTop>
-                            <HubFeaturePreviewValue>Locked until upgrade</HubFeaturePreviewValue>
+                            <HubFeaturePreviewValue>{t("hub.lockedUntilUpgrade")}</HubFeaturePreviewValue>
                           </HubFeaturePreviewItem>
                           <HubFeaturePreviewItem>
                             <HubFeaturePreviewTop>
-                              <span>Team response</span>
+                              <span>{t("hub.teamResponse")}</span>
                               <Users2 />
                             </HubFeaturePreviewTop>
-                            <HubFeaturePreviewValue>Locked until upgrade</HubFeaturePreviewValue>
+                            <HubFeaturePreviewValue>{t("hub.lockedUntilUpgrade")}</HubFeaturePreviewValue>
                           </HubFeaturePreviewItem>
                         </HubFeaturePreviewGrid>
                         {canAccessBilling ? (
@@ -6993,19 +7035,19 @@ export default function AccountPage() {
                               <HubFeatureLock>
                                 <Lock size={18} />
                               </HubFeatureLock>
-                              <HubChecklistTitle>Upgrade to reveal premium insights</HubChecklistTitle>
+                              <HubChecklistTitle>{t("hub.upgradeRevealInsights")}</HubChecklistTitle>
                             </HubFeatureUpsellHeader>
                             <HubChecklistHint>
-                              Sales stats, lead summaries, appointments, and team performance appear here once your plan is upgraded.
+                              {t("hub.upgradeRevealInsightsCopy")}
                             </HubChecklistHint>
                           </HubFeatureUpsellCard>
                         ) : (
                           <HubFeaturePreviewItem>
                             <HubFeaturePreviewTop>
-                              <span>Premium insights</span>
+                              <span>{t("hub.premiumInsights")}</span>
                               <Lock />
                             </HubFeaturePreviewTop>
-                            <HubFeaturePreviewValue>Owner upgrade required</HubFeaturePreviewValue>
+                            <HubFeaturePreviewValue>{t("hub.ownerUpgradeRequired")}</HubFeaturePreviewValue>
                           </HubFeaturePreviewItem>
                         )}
                         </HubFeaturePreview>
@@ -7032,8 +7074,8 @@ export default function AccountPage() {
                         <VendorPropertiesView
                           embedded
                           hideHeader
-                          title="Manage listings"
-                          subtitle="Review current listings, verification state, and property activity."
+                          title={t("hub.manageListings")}
+                          subtitle={t("hub.manageListingsSubtitle")}
                           vendorId={activeVendorId ?? vendorWorkspace?.vendor.id ?? null}
                           onSelectProperty={(property) => {
                             setSelectedHubProperty(property);
@@ -7049,12 +7091,12 @@ export default function AccountPage() {
                               }}
                             >
                               <Upload size={16} />
-                              <span>Bulk upload</span>
+                              <span>{t("hub.bulkUpload")}</span>
                             </CompactGhostButton>
                             {canManageListingOperations ? (
                               <HubSectionAction href="/request-sale">
                                 <Plus size={16} />
-                                <span>Add property listing</span>
+                                <span>{t("hub.addPropertyListing")}</span>
                               </HubSectionAction>
                             ) : null}
                           </HubSectionFooter>
@@ -7077,8 +7119,8 @@ export default function AccountPage() {
                         <ListingDetailScroller>
                           <ListingDetailHeader>
                             <ListingDetailTitleWrap>
-                              <ListingDetailTitle>Listing detail</ListingDetailTitle>
-                              <ListingDetailCopy>Review this property, its scheduled appointments, and who is handling each viewing.</ListingDetailCopy>
+                              <ListingDetailTitle>{t("hub.listingDetailTitle")}</ListingDetailTitle>
+                              <ListingDetailCopy>{t("hub.listingDetailCopy")}</ListingDetailCopy>
                             </ListingDetailTitleWrap>
                             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                               {canCreateAppointments ? (
@@ -7086,7 +7128,7 @@ export default function AccountPage() {
                                   type="button"
                                   onClick={() => openAppointmentCreator(selectedHubPropertyDetail?.property.id ?? selectedHubProperty.id)}
                                 >
-                                  Schedule appointment
+                                  {t("hub.scheduleAppointment")}
                                 </CTAButton>
                               ) : null}
                               <ListingDetailBack
@@ -7095,7 +7137,7 @@ export default function AccountPage() {
                                   updateHubSection("manage-listings");
                                 }}
                               >
-                                Back to listings
+                                {t("hub.backToListings")}
                               </ListingDetailBack>
                             </div>
                           </ListingDetailHeader>
@@ -7124,7 +7166,7 @@ export default function AccountPage() {
                                 </ListingDetailInfo>
                               </>
                             ) : selectedHubPropertyError || !selectedHubPropertyDetail ? (
-                              <HubFeatureCopy>{selectedHubPropertyError ?? "Unable to load listing detail."}</HubFeatureCopy>
+                              <HubFeatureCopy>{selectedHubPropertyError ?? t("hub.unableLoadListingDetail")}</HubFeatureCopy>
                             ) : (
                               <>
                                 <ListingDetailImage $image={selectedHubPropertyDetail.property.cover_image_url || undefined}>
@@ -7135,7 +7177,7 @@ export default function AccountPage() {
                                     <ListingDetailPills>
                                       <AppointmentPill>{labelize(selectedHubPropertyDetail.property.status)}</AppointmentPill>
                                       <AppointmentPill $tone="warning">{labelize(selectedHubPropertyDetail.property.deal_type)}</AppointmentPill>
-                                      <AppointmentPill>{formatPropertyTypeValue(selectedHubPropertyDetail.property.property_type)}</AppointmentPill>
+                                      <AppointmentPill>{formatPropertyTypeValue(selectedHubPropertyDetail.property.property_type, t)}</AppointmentPill>
                                     </ListingDetailPills>
                                     {canManageListingOperations ? (
                                       <ListingDetailActions>
@@ -7148,12 +7190,12 @@ export default function AccountPage() {
                                           }}
                                           disabled={!availableListingStatusOptions.length || selectedHubPropertyDeleting}
                                         >
-                                          Update status
+                                          {t("hub.updateStatus")}
                                         </ListingStatusAction>
                                         <ListingDetailIconAction
                                           type="button"
-                                          aria-label="Edit listing"
-                                          title="Edit listing"
+                                          aria-label={t("hub.editListing")}
+                                          title={t("hub.editListing")}
                                           onClick={() => router.push(`/hub/${selectedHubPropertyDetail.property.id}/edit`)}
                                           disabled={selectedHubPropertyDeleting}
                                         >
@@ -7162,8 +7204,8 @@ export default function AccountPage() {
                                         <ListingDetailIconAction
                                           type="button"
                                           $tone="danger"
-                                          aria-label="Delete listing"
-                                          title="Delete listing"
+                                          aria-label={t("hub.deleteListing")}
+                                          title={t("hub.deleteListing")}
                                           onClick={() => {
                                             setListingDeleteModalOpen(true);
                                             setSelectedHubPropertyStatusError(null);
@@ -7182,12 +7224,12 @@ export default function AccountPage() {
                                   {selectedHubPropertyStatusNotice ? (
                                     <ListingStatusMessage $tone="success">{selectedHubPropertyStatusNotice}</ListingStatusMessage>
                                   ) : null}
-                                  <ListingDetailTitle>{selectedHubPropertyDetail.property.title || "Untitled property"}</ListingDetailTitle>
+                                  <ListingDetailTitle>{selectedHubPropertyDetail.property.title || t("vendor.properties.untitled")}</ListingDetailTitle>
                                   <ListingDetailPrice>
                                     {formatCurrency(
                                       selectedHubPropertyDetail.property.price ?? undefined,
                                       selectedHubPropertyDetail.property.currency ?? "MMK",
-                                      "Contact",
+                                      t("listing.contactPrice"),
                                       language
                                     )}
                                   </ListingDetailPrice>
@@ -7201,25 +7243,30 @@ export default function AccountPage() {
                                         disabled={selectedHubPropertyDeleting || selectedHubPropertyStatusSaving}
                                       >
                                         <Megaphone size={13} />
-                                        <span>Boost this listing</span>
+                                        <span>{t("hub.boostThisListing")}</span>
                                       </ListingPromoteAction>
                                     </div>
                                   ) : null}
                                   {(() => {
                                     const property = selectedHubPropertyDetail.property;
                                     const area = formatArea(property.area_sqft, locale, t("listing.areaSqft"));
-                                    const township = property.township?.trim() || "";
-                                    const district = (property.district || property.city || "").trim();
-                                    const stateRegion = property.state_region?.trim() || "";
+                                    const township = property.township?.trim() ? translateLocationName(property.township.trim(), language) : "";
+                                    const district = (property.district || property.city || "").trim()
+                                      ? translateLocationName((property.district || property.city || "").trim(), language)
+                                      : "";
+                                    const stateRegion = property.state_region?.trim() ? translateLocationName(property.state_region.trim(), language) : "";
                                     const locationSecondary = [district, stateRegion].filter(Boolean).join(" • ");
-                                    const featureValue = [property.has_parking ? "Parking" : null, property.has_lift ? "Lift" : null]
+                                    const featureValue = [
+                                      property.has_parking ? t("requestSale.parking") : null,
+                                      property.has_lift ? t("requestSale.lift") : null,
+                                    ]
                                       .filter(Boolean)
                                       .join(" • ");
                                     const factCards = [
                                       township || locationSecondary
                                         ? {
                                             key: "location",
-                                            label: "Location",
+                                            label: t("listing.location"),
                                             icon: <MapPin size={14} />,
                                             value: "",
                                             renderValue: (
@@ -7238,7 +7285,7 @@ export default function AccountPage() {
                                       area
                                         ? {
                                             key: "area",
-                                            label: "Area",
+                                            label: t("filter.area"),
                                             icon: <Ruler size={14} />,
                                             value: area,
                                             wide: true,
@@ -7247,7 +7294,7 @@ export default function AccountPage() {
                                       typeof property.bedrooms === "number"
                                         ? {
                                             key: "bedrooms",
-                                            label: "Bedrooms",
+                                            label: t("filter.bedrooms"),
                                             icon: <BedDouble size={14} />,
                                             value: String(property.bedrooms),
                                           }
@@ -7255,7 +7302,7 @@ export default function AccountPage() {
                                       typeof property.bathrooms === "number"
                                         ? {
                                             key: "bathrooms",
-                                            label: "Bathrooms",
+                                            label: t("filter.bathrooms"),
                                             icon: <Bath size={14} />,
                                             value: String(property.bathrooms),
                                           }
@@ -7263,7 +7310,7 @@ export default function AccountPage() {
                                       typeof property.room_count === "number"
                                         ? {
                                             key: "rooms",
-                                            label: "Rooms",
+                                            label: t("hub.rooms"),
                                             icon: <Home size={14} />,
                                             value: String(property.room_count),
                                           }
@@ -7271,7 +7318,7 @@ export default function AccountPage() {
                                       typeof property.floor_count === "number"
                                         ? {
                                             key: "floors",
-                                            label: "Floors",
+                                            label: t("hub.floors"),
                                             icon: <Building2 size={14} />,
                                             value: String(property.floor_count),
                                           }
@@ -7279,15 +7326,15 @@ export default function AccountPage() {
                                       property.appointments_count > 0
                                         ? {
                                             key: "appointments",
-                                            label: "Appointments",
+                                            label: t("hub.appointmentsCount"),
                                             icon: <Calendar size={14} />,
-                                            value: `${property.appointments_count} scheduled`,
+                                            value: t("hub.scheduledCount", { count: property.appointments_count }),
                                           }
                                         : null,
                                       featureValue
                                         ? {
                                             key: "features",
-                                            label: "Features",
+                                            label: t("hub.features"),
                                             icon: <ShieldCheck size={14} />,
                                             value: featureValue,
                                           }
@@ -7326,7 +7373,7 @@ export default function AccountPage() {
 
                           <ListingDetailLower>
                             <ListingDetailCard>
-                              <ListingDetailSectionTitle>Scheduled appointments</ListingDetailSectionTitle>
+                              <ListingDetailSectionTitle>{t("hub.scheduledAppointments")}</ListingDetailSectionTitle>
                               <ListingAppointmentList>
                                 {selectedHubPropertyLoading ? (
                                   <>
@@ -7346,7 +7393,7 @@ export default function AccountPage() {
                                       <ListingAppointmentMain>
                                         <ListingAppointmentTitle>{appointment.title}</ListingAppointmentTitle>
                                         <ListingAppointmentMeta>
-                                          {appointment.client} • Assigned to {appointment.assignee}
+                                          {t("hub.assignedTo", { client: appointment.client, assignee: appointment.assignee })}
                                         </ListingAppointmentMeta>
                                       </ListingAppointmentMain>
                                       <AppointmentPill $tone={appointment.status === "Confirmed" ? "success" : "warning"}>
@@ -7355,13 +7402,13 @@ export default function AccountPage() {
                                     </ListingAppointmentRow>
                                   ))
                                 ) : (
-                                  <HubFeatureCopy>No appointments scheduled for this listing yet.</HubFeatureCopy>
+                                  <HubFeatureCopy>{t("hub.noListingAppointments")}</HubFeatureCopy>
                                 )}
                               </ListingAppointmentList>
                             </ListingDetailCard>
 
                             <ListingDetailCard>
-                              <ListingDetailSectionTitle>Staff assignment</ListingDetailSectionTitle>
+                              <ListingDetailSectionTitle>{t("hub.staffAssignment")}</ListingDetailSectionTitle>
                               <ListingStaffList>
                                 {selectedHubPropertyLoading ? (
                                   <>
@@ -7374,17 +7421,19 @@ export default function AccountPage() {
                                     <ListingStaffRow key={staff.id}>
                                       <ListingStaffName>{staff.name}</ListingStaffName>
                                       <ListingStaffMeta>
-                                        {staff.assigned_count} assigned appointment{staff.assigned_count > 1 ? "s" : ""}
+                                        {staff.assigned_count > 1
+                                          ? t("hub.assignedAppointmentsPlural", { count: staff.assigned_count })
+                                          : t("hub.assignedAppointmentsSingular", { count: staff.assigned_count })}
                                       </ListingStaffMeta>
                                     </ListingStaffRow>
                                   ))
                                 ) : (
                                   <HubFeatureCopy>
                                     {selectedHubPropertyDetail?.unassigned_count
-                                      ? `${selectedHubPropertyDetail.unassigned_count} appointment${
-                                          selectedHubPropertyDetail.unassigned_count > 1 ? "s are" : " is"
-                                        } waiting for staff assignment.`
-                                      : "No staff assignments yet for this listing."}
+                                      ? selectedHubPropertyDetail.unassigned_count > 1
+                                        ? t("hub.unassignedAppointmentsPlural", { count: selectedHubPropertyDetail.unassigned_count })
+                                        : t("hub.unassignedAppointmentsSingular", { count: selectedHubPropertyDetail.unassigned_count })
+                                      : t("hub.noStaffAssignments")}
                                   </HubFeatureCopy>
                                 )}
                               </ListingStaffList>
@@ -7398,8 +7447,8 @@ export default function AccountPage() {
                           <VendorInquiriesView
                             embedded
                             hideHeader
-                            title="Lead inbox"
-                            subtitle="Track routed buyer leads, assign owners, and follow up from inside your hub."
+                            title={t("hub.leadInbox")}
+                            subtitle={t("hub.leadInboxSubtitle")}
                             vendorId={activeVendorId ?? vendorWorkspace?.vendor.id ?? null}
                           />
                         </LeadInboxScroller>
@@ -7414,19 +7463,19 @@ export default function AccountPage() {
                                   <AppointmentCardTitleWrap>
                                     <AppointmentCardTitle>
                                       <Calendar size={16} style={{ marginRight: 8, verticalAlign: "text-bottom" }} />
-                                      Calendar
+                                      {t("hub.calendar")}
                                     </AppointmentCardTitle>
                                   </AppointmentCardTitleWrap>
                                   <AppointmentCardHeaderRight>
                                   <AppointmentPill $tone="success">
                                     <Calendar size={14} />
-                                    {appointmentStats.upcoming} upcoming
+                                    {t("hub.upcomingCount", { count: appointmentStats.upcoming })}
                                   </AppointmentPill>
                                     {appointmentCalendarView === "month" ? (
                                       <AppointmentMonthNav>
                                         <AppointmentMonthButton
                                           type="button"
-                                          aria-label="Previous month"
+                                          aria-label={t("hub.previousMonth")}
                                           onClick={() => {
                                             setAppointmentPopupDay(null);
                                             setAppointmentMonthOffset((current) => current - 1);
@@ -7437,7 +7486,7 @@ export default function AccountPage() {
                                         <AppointmentMonthLabel>{appointmentMonthLabel}</AppointmentMonthLabel>
                                         <AppointmentMonthButton
                                           type="button"
-                                          aria-label="Next month"
+                                          aria-label={t("hub.nextMonth")}
                                           onClick={() => {
                                             setAppointmentPopupDay(null);
                                             setAppointmentMonthOffset((current) => current + 1);
@@ -7456,7 +7505,7 @@ export default function AccountPage() {
                                           setAppointmentCalendarView("week");
                                         }}
                                       >
-                                        7 days
+                                        {t("hub.sevenDays")}
                                       </AppointmentToggleButton>
                                       <AppointmentToggleButton
                                         type="button"
@@ -7466,7 +7515,7 @@ export default function AccountPage() {
                                           setAppointmentCalendarView("month");
                                         }}
                                       >
-                                        Month
+                                        {t("hub.month")}
                                       </AppointmentToggleButton>
                                     </AppointmentToggleRow>
                                   </AppointmentCardHeaderRight>
@@ -7475,16 +7524,16 @@ export default function AccountPage() {
                                   <>
                                     <AppointmentStats>
                                       <AppointmentStat>
-                                        <AppointmentStatLabel>Today</AppointmentStatLabel>
-                                        <AppointmentStatValue>{appointmentStats.today} appointments</AppointmentStatValue>
+                                        <AppointmentStatLabel>{t("hub.today")}</AppointmentStatLabel>
+                                        <AppointmentStatValue>{t("hub.appointmentsTotal", { count: appointmentStats.today })}</AppointmentStatValue>
                                       </AppointmentStat>
                                       <AppointmentStat>
-                                        <AppointmentStatLabel>Unassigned</AppointmentStatLabel>
-                                        <AppointmentStatValue>{appointmentStats.unassigned} appointment{appointmentStats.unassigned === 1 ? "" : "s"}</AppointmentStatValue>
+                                        <AppointmentStatLabel>{t("hub.unassigned")}</AppointmentStatLabel>
+                                        <AppointmentStatValue>{t("hub.appointmentsTotal", { count: appointmentStats.unassigned })}</AppointmentStatValue>
                                       </AppointmentStat>
                                       <AppointmentStat>
-                                        <AppointmentStatLabel>Upcoming</AppointmentStatLabel>
-                                        <AppointmentStatValue>{appointmentStats.upcoming} appointments</AppointmentStatValue>
+                                        <AppointmentStatLabel>{t("hub.upcoming")}</AppointmentStatLabel>
+                                        <AppointmentStatValue>{t("hub.appointmentsTotal", { count: appointmentStats.upcoming })}</AppointmentStatValue>
                                       </AppointmentStat>
                                     </AppointmentStats>
                                     <AppointmentWeekScroller>
@@ -7494,7 +7543,7 @@ export default function AccountPage() {
                                             <AppointmentDayName>{day.day}</AppointmentDayName>
                                             <AppointmentDayDate>{day.date}</AppointmentDayDate>
                                             <AppointmentCount $active={day.active}>
-                                              {day.count ? `${day.count} viewing${day.count > 1 ? "s" : ""}` : "Open"}
+                                              {day.count ? t("hub.viewingsCount", { count: day.count }) : t("hub.open")}
                                             </AppointmentCount>
                                           </AppointmentDayCell>
                                         ))}
@@ -7505,7 +7554,7 @@ export default function AccountPage() {
                                   <AppointmentCalendarSplit>
                                     <div>
                                       <AppointmentMonthWeekdays>
-                                        {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((label) => (
+                                        {[t("hub.weekdayMon"), t("hub.weekdayTue"), t("hub.weekdayWed"), t("hub.weekdayThu"), t("hub.weekdayFri"), t("hub.weekdaySat"), t("hub.weekdaySun")].map((label) => (
                                           <AppointmentMonthWeekday key={label}>{label}</AppointmentMonthWeekday>
                                         ))}
                                       </AppointmentMonthWeekdays>
@@ -7545,7 +7594,7 @@ export default function AccountPage() {
                                                       {detail.property}
                                                     </AppointmentMonthPopupProperty>
                                                     <AppointmentMonthPopupMeta>
-                                                      {detail.time} • Assigned to {detail.assignee}
+                                                      {t("hub.assignedAt", { time: detail.time, assignee: detail.assignee })}
                                                     </AppointmentMonthPopupMeta>
                                                   </AppointmentMonthPopupItem>
                                                 ))}
@@ -7558,16 +7607,16 @@ export default function AccountPage() {
                                     </div>
                                     <AppointmentStatsColumn>
                                       <AppointmentStat>
-                                        <AppointmentStatLabel>Today</AppointmentStatLabel>
-                                        <AppointmentStatValue>{appointmentStats.today} appointments</AppointmentStatValue>
+                                        <AppointmentStatLabel>{t("hub.today")}</AppointmentStatLabel>
+                                        <AppointmentStatValue>{t("hub.appointmentsTotal", { count: appointmentStats.today })}</AppointmentStatValue>
                                       </AppointmentStat>
                                       <AppointmentStat>
-                                        <AppointmentStatLabel>Unassigned</AppointmentStatLabel>
-                                        <AppointmentStatValue>{appointmentStats.unassigned} appointment{appointmentStats.unassigned === 1 ? "" : "s"}</AppointmentStatValue>
+                                        <AppointmentStatLabel>{t("hub.unassigned")}</AppointmentStatLabel>
+                                        <AppointmentStatValue>{t("hub.appointmentsTotal", { count: appointmentStats.unassigned })}</AppointmentStatValue>
                                       </AppointmentStat>
                                       <AppointmentStat>
-                                        <AppointmentStatLabel>Upcoming</AppointmentStatLabel>
-                                        <AppointmentStatValue>{appointmentStats.upcoming} appointments</AppointmentStatValue>
+                                        <AppointmentStatLabel>{t("hub.upcoming")}</AppointmentStatLabel>
+                                        <AppointmentStatValue>{t("hub.appointmentsTotal", { count: appointmentStats.upcoming })}</AppointmentStatValue>
                                       </AppointmentStat>
                                     </AppointmentStatsColumn>
                                   </AppointmentCalendarSplit>
@@ -7579,13 +7628,13 @@ export default function AccountPage() {
                                   <AppointmentCardTitleWrap>
                                     <AppointmentCardTitle>
                                       <Users2 size={16} style={{ marginRight: 8, verticalAlign: "text-bottom" }} />
-                                      Assignment
+                                      {t("hub.assignment")}
                                     </AppointmentCardTitle>
-                                    <AppointmentCardCopy>Staff load and routing.</AppointmentCardCopy>
+                                    <AppointmentCardCopy>{t("hub.assignmentCopy")}</AppointmentCardCopy>
                                   </AppointmentCardTitleWrap>
                                   <AppointmentPill $tone={canManageTeam ? "success" : "neutral"}>
                                     <Users2 size={14} />
-                                    {canManageTeam ? "Owner controls" : "View only"}
+                                    {canManageTeam ? t("hub.ownerControls") : t("hub.viewOnly")}
                                   </AppointmentPill>
                                 </AppointmentCardHeader>
                                 <AppointmentAssignmentList>
@@ -7603,12 +7652,12 @@ export default function AccountPage() {
                                         <span>{labelize(staff.role)}</span>
                                         <span>•</span>
                                         <span>
-                                          {staff.assigned_count} scheduled viewing{staff.assigned_count === 1 ? "" : "s"}
+                                          {t("hub.scheduledViewingsCount", { count: staff.assigned_count })}
                                         </span>
                                       </AppointmentAssignmentTop>
-                                      <AppointmentPill>{staff.assigned_count} assigned</AppointmentPill>
+                                      <AppointmentPill>{t("hub.assignedCount", { count: staff.assigned_count })}</AppointmentPill>
                                     </AppointmentAssignmentRow>
-                                  )) : <HubFeatureCopy>No active team members are available for assignment yet.</HubFeatureCopy>}
+                                  )) : <HubFeatureCopy>{t("hub.noActiveTeamForAssignment")}</HubFeatureCopy>}
                                 </AppointmentAssignmentList>
                               </AppointmentCard>
                             </AppointmentTopGrid>
@@ -7618,18 +7667,18 @@ export default function AccountPage() {
                                   <AppointmentCardTitleWrap>
                                     <AppointmentCardTitle>
                                       <Clock size={16} style={{ marginRight: 8, verticalAlign: "text-bottom" }} />
-                                      Board
+                                      {t("hub.board")}
                                     </AppointmentCardTitle>
-                                    <AppointmentCardCopy>Upcoming queue.</AppointmentCardCopy>
+                                    <AppointmentCardCopy>{t("hub.upcomingQueue")}</AppointmentCardCopy>
                                   </AppointmentCardTitleWrap>
                                 <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                                   <AppointmentPill $tone="warning">
                                     <Clock size={14} />
-                                    {appointmentStats.unassigned} unassigned
+                                    {t("hub.unassignedCount", { count: appointmentStats.unassigned })}
                                   </AppointmentPill>
                                   {canCreateAppointments ? (
                                     <CTAButton type="button" onClick={() => openAppointmentCreator()}>
-                                      Create appointment
+                                      {t("hub.createAppointment")}
                                     </CTAButton>
                                   ) : null}
                                 </div>
@@ -7661,7 +7710,7 @@ export default function AccountPage() {
                                           {appointment.source === "viewing_request" && appointment.isUnread ? (
                                             <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                                               <AppointmentUnreadDot />
-                                              New request
+                                              {t("hub.newRequest")}
                                             </span>
                                           ) : null}
                                           <span>{appointment.client}</span>
@@ -7670,7 +7719,7 @@ export default function AccountPage() {
                                         </AppointmentQueueMeta>
                                       </AppointmentQueueMain>
                                       <AppointmentQueueSide>
-                                        <AppointmentQueueSideLabel>Assignee</AppointmentQueueSideLabel>
+                                        <AppointmentQueueSideLabel>{t("hub.assignee")}</AppointmentQueueSideLabel>
                                         <AppointmentQueueSideValue>{appointment.owner}</AppointmentQueueSideValue>
                                       </AppointmentQueueSide>
                                       <AppointmentPill $tone={appointment.status === "Confirmed" ? "success" : "warning"}>
@@ -7679,7 +7728,7 @@ export default function AccountPage() {
                                     </AppointmentQueueRow>
                                   ))
                                 ) : (
-                                  <HubFeatureCopy>No upcoming appointments scheduled yet.</HubFeatureCopy>
+                                  <HubFeatureCopy>{t("hub.noUpcomingAppointments")}</HubFeatureCopy>
                                 )}
                               </AppointmentQueueList>
                             </AppointmentCard>
@@ -7691,47 +7740,47 @@ export default function AccountPage() {
                         <WorkspaceSectionScroller>
                           <WorkspaceSectionHeader>
                             <WorkspaceSectionTitleWrap>
-                              <WorkspaceSectionTitle>Organization settings</WorkspaceSectionTitle>
-                              <WorkspaceSectionCopy>Core workspace controls.</WorkspaceSectionCopy>
+                              <WorkspaceSectionTitle>{t("vendor.settings.title")}</WorkspaceSectionTitle>
+                              <WorkspaceSectionCopy>{t("hub.coreWorkspaceControls")}</WorkspaceSectionCopy>
                             </WorkspaceSectionTitleWrap>
                           </WorkspaceSectionHeader>
                           <SettingsIndexGrid>
                             <SettingsIndexCard>
                               <SettingsIndexHeader>
                                 <SettingsIndexTitleWrap>
-                                  <SettingsIndexTitle>Workspace</SettingsIndexTitle>
-                                  <SettingsIndexCopy>Plan, seats, status.</SettingsIndexCopy>
+                                  <SettingsIndexTitle>{t("hub.workspace")}</SettingsIndexTitle>
+                                  <SettingsIndexCopy>{t("hub.planSeatsStatus")}</SettingsIndexCopy>
                                 </SettingsIndexTitleWrap>
                                 <AppointmentPill>
                                   <Users2 size={14} />
-                                  {activeTeamCount} / {agentLimit} seats
+                                  {t("hub.seatsUsed", { count: activeTeamCount, limit: agentLimit })}
                                 </AppointmentPill>
                               </SettingsIndexHeader>
                               <SettingsIndexRows>
                                 <SettingsIndexRow>
-                                  <SettingsIndexLabel><Building2 size={14} style={{ marginRight: 6, verticalAlign: "text-bottom" }} />Agency</SettingsIndexLabel>
-                                  <SettingsIndexValue>{vendorWorkspace?.vendor.name || "Agency account"}</SettingsIndexValue>
+                                  <SettingsIndexLabel><Building2 size={14} style={{ marginRight: 6, verticalAlign: "text-bottom" }} />{t("agency.label")}</SettingsIndexLabel>
+                                  <SettingsIndexValue>{vendorWorkspace?.vendor.name || t("hub.agencyAccount")}</SettingsIndexValue>
                                 </SettingsIndexRow>
                                 <SettingsIndexRow>
-                                  <SettingsIndexLabel><Sparkles size={14} style={{ marginRight: 6, verticalAlign: "text-bottom" }} />Plan</SettingsIndexLabel>
+                                  <SettingsIndexLabel><Sparkles size={14} style={{ marginRight: 6, verticalAlign: "text-bottom" }} />{t("vendor.plan.currentPlan")}</SettingsIndexLabel>
                                   <SettingsIndexValue>{vendorWorkspace?.limits?.currentPlan?.name || currentVendorPlan.name}</SettingsIndexValue>
                                 </SettingsIndexRow>
                                 <SettingsIndexRow>
-                                  <SettingsIndexLabel><ShieldCheck size={14} style={{ marginRight: 6, verticalAlign: "text-bottom" }} />Verification</SettingsIndexLabel>
+                                  <SettingsIndexLabel><ShieldCheck size={14} style={{ marginRight: 6, verticalAlign: "text-bottom" }} />{t("agency.verification")}</SettingsIndexLabel>
                                   <SettingsIndexValue>{labelize(vendorWorkspace?.vendor.verified_status || "not_requested")}</SettingsIndexValue>
                                 </SettingsIndexRow>
                                 <SettingsIndexRow>
-                                  <SettingsIndexLabel><Users2 size={14} style={{ marginRight: 6, verticalAlign: "text-bottom" }} />Control</SettingsIndexLabel>
-                                  <SettingsIndexValue>{canManageTeam ? "Owner / admin" : "View only"}</SettingsIndexValue>
+                                  <SettingsIndexLabel><Users2 size={14} style={{ marginRight: 6, verticalAlign: "text-bottom" }} />{t("hub.control")}</SettingsIndexLabel>
+                                  <SettingsIndexValue>{canManageTeam ? t("hub.ownerAdmin") : t("hub.viewOnly")}</SettingsIndexValue>
                                 </SettingsIndexRow>
                               </SettingsIndexRows>
                               <SettingsIndexActions>
                                 <GhostButton type="button" onClick={() => updateHubSection("team")}>
-                                  Team
+                                  {t("vendor.team.title")}
                                 </GhostButton>
                                 {canAccessBilling && vendorWorkspace?.limits?.suggestedUpgrade ? (
                                   <GhostButton type="button" onClick={() => router.push("/hub/upgrade")}>
-                                    Upgrade
+                                    {t("analytics.upgradePlan")}
                                   </GhostButton>
                                 ) : null}
                               </SettingsIndexActions>
@@ -7740,45 +7789,45 @@ export default function AccountPage() {
                             <SettingsIndexCard>
                               <SettingsIndexHeader>
                                 <SettingsIndexTitleWrap>
-                                  <SettingsIndexTitle>Storefront</SettingsIndexTitle>
-                                  <SettingsIndexCopy>Visibility, branding, contact.</SettingsIndexCopy>
+                                  <SettingsIndexTitle>{t("vendor.settings.storefront")}</SettingsIndexTitle>
+                                  <SettingsIndexCopy>{t("hub.visibilityBrandingContact")}</SettingsIndexCopy>
                                 </SettingsIndexTitleWrap>
                                 <AppointmentPill $tone={vendorWorkspace?.vendor.public_storefront_enabled ? "success" : "warning"}>
                                   <Globe2 size={14} />
-                                  {vendorWorkspace?.vendor.public_storefront_enabled ? "Live" : "Hidden"}
+                                  {vendorWorkspace?.vendor.public_storefront_enabled ? t("hub.live") : t("hub.hidden")}
                                 </AppointmentPill>
                               </SettingsIndexHeader>
                               <SettingsIndexRows>
                                 <SettingsIndexRow>
-                                  <SettingsIndexLabel><Globe2 size={14} style={{ marginRight: 6, verticalAlign: "text-bottom" }} />Slug</SettingsIndexLabel>
+                                  <SettingsIndexLabel><Globe2 size={14} style={{ marginRight: 6, verticalAlign: "text-bottom" }} />{t("vendor.settings.slug")}</SettingsIndexLabel>
                                   <SettingsIndexValue>
-                                    {vendorWorkspace?.vendor.slug ? `/agency/${vendorWorkspace.vendor.slug}` : "Not set yet"}
+                                    {vendorWorkspace?.vendor.slug ? `/agency/${vendorWorkspace.vendor.slug}` : t("hub.notSetYet")}
                                   </SettingsIndexValue>
                                 </SettingsIndexRow>
                                 <SettingsIndexRow>
-                                  <SettingsIndexLabel><ImageIcon size={14} style={{ marginRight: 6, verticalAlign: "text-bottom" }} />Branding</SettingsIndexLabel>
+                                  <SettingsIndexLabel><ImageIcon size={14} style={{ marginRight: 6, verticalAlign: "text-bottom" }} />{t("hub.branding")}</SettingsIndexLabel>
                                   <SettingsIndexValue>
-                                    {hasAgencyLogo ? "Logo ready" : "Logo missing"} • {vendorWorkspace?.vendor.cover_image_url ? "Cover ready" : "Cover missing"}
+                                    {hasAgencyLogo ? t("hub.logoReady") : t("hub.logoMissing")} • {vendorWorkspace?.vendor.cover_image_url ? t("hub.coverReady") : t("hub.coverMissing")}
                                   </SettingsIndexValue>
                                 </SettingsIndexRow>
                                 <SettingsIndexRow>
-                                  <SettingsIndexLabel><Phone size={14} style={{ marginRight: 6, verticalAlign: "text-bottom" }} />Contact</SettingsIndexLabel>
+                                  <SettingsIndexLabel><Phone size={14} style={{ marginRight: 6, verticalAlign: "text-bottom" }} />{t("hub.contact")}</SettingsIndexLabel>
                                   <SettingsIndexValue>
-                                    {vendorWorkspace?.vendor.contact_phone?.trim() || vendorWorkspace?.vendor.contact_email?.trim() || "Not added yet"}
+                                    {vendorWorkspace?.vendor.contact_phone?.trim() || vendorWorkspace?.vendor.contact_email?.trim() || t("hub.notAddedYet")}
                                   </SettingsIndexValue>
                                 </SettingsIndexRow>
                                 <SettingsIndexRow>
-                                  <SettingsIndexLabel><MessageSquareText size={14} style={{ marginRight: 6, verticalAlign: "text-bottom" }} />Channels</SettingsIndexLabel>
-                                  <SettingsIndexValue>{storefrontChannels} active</SettingsIndexValue>
+                                  <SettingsIndexLabel><MessageSquareText size={14} style={{ marginRight: 6, verticalAlign: "text-bottom" }} />{t("vendor.settings.channels")}</SettingsIndexLabel>
+                                  <SettingsIndexValue>{t("hub.activeCount", { count: storefrontChannels })}</SettingsIndexValue>
                                 </SettingsIndexRow>
                               </SettingsIndexRows>
                               <SettingsIndexActions>
                                 <CTAButton type="button" onClick={() => router.push("/hub/settings")}>
-                                  Edit
+                                  {t("hub.edit")}
                                 </CTAButton>
                                 {vendorWorkspace?.vendor.public_storefront_enabled && vendorWorkspace?.vendor.slug ? (
                                   <GhostButton type="button" onClick={() => router.push(`/agency/${vendorWorkspace.vendor.slug}`)}>
-                                    View
+                                    {t("account.view")}
                                   </GhostButton>
                                 ) : null}
                               </SettingsIndexActions>
@@ -7787,27 +7836,27 @@ export default function AccountPage() {
                             <SettingsIndexCard>
                               <SettingsIndexHeader>
                                 <SettingsIndexTitleWrap>
-                                  <SettingsIndexTitle>Permissions</SettingsIndexTitle>
-                                  <SettingsIndexCopy>Role access.</SettingsIndexCopy>
+                                  <SettingsIndexTitle>{t("hub.permissions")}</SettingsIndexTitle>
+                                  <SettingsIndexCopy>{t("hub.roleAccess")}</SettingsIndexCopy>
                                 </SettingsIndexTitleWrap>
                               </SettingsIndexHeader>
                               <SettingsIndexBullets>
                                 <SettingsIndexBullet>
                                   <CheckCircle2 size={16} />
-                                  <span><strong style={{ color: "var(--color-text)" }}>Owner:</strong> full control.</span>
+                                  <span><strong style={{ color: "var(--color-text)" }}>{t("role.owner")}:</strong> {t("hub.ownerFullControl")}</span>
                                 </SettingsIndexBullet>
                                 <SettingsIndexBullet>
                                   <CheckCircle2 size={16} />
-                                  <span><strong style={{ color: "var(--color-text)" }}>Admin:</strong> listings, leads, appointments, public profile, and staff management.</span>
+                                  <span><strong style={{ color: "var(--color-text)" }}>{t("role.admin")}:</strong> {t("hub.adminPermissions")}</span>
                                 </SettingsIndexBullet>
                                 <SettingsIndexBullet>
                                   <Circle size={16} />
-                                  <span><strong style={{ color: "var(--color-text)" }}>Agent:</strong> listings, leads, and appointments only.</span>
+                                  <span><strong style={{ color: "var(--color-text)" }}>{t("vendor.team.agent")}:</strong> {t("hub.agentPermissions")}</span>
                                 </SettingsIndexBullet>
                               </SettingsIndexBullets>
                               <SettingsIndexActions>
                                 <GhostButton type="button" onClick={() => updateHubSection("team")}>
-                                  Team
+                                  {t("vendor.team.title")}
                                 </GhostButton>
                               </SettingsIndexActions>
                             </SettingsIndexCard>
@@ -7815,31 +7864,31 @@ export default function AccountPage() {
                             <SettingsIndexCard>
                               <SettingsIndexHeader>
                                 <SettingsIndexTitleWrap>
-                                  <SettingsIndexTitle>Operations</SettingsIndexTitle>
-                                  <SettingsIndexCopy>Workflow defaults.</SettingsIndexCopy>
+                                  <SettingsIndexTitle>{t("hub.operations")}</SettingsIndexTitle>
+                                  <SettingsIndexCopy>{t("hub.workflowDefaults")}</SettingsIndexCopy>
                                 </SettingsIndexTitleWrap>
                               </SettingsIndexHeader>
                               <SettingsIndexRows>
                                 <SettingsIndexRow>
-                                  <SettingsIndexLabel><Phone size={14} style={{ marginRight: 6, verticalAlign: "text-bottom" }} />Listing contact</SettingsIndexLabel>
-                                  <SettingsIndexValue>Agency profile</SettingsIndexValue>
+                                  <SettingsIndexLabel><Phone size={14} style={{ marginRight: 6, verticalAlign: "text-bottom" }} />{t("hub.listingContact")}</SettingsIndexLabel>
+                                  <SettingsIndexValue>{t("hub.agencyProfile")}</SettingsIndexValue>
                                 </SettingsIndexRow>
                                 <SettingsIndexRow>
-                                  <SettingsIndexLabel><Calendar size={14} style={{ marginRight: 6, verticalAlign: "text-bottom" }} />Assignments</SettingsIndexLabel>
-                                  <SettingsIndexValue>Manual</SettingsIndexValue>
+                                  <SettingsIndexLabel><Calendar size={14} style={{ marginRight: 6, verticalAlign: "text-bottom" }} />{t("hub.assignments")}</SettingsIndexLabel>
+                                  <SettingsIndexValue>{t("hub.manual")}</SettingsIndexValue>
                                 </SettingsIndexRow>
                                 <SettingsIndexRow>
-                                  <SettingsIndexLabel><Settings size={14} style={{ marginRight: 6, verticalAlign: "text-bottom" }} />Editor</SettingsIndexLabel>
-                                  <SettingsIndexValue>Storefront editor</SettingsIndexValue>
+                                  <SettingsIndexLabel><Settings size={14} style={{ marginRight: 6, verticalAlign: "text-bottom" }} />{t("hub.editor")}</SettingsIndexLabel>
+                                  <SettingsIndexValue>{t("hub.storefrontEditor")}</SettingsIndexValue>
                                 </SettingsIndexRow>
                                 <SettingsIndexRow>
-                                  <SettingsIndexLabel><Users2 size={14} style={{ marginRight: 6, verticalAlign: "text-bottom" }} />Team source</SettingsIndexLabel>
-                                  <SettingsIndexValue>Vendor members</SettingsIndexValue>
+                                  <SettingsIndexLabel><Users2 size={14} style={{ marginRight: 6, verticalAlign: "text-bottom" }} />{t("hub.teamSource")}</SettingsIndexLabel>
+                                  <SettingsIndexValue>{t("hub.vendorMembers")}</SettingsIndexValue>
                                 </SettingsIndexRow>
                               </SettingsIndexRows>
                               <SettingsIndexActions>
                                 <GhostButton type="button" onClick={() => router.push("/hub/settings")}>
-                                  Configure
+                                  {t("hub.configure")}
                                 </GhostButton>
                               </SettingsIndexActions>
                             </SettingsIndexCard>
@@ -7857,40 +7906,40 @@ export default function AccountPage() {
                         <WorkspaceSectionScroller>
                           <WorkspaceSectionHeader>
                             <WorkspaceSectionTitleWrap>
-                              <WorkspaceSectionTitle>Team</WorkspaceSectionTitle>
-                              <WorkspaceSectionCopy>Manage seats and current member records tied to this agency workspace.</WorkspaceSectionCopy>
+                              <WorkspaceSectionTitle>{t("vendor.team.title")}</WorkspaceSectionTitle>
+                              <WorkspaceSectionCopy>{t("hub.teamSectionCopy")}</WorkspaceSectionCopy>
                             </WorkspaceSectionTitleWrap>
                             <AppointmentPill>
                               <Users2 size={14} />
-                              {activeTeamCount} / {agentLimit} active seats
+                              {t("hub.activeSeatsCount", { count: activeTeamCount, limit: agentLimit })}
                             </AppointmentPill>
                           </WorkspaceSectionHeader>
                           {teamError ? <HubFeatureCopy>{teamError}</HubFeatureCopy> : null}
                           <TeamSectionStack>
                             <TeamSummaryBar>
                               <TeamSummaryItem>
-                                <TeamSummaryItemLabel>Active seats</TeamSummaryItemLabel>
+                                <TeamSummaryItemLabel>{t("hub.activeSeats")}</TeamSummaryItemLabel>
                                 <TeamSummaryItemValue>
                                   {activeTeamCount} / {agentLimit}
                                 </TeamSummaryItemValue>
                               </TeamSummaryItem>
                               <TeamSummaryItem>
-                                <TeamSummaryItemLabel>Role mix</TeamSummaryItemLabel>
+                                <TeamSummaryItemLabel>{t("hub.roleMix")}</TeamSummaryItemLabel>
                                 <TeamSummaryItemValue>
-                                  {ownerCount} owner • {adminCount} admin • {agentCount} agent
+                                  {t("hub.roleMixValue", { owner: ownerCount, admin: adminCount, agent: agentCount })}
                                 </TeamSummaryItemValue>
                               </TeamSummaryItem>
                               <TeamSummaryItem>
-                                <TeamSummaryItemLabel>Current plan</TeamSummaryItemLabel>
+                                <TeamSummaryItemLabel>{t("vendor.plan.currentPlan")}</TeamSummaryItemLabel>
                                 <TeamSummaryItemValue>{vendorWorkspace?.limits?.currentPlan?.name || currentVendorPlan.name}</TeamSummaryItemValue>
                               </TeamSummaryItem>
                             </TeamSummaryBar>
                               <WorkspacePanel>
-                              <WorkspacePanelTitle>Add team member</WorkspacePanelTitle>
+                              <WorkspacePanelTitle>{t("vendor.team.addMember")}</WorkspacePanelTitle>
                               <WorkspacePanelCopy>
                                 {canInviteAdminSeats
-                                  ? "Send an email invite and choose the role the person should receive after accepting it."
-                                  : "Admins can invite staff seats only."}
+                                  ? t("hub.teamInviteOwnerCopy")
+                                  : t("vendor.team.inviteCopyAdmin")}
                               </WorkspacePanelCopy>
                               {canManageTeam ? (
                                 <TeamInviteGrid>
@@ -7904,14 +7953,14 @@ export default function AccountPage() {
                                     <CustomSelect
                                       id="hub-team-role"
                                       name="hub-team-role"
-                                      label="Role"
+                                      label={t("vendor.verification.role")}
                                       hideLabel
                                       value={teamInviteRole}
                                       onChange={setTeamInviteRole}
                                     >
-                                      <option value="agent">Agent</option>
-                                      {canInviteAdminSeats ? <option value="admin">Admin</option> : null}
-                                      {canInviteAdminSeats ? <option value="owner">Owner</option> : null}
+                                      <option value="agent">{t("vendor.team.agent")}</option>
+                                      {canInviteAdminSeats ? <option value="admin">{t("role.admin")}</option> : null}
+                                      {canInviteAdminSeats ? <option value="owner">{t("role.owner")}</option> : null}
                                     </CustomSelect>
                                   </CompactSelectWrap>
                                   <CompactCTAButton
@@ -7919,16 +7968,16 @@ export default function AccountPage() {
                                     onClick={() => void handleTeamInvite()}
                                     disabled={teamSavingInvite || !teamInviteEmail.trim()}
                                   >
-                                    {teamSavingInvite ? "Sending..." : "Send invite"}
+                                    {teamSavingInvite ? t("vendor.team.sending") : t("vendor.team.sendInvite")}
                                   </CompactCTAButton>
                                 </TeamInviteGrid>
                               ) : (
-                                <WorkspaceSummaryHint>Only owner and admin seats can access team controls in this workspace.</WorkspaceSummaryHint>
+                                <WorkspaceSummaryHint>{t("hub.teamControlsLimited")}</WorkspaceSummaryHint>
                               )}
                             </WorkspacePanel>
                             <WorkspacePanel>
-                              <WorkspacePanelTitle>Pending invites</WorkspacePanelTitle>
-                              <WorkspacePanelCopy>Track which invitations are still waiting for the recipient to join the workspace.</WorkspacePanelCopy>
+                              <WorkspacePanelTitle>{t("hub.pendingInvites")}</WorkspacePanelTitle>
+                              <WorkspacePanelCopy>{t("hub.pendingInvitesCopy")}</WorkspacePanelCopy>
                               <TeamMembersList>
                                 {teamInvites.length ? (
                                   teamInvites.map((invite) => (
@@ -7937,29 +7986,29 @@ export default function AccountPage() {
                                         <div style={{ display: "grid", gap: 4 }}>
                                           <TeamMemberName>{invite.email}</TeamMemberName>
                                           <TeamMemberMeta>
-                                            {invite.has_existing_account ? "Existing account" : "New account will be created on acceptance"}
+                                            {invite.has_existing_account ? t("hub.existingAccount") : t("hub.newAccountOnAcceptance")}
                                           </TeamMemberMeta>
                                           {invite.expires_at ? (
-                                            <TeamMemberMeta>Expires {new Date(invite.expires_at).toLocaleDateString()}</TeamMemberMeta>
+                                            <TeamMemberMeta>{t("hub.expiresOn", { date: new Date(invite.expires_at).toLocaleDateString() })}</TeamMemberMeta>
                                           ) : null}
                                         </div>
                                         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                                          <AppointmentPill>{labelize(invite.role)}</AppointmentPill>
+                                          <AppointmentPill>{formatTeamRoleLabel(invite.role)}</AppointmentPill>
                                           <AppointmentPill $tone={invite.status === "accepted" ? "success" : "warning"}>
-                                            {labelize(invite.status)}
+                                            {formatInviteStatusLabel(invite.status)}
                                           </AppointmentPill>
                                         </div>
                                       </TeamMemberTop>
                                     </TeamMemberCard>
                                   ))
                                 ) : (
-                                  <HubFeatureCopy>No pending invites yet.</HubFeatureCopy>
+                                  <HubFeatureCopy>{t("hub.noPendingInvites")}</HubFeatureCopy>
                                 )}
                               </TeamMembersList>
                             </WorkspacePanel>
                             <WorkspacePanel>
-                              <WorkspacePanelTitle>Current team members</WorkspacePanelTitle>
-                              <WorkspacePanelCopy>Review who is active in this workspace and adjust role or status as needed.</WorkspacePanelCopy>
+                              <WorkspacePanelTitle>{t("vendor.team.currentMembers")}</WorkspacePanelTitle>
+                              <WorkspacePanelCopy>{t("hub.currentMembersCopy")}</WorkspacePanelCopy>
                               <TeamMembersList>
                                 {toastMessage && <ToastMessage $type={toastMessage.type}>{toastMessage.message}</ToastMessage>}
                                 {teamLoading ? (
@@ -7985,15 +8034,15 @@ export default function AccountPage() {
                                     <TeamMemberCard key={member.user_id}>
                                       <TeamMemberTop>
                                         <div style={{ display: "grid", gap: 4 }}>
-                                          <TeamMemberName>{member.full_name || member.email || "Unnamed member"}</TeamMemberName>
-                                          <TeamMemberMeta>{member.email || "No email"}</TeamMemberMeta>
+                                          <TeamMemberName>{member.full_name || member.email || t("vendor.team.unnamed")}</TeamMemberName>
+                                          <TeamMemberMeta>{member.email || t("vendor.team.noEmail")}</TeamMemberMeta>
                                           {member.phone ? <TeamMemberMeta>{member.phone}</TeamMemberMeta> : null}
                                         </div>
                                       </TeamMemberTop>
                                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", position: "absolute", top: 10, right: 48 }}>
-                                        <AppointmentPill>{labelize(member.role)}</AppointmentPill>
+                                        <AppointmentPill>{formatTeamRoleLabel(member.role)}</AppointmentPill>
                                         <AppointmentPill $tone={member.status === "active" ? "success" : "neutral"}>
-                                          {labelize(member.status)}
+                                          {formatTeamStatusLabel(member.status)}
                                         </AppointmentPill>
                                       </div>
                                       {canManageTeamMember(member) ? (
@@ -8001,7 +8050,7 @@ export default function AccountPage() {
                                           id={`member-actions-button-${member.user_id}`}
                                           type="button"
                                           onClick={() => setShowMemberActionsMenuId(member.user_id)}
-                                          aria-label="Member actions"
+                                          aria-label={t("hub.memberActions")}
                                         >
                                           <MoreVertical size={18} />
                                         </MemberActionsButton>
@@ -8009,7 +8058,7 @@ export default function AccountPage() {
                                     </TeamMemberCard>
                                   ))
                                 ) : (
-                                  <HubFeatureCopy>No team members found for this workspace yet.</HubFeatureCopy>
+                                  <HubFeatureCopy>{t("vendor.team.noMembers")}</HubFeatureCopy>
                                 )}
                               </TeamMembersList>
                             </WorkspacePanel>
@@ -8034,14 +8083,14 @@ export default function AccountPage() {
                         ))}
                       </HubInsightGrid>
                     ) : vendorOverviewError || !vendorOverview ? (
-                      <HubFeatureCopy>{vendorOverviewError ?? "Workspace insights are unavailable right now."}</HubFeatureCopy>
+                      <HubFeatureCopy>{vendorOverviewError ?? t("hub.workspaceInsightsUnavailable")}</HubFeatureCopy>
                     ) : (
                       <HubInsightGrid>
                         <HubInsightCard>
                           <HubInsightCardTop>
                             <HubInsightCardTitle>
                               <BarChart3 />
-                              Portfolio value
+                              {t("hub.portfolioValue")}
                             </HubInsightCardTitle>
                           </HubInsightCardTop>
                           <HubInsightBody>
@@ -8057,7 +8106,7 @@ export default function AccountPage() {
                           <HubInsightCardTop>
                             <HubInsightCardTitle>
                               <Calendar />
-                              Next appointment
+                              {t("hub.nextAppointment")}
                             </HubInsightCardTitle>
                           </HubInsightCardTop>
                           <HubInsightBody>
@@ -8067,7 +8116,7 @@ export default function AccountPage() {
                                 {summaryNextAppointmentAt ? (
                                   <HubInsightHeroLabel>{new Date(summaryNextAppointmentAt).toLocaleString(locale)}</HubInsightHeroLabel>
                                 ) : (
-                                  <HubInsightHeroLabel>No appointment scheduled yet</HubInsightHeroLabel>
+                                  <HubInsightHeroLabel>{t("hub.noAppointmentScheduled")}</HubInsightHeroLabel>
                                 )}
                               </HubInsightHero>
                             </HubInsightCardInner>
@@ -8078,11 +8127,11 @@ export default function AccountPage() {
                           <HubInsightCardTop>
                             <HubInsightCardTitle>
                               <TagIcon />
-                              Listings by type
+                              {t("hub.listingsByType")}
                             </HubInsightCardTitle>
                           </HubInsightCardTop>
                           <HubInsightFooterLink href="/hub?section=analytics">
-                            View full analytics <ArrowUpRight size={14} />
+                            {t("hub.viewFullAnalytics")} <ArrowUpRight size={14} />
                           </HubInsightFooterLink>
                           <HubInsightBody>
                             <HubInsightCardInner>
@@ -8120,7 +8169,7 @@ export default function AccountPage() {
                                 </HubInsightStack>
                                 <HubInsightHero>
                                   <HubInsightHeroValue>{workspaceSnapshotView.metrics.totalProperties}</HubInsightHeroValue>
-                                  <HubInsightHeroLabel>Total active property records</HubInsightHeroLabel>
+                                  <HubInsightHeroLabel>{t("hub.totalActivePropertyRecords")}</HubInsightHeroLabel>
                                 </HubInsightHero>
                               </HubInsightPieWrap>
                             </HubInsightCardInner>
@@ -8131,11 +8180,11 @@ export default function AccountPage() {
                           <HubInsightCardTop>
                             <HubInsightCardTitle>
                               <BadgeCheck />
-                              Sales by type
+                              {t("hub.salesByType")}
                             </HubInsightCardTitle>
                           </HubInsightCardTop>
                           <HubInsightFooterLink href="/hub?section=analytics">
-                            View full analytics <ArrowUpRight size={14} />
+                            {t("hub.viewFullAnalytics")} <ArrowUpRight size={14} />
                           </HubInsightFooterLink>
                           <HubInsightBody>
                             <HubInsightCardInner>
@@ -8143,7 +8192,7 @@ export default function AccountPage() {
                                 <HubInsightHeroValue>
                                   {workspaceSnapshotView.metrics.soldProperties + workspaceSnapshotView.metrics.rentedProperties}
                                 </HubInsightHeroValue>
-                                <HubInsightHeroLabel>Closed sale or rent outcomes</HubInsightHeroLabel>
+                                <HubInsightHeroLabel>{t("hub.closedSaleOrRentOutcomes")}</HubInsightHeroLabel>
                               </HubInsightHero>
                               <HubInsightBarList>
                                 {salesByTypeSummary.map((item, index, list) => {
@@ -8172,11 +8221,11 @@ export default function AccountPage() {
                           <HubInsightCardTop>
                             <HubInsightCardTitle>
                               <BarChart3 />
-                              Price range by type
+                              {t("hub.priceRangeByType")}
                             </HubInsightCardTitle>
                           </HubInsightCardTop>
                           <HubInsightFooterLink href="/hub?section=analytics">
-                            View full analytics <ArrowUpRight size={14} />
+                            {t("hub.viewFullAnalytics")} <ArrowUpRight size={14} />
                           </HubInsightFooterLink>
                           <HubInsightBody>
                             <HubInsightCardInner>
@@ -8216,17 +8265,17 @@ export default function AccountPage() {
                           <HubInsightCardTop>
                             <HubInsightCardTitle>
                               <Clock />
-                              Appointments by type
+                              {t("hub.appointmentsByType")}
                             </HubInsightCardTitle>
                           </HubInsightCardTop>
                           <HubInsightFooterLink href="/hub?section=analytics">
-                            View full analytics <ArrowUpRight size={14} />
+                            {t("hub.viewFullAnalytics")} <ArrowUpRight size={14} />
                           </HubInsightFooterLink>
                           <HubInsightBody>
                             <HubInsightCardInner>
                               <HubInsightHero>
                                 <HubInsightHeroValue>{workspaceSnapshotView.metrics.appointmentsCount}</HubInsightHeroValue>
-                                <HubInsightHeroLabel>Scheduled viewing appointments</HubInsightHeroLabel>
+                                <HubInsightHeroLabel>{t("hub.scheduledViewingAppointments")}</HubInsightHeroLabel>
                               </HubInsightHero>
                               <HubInsightColumnWrap>
                                 {appointmentsByTypeSummary.map((item, index, list) => {
@@ -8261,11 +8310,11 @@ export default function AccountPage() {
               <ModalCard onClick={(event) => event.stopPropagation()}>
                 <ModalHeader>
                   <div>
-                    <ModalTitle>Switch agency</ModalTitle>
-                    <WorkspaceSectionCopy>Select the agency workspace you want to work in.</WorkspaceSectionCopy>
+                    <ModalTitle>{t("hub.switchAgency")}</ModalTitle>
+                    <WorkspaceSectionCopy>{t("hub.switchAgencyCopy")}</WorkspaceSectionCopy>
                   </div>
                   <GhostButton type="button" onClick={() => setWorkspaceMenuOpen(false)}>
-                    Close
+                    {t("common.close")}
                   </GhostButton>
                 </ModalHeader>
                 <HeaderWorkspaceDropdown
@@ -8737,8 +8786,8 @@ export default function AccountPage() {
           <ModalCard onClick={(event) => event.stopPropagation()}>
             <ModalHeader>
               <div>
-                <ModalTitle>Update listing status</ModalTitle>
-                <ModalText>Choose the listing status you want to apply. All listing lifecycle statuses are available here.</ModalText>
+                <ModalTitle>{t("hub.updateListingStatus")}</ModalTitle>
+                <ModalText>{t("hub.updateListingStatusCopy")}</ModalText>
               </div>
               <GhostButton
                 type="button"
@@ -8754,7 +8803,7 @@ export default function AccountPage() {
               <CustomSelect
                 id="hub-listing-status-modal"
                 name="hub-listing-status-modal"
-                label="Listing status"
+                label={t("hub.listingStatus")}
                 hideLabel
                 value={selectedHubPropertyStatus}
                 onChange={(value) => {
@@ -8782,7 +8831,7 @@ export default function AccountPage() {
                 onClick={() => setListingStatusModalOpen(false)}
                 disabled={selectedHubPropertyStatusSaving}
               >
-                Cancel
+                {t("listing.cancel")}
               </GhostButton>
               <PrimaryAction
                 type="button"
@@ -8793,7 +8842,7 @@ export default function AccountPage() {
                   selectedHubPropertyStatus === normalizeListingStatus(selectedHubPropertyDetail.property.status)
                 }
               >
-                {selectedHubPropertyStatusSaving ? "Saving..." : "Update status"}
+                {selectedHubPropertyStatusSaving ? t("hub.saving") : t("hub.updateStatus")}
               </PrimaryAction>
             </ModalActions>
           </ModalCard>
@@ -8809,10 +8858,11 @@ export default function AccountPage() {
           <ModalCard onClick={(event) => event.stopPropagation()}>
             <ModalHeader>
               <div>
-                <ModalTitle>Delete listing</ModalTitle>
+                <ModalTitle>{t("hub.deleteListing")}</ModalTitle>
                 <ModalText>
-                  Permanently delete <strong>{selectedHubPropertyDetail.property.title || "this listing"}</strong> and its
-                  attached property images.
+                  {t("hub.deleteListingCopy", {
+                    title: selectedHubPropertyDetail.property.title || t("hub.thisListing"),
+                  })}
                 </ModalText>
               </div>
               <GhostButton
@@ -8835,7 +8885,7 @@ export default function AccountPage() {
                 onClick={() => setListingDeleteModalOpen(false)}
                 disabled={selectedHubPropertyDeleting}
               >
-                Cancel
+                {t("listing.cancel")}
               </GhostButton>
               <PrimaryAction
                 type="button"
@@ -8843,7 +8893,7 @@ export default function AccountPage() {
                 onClick={() => void handleHubPropertyDelete()}
                 disabled={selectedHubPropertyDeleting}
               >
-                {selectedHubPropertyDeleting ? "Deleting..." : "Delete listing"}
+                {selectedHubPropertyDeleting ? t("hub.deleting") : t("hub.deleteListing")}
               </PrimaryAction>
             </ModalActions>
           </ModalCard>
@@ -8924,18 +8974,18 @@ export default function AccountPage() {
               <div style={{ display: "grid", gap: 6 }}>
                 <strong>
                   {appointmentComposerMode === "create"
-                    ? "Create appointment"
-                    : selectedAppointment?.property_title || "Appointment"}
+                    ? t("hub.createAppointment")
+                    : selectedAppointment?.property_title || t("hub.appointment")}
                 </strong>
                 <Muted>
                   {appointmentComposerMode === "create"
-                    ? "Schedule a new viewing and assign it to a team member."
+                    ? t("hub.createAppointmentCopy")
                     : selectedAppointment?.source === "viewing_request"
-                      ? "Viewing request"
-                      : "Scheduled appointment"}
+                      ? t("listing.viewingRequest")
+                      : t("hub.scheduledAppointment")}
                 </Muted>
               </div>
-              <GhostButton type="button" onClick={closeAppointmentEditor} aria-label="Close appointment editor">
+              <GhostButton type="button" onClick={closeAppointmentEditor} aria-label={t("hub.closeAppointmentEditor")}>
                 <X size={16} />
               </GhostButton>
             </ModalHeader>
@@ -8944,7 +8994,7 @@ export default function AccountPage() {
                 <>
                   <AppointmentEditorRow>
                     <MapPin size={16} />
-                    <span>{selectedAppointment.property_location || "Unspecified"}</span>
+                    <span>{selectedAppointment.property_location || t("hub.unspecified")}</span>
                   </AppointmentEditorRow>
                   <AppointmentEditorRow>
                     <Clock size={16} />
@@ -8956,12 +9006,12 @@ export default function AccountPage() {
                             hour: "numeric",
                             minute: "2-digit",
                           })
-                        : "Time pending"}
+                        : t("hub.timePending")}
                     </span>
                   </AppointmentEditorRow>
                   <AppointmentEditorRow>
                     <Users2 size={16} />
-                    <span>{selectedAppointment.client_name || "Buyer"}</span>
+                    <span>{selectedAppointment.client_name || t("hub.buyer")}</span>
                   </AppointmentEditorRow>
                 </>
               ) : null}
@@ -8970,61 +9020,61 @@ export default function AccountPage() {
             <AppointmentEditorSections>
               <AppointmentEditorSection>
                 <AppointmentEditorSectionHeader>
-                  <AppointmentEditorSectionTitle>Appointment details</AppointmentEditorSectionTitle>
-                  <AppointmentEditorSectionCopy>Choose the property, current status, and time for this visit.</AppointmentEditorSectionCopy>
+                  <AppointmentEditorSectionTitle>{t("hub.appointmentDetails")}</AppointmentEditorSectionTitle>
+                  <AppointmentEditorSectionCopy>{t("hub.appointmentDetailsCopy")}</AppointmentEditorSectionCopy>
                 </AppointmentEditorSectionHeader>
                 <AppointmentEditorGrid>
                   <AppointmentEditorField>
-                    <AppointmentEditorLabel>Property</AppointmentEditorLabel>
+                    <AppointmentEditorLabel>{t("vendor.viewing.property")}</AppointmentEditorLabel>
                     <CustomSelect
                       id="appointment-property"
                       name="appointment-property"
-                      label="Property"
+                      label={t("vendor.viewing.property")}
                       hideLabel
                       value={appointmentEditorPropertyId}
                       onChange={setAppointmentEditorPropertyId}
                       disabled={appointmentComposerMode === "edit" || appointmentComposerPropertyLocked}
                     >
                       <option value="">
-                        {vendorPropertyOptionsLoading ? "Select property" : "Select property"}
+                        {t("hub.selectProperty")}
                       </option>
                       {vendorPropertyOptions.map((property) => (
                         <option key={property.id} value={property.id}>
-                          {property.title || "Untitled property"}
+                          {property.title || t("vendor.properties.untitled")}
                         </option>
                       ))}
                     </CustomSelect>
                   </AppointmentEditorField>
                   <AppointmentEditorField>
-                    <AppointmentEditorLabel>Status</AppointmentEditorLabel>
+                    <AppointmentEditorLabel>{t("vendor.inquiries.status")}</AppointmentEditorLabel>
                     <CustomSelect
                       id="appointment-status"
                       name="appointment-status"
-                      label="Status"
+                      label={t("vendor.inquiries.status")}
                       hideLabel
                       value={appointmentEditorStatus}
                       onChange={setAppointmentEditorStatus}
                     >
                       {((appointmentComposerMode === "edit" && selectedAppointment?.source === "viewing_request")
                         ? [
-                            { value: "new", label: "New" },
-                            { value: "assigned", label: "Assigned" },
-                            { value: "contacted", label: "Contacted" },
-                            { value: "qualified", label: "Qualified" },
-                            { value: "appointment_scheduled", label: "Appointment scheduled" },
-                            { value: "viewed", label: "Viewed" },
-                            { value: "negotiation", label: "Negotiation" },
-                            { value: "closed_won", label: "Closed won" },
-                            { value: "closed_lost", label: "Closed lost" },
-                            { value: "unresponsive", label: "Unresponsive" },
-                            { value: "spam", label: "Spam" },
+                            { value: "new", label: t("hub.status.new") },
+                            { value: "assigned", label: t("hub.status.assigned") },
+                            { value: "contacted", label: t("hub.status.contacted") },
+                            { value: "qualified", label: t("hub.status.qualified") },
+                            { value: "appointment_scheduled", label: t("hub.status.appointmentScheduled") },
+                            { value: "viewed", label: t("hub.status.viewed") },
+                            { value: "negotiation", label: t("hub.status.negotiation") },
+                            { value: "closed_won", label: t("hub.status.closedWon") },
+                            { value: "closed_lost", label: t("hub.status.closedLost") },
+                            { value: "unresponsive", label: t("hub.status.unresponsive") },
+                            { value: "spam", label: t("hub.status.spam") },
                           ]
                         : [
-                            { value: "requested", label: "Requested" },
-                            { value: "confirmed", label: "Confirmed" },
-                            { value: "completed", label: "Completed" },
-                            { value: "cancelled", label: "Cancelled" },
-                            { value: "no_show", label: "No-show" },
+                            { value: "requested", label: t("hub.status.requested") },
+                            { value: "confirmed", label: t("hub.status.confirmed") },
+                            { value: "completed", label: t("hub.status.completed") },
+                            { value: "cancelled", label: t("hub.status.cancelled") },
+                            { value: "no_show", label: t("hub.status.noShow") },
                           ]
                       ).map((option) => (
                         <option key={option.value} value={option.value}>
@@ -9034,18 +9084,18 @@ export default function AccountPage() {
                     </CustomSelect>
                   </AppointmentEditorField>
                   <AppointmentEditorField>
-                    <AppointmentEditorLabel>Title</AppointmentEditorLabel>
+                    <AppointmentEditorLabel>{t("hub.title")}</AppointmentEditorLabel>
                     <AppointmentEditorInput
                       id="appointment-title"
                       name="appointment-title"
-                      placeholder="Property viewing"
+                      placeholder={t("hub.propertyViewing")}
                       value={appointmentEditorTitle}
                       onChange={(event) => setAppointmentEditorTitle(event.target.value)}
                       disabled={appointmentComposerMode === "edit" && selectedAppointment?.source === "viewing_request"}
                     />
                   </AppointmentEditorField>
                   <AppointmentEditorField>
-                    <AppointmentEditorLabel>Date</AppointmentEditorLabel>
+                    <AppointmentEditorLabel>{t("hub.date")}</AppointmentEditorLabel>
                     <AppointmentDatePicker
                       name="appointment-date"
                       value={getDatePart(appointmentEditorStartAt)}
@@ -9057,11 +9107,11 @@ export default function AccountPage() {
                     />
                   </AppointmentEditorField>
                   <AppointmentEditorField>
-                    <AppointmentEditorLabel>Time</AppointmentEditorLabel>
+                    <AppointmentEditorLabel>{t("hub.time")}</AppointmentEditorLabel>
                     <CustomSelect
                       id="appointment-time"
                       name="appointment-time"
-                      label="Time"
+                      label={t("hub.time")}
                       hideLabel
                       value={getTimePart(appointmentEditorStartAt)}
                       onChange={(time) =>
@@ -9101,23 +9151,23 @@ export default function AccountPage() {
 
               <AppointmentEditorSection>
                 <AppointmentEditorSectionHeader>
-                  <AppointmentEditorSectionTitle>Buyer details</AppointmentEditorSectionTitle>
-                  <AppointmentEditorSectionCopy>Add the buyer contact you want your team to reference for this appointment.</AppointmentEditorSectionCopy>
+                  <AppointmentEditorSectionTitle>{t("hub.buyerDetails")}</AppointmentEditorSectionTitle>
+                  <AppointmentEditorSectionCopy>{t("hub.buyerDetailsCopy")}</AppointmentEditorSectionCopy>
                 </AppointmentEditorSectionHeader>
                 <AppointmentEditorGrid>
                   <AppointmentEditorField>
-                    <AppointmentEditorLabel>Client name</AppointmentEditorLabel>
+                    <AppointmentEditorLabel>{t("hub.clientName")}</AppointmentEditorLabel>
                     <AppointmentEditorInput
                       id="appointment-client-name"
                       name="appointment-client-name"
-                      placeholder="Full name"
+                      placeholder={t("hub.fullName")}
                       value={appointmentEditorClientName}
                       onChange={(event) => setAppointmentEditorClientName(event.target.value)}
                       disabled={appointmentComposerMode === "edit" && selectedAppointment?.source === "viewing_request"}
                     />
                   </AppointmentEditorField>
                   <AppointmentEditorField>
-                    <AppointmentEditorLabel>Client phone</AppointmentEditorLabel>
+                    <AppointmentEditorLabel>{t("hub.clientPhone")}</AppointmentEditorLabel>
                     <AppointmentEditorInput
                       id="appointment-client-phone"
                       name="appointment-client-phone"
@@ -9132,20 +9182,20 @@ export default function AccountPage() {
 
               <AppointmentEditorSection>
                 <AppointmentEditorSectionHeader>
-                  <AppointmentEditorSectionTitle>Assignment</AppointmentEditorSectionTitle>
-                  <AppointmentEditorSectionCopy>Choose who will handle this appointment, or leave it unassigned for now.</AppointmentEditorSectionCopy>
+                  <AppointmentEditorSectionTitle>{t("hub.assignment")}</AppointmentEditorSectionTitle>
+                  <AppointmentEditorSectionCopy>{t("hub.assignmentSectionCopy")}</AppointmentEditorSectionCopy>
                 </AppointmentEditorSectionHeader>
                 <AppointmentEditorField>
-                  <AppointmentEditorLabel>Assigned staff</AppointmentEditorLabel>
+                  <AppointmentEditorLabel>{t("hub.assignedStaff")}</AppointmentEditorLabel>
                   <CustomSelect
                     id="appointment-assignee"
                     name="appointment-assignee"
-                    label="Assigned staff"
+                    label={t("hub.assignedStaff")}
                     hideLabel
                     value={appointmentEditorAssignee}
                     onChange={setAppointmentEditorAssignee}
                   >
-                    <option value="">Unassigned</option>
+                    <option value="">{t("hub.unassigned")}</option>
                     {appointmentAssignments.map((staff) => (
                       <option key={staff.id} value={staff.id}>
                         {staff.name}
@@ -9157,15 +9207,15 @@ export default function AccountPage() {
 
               <AppointmentEditorSection>
                 <AppointmentEditorSectionHeader>
-                  <AppointmentEditorSectionTitle>Notes</AppointmentEditorSectionTitle>
-                  <AppointmentEditorSectionCopy>Capture access details, reminders, or anything the assigned staff should know.</AppointmentEditorSectionCopy>
+                  <AppointmentEditorSectionTitle>{t("hub.notes")}</AppointmentEditorSectionTitle>
+                  <AppointmentEditorSectionCopy>{t("hub.notesCopy")}</AppointmentEditorSectionCopy>
                 </AppointmentEditorSectionHeader>
                 <AppointmentEditorField>
                   <AppointmentTextArea
                     value={appointmentEditorNotes}
                     onChange={(event) => setAppointmentEditorNotes(event.target.value)}
                     disabled={appointmentComposerMode === "edit" && selectedAppointment?.source === "viewing_request"}
-                    placeholder="Optional notes"
+                    placeholder={t("hub.optionalNotes")}
                   />
                 </AppointmentEditorField>
               </AppointmentEditorSection>
@@ -9176,7 +9226,7 @@ export default function AccountPage() {
                 <DangerButton type="button" onClick={() => void handleAppointmentDelete()} disabled={appointmentEditorSaving}>
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
                     <Trash2 size={16} />
-                    Delete
+                    {t("hub.delete")}
                   </span>
                 </DangerButton>
               ) : (
@@ -9184,16 +9234,16 @@ export default function AccountPage() {
               )}
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                 <GhostButton type="button" onClick={closeAppointmentEditor} disabled={appointmentEditorSaving}>
-                  Cancel
+                  {t("listing.cancel")}
                 </GhostButton>
                 <CTAButton type="button" onClick={() => void handleAppointmentSave()} disabled={appointmentEditorSaving}>
                   {appointmentEditorSaving
                     ? appointmentComposerMode === "create"
-                      ? "Creating..."
-                      : "Saving..."
+                      ? t("hub.creating")
+                      : t("hub.saving")
                     : appointmentComposerMode === "create"
-                      ? "Create appointment"
-                      : "Save changes"}
+                      ? t("hub.createAppointment")
+                      : t("common.saveChanges")}
                 </CTAButton>
               </div>
             </ModalActions>
@@ -9212,8 +9262,9 @@ export default function AccountPage() {
               <div style={{ display: "grid", gap: 6 }}>
                 <strong>{selectedStaffAssignment.name}</strong>
                 <Muted>
-                  {labelize(selectedStaffAssignment.role)} • {selectedStaffAssignment.assigned_count} assigned appointment
-                  {selectedStaffAssignment.assigned_count === 1 ? "" : "s"}
+                  {labelize(selectedStaffAssignment.role)} • {selectedStaffAssignment.assigned_count > 1
+                    ? t("hub.assignedAppointmentsPlural", { count: selectedStaffAssignment.assigned_count })
+                    : t("hub.assignedAppointmentsSingular", { count: selectedStaffAssignment.assigned_count })}
                 </Muted>
               </div>
               <GhostButton
@@ -9222,7 +9273,7 @@ export default function AccountPage() {
                   setSelectedAppointmentStaffId(null);
                   setShowPastStaffAppointments(false);
                 }}
-                aria-label="Close staff appointments"
+                aria-label={t("hub.closeStaffAppointments")}
               >
                 <X size={16} />
               </GhostButton>
@@ -9230,13 +9281,13 @@ export default function AccountPage() {
             <StaffAppointmentsModalBody>
               <StaffAppointmentsPanel>
                 <StaffAppointmentsPanelHeader>
-                  <StaffAppointmentsPanelTitle>Appointments by staff</StaffAppointmentsPanelTitle>
+                  <StaffAppointmentsPanelTitle>{t("hub.appointmentsByStaff")}</StaffAppointmentsPanelTitle>
                   <StaffAppointmentsToggle
                     type="button"
                     $active={showPastStaffAppointments}
                     onClick={() => setShowPastStaffAppointments((value) => !value)}
                   >
-                    {showPastStaffAppointments ? "Hide previous tasks" : "Show previous tasks"}
+                    {showPastStaffAppointments ? t("hub.hidePreviousTasks") : t("hub.showPreviousTasks")}
                   </StaffAppointmentsToggle>
                 </StaffAppointmentsPanelHeader>
                 <StaffAppointmentsList>
@@ -9254,11 +9305,11 @@ export default function AccountPage() {
                       >
                         <StaffAppointmentsRowTop>
                           <div style={{ display: "grid", gap: 4 }}>
-                            <StaffAppointmentsRowTitle>{appointment.property_title || appointment.title || "Untitled appointment"}</StaffAppointmentsRowTitle>
+                            <StaffAppointmentsRowTitle>{appointment.property_title || appointment.title || t("hub.untitledAppointment")}</StaffAppointmentsRowTitle>
                             <StaffAppointmentsRowMeta>
-                              <span>{appointment.start_at ? new Date(appointment.start_at).toLocaleString(locale, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "Time pending"}</span>
+                              <span>{appointment.start_at ? new Date(appointment.start_at).toLocaleString(locale, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : t("hub.timePending")}</span>
                               <span>•</span>
-                              <span>{appointment.client_name || "Buyer"}</span>
+                              <span>{appointment.client_name || t("hub.buyer")}</span>
                             </StaffAppointmentsRowMeta>
                           </div>
                           <AppointmentPill $tone={appointment.status === "completed" || appointment.status === "closed_won" ? "success" : appointment.status === "cancelled" || appointment.status === "closed_lost" || appointment.status === "no_show" || appointment.status === "spam" ? "danger" : "warning"}>
@@ -9267,39 +9318,40 @@ export default function AccountPage() {
                         </StaffAppointmentsRowTop>
                         <StaffAppointmentsRowMeta>
                           <MapPin size={14} />
-                          <span>{appointment.property_location || "Unspecified"}</span>
+                          <span>{appointment.property_location || t("hub.unspecified")}</span>
                         </StaffAppointmentsRowMeta>
                       </StaffAppointmentsRow>
                     ))
                   ) : (
                     <HubFeatureCopy>
                       {showPastStaffAppointments
-                        ? "No appointments are assigned to this staff member yet."
-                        : "No upcoming appointments are currently assigned to this staff member."}
+                        ? t("hub.noStaffAppointments")
+                        : t("hub.noUpcomingStaffAppointments")}
                     </HubFeatureCopy>
                   )}
                 </StaffAppointmentsList>
               </StaffAppointmentsPanel>
               <StaffAppointmentsAside>
-                <StaffAppointmentsPanelTitle>Assignment summary</StaffAppointmentsPanelTitle>
+                <StaffAppointmentsPanelTitle>{t("hub.assignmentSummary")}</StaffAppointmentsPanelTitle>
                 <StaffAppointmentsSummary>
                   <StaffAppointmentsSummaryRow>
-                    <StaffAppointmentsSummaryLabel>Assigned now</StaffAppointmentsSummaryLabel>
+                    <StaffAppointmentsSummaryLabel>{t("hub.assignedNow")}</StaffAppointmentsSummaryLabel>
                     <StaffAppointmentsSummaryValue>
-                      {selectedStaffAssignment.assigned_count} appointment
-                      {selectedStaffAssignment.assigned_count === 1 ? "" : "s"}
+                      {selectedStaffAssignment.assigned_count > 1
+                        ? t("hub.assignedAppointmentsPlural", { count: selectedStaffAssignment.assigned_count })
+                        : t("hub.assignedAppointmentsSingular", { count: selectedStaffAssignment.assigned_count })}
                     </StaffAppointmentsSummaryValue>
                   </StaffAppointmentsSummaryRow>
                   <StaffAppointmentsSummaryRow>
-                    <StaffAppointmentsSummaryLabel>Visible in this view</StaffAppointmentsSummaryLabel>
+                    <StaffAppointmentsSummaryLabel>{t("hub.visibleInView")}</StaffAppointmentsSummaryLabel>
                     <StaffAppointmentsSummaryValue>
-                      {selectedStaffAppointments.length} item{selectedStaffAppointments.length === 1 ? "" : "s"}
+                      {t("hub.itemsCount", { count: selectedStaffAppointments.length })}
                     </StaffAppointmentsSummaryValue>
                   </StaffAppointmentsSummaryRow>
                   <StaffAppointmentsSummaryRow>
-                    <StaffAppointmentsSummaryLabel>Scope</StaffAppointmentsSummaryLabel>
+                    <StaffAppointmentsSummaryLabel>{t("hub.scope")}</StaffAppointmentsSummaryLabel>
                     <StaffAppointmentsSummaryValue>
-                      {showPastStaffAppointments ? "All tasks" : "Upcoming only"}
+                      {showPastStaffAppointments ? t("hub.allTasks") : t("hub.upcomingOnly")}
                     </StaffAppointmentsSummaryValue>
                   </StaffAppointmentsSummaryRow>
                 </StaffAppointmentsSummary>

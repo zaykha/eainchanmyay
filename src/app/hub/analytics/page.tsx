@@ -24,7 +24,9 @@ import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
 import { readActiveVendorWorkspace, withActiveVendorHeaders } from "@/app/living-site/lib/active-context";
 import { useAppState } from "@/app/living-site/lib/app-state";
 import { CustomSelect } from "@/app/living-site/components/form-controls/CustomSelect";
-import { useI18n } from "@/app/living-site/lib/i18n";
+import { useI18n, type Translate } from "@/app/living-site/lib/i18n";
+import type { Language } from "@/app/living-site/lib/i18n-config";
+import { translateLocationName } from "@/app/living-site/lib/myanmar-geo";
 
 type WorkspacePayload = {
   vendor?: {
@@ -870,8 +872,30 @@ const SecondaryLink = styled(Link)`
   background: #fff;
 `;
 
-function labelize(value: string | null | undefined) {
-  if (!value) return "Unknown";
+function getLocale(language: Language) {
+  return language === "mm" ? "my-MM" : language === "zh" ? "zh-CN" : language === "th" ? "th-TH" : "en-US";
+}
+
+function propertyKeyToTranslationKey(value: string | null | undefined) {
+  if (!value) return null;
+  const normalized = value.trim();
+  if (!normalized) return null;
+  const segments = normalized.split("_");
+  const [first = "", ...rest] = segments;
+  const camel = `${first}${rest.map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1)).join("")}`;
+  return `property.${camel}` as const;
+}
+
+function labelize(value: string | null | undefined, t: Translate) {
+  if (!value) return t("analytics.unknown");
+  const propertyTranslationKey = propertyKeyToTranslationKey(value);
+  if (propertyTranslationKey) {
+    const translated = t(propertyTranslationKey);
+    if (translated !== propertyTranslationKey) return translated;
+  }
+  const statusTranslationKey = `hub.status.${value}` as const;
+  const translatedStatus = t(statusTranslationKey);
+  if (translatedStatus !== statusTranslationKey) return translatedStatus;
   return value
     .replace(/_/g, " ")
     .split(" ")
@@ -880,13 +904,13 @@ function labelize(value: string | null | undefined) {
     .join(" ");
 }
 
-function formatNumber(value: number | null) {
-  if (value === null) return "N/A";
-  return new Intl.NumberFormat("en-US").format(value);
+function formatNumber(value: number | null, language: Language, t: Translate) {
+  if (value === null) return t("analytics.notAvailable");
+  return new Intl.NumberFormat(getLocale(language)).format(value);
 }
 
-function formatPercent(value: number | null) {
-  if (value === null) return "N/A";
+function formatPercent(value: number | null, t: Translate) {
+  if (value === null) return t("analytics.notAvailable");
   return `${value.toFixed(1)}%`;
 }
 
@@ -897,22 +921,22 @@ function parseDateOnly(value: string) {
   return new Date(year, month - 1, day);
 }
 
-function formatDatePickerLabel(value: string | undefined) {
+function formatDatePickerLabel(value: string | undefined, language: Language) {
   if (!value) return "";
   const parsed = parseDateOnly(value);
   if (!parsed) return "";
-  return parsed.toLocaleDateString("en-US", {
+  return parsed.toLocaleDateString(getLocale(language), {
     month: "short",
     day: "numeric",
     year: "numeric",
   });
 }
 
-function formatDateLabel(value: string | null | undefined) {
-  if (!value) return "N/A";
+function formatDateLabel(value: string | null | undefined, language: Language, t: Translate) {
+  if (!value) return t("analytics.notAvailable");
   const parsed = new Date(value);
-  if (!Number.isFinite(parsed.getTime())) return "N/A";
-  return parsed.toLocaleDateString("en-US", {
+  if (!Number.isFinite(parsed.getTime())) return t("analytics.notAvailable");
+  return parsed.toLocaleDateString(getLocale(language), {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -943,25 +967,40 @@ function toDateString(value: Date) {
   return `${year}-${month}-${day}`;
 }
 
+function getWeekdayLabels(language: Language) {
+  const formatter = new Intl.DateTimeFormat(getLocale(language), { weekday: "short" });
+  const sunday = new Date(Date.UTC(2024, 0, 7));
+  return Array.from({ length: 7 }, (_, index) => {
+    const current = new Date(sunday);
+    current.setUTCDate(sunday.getUTCDate() + index);
+    return formatter.format(current);
+  });
+}
+
 function AnalyticsDatePicker({
   id,
   label,
   value,
   onChange,
+  language,
+  t,
 }: {
   id: string;
   label: string;
   value: string;
   onChange: (value: string) => void;
+  language: Language;
+  t: Translate;
 }) {
   const [open, setOpen] = useState(false);
   const selectedDate = value ? parseDateOnly(value) : null;
   const [currentMonth, setCurrentMonth] = useState<Date>(selectedDate ?? new Date());
   const days = useMemo(() => getCalendarDays(currentMonth), [currentMonth]);
-  const monthLabel = currentMonth.toLocaleDateString("en-US", {
+  const monthLabel = currentMonth.toLocaleDateString(getLocale(language), {
     month: "long",
     year: "numeric",
   });
+  const weekdayLabels = useMemo(() => getWeekdayLabels(language), [language]);
 
   return (
     <DateFieldWrap>
@@ -976,7 +1015,7 @@ function AnalyticsDatePicker({
           setOpen(true);
         }}
       >
-        <DateValue $muted={!value}>{formatDatePickerLabel(value) || "Select date"}</DateValue>
+        <DateValue $muted={!value}>{formatDatePickerLabel(value, language) || t("analytics.selectDate")}</DateValue>
         <ChevronDown size={16} />
       </DateTrigger>
       {open ? (
@@ -992,7 +1031,7 @@ function AnalyticsDatePicker({
               </DateNav>
             </DateCardHeader>
             <DateGrid>
-              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+              {weekdayLabels.map((day) => (
                 <span
                   key={day}
                   style={{ textAlign: "center", fontSize: "0.75rem", color: "var(--color-muted)", fontWeight: 600 }}
@@ -1044,7 +1083,7 @@ function sortCountEntries<T extends { count: number }>(items: T[]) {
 
 export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }) {
   const { user, authToken, profileReady, profileRole } = useAppState();
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const [activeVendorId, setActiveVendorId] = useState<string | null>(null);
   const [workspace, setWorkspace] = useState<WorkspacePayload["vendor"] | null>(null);
   const [overview, setOverview] = useState<OverviewPayload | null>(null);
@@ -1306,12 +1345,12 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
     };
 
     const funnel = [
-      { key: "search_impressions", label: "Search impressions", value: null },
-      { key: "listing_card_clicks", label: "Listing card clicks", value: null },
-      { key: "listing_detail_views", label: "Listing detail views", value: viewEvents.length },
-      { key: "saved_properties", label: "Saved properties", value: savedProperties.length },
-      { key: "appointment_requests", label: "Appointment requests", value: appointmentRequests.length },
-      { key: "appointments", label: "Appointments", value: appointments.length },
+      { key: "search_impressions", label: t("analytics.searchImpressions"), value: null },
+      { key: "listing_card_clicks", label: t("analytics.listingCardClicks"), value: null },
+      { key: "listing_detail_views", label: t("analytics.listingDetailViews"), value: viewEvents.length },
+      { key: "saved_properties", label: t("analytics.savedProperties"), value: savedProperties.length },
+      { key: "appointment_requests", label: t("analytics.appointmentRequests"), value: appointmentRequests.length },
+      { key: "appointments", label: t("analytics.appointments"), value: appointments.length },
     ];
 
     const listingRows = properties.map((property) => {
@@ -1523,44 +1562,44 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
             </SectionHead>
             <KpiGrid>
               <KpiCard>
-                <KpiLabel>Total listing views</KpiLabel>
-                <KpiValue>{formatNumber(overview.metrics.listingViewsCount)}</KpiValue>
-                <KpiHint>Live from listing detail view tracking.</KpiHint>
+                <KpiLabel>{t("analytics.totalListingViews")}</KpiLabel>
+                <KpiValue>{formatNumber(overview.metrics.listingViewsCount, language, t)}</KpiValue>
+                <KpiHint>{t("analytics.liveListingDetailTracking")}</KpiHint>
               </KpiCard>
               <KpiCard>
-                <KpiLabel>New inquiries</KpiLabel>
-                <KpiValue>{formatNumber(overview.metrics.inquiryLeadCount)}</KpiValue>
-                <KpiHint>Agency lead inbox volume.</KpiHint>
+                <KpiLabel>{t("analytics.newInquiries")}</KpiLabel>
+                <KpiValue>{formatNumber(overview.metrics.inquiryLeadCount, language, t)}</KpiValue>
+                <KpiHint>{t("analytics.agencyLeadInboxVolume")}</KpiHint>
               </KpiCard>
               <KpiCard>
-                <KpiLabel>Appointments</KpiLabel>
-                <KpiValue>{formatNumber(overview.metrics.appointmentsCount)}</KpiValue>
-                <KpiHint>Combined appointment records already in the workspace.</KpiHint>
+                <KpiLabel>{t("analytics.appointments")}</KpiLabel>
+                <KpiValue>{formatNumber(overview.metrics.appointmentsCount, language, t)}</KpiValue>
+                <KpiHint>{t("analytics.combinedAppointmentRecords")}</KpiHint>
               </KpiCard>
               <KpiCard>
-                <KpiLabel>Active listings</KpiLabel>
-                <KpiValue>{formatNumber(overview.metrics.totalProperties)}</KpiValue>
-                <KpiHint>Current property records in the workspace.</KpiHint>
+                <KpiLabel>{t("analytics.activeListings")}</KpiLabel>
+                <KpiValue>{formatNumber(overview.metrics.totalProperties, language, t)}</KpiValue>
+                <KpiHint>{t("analytics.currentPropertyRecords")}</KpiHint>
               </KpiCard>
               <KpiCard>
-                <KpiLabel>Qualified leads</KpiLabel>
-                <KpiValue>{formatNumber(overview.metrics.qualifiedLeadCount ?? null)}</KpiValue>
-                <KpiHint>Live CRM qualification count.</KpiHint>
+                <KpiLabel>{t("analytics.qualifiedLeads")}</KpiLabel>
+                <KpiValue>{formatNumber(overview.metrics.qualifiedLeadCount ?? null, language, t)}</KpiValue>
+                <KpiHint>{t("analytics.liveCrmQualificationCount")}</KpiHint>
               </KpiCard>
               <KpiCard>
-                <KpiLabel>Closed leads</KpiLabel>
-                <KpiValue>{formatNumber(overview.metrics.closedLeadCount ?? null)}</KpiValue>
-                <KpiHint>Lead outcomes recorded as closed.</KpiHint>
+                <KpiLabel>{t("analytics.closedLeads")}</KpiLabel>
+                <KpiValue>{formatNumber(overview.metrics.closedLeadCount ?? null, language, t)}</KpiValue>
+                <KpiHint>{t("analytics.leadOutcomesClosed")}</KpiHint>
               </KpiCard>
               <KpiCard>
-                <KpiLabel>Lead conversion rate</KpiLabel>
-                <KpiValue>{formatPercent(overview.metrics.leadConversionRate ?? null)}</KpiValue>
-                <KpiHint>Closed leads divided by total inquiries.</KpiHint>
+                <KpiLabel>{t("analytics.leadConversionRate")}</KpiLabel>
+                <KpiValue>{formatPercent(overview.metrics.leadConversionRate ?? null, t)}</KpiValue>
+                <KpiHint>{t("analytics.closedLeadsDividedByInquiries")}</KpiHint>
               </KpiCard>
               <KpiCard>
-                <KpiLabel>View-to-lead rate</KpiLabel>
-                <KpiValue>{formatPercent(overview.metrics.viewToLeadRate ?? null)}</KpiValue>
-                <KpiHint>Inquiry conversion from tracked listing views.</KpiHint>
+                <KpiLabel>{t("analytics.viewToLeadRate")}</KpiLabel>
+                <KpiValue>{formatPercent(overview.metrics.viewToLeadRate ?? null, t)}</KpiValue>
+                <KpiHint>{t("analytics.inquiryConversionFromViews")}</KpiHint>
               </KpiCard>
             </KpiGrid>
           </Section>
@@ -1569,8 +1608,8 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
             <Section>
               <SectionHead>
                 <div>
-                  <SectionTitle>Listing types</SectionTitle>
-                  <SectionCopy>Current property mix from the overview endpoint.</SectionCopy>
+                  <SectionTitle>{t("analytics.listingTypes")}</SectionTitle>
+                  <SectionCopy>{t("analytics.currentPropertyMix")}</SectionCopy>
                 </div>
               </SectionHead>
               <Stack>
@@ -1579,8 +1618,8 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
                   return (
                     <PipelineRow key={item.key}>
                       <PipelineMeta>
-                        <span>{labelize(item.key)}</span>
-                        <span>{formatNumber(item.count)}</span>
+                        <span>{labelize(item.key, t)}</span>
+                        <span>{formatNumber(item.count, language, t)}</span>
                       </PipelineMeta>
                       <Track>
                         <Fill $width={(item.count / max) * 100} $tint={index % 2 === 0 ? undefined : "#ff8ca3"} />
@@ -1594,8 +1633,8 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
             <Section>
               <SectionHead>
                 <div>
-                  <SectionTitle>Top viewed listings</SectionTitle>
-                  <SectionCopy>Most viewed properties available on Pro.</SectionCopy>
+                  <SectionTitle>{t("analytics.topViewedListings")}</SectionTitle>
+                  <SectionCopy>{t("analytics.topViewedListingsCopy")}</SectionCopy>
                 </div>
               </SectionHead>
               <MiniList>
@@ -1604,10 +1643,13 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
                     <div style={{ display: "grid", gap: 4 }}>
                       <strong>{item.title}</strong>
                       <span style={{ color: "var(--color-muted)", fontSize: "0.86rem" }}>
-                        {[item.township, item.status ? labelize(item.status) : null].filter(Boolean).join(" • ") || "No location"}
+                        {[
+                          item.township ? translateLocationName(item.township, language) : null,
+                          item.status ? labelize(item.status, t) : null,
+                        ].filter(Boolean).join(" • ") || t("analytics.noLocation")}
                       </span>
                     </div>
-                    <Pill $tone="accent">{formatNumber(item.views)} views</Pill>
+                    <Pill $tone="accent">{t("analytics.viewsCount", { count: formatNumber(item.views, language, t) })}</Pill>
                   </MiniRow>
                 ))}
               </MiniList>
@@ -1651,18 +1693,18 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
               </SectionHead>
               <FilterGrid>
                 <FilterControlWrap>
-                  <CustomSelect id="listing-detail-property-type" name="listing-detail-property-type" label="Property type" value={propertyType} onChange={setPropertyType}>
-                    <option value="all">All</option>
+                  <CustomSelect id="listing-detail-property-type" name="listing-detail-property-type" label={t("analytics.propertyType")} value={propertyType} onChange={setPropertyType}>
+                    <option value="all">{t("analytics.all")}</option>
                     {fullAnalytics.filterOptions.propertyTypes.map((option) => (
                       <option key={option} value={option}>
-                        {labelize(option)}
+                        {labelize(option, t)}
                       </option>
                     ))}
                   </CustomSelect>
                 </FilterControlWrap>
                 <FilterControlWrap>
-                  <CustomSelect id="listing-detail-agent" name="listing-detail-agent" label="Agent" value={agentId} onChange={setAgentId}>
-                    <option value="all">All agents</option>
+                  <CustomSelect id="listing-detail-agent" name="listing-detail-agent" label={t("analytics.agent")} value={agentId} onChange={setAgentId}>
+                    <option value="all">{t("analytics.allAgents")}</option>
                     {fullAnalytics.filterOptions.agents.map((agent) => (
                       <option key={agent.id} value={agent.id}>
                         {agent.name}
@@ -1671,21 +1713,21 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
                   </CustomSelect>
                 </FilterControlWrap>
                 <FilterControlWrap>
-                  <CustomSelect id="listing-detail-status" name="listing-detail-status" label="Listing status" value={listingStatus} onChange={setListingStatus}>
-                    <option value="all">All statuses</option>
+                  <CustomSelect id="listing-detail-status" name="listing-detail-status" label={t("analytics.listingStatus")} value={listingStatus} onChange={setListingStatus}>
+                    <option value="all">{t("analytics.allStatuses")}</option>
                     {fullAnalytics.filterOptions.listingStatuses.map((option) => (
                       <option key={option} value={option}>
-                        {labelize(option)}
+                        {labelize(option, t)}
                       </option>
                     ))}
                   </CustomSelect>
                 </FilterControlWrap>
                 <FilterControlWrap>
-                  <CustomSelect id="listing-detail-township" name="listing-detail-township" label="Township" value={township} onChange={setTownship}>
-                    <option value="all">All</option>
+                  <CustomSelect id="listing-detail-township" name="listing-detail-township" label={t("analytics.township")} value={township} onChange={setTownship}>
+                    <option value="all">{t("analytics.all")}</option>
                     {fullAnalytics.filterOptions.townships.map((option) => (
                       <option key={option} value={option}>
-                        {option}
+                        {translateLocationName(option, language)}
                       </option>
                     ))}
                   </CustomSelect>
@@ -1705,14 +1747,14 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
                             <ListingMeta>
                               <Pill $tone="soft">
                                 <Building2 size={12} />
-                                {labelize(row.propertyType)}
+                                {labelize(row.propertyType, t)}
                               </Pill>
                               <Pill $tone="soft">
                                 <MapPin size={12} />
-                                {row.township ?? "Unknown"}
+                                {row.township ? translateLocationName(row.township, language) : t("analytics.unknown")}
                               </Pill>
                               <Pill $tone="accent">{row.agentName}</Pill>
-                              <Pill $tone="accent">{labelize(row.status)}</Pill>
+                              <Pill $tone="accent">{labelize(row.status, t)}</Pill>
                             </ListingMeta>
                           </ListingPerformanceTitleWrap>
                         </ListingPerformanceTop>
@@ -1720,58 +1762,58 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
                           <ListingPerformanceStat>
                             <ListingPerformanceStatLabel>
                               <Eye size={13} />
-                              Views
+                              {t("analytics.views")}
                             </ListingPerformanceStatLabel>
-                            <ListingPerformanceStatValue>{formatNumber(row.views)}</ListingPerformanceStatValue>
+                            <ListingPerformanceStatValue>{formatNumber(row.views, language, t)}</ListingPerformanceStatValue>
                           </ListingPerformanceStat>
                           <ListingPerformanceStat>
                             <ListingPerformanceStatLabel>
                               <Heart size={13} />
-                              Saves
+                              {t("analytics.saves")}
                             </ListingPerformanceStatLabel>
-                            <ListingPerformanceStatValue>{formatNumber(row.saves)}</ListingPerformanceStatValue>
+                            <ListingPerformanceStatValue>{formatNumber(row.saves, language, t)}</ListingPerformanceStatValue>
                           </ListingPerformanceStat>
                           <ListingPerformanceStat>
                             <ListingPerformanceStatLabel>
                               <Calendar size={13} />
-                              Requests
+                              {t("analytics.requests")}
                             </ListingPerformanceStatLabel>
-                            <ListingPerformanceStatValue>{formatNumber(row.appointmentRequests)}</ListingPerformanceStatValue>
+                            <ListingPerformanceStatValue>{formatNumber(row.appointmentRequests, language, t)}</ListingPerformanceStatValue>
                           </ListingPerformanceStat>
                           <ListingPerformanceStat>
                             <ListingPerformanceStatLabel>
                               <BadgeCheck size={13} />
-                              Appointments
+                              {t("analytics.appointments")}
                             </ListingPerformanceStatLabel>
-                            <ListingPerformanceStatValue>{formatNumber(row.appointments)}</ListingPerformanceStatValue>
+                            <ListingPerformanceStatValue>{formatNumber(row.appointments, language, t)}</ListingPerformanceStatValue>
                           </ListingPerformanceStat>
                           <ListingPerformanceStat>
                             <ListingPerformanceStatLabel>
                               <Sparkles size={13} />
-                              Card clicks
+                              {t("analytics.listingCardClicks")}
                             </ListingPerformanceStatLabel>
-                            <ListingPerformanceStatValue>{formatNumber(row.cardClicks)}</ListingPerformanceStatValue>
+                            <ListingPerformanceStatValue>{formatNumber(row.cardClicks, language, t)}</ListingPerformanceStatValue>
                           </ListingPerformanceStat>
                           <ListingPerformanceStat>
                             <ListingPerformanceStatLabel>
                               <Users2 size={13} />
-                              Contact clicks
+                              {t("analytics.contactClicks")}
                             </ListingPerformanceStatLabel>
-                            <ListingPerformanceStatValue>{formatNumber(row.contactClicks)}</ListingPerformanceStatValue>
+                            <ListingPerformanceStatValue>{formatNumber(row.contactClicks, language, t)}</ListingPerformanceStatValue>
                           </ListingPerformanceStat>
                           <ListingPerformanceStat>
                             <ListingPerformanceStatLabel>
                               <ArrowUpRight size={13} />
-                              Conversion
+                              {t("analytics.conversion")}
                             </ListingPerformanceStatLabel>
-                            <ListingPerformanceStatValue>{formatPercent(row.conversionRate)}</ListingPerformanceStatValue>
+                            <ListingPerformanceStatValue>{formatPercent(row.conversionRate, t)}</ListingPerformanceStatValue>
                           </ListingPerformanceStat>
                           <ListingPerformanceStat>
                             <ListingPerformanceStatLabel>
                               <Lock size={13} />
-                              Boost
+                              {t("hub.boostings")}
                             </ListingPerformanceStatLabel>
-                            <ListingPerformanceStatValue>N/A</ListingPerformanceStatValue>
+                            <ListingPerformanceStatValue>{t("analytics.notAvailable")}</ListingPerformanceStatValue>
                           </ListingPerformanceStat>
                         </ListingPerformanceStats>
                       </ListingPerformanceMain>
@@ -1781,20 +1823,23 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
               </ListingCardsGrid>
               <PaginationRow>
                 <SectionCopy>
-                  Showing {Math.min((listingPage - 1) * 8 + 1, fullView.listingRows.length)}-
-                  {Math.min(listingPage * 8, fullView.listingRows.length)} of {fullView.listingRows.length} listings
+                  {t("analytics.showingListings", {
+                    start: Math.min((listingPage - 1) * 8 + 1, fullView.listingRows.length),
+                    end: Math.min(listingPage * 8, fullView.listingRows.length),
+                    total: fullView.listingRows.length,
+                  })}
                 </SectionCopy>
                 <ActionRow>
                   <InlineButton type="button" onClick={() => setListingPage((current) => Math.max(1, current - 1))} disabled={listingPage === 1}>
                     <ChevronLeft size={16} />
-                    Previous
+                    {t("common.back")}
                   </InlineButton>
                   <InlineButton
                     type="button"
                     onClick={() => setListingPage((current) => Math.min(Math.max(1, Math.ceil(fullView.listingRows.length / 8)), current + 1))}
                     disabled={listingPage >= Math.max(1, Math.ceil(fullView.listingRows.length / 8))}
                   >
-                    Next
+                    {t("common.next")}
                     <ChevronRight size={16} />
                   </InlineButton>
                 </ActionRow>
@@ -1806,29 +1851,31 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
                 <FilterTop>
                   <FilterTitle>
                     <Calendar size={16} />
-                    Filters
+                    {t("filter.searchFilters")}
                   </FilterTitle>
                   <PresetRow>
                     {[
-                      { value: "30d" as const, label: "30 days" },
-                      { value: "90d" as const, label: "90 days" },
-                      { value: "365d" as const, label: "12 months" },
-                      { value: "all" as const, label: "All time" },
+                      { value: "30d" as const, label: t("analytics.last30Days") },
+                      { value: "90d" as const, label: t("analytics.last90Days") },
+                      { value: "365d" as const, label: t("analytics.last12Months") },
+                      { value: "all" as const, label: t("analytics.allTime") },
                     ].map((item) => (
                       <PresetButton key={item.value} type="button" $active={preset === item.value} onClick={() => setPreset(item.value)}>
                         {item.label}
                       </PresetButton>
                     ))}
                     <PresetButton type="button" $active={preset === "custom"} onClick={() => setPreset("custom")}>
-                      Custom
+                      {t("analytics.custom")}
                     </PresetButton>
                   </PresetRow>
                 </FilterTop>
                 <FilterGrid>
                   <AnalyticsDatePicker
                     id="analytics-start-date"
-                    label="Start date"
+                    label={t("analytics.startDate")}
                     value={startDate}
+                    language={language}
+                    t={t}
                     onChange={(nextValue) => {
                       setPreset("custom");
                       setStartDate(nextValue);
@@ -1836,26 +1883,28 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
                   />
                   <AnalyticsDatePicker
                     id="analytics-end-date"
-                    label="End date"
+                    label={t("analytics.endDate")}
                     value={endDate}
+                    language={language}
+                    t={t}
                     onChange={(nextValue) => {
                       setPreset("custom");
                       setEndDate(nextValue);
                     }}
                   />
                   <FilterControlWrap>
-                    <CustomSelect id="analytics-property-type" name="analytics-property-type" label="Property type" value={propertyType} onChange={setPropertyType}>
-                      <option value="all">All</option>
+                    <CustomSelect id="analytics-property-type" name="analytics-property-type" label={t("analytics.propertyType")} value={propertyType} onChange={setPropertyType}>
+                      <option value="all">{t("analytics.all")}</option>
                       {fullAnalytics.filterOptions.propertyTypes.map((option) => (
                         <option key={option} value={option}>
-                          {labelize(option)}
+                          {labelize(option, t)}
                         </option>
                       ))}
                     </CustomSelect>
                   </FilterControlWrap>
                   <FilterControlWrap>
-                    <CustomSelect id="analytics-agent" name="analytics-agent" label="Agent" value={agentId} onChange={setAgentId}>
-                      <option value="all">All agents</option>
+                    <CustomSelect id="analytics-agent" name="analytics-agent" label={t("analytics.agent")} value={agentId} onChange={setAgentId}>
+                      <option value="all">{t("analytics.allAgents")}</option>
                       {fullAnalytics.filterOptions.agents.map((agent) => (
                         <option key={agent.id} value={agent.id}>
                           {agent.name}
@@ -1864,21 +1913,21 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
                     </CustomSelect>
                   </FilterControlWrap>
                   <FilterControlWrap>
-                    <CustomSelect id="analytics-listing-status" name="analytics-listing-status" label="Listing status" value={listingStatus} onChange={setListingStatus}>
-                      <option value="all">All statuses</option>
+                    <CustomSelect id="analytics-listing-status" name="analytics-listing-status" label={t("analytics.listingStatus")} value={listingStatus} onChange={setListingStatus}>
+                      <option value="all">{t("analytics.allStatuses")}</option>
                       {fullAnalytics.filterOptions.listingStatuses.map((option) => (
                         <option key={option} value={option}>
-                          {labelize(option)}
+                          {labelize(option, t)}
                         </option>
                       ))}
                     </CustomSelect>
                   </FilterControlWrap>
                   <FilterControlWrap>
-                    <CustomSelect id="analytics-township" name="analytics-township" label="Township" value={township} onChange={setTownship}>
-                      <option value="all">All</option>
+                    <CustomSelect id="analytics-township" name="analytics-township" label={t("analytics.township")} value={township} onChange={setTownship}>
+                      <option value="all">{t("analytics.all")}</option>
                       {fullAnalytics.filterOptions.townships.map((option) => (
                         <option key={option} value={option}>
-                          {option}
+                          {translateLocationName(option, language)}
                         </option>
                       ))}
                     </CustomSelect>
@@ -1889,54 +1938,54 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
               <Section>
                 <SectionHead>
                   <div>
-                    <SectionTitle>KPI summary</SectionTitle>
-                    <SectionCopy>Growth-only agency KPIs with live records where current tracking exists.</SectionCopy>
+                    <SectionTitle>{t("analytics.kpiSummary")}</SectionTitle>
+                    <SectionCopy>{t("analytics.kpiSummaryCopy")}</SectionCopy>
                   </div>
                   <NotePill>
                     <Sparkles size={14} />
-                    Untracked metrics are explicitly marked
+                    {t("analytics.untrackedMetricsMarked")}
                   </NotePill>
                 </SectionHead>
                 <KpiGrid>
                   <KpiCard>
-                    <KpiLabel>Total listing views</KpiLabel>
-                    <KpiValue>{formatNumber(fullView.kpis.totalListingViews)}</KpiValue>
-                    <KpiHint>Live from `property_view_events`.</KpiHint>
+                    <KpiLabel>{t("analytics.totalListingViews")}</KpiLabel>
+                    <KpiValue>{formatNumber(fullView.kpis.totalListingViews, language, t)}</KpiValue>
+                    <KpiHint>{t("analytics.liveFromPropertyViewEvents")}</KpiHint>
                   </KpiCard>
                   <KpiCard>
-                    <KpiLabel>Listing card clicks</KpiLabel>
-                    <KpiValue>{formatNumber(fullView.kpis.listingCardClicks)}</KpiValue>
-                    <KpiHint>TODO: instrument card-click events before exposing live numbers.</KpiHint>
+                    <KpiLabel>{t("analytics.listingCardClicks")}</KpiLabel>
+                    <KpiValue>{formatNumber(fullView.kpis.listingCardClicks, language, t)}</KpiValue>
+                    <KpiHint>{t("analytics.todoCardClicks")}</KpiHint>
                   </KpiCard>
                   <KpiCard>
-                    <KpiLabel>Contact clicks</KpiLabel>
-                    <KpiValue>{formatNumber(fullView.kpis.contactClicks)}</KpiValue>
-                    <KpiHint>TODO: instrument contact CTA events before exposing live numbers.</KpiHint>
+                    <KpiLabel>{t("analytics.contactClicks")}</KpiLabel>
+                    <KpiValue>{formatNumber(fullView.kpis.contactClicks, language, t)}</KpiValue>
+                    <KpiHint>{t("analytics.todoContactClicks")}</KpiHint>
                   </KpiCard>
                   <KpiCard>
-                    <KpiLabel>Saved properties</KpiLabel>
-                    <KpiValue>{formatNumber(fullView.kpis.savedProperties)}</KpiValue>
-                    <KpiHint>Buyer save activity tied directly to listings.</KpiHint>
+                    <KpiLabel>{t("analytics.savedProperties")}</KpiLabel>
+                    <KpiValue>{formatNumber(fullView.kpis.savedProperties, language, t)}</KpiValue>
+                    <KpiHint>{t("analytics.savedPropertiesCopy")}</KpiHint>
                   </KpiCard>
                   <KpiCard>
-                    <KpiLabel>Agency inquiries</KpiLabel>
-                    <KpiValue>{formatNumber(fullView.kpis.agencyInquiries)}</KpiValue>
-                    <KpiHint>Generic agency inquiries are tracked at workspace level, not per listing.</KpiHint>
+                    <KpiLabel>{t("analytics.agencyInquiries")}</KpiLabel>
+                    <KpiValue>{formatNumber(fullView.kpis.agencyInquiries, language, t)}</KpiValue>
+                    <KpiHint>{t("analytics.agencyInquiriesCopy")}</KpiHint>
                   </KpiCard>
                   <KpiCard>
-                    <KpiLabel>Appointment requests</KpiLabel>
-                    <KpiValue>{formatNumber(fullView.kpis.appointmentRequests)}</KpiValue>
-                    <KpiHint>Live from viewing request records.</KpiHint>
+                    <KpiLabel>{t("analytics.appointmentRequests")}</KpiLabel>
+                    <KpiValue>{formatNumber(fullView.kpis.appointmentRequests, language, t)}</KpiValue>
+                    <KpiHint>{t("analytics.appointmentRequestsCopy")}</KpiHint>
                   </KpiCard>
                   <KpiCard>
-                    <KpiLabel>Conversion rate</KpiLabel>
-                    <KpiValue>{formatPercent(fullView.kpis.conversionRate)}</KpiValue>
-                    <KpiHint>Current calculation uses agency inquiries divided by tracked listing views.</KpiHint>
+                    <KpiLabel>{t("analytics.conversionRate")}</KpiLabel>
+                    <KpiValue>{formatPercent(fullView.kpis.conversionRate, t)}</KpiValue>
+                    <KpiHint>{t("analytics.conversionRateCopy")}</KpiHint>
                   </KpiCard>
                   <KpiCard>
-                    <KpiLabel>Active listings</KpiLabel>
-                    <KpiValue>{formatNumber(fullView.kpis.activeListings)}</KpiValue>
-                    <KpiHint>Published properties matching the current non-date filters.</KpiHint>
+                    <KpiLabel>{t("analytics.activeListings")}</KpiLabel>
+                    <KpiValue>{formatNumber(fullView.kpis.activeListings, language, t)}</KpiValue>
+                    <KpiHint>{t("analytics.activeListingsCopy")}</KpiHint>
                   </KpiCard>
                 </KpiGrid>
               </Section>
@@ -1944,8 +1993,8 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
               <Section>
                 <SectionHead>
                   <div>
-                    <SectionTitle>Listing interaction funnel</SectionTitle>
-                    <SectionCopy>Listing-specific flow uses views, saves, and appointment actions. Generic agency inquiries are excluded from listing attribution.</SectionCopy>
+                    <SectionTitle>{t("analytics.listingInteractionFunnel")}</SectionTitle>
+                    <SectionCopy>{t("analytics.listingInteractionFunnelCopy")}</SectionCopy>
                   </div>
                 </SectionHead>
                 <FunnelList>
@@ -1957,7 +2006,7 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
                         <Track>
                           <Fill $width={((stage.value ?? 0) / maxValue) * 100} />
                         </Track>
-                        <FunnelValue>{stage.value === null ? "N/A" : formatNumber(stage.value)}</FunnelValue>
+                        <FunnelValue>{stage.value === null ? t("analytics.notAvailable") : formatNumber(stage.value, language, t)}</FunnelValue>
                       </FunnelRow>
                     );
                   })}
@@ -1967,81 +2016,79 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
               <Section>
                 <SectionHead>
                   <div>
-                    <SectionTitle>Listing performance</SectionTitle>
-                    <SectionCopy>
-                      A true overview of listing health across the current filters. Open the listing performance view for the full paginated listing breakdown.
-                    </SectionCopy>
+                    <SectionTitle>{t("analytics.listingPerformance")}</SectionTitle>
+                    <SectionCopy>{t("analytics.listingPerformanceOverviewCopy")}</SectionCopy>
                   </div>
                   <InlineButton type="button" onClick={() => setAnalyticsStep("listing-performance")}>
                     <Building2 size={16} />
-                    View listing performance
+                    {t("analytics.viewListingPerformance")}
                   </InlineButton>
                 </SectionHead>
                 <ListingOverviewGrid>
                   <ListingOverviewCard>
                     <ListingOverviewTop>
-                      <strong>Listings in scope</strong>
-                      <Pill $tone="accent">{formatNumber(listingOverview.listingCount)}</Pill>
+                      <strong>{t("analytics.listingsInScope")}</strong>
+                      <Pill $tone="accent">{formatNumber(listingOverview.listingCount, language, t)}</Pill>
                     </ListingOverviewTop>
-                    <SectionCopy>Published and filtered listings included in this overview.</SectionCopy>
+                    <SectionCopy>{t("analytics.listingsInScopeCopy")}</SectionCopy>
                   </ListingOverviewCard>
                   <ListingOverviewCard>
                     <ListingOverviewTop>
-                      <strong>Average views per listing</strong>
-                      <Pill $tone="accent">{formatNumber(listingOverview.averageViews)}</Pill>
+                      <strong>{t("analytics.averageViewsPerListing")}</strong>
+                      <Pill $tone="accent">{formatNumber(listingOverview.averageViews, language, t)}</Pill>
                     </ListingOverviewTop>
-                    <SectionCopy>Live detail-view average across listings in the current scope.</SectionCopy>
+                    <SectionCopy>{t("analytics.averageViewsPerListingCopy")}</SectionCopy>
                   </ListingOverviewCard>
                   <ListingOverviewCard>
                     <ListingOverviewTop>
-                      <strong>Average saves per listing</strong>
-                      <Pill $tone="accent">{formatNumber(listingOverview.averageSaves)}</Pill>
+                      <strong>{t("analytics.averageSavesPerListing")}</strong>
+                      <Pill $tone="accent">{formatNumber(listingOverview.averageSaves, language, t)}</Pill>
                     </ListingOverviewTop>
-                    <SectionCopy>Saved-property activity averaged across matching listings.</SectionCopy>
+                    <SectionCopy>{t("analytics.averageSavesPerListingCopy")}</SectionCopy>
                   </ListingOverviewCard>
                   <ListingOverviewCard>
                     <ListingOverviewTop>
-                      <strong>Request rate</strong>
-                      <Pill $tone="accent">{formatPercent(listingOverview.requestRate)}</Pill>
+                      <strong>{t("analytics.requestRate")}</strong>
+                      <Pill $tone="accent">{formatPercent(listingOverview.requestRate, t)}</Pill>
                     </ListingOverviewTop>
-                    <SectionCopy>Viewing requests divided by tracked listing views.</SectionCopy>
+                    <SectionCopy>{t("analytics.requestRateCopy")}</SectionCopy>
                   </ListingOverviewCard>
                   <ListingOverviewCard>
                     <ListingOverviewTop>
-                      <strong>Top viewed listing</strong>
+                      <strong>{t("analytics.topViewedListing")}</strong>
                       <Pill $tone="accent">
                         <Eye size={12} />
-                        {listingOverview.topViewed ? formatNumber(listingOverview.topViewed.views) : "N/A"}
+                        {listingOverview.topViewed ? formatNumber(listingOverview.topViewed.views, language, t) : t("analytics.notAvailable")}
                       </Pill>
                     </ListingOverviewTop>
-                    <SectionCopy>{listingOverview.topViewed?.title ?? "N/A"}</SectionCopy>
+                    <SectionCopy>{listingOverview.topViewed?.title ?? t("analytics.notAvailable")}</SectionCopy>
                   </ListingOverviewCard>
                   <ListingOverviewCard>
                     <ListingOverviewTop>
-                      <strong>Most saved listing</strong>
+                      <strong>{t("analytics.mostSavedListing")}</strong>
                       <Pill $tone="accent">
                         <Heart size={12} />
-                        {listingOverview.topSaved ? formatNumber(listingOverview.topSaved.saves) : "N/A"}
+                        {listingOverview.topSaved ? formatNumber(listingOverview.topSaved.saves, language, t) : t("analytics.notAvailable")}
                       </Pill>
                     </ListingOverviewTop>
-                    <SectionCopy>{listingOverview.topSaved?.title ?? "N/A"}</SectionCopy>
+                    <SectionCopy>{listingOverview.topSaved?.title ?? t("analytics.notAvailable")}</SectionCopy>
                   </ListingOverviewCard>
                   <ListingOverviewCard>
                     <ListingOverviewTop>
-                      <strong>Most requested listing</strong>
+                      <strong>{t("analytics.mostRequestedListing")}</strong>
                       <Pill $tone="accent">
                         <Calendar size={12} />
-                        {listingOverview.topRequested ? formatNumber(listingOverview.topRequested.appointmentRequests) : "N/A"}
+                        {listingOverview.topRequested ? formatNumber(listingOverview.topRequested.appointmentRequests, language, t) : t("analytics.notAvailable")}
                       </Pill>
                     </ListingOverviewTop>
-                    <SectionCopy>{listingOverview.topRequested?.title ?? "N/A"}</SectionCopy>
+                    <SectionCopy>{listingOverview.topRequested?.title ?? t("analytics.notAvailable")}</SectionCopy>
                   </ListingOverviewCard>
                   <ListingOverviewCard>
                     <ListingOverviewTop>
-                      <strong>Total appointments</strong>
-                      <Pill $tone="accent">{formatNumber(fullView.appointments.length)}</Pill>
+                      <strong>{t("analytics.totalAppointments")}</strong>
+                      <Pill $tone="accent">{formatNumber(fullView.appointments.length, language, t)}</Pill>
                     </ListingOverviewTop>
-                    <SectionCopy>Confirmed appointment volume tied to listings in this filtered scope.</SectionCopy>
+                    <SectionCopy>{t("analytics.totalAppointmentsCopy")}</SectionCopy>
                   </ListingOverviewCard>
                 </ListingOverviewGrid>
               </Section>
@@ -2049,8 +2096,8 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
               <Section>
                 <SectionHead>
                   <div>
-                    <SectionTitle>Lead pipeline</SectionTitle>
-                    <SectionCopy>Generic agency inquiries stay here at workspace level, while listing performance focuses on listing-linked signals only.</SectionCopy>
+                    <SectionTitle>{t("analytics.leadPipeline")}</SectionTitle>
+                    <SectionCopy>{t("analytics.leadPipelineCopy")}</SectionCopy>
                   </div>
                 </SectionHead>
                 <Stack>
@@ -2073,8 +2120,8 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
                     return (
                       <PipelineRow key={key}>
                         <PipelineMeta>
-                          <span>{labelize(key)}</span>
-                          <span>{formatNumber(count)}</span>
+                          <span>{labelize(key, t)}</span>
+                          <span>{formatNumber(count, language, t)}</span>
                         </PipelineMeta>
                         <Track>
                           <Fill $width={(count / max) * 100} />
@@ -2088,51 +2135,51 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
               <Section>
                 <SectionHead>
                   <div>
-                    <SectionTitle>Appointment analytics</SectionTitle>
-                    <SectionCopy>Confirmed appointments reflect live appointment records. No-shows remain unavailable until tracking exists.</SectionCopy>
+                    <SectionTitle>{t("analytics.appointmentAnalytics")}</SectionTitle>
+                    <SectionCopy>{t("analytics.appointmentAnalyticsCopy")}</SectionCopy>
                   </div>
                 </SectionHead>
                 <MetricList>
                   <MetricBox>
-                    <KpiLabel>Total appointment requests</KpiLabel>
-                    <KpiValue>{formatNumber(fullView.appointmentStats.totalRequests)}</KpiValue>
+                    <KpiLabel>{t("analytics.totalAppointmentRequests")}</KpiLabel>
+                    <KpiValue>{formatNumber(fullView.appointmentStats.totalRequests, language, t)}</KpiValue>
                   </MetricBox>
                   <MetricBox>
-                    <KpiLabel>Confirmed appointments</KpiLabel>
-                    <KpiValue>{formatNumber(fullView.appointmentStats.confirmed)}</KpiValue>
+                    <KpiLabel>{t("analytics.confirmedAppointments")}</KpiLabel>
+                    <KpiValue>{formatNumber(fullView.appointmentStats.confirmed, language, t)}</KpiValue>
                   </MetricBox>
                   <MetricBox>
-                    <KpiLabel>Completed appointments</KpiLabel>
-                    <KpiValue>{formatNumber(fullView.appointmentStats.completed)}</KpiValue>
+                    <KpiLabel>{t("analytics.completedAppointments")}</KpiLabel>
+                    <KpiValue>{formatNumber(fullView.appointmentStats.completed, language, t)}</KpiValue>
                   </MetricBox>
                   <MetricBox>
-                    <KpiLabel>Cancelled appointments</KpiLabel>
-                    <KpiValue>{formatNumber(fullView.appointmentStats.cancelled)}</KpiValue>
+                    <KpiLabel>{t("analytics.cancelledAppointments")}</KpiLabel>
+                    <KpiValue>{formatNumber(fullView.appointmentStats.cancelled, language, t)}</KpiValue>
                   </MetricBox>
                   <MetricBox>
-                    <KpiLabel>No-shows</KpiLabel>
-                    <KpiValue>{formatNumber(fullView.appointmentStats.noShows)}</KpiValue>
+                    <KpiLabel>{t("analytics.noShows")}</KpiLabel>
+                    <KpiValue>{formatNumber(fullView.appointmentStats.noShows, language, t)}</KpiValue>
                   </MetricBox>
                 </MetricList>
                 <SplitGrid>
                   <div>
-                    <SectionTitle style={{ fontSize: "0.98rem" }}>Appointments by property type</SectionTitle>
+                    <SectionTitle style={{ fontSize: "0.98rem" }}>{t("analytics.appointmentsByPropertyType")}</SectionTitle>
                     <MiniList style={{ marginTop: 12 }}>
                       {fullView.appointmentsByType.map((item) => (
                         <MiniRow key={item.key}>
-                          <strong>{labelize(item.key)}</strong>
-                          <Pill $tone="accent">{formatNumber(item.count)}</Pill>
+                          <strong>{labelize(item.key, t)}</strong>
+                          <Pill $tone="accent">{formatNumber(item.count, language, t)}</Pill>
                         </MiniRow>
                       ))}
                     </MiniList>
                   </div>
                   <div>
-                    <SectionTitle style={{ fontSize: "0.98rem" }}>Most requested listings</SectionTitle>
+                    <SectionTitle style={{ fontSize: "0.98rem" }}>{t("analytics.mostRequestedListings")}</SectionTitle>
                     <MiniList style={{ marginTop: 12 }}>
                       {fullView.mostRequestedListings.map((item) => (
                         <MiniRow key={item.propertyId}>
                           <strong>{item.title}</strong>
-                          <Pill $tone="accent">{formatNumber(item.count)} requests</Pill>
+                          <Pill $tone="accent">{t("analytics.requestsCount", { count: formatNumber(item.count, language, t) })}</Pill>
                         </MiniRow>
                       ))}
                     </MiniList>
@@ -2143,15 +2190,12 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
               <Section>
                 <SectionHead>
                   <div>
-                    <SectionTitle>Promotion performance</SectionTitle>
-                    <SectionCopy>
-                      Promotion records are shown from the live agency promotion table. Performance metrics like impressions, clicks, CTR, and generated
-                      leads remain unavailable until paid placement tracking is implemented.
-                    </SectionCopy>
+                    <SectionTitle>{t("analytics.promotionPerformance")}</SectionTitle>
+                    <SectionCopy>{t("analytics.promotionPerformanceCopy")}</SectionCopy>
                   </div>
                   <NotePill>
                     <Users2 size={14} />
-                    {fullAnalytics.items.promotions.length} live promotion record{fullAnalytics.items.promotions.length === 1 ? "" : "s"}
+                    {t("analytics.livePromotionRecords", { count: fullAnalytics.items.promotions.length })}
                   </NotePill>
                 </SectionHead>
                 {fullAnalytics.items.promotions.length ? (
@@ -2159,31 +2203,31 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
                     <Table>
                       <thead>
                         <tr>
-                          <th>Promotion</th>
-                          <th>Impressions</th>
-                          <th>Clicks</th>
-                          <th>CTR</th>
-                          <th>Leads generated</th>
-                          <th>Appointments generated</th>
-                          <th>Status</th>
-                          <th>Start date</th>
-                          <th>End date</th>
+                          <th>{t("analytics.promotion")}</th>
+                          <th>{t("analytics.impressions")}</th>
+                          <th>{t("analytics.clicks")}</th>
+                          <th>{t("analytics.ctr")}</th>
+                          <th>{t("analytics.leadsGenerated")}</th>
+                          <th>{t("analytics.appointmentsGenerated")}</th>
+                          <th>{t("analytics.status")}</th>
+                          <th>{t("analytics.startDate")}</th>
+                          <th>{t("analytics.endDate")}</th>
                         </tr>
                       </thead>
                       <tbody>
                         {fullAnalytics.items.promotions.map((item) => (
                           <tr key={item.id}>
                             <td>{item.title}</td>
-                            <td>N/A</td>
-                            <td>N/A</td>
-                            <td>N/A</td>
-                            <td>N/A</td>
-                            <td>N/A</td>
+                            <td>{t("analytics.notAvailable")}</td>
+                            <td>{t("analytics.notAvailable")}</td>
+                            <td>{t("analytics.notAvailable")}</td>
+                            <td>{t("analytics.notAvailable")}</td>
+                            <td>{t("analytics.notAvailable")}</td>
                             <td>
-                              <Pill>{labelize(item.status)}</Pill>
+                              <Pill>{labelize(item.status, t)}</Pill>
                             </td>
-                            <td>{formatDateLabel(item.startsAt)}</td>
-                            <td>{formatDateLabel(item.endsAt)}</td>
+                            <td>{formatDateLabel(item.startsAt, language, t)}</td>
+                            <td>{formatDateLabel(item.endsAt, language, t)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -2191,7 +2235,7 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
                   </TableWrap>
                 ) : (
                   <EmptyState>
-                    No promotion records yet. Once this agency creates boostings, they will appear here with live status and schedule details.
+                    {t("analytics.noPromotionRecords")}
                   </EmptyState>
                 )}
               </Section>
@@ -2212,7 +2256,7 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
       <Shell>
         <BackLink href="/hub">
           <ArrowLeft size={16} />
-          Back to hub
+          {t("analytics.returnToHub")}
         </BackLink>
         {content}
       </Shell>
@@ -2221,16 +2265,5 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
 }
 
 export default function HubAnalyticsPage() {
-  return (
-    <Page>
-      <MarketplaceHeader />
-      <Shell>
-        <BackLink href="/hub">
-          <ArrowLeft size={16} />
-          Back to hub
-        </BackLink>
-        <HubAnalyticsContent />
-      </Shell>
-    </Page>
-  );
+  return <HubAnalyticsContent />;
 }

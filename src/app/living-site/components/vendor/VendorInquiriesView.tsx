@@ -9,6 +9,8 @@ import { CustomSelect } from "@/app/living-site/components/form-controls/CustomS
 import { supabase } from "@/app/living-site/lib/supabaseClient";
 import { withActiveVendorHeaders } from "@/app/living-site/lib/active-context";
 import { useI18n } from "@/app/living-site/lib/i18n";
+import { translateLocationName } from "@/app/living-site/lib/myanmar-geo";
+import { formatPropertyTypeValue } from "@/lib/property-types";
 
 const Page = styled.div<{ $embedded?: boolean }>`
   display: grid;
@@ -565,44 +567,51 @@ type VendorInquiriesViewProps = {
 };
 
 function labelize(value: string | null | undefined) {
-  if (!value) return "Unknown";
+  if (!value) return "";
   return value
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
 }
 
-function formatTimeline(value: string | null | undefined) {
+function formatDealType(value: string | null | undefined, t: (key: string) => string) {
+  if (!value) return t("vendor.inquiries.unknown");
+  if (value === "buy") return t("inquiry.buy");
+  if (value === "rent") return t("inquiry.rent");
+  return labelize(value) || t("vendor.inquiries.unknown");
+}
+
+function formatTimeline(value: string | null | undefined, t: (key: string) => string) {
   switch (value) {
     case "asap":
-      return "ASAP";
+      return t("vendor.inquiries.timeline.asap");
     case "1-3":
-      return "1 to 3 months";
+      return t("vendor.inquiries.timeline.1to3");
     case "3-6":
-      return "3 to 6 months";
+      return t("vendor.inquiries.timeline.3to6");
     case "browsing":
-      return "Just browsing";
+      return t("vendor.inquiries.timeline.browsing");
     default:
-      return labelize(value);
+      return labelize(value) || t("vendor.inquiries.unknown");
   }
 }
 
-function formatDate(value: string | null | undefined) {
-  if (!value) return "Unknown";
+function formatDate(value: string | null | undefined, locale: string, fallback: string) {
+  if (!value) return fallback;
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Unknown";
-  return new Intl.DateTimeFormat("en-US", {
+  if (Number.isNaN(date.getTime())) return fallback;
+  return new Intl.DateTimeFormat(locale, {
     month: "short",
     day: "numeric",
     year: "numeric",
   }).format(date);
 }
 
-function formatDateTime(value: string | null | undefined) {
-  if (!value) return "Not set";
+function formatDateTime(value: string | null | undefined, locale: string, fallback: string) {
+  if (!value) return fallback;
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Not set";
-  return new Intl.DateTimeFormat("en-US", {
+  if (Number.isNaN(date.getTime())) return fallback;
+  return new Intl.DateTimeFormat(locale, {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -611,53 +620,56 @@ function formatDateTime(value: string | null | undefined) {
   }).format(date);
 }
 
-function buildRequirementChips(item: InquiryItem) {
+function buildRequirementChips(item: InquiryItem, t: (key: string, params?: Record<string, string | number>) => string) {
   const chips: string[] = [];
-  if (item.bedrooms) chips.push(`${item.bedrooms}+ beds`);
-  if (item.bathrooms) chips.push(`${item.bathrooms}+ baths`);
-  if (item.area_sqft) chips.push(`${item.area_sqft} sqft`);
-  if (item.need_parking) chips.push("Needs parking");
-  if (item.need_lift) chips.push("Needs lift");
-  if (item.need_solar) chips.push("Needs solar");
-  if (item.need_generator) chips.push("Needs generator");
+  if (item.bedrooms) chips.push(t("vendor.inquiries.req.beds", { count: item.bedrooms }));
+  if (item.bathrooms) chips.push(t("vendor.inquiries.req.baths", { count: item.bathrooms }));
+  if (item.area_sqft) chips.push(t("vendor.inquiries.req.areaSqft", { count: item.area_sqft }));
+  if (item.need_parking) chips.push(t("vendor.inquiries.req.needsParking"));
+  if (item.need_lift) chips.push(t("vendor.inquiries.req.needsLift"));
+  if (item.need_solar) chips.push(t("vendor.inquiries.req.needsSolar"));
+  if (item.need_generator) chips.push(t("vendor.inquiries.req.needsGenerator"));
   return chips;
 }
 
 const statusOptions = [
-  { value: "new", label: "New" },
-  { value: "assigned", label: "Assigned" },
-  { value: "contacted", label: "Contacted" },
-  { value: "qualified", label: "Qualified" },
-  { value: "appointment_scheduled", label: "Appointment scheduled" },
-  { value: "viewed", label: "Viewed" },
-  { value: "negotiation", label: "Negotiation" },
-  { value: "closed_won", label: "Closed won" },
-  { value: "closed_lost", label: "Closed lost" },
-  { value: "unresponsive", label: "Unresponsive" },
-  { value: "spam", label: "Spam" },
+  { value: "new", labelKey: "hub.status.new" },
+  { value: "assigned", labelKey: "hub.status.assigned" },
+  { value: "contacted", labelKey: "hub.status.contacted" },
+  { value: "qualified", labelKey: "hub.status.qualified" },
+  { value: "appointment_scheduled", labelKey: "hub.status.appointmentScheduled" },
+  { value: "viewed", labelKey: "hub.status.viewed" },
+  { value: "negotiation", labelKey: "hub.status.negotiation" },
+  { value: "closed_won", labelKey: "hub.status.closedWon" },
+  { value: "closed_lost", labelKey: "hub.status.closedLost" },
+  { value: "unresponsive", labelKey: "hub.status.unresponsive" },
+  { value: "spam", labelKey: "hub.status.spam" },
 ];
 
 const pipelineStageOptions = statusOptions;
 
-const inboxTabs: Array<{ key: InquiryTabKey; label: string }> = [
-  { key: "all", label: "All leads" },
-  { key: "new", label: "New" },
-  { key: "unassigned", label: "Unassigned" },
-  { key: "overdue", label: "Overdue" },
-  { key: "qualified", label: "Qualified" },
-  { key: "mine", label: "Assigned to me" },
+const inboxTabs: Array<{ key: InquiryTabKey; labelKey: string }> = [
+  { key: "all", labelKey: "vendor.inquiries.tab.all" },
+  { key: "new", labelKey: "vendor.inquiries.tab.new" },
+  { key: "unassigned", labelKey: "vendor.inquiries.tab.unassigned" },
+  { key: "overdue", labelKey: "vendor.inquiries.tab.overdue" },
+  { key: "qualified", labelKey: "vendor.inquiries.tab.qualified" },
+  { key: "mine", labelKey: "vendor.inquiries.tab.mine" },
 ];
 
-function formatStatus(value: string | null | undefined) {
-  return statusOptions.find((option) => option.value === value)?.label ?? "New";
+function formatStatus(value: string | null | undefined, t: (key: string) => string) {
+  return t(statusOptions.find((option) => option.value === value)?.labelKey ?? "hub.status.new");
 }
 
-function formatPipelineStage(value: string | null | undefined) {
-  return pipelineStageOptions.find((option) => option.value === value)?.label ?? "New";
+function formatPipelineStage(value: string | null | undefined, t: (key: string) => string) {
+  return t(pipelineStageOptions.find((option) => option.value === value)?.labelKey ?? "hub.status.new");
 }
 
-function formatLocation(item: InquiryItem) {
-  return [item.township, item.district, item.state_region].filter(Boolean).join(" / ") || "Location pending";
+function formatLocation(item: InquiryItem, language: "en" | "mm" | "zh" | "th", fallback: string) {
+  return [item.township, item.district, item.state_region]
+    .filter(Boolean)
+    .map((part) => translateLocationName(part, language))
+    .join(" / ") || fallback;
 }
 
 function isOverdue(item: InquiryItem) {
@@ -674,7 +686,8 @@ export function VendorInquiriesView({
   vendorId = null,
 }: VendorInquiriesViewProps = {}) {
   const { authToken, user } = useAppState();
-  const { t } = useI18n();
+  const { t, language } = useI18n();
+  const locale = language === "mm" ? "my-MM" : language === "zh" ? "zh-CN" : language === "th" ? "th-TH" : "en-US";
   const [items, setItems] = useState<InquiryItem[]>([]);
   const [assignees, setAssignees] = useState<AssigneeOption[]>([]);
   const [membershipRole, setMembershipRole] = useState<string | null>(null);
@@ -858,7 +871,7 @@ export function VendorInquiriesView({
         | { error?: string; note?: InquiryItem["notes"][number] }
         | null;
       if (!response.ok || !payload?.note) {
-        throw new Error(payload?.error || "Unable to save note.");
+        throw new Error(payload?.error || t("vendor.inquiries.noteError"));
       }
 
       setItems((current) =>
@@ -1012,7 +1025,7 @@ export function VendorInquiriesView({
   const canManageTemplates = membershipRole === "owner" || membershipRole === "admin";
   const showEmptyPreview = !error && !items.length;
   const resolvedTitle = title ?? t("account.inquiries");
-  const resolvedSubtitle = subtitle ?? "Buyer and renter leads routed into your vendor workspace from the marketplace inquiry flow.";
+  const resolvedSubtitle = subtitle ?? t("vendor.inquiries.subtitle");
 
   return (
     <Page $embedded={embedded}>
@@ -1032,7 +1045,7 @@ export function VendorInquiriesView({
               <TabRow>
                 {inboxTabs.map((tab, index) => (
                   <Tab key={tab.key} type="button" $active={index === 0} disabled>
-                    {tab.label}
+                    {t(tab.labelKey)}
                   </Tab>
                 ))}
               </TabRow>
@@ -1089,42 +1102,42 @@ export function VendorInquiriesView({
             <ScrollPanel>
               <PanelHeader>
                 <PanelTitleWrap>
-                  <PanelTitle>Inbox tools</PanelTitle>
-                  <PanelCopy>Manage reusable message templates for lead follow-up.</PanelCopy>
+                  <PanelTitle>{t("vendor.inquiries.tools")}</PanelTitle>
+                  <PanelCopy>{t("vendor.inquiries.toolsCopy")}</PanelCopy>
                 </PanelTitleWrap>
                 <Button type="button" onClick={() => setSettingsOpen(false)}>
-                  Close tools
+                  {t("vendor.inquiries.closeTools")}
                 </Button>
               </PanelHeader>
               <PanelScrollBody>
                 <ToolsLayout>
                   <SettingsPanel style={{ gridTemplateRows: "auto auto minmax(0, 1fr) auto", overflow: "hidden" }}>
                     <PanelTitleWrap>
-                      <PanelTitle>Create template</PanelTitle>
-                      <PanelCopy>Write a reusable follow-up message for the team.</PanelCopy>
+                      <PanelTitle>{t("vendor.inquiries.createTemplate")}</PanelTitle>
+                      <PanelCopy>{t("vendor.inquiries.createTemplateCopy")}</PanelCopy>
                     </PanelTitleWrap>
                     <Input
                       value={templateTitle}
                       onChange={(event) => setTemplateTitle(event.target.value)}
-                      placeholder="Template title"
+                      placeholder={t("vendor.inquiries.templateTitlePlaceholder")}
                     />
                     <Textarea
                       value={templateBody}
                       onChange={(event) => setTemplateBody(event.target.value)}
-                      placeholder="Template message body"
+                      placeholder={t("vendor.inquiries.templateBodyPlaceholder")}
                       style={{ minHeight: 0, height: "100%" }}
                     />
                     <Controls>
                       <Button type="button" $primary onClick={() => void handleCreateTemplate()} disabled={creatingTemplate}>
-                        {creatingTemplate ? "Saving template..." : "Save template"}
+                        {creatingTemplate ? t("vendor.inquiries.savingTemplate") : t("vendor.inquiries.saveTemplate")}
                       </Button>
                     </Controls>
                   </SettingsPanel>
 
                   <SettingsPanel style={{ minHeight: 0, overflow: "hidden", gridTemplateRows: "auto minmax(0, 1fr)" }}>
                     <PanelTitleWrap>
-                      <PanelTitle>Saved templates</PanelTitle>
-                      <PanelCopy>Available for quick insertion when working a lead.</PanelCopy>
+                      <PanelTitle>{t("vendor.inquiries.savedTemplates")}</PanelTitle>
+                      <PanelCopy>{t("vendor.inquiries.savedTemplatesCopy")}</PanelCopy>
                     </PanelTitleWrap>
                     {templates.length ? (
                       <ToolsScrollSection>
@@ -1138,7 +1151,7 @@ export function VendorInquiriesView({
                         </NoteList>
                       </ToolsScrollSection>
                     ) : (
-                      <SmallText>No templates yet.</SmallText>
+                      <SmallText>{t("vendor.inquiries.noTemplates")}</SmallText>
                     )}
                   </SettingsPanel>
                 </ToolsLayout>
@@ -1151,7 +1164,7 @@ export function VendorInquiriesView({
                   <TabRow>
                     {inboxTabs.map((tab) => (
                       <Tab key={tab.key} type="button" $active={activeTab === tab.key} onClick={() => setActiveTab(tab.key)}>
-                        {tab.label}
+                        {t(tab.labelKey)}
                       </Tab>
                     ))}
                   </TabRow>
@@ -1174,7 +1187,7 @@ export function VendorInquiriesView({
                       <option value="all">{t("vendor.inquiries.allStatuses")}</option>
                       {statusOptions.map((option) => (
                         <option key={option.value} value={option.value}>
-                          {option.label}
+                          {t(option.labelKey)}
                         </option>
                       ))}
                     </CustomSelect>
@@ -1220,22 +1233,22 @@ export function VendorInquiriesView({
                             <LeadTop>
                               <LeadMain>
                                 <LeadTitle>
-                                  {labelize(item.deal_type)} {labelize(item.property_type)}
+                                  {formatDealType(item.deal_type, t)} {formatPropertyTypeValue(item.property_type, t) || labelize(item.property_type) || t("vendor.inquiries.unknown")}
                                 </LeadTitle>
                                 <LeadMeta>
                                   {item.is_unread ? <LeadUnreadDot aria-hidden="true" /> : null}
                                   <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                                     <MapPinned size={14} />
-                                    {formatLocation(item)}
+                                    {formatLocation(item, language, t("map.locationPending"))}
                                   </span>
                                 </LeadMeta>
                               </LeadMain>
-                              <StatusPill $status={item.status}>{formatStatus(item.status)}</StatusPill>
+                              <StatusPill $status={item.status}>{formatStatus(item.status, t)}</StatusPill>
                             </LeadTop>
                             <LeadSummary>
                               <span>{t("vendor.inquiries.budget")}: {item.budget_range || t("vendor.inquiries.notSpecified")}</span>
                               <span>{t("vendor.inquiries.assigned")}: {item.assigned_member_name || t("vendor.inquiries.unassigned")}</span>
-                              <span>{t("vendor.inquiries.sla")}: {formatDateTime(item.sla_due_at)}</span>
+                              <span>{t("vendor.inquiries.sla")}: {formatDateTime(item.sla_due_at, locale, t("vendor.inquiries.notSet"))}</span>
                             </LeadSummary>
                           </LeadRow>
                         ))}
@@ -1258,11 +1271,11 @@ export function VendorInquiriesView({
                       <PanelHeader>
                         <PanelTitleWrap>
                           <PanelTitle>
-                            {labelize(selectedLead.deal_type)} {labelize(selectedLead.property_type)}
+                            {formatDealType(selectedLead.deal_type, t)} {formatPropertyTypeValue(selectedLead.property_type, t) || labelize(selectedLead.property_type) || t("vendor.inquiries.unknown")}
                           </PanelTitle>
-                          <PanelCopy>{formatLocation(selectedLead)}</PanelCopy>
+                          <PanelCopy>{formatLocation(selectedLead, language, t("map.locationPending"))}</PanelCopy>
                         </PanelTitleWrap>
-                        <StatusPill $status={selectedLead.status}>{formatStatus(selectedLead.status)}</StatusPill>
+                        <StatusPill $status={selectedLead.status}>{formatStatus(selectedLead.status, t)}</StatusPill>
                       </PanelHeader>
 
                   <InlineGrid>
@@ -1272,7 +1285,7 @@ export function VendorInquiriesView({
                   </SummaryCard>
                   <SummaryCard>
                       <SummaryLabel>{t("vendor.inquiries.timeline")}</SummaryLabel>
-                      <SummaryValue>{formatTimeline(selectedLead.timeline)}</SummaryValue>
+                      <SummaryValue>{formatTimeline(selectedLead.timeline, t)}</SummaryValue>
                     </SummaryCard>
                   <SummaryCard>
                     <SummaryLabel>{t("vendor.inquiries.assigned")}</SummaryLabel>
@@ -1284,15 +1297,15 @@ export function VendorInquiriesView({
                   </SummaryCard>
                   <SummaryCard>
                     <SummaryLabel>{t("vendor.inquiries.slaDue")}</SummaryLabel>
-                    <SummaryValue>{formatDateTime(selectedLead.sla_due_at)}</SummaryValue>
+                    <SummaryValue>{formatDateTime(selectedLead.sla_due_at, locale, t("vendor.inquiries.notSet"))}</SummaryValue>
                     </SummaryCard>
                     <SummaryCard>
                       <SummaryLabel>{t("vendor.inquiries.created")}</SummaryLabel>
-                      <SummaryValue>{formatDate(selectedLead.created_at)}</SummaryValue>
+                      <SummaryValue>{formatDate(selectedLead.created_at, locale, t("vendor.inquiries.unknown"))}</SummaryValue>
                     </SummaryCard>
                     <SummaryCard>
                       <SummaryLabel>{t("vendor.inquiries.lastContacted")}</SummaryLabel>
-                      <SummaryValue>{formatDateTime(selectedLead.last_contacted_at)}</SummaryValue>
+                      <SummaryValue>{formatDateTime(selectedLead.last_contacted_at, locale, t("vendor.inquiries.notSet"))}</SummaryValue>
                     </SummaryCard>
                   </InlineGrid>
 
@@ -1311,7 +1324,7 @@ export function VendorInquiriesView({
                         >
                           {statusOptions.map((option) => (
                             <option key={option.value} value={option.value}>
-                              {option.label}
+                              {t(option.labelKey)}
                             </option>
                           ))}
                         </CustomSelect>
@@ -1328,7 +1341,7 @@ export function VendorInquiriesView({
                         >
                           {pipelineStageOptions.map((option) => (
                             <option key={option.value} value={option.value}>
-                              {option.label}
+                              {t(option.labelKey)}
                             </option>
                           ))}
                         </CustomSelect>
@@ -1338,7 +1351,7 @@ export function VendorInquiriesView({
                           <CustomSelect
                             id={`lead-assignee-${selectedLead.lead_id}`}
                             name={`lead-assignee-${selectedLead.lead_id}`}
-                            label="Assignee"
+                            label={t("vendor.inquiries.assignee")}
                             hideLabel
                             value={selectedLead.assigned_member_user_id ?? ""}
                             onChange={(value) =>
@@ -1360,11 +1373,11 @@ export function VendorInquiriesView({
                     </Controls>
                   </Section>
 
-                  {buildRequirementChips(selectedLead).length ? (
+                  {buildRequirementChips(selectedLead, t).length ? (
                     <Section>
                       <SectionTitle>{t("vendor.inquiries.requirements")}</SectionTitle>
                       <Chips>
-                        {buildRequirementChips(selectedLead).map((requirement) => (
+                        {buildRequirementChips(selectedLead, t).map((requirement) => (
                           <Chip key={requirement}>{requirement}</Chip>
                         ))}
                       </Chips>
@@ -1385,7 +1398,7 @@ export function VendorInquiriesView({
                           <NoteItem key={note.id}>
                             <NoteTop>
                               <SmallText>
-                                {(note.author_name || t("vendor.inquiries.teamMember")) + " • " + formatDateTime(note.created_at)}
+                                {(note.author_name || t("vendor.inquiries.teamMember")) + " • " + formatDateTime(note.created_at, locale, t("vendor.inquiries.notSet"))}
                               </SmallText>
                               <IconButton
                                 type="button"
@@ -1480,7 +1493,7 @@ export function VendorInquiriesView({
                   }}
                   disabled={savingLeadId === selectedLead.lead_id}
                 >
-                  Add note
+                  {t("vendor.inquiries.saveNote")}
                 </Button>
               </Controls>
             </ModalBody>

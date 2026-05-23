@@ -1198,18 +1198,18 @@ function productIcon(type: PromotionType) {
   return <Sparkles size={18} />;
 }
 
-const promotionTypeTabs: Array<{ value: "all" | PromotionType; label: string }> = [
-  { value: "all", label: "All" },
-  { value: "hero_ad", label: "Hero Section Ad" },
-  { value: "search_ranking", label: "Search Ranking" },
-  { value: "listing_boost", label: "Boosting" },
+const promotionTypeTabs: Array<{ value: "all" | PromotionType; labelKey: string }> = [
+  { value: "all", labelKey: "vendor.promotions.type.all" },
+  { value: "hero_ad", labelKey: "vendor.promotions.type.heroAd" },
+  { value: "search_ranking", labelKey: "vendor.promotions.type.searchRanking" },
+  { value: "listing_boost", labelKey: "vendor.promotions.type.listingBoost" },
 ];
 
 const promotionStatusScopes = [
-  { value: "all", label: "All statuses" },
-  { value: "active", label: "Active" },
-  { value: "drafts", label: "Drafts" },
-  { value: "history", label: "History" },
+  { value: "all", labelKey: "vendor.promotions.scope.all" },
+  { value: "active", labelKey: "vendor.promotions.scope.active" },
+  { value: "drafts", labelKey: "vendor.promotions.scope.drafts" },
+  { value: "history", labelKey: "vendor.promotions.scope.history" },
 ] as const;
 
 const promotionPlanPresets: Record<
@@ -1286,10 +1286,10 @@ function getCalendarDays(monthDate: Date) {
   return days;
 }
 
-function formatDatePickerLabel(value: string | undefined) {
+function formatDatePickerLabel(value: string | undefined, locale: string) {
   const parsed = parseDateOnly(value);
   if (!parsed) return "";
-  return parsed.toLocaleDateString("en-US", {
+  return parsed.toLocaleDateString(locale, {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -1310,9 +1310,9 @@ function buildHeroAvailabilityDays() {
   });
 }
 
-function getPlanBadge(type: PromotionType, index: number, total: number) {
-  if (index === 1) return { label: "Popular", tone: "accent" as const, icon: <Star size={11} /> };
-  if (index === total - 1) return { label: "Best value", tone: "success" as const, icon: <Gem size={11} /> };
+function getPlanBadge(t: (key: string) => string, index: number, total: number) {
+  if (index === 1) return { label: t("vendor.promotions.badge.popular"), tone: "accent" as const, icon: <Star size={11} /> };
+  if (index === total - 1) return { label: t("vendor.promotions.badge.bestValue"), tone: "success" as const, icon: <Gem size={11} /> };
   return null;
 }
 
@@ -1320,6 +1320,26 @@ function getPlanIcon(type: PromotionType) {
   if (type === "hero_ad") return <Crown size={16} />;
   if (type === "search_ranking") return <Search size={16} />;
   return <Sparkles size={16} />;
+}
+
+function getPromotionTypeLabel(type: PromotionType | "all", t: (key: string) => string) {
+  if (type === "hero_ad") return t("vendor.promotions.type.heroAd");
+  if (type === "search_ranking") return t("vendor.promotions.type.searchRanking");
+  if (type === "listing_boost") return t("vendor.promotions.type.listingBoost");
+  return t("vendor.promotions.type.all");
+}
+
+function getPlanLabel(key: string, t: (key: string) => string) {
+  if (key.endsWith("-24")) return t("vendor.promotions.plan.24h");
+  if (key.endsWith("-72")) return t("vendor.promotions.plan.3d");
+  if (key.endsWith("-120")) return t("vendor.promotions.plan.5d");
+  if (key.endsWith("-168")) return t("vendor.promotions.plan.1w");
+  return key;
+}
+
+function getHeroSlotLabel(slot: (typeof heroSlotLabels)[number], t: (key: string, params?: Record<string, string | number>) => string) {
+  const index = heroSlotLabels.indexOf(slot) + 1;
+  return t("vendor.promotions.slot", { index });
 }
 
 function collectHeroRangeKeys(
@@ -1345,17 +1365,23 @@ function HeroInlineCalendar({
   blockedKeys,
   selectedRangeKeys,
   onChange,
+  weekdayLabels,
+  todayLabel,
+  locale,
 }: {
   value: string;
   blockedKeys: Set<string>;
   selectedRangeKeys: Set<string>;
   onChange: (value: string) => void;
+  weekdayLabels: string[];
+  todayLabel: string;
+  locale: string;
 }) {
   const selectedDate = value ? parseDateOnly(value) : null;
   const [currentMonth, setCurrentMonth] = useState<Date>(selectedDate ?? new Date());
   const days = useMemo(() => getCalendarDays(currentMonth), [currentMonth]);
   const todayKey = formatDateKey(startOfDay(new Date()));
-  const monthLabel = currentMonth.toLocaleDateString("en-US", {
+  const monthLabel = currentMonth.toLocaleDateString(locale, {
     month: "long",
     year: "numeric",
   });
@@ -1372,7 +1398,7 @@ function HeroInlineCalendar({
         </PickerNav>
       </PickerCardHeader>
       <CalendarHeader>
-        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+        {weekdayLabels.map((day) => (
           <CalendarHeaderCell key={day}>{day}</CalendarHeaderCell>
         ))}
       </CalendarHeader>
@@ -1397,11 +1423,11 @@ function HeroInlineCalendar({
                 onChange(key);
               }}
               disabled={isBlocked || isPast}
-              title={item.date.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+              title={item.date.toLocaleDateString(locale, { month: "short", day: "numeric" })}
             >
               <CalendarDayInner>
                 <span>{item.date.getDate()}</span>
-                {isToday ? <CalendarTodayTag>Today</CalendarTodayTag> : null}
+                {isToday ? <CalendarTodayTag>{todayLabel}</CalendarTodayTag> : null}
               </CalendarDayInner>
             </CalendarDay>
           );
@@ -1418,11 +1444,25 @@ function statusTone(status: string | null | undefined) {
   return "neutral" as const;
 }
 
-function formatDateTime(value: string | null | undefined) {
-  if (!value) return "N/A";
+function getPromotionStatusLabel(
+  status: string | null | undefined,
+  t: (key: string) => string
+) {
+  if (status === "active") return t("vendor.promotions.status.active");
+  if (status === "expired") return t("vendor.promotions.status.expired");
+  if (status === "draft") return t("vendor.promotions.status.draft");
+  if (status === "pending_payment") return t("vendor.promotions.status.pendingPayment");
+  if (status === "pending_activation") return t("vendor.promotions.status.pendingActivation");
+  if (status === "paused") return t("vendor.promotions.status.paused");
+  if (status === "cancelled") return t("vendor.promotions.status.cancelled");
+  return t("vendor.promotions.notAvailable");
+}
+
+function formatDateTime(value: string | null | undefined, locale: string, fallback: string) {
+  if (!value) return fallback;
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "N/A";
-  return new Intl.DateTimeFormat("en-US", {
+  if (Number.isNaN(date.getTime())) return fallback;
+  return new Intl.DateTimeFormat(locale, {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -1446,6 +1486,7 @@ export function VendorPromotionsView({
 }: Props) {
   const { authToken } = useAppState();
   const { t, language } = useI18n();
+  const locale = language === "mm" ? "my-MM" : language === "zh" ? "zh-CN" : language === "th" ? "th-TH" : "en-US";
   const [data, setData] = useState<PromotionsPayload | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -1492,6 +1533,15 @@ export function VendorPromotionsView({
   const heroRangeKeys = useMemo(() => {
     return new Set(heroRangeKeyList);
   }, [heroRangeKeyList]);
+  const calendarWeekdayLabels = useMemo(() => {
+    const formatter = new Intl.DateTimeFormat(locale, { weekday: "short" });
+    const sunday = new Date(Date.UTC(2024, 0, 7));
+    return Array.from({ length: 7 }, (_, index) => {
+      const current = new Date(sunday);
+      current.setUTCDate(sunday.getUTCDate() + index);
+      return formatter.format(current);
+    });
+  }, [locale]);
 
   useEffect(() => {
     if (!authToken || !vendorId || !verified) return;
@@ -1554,7 +1604,7 @@ export function VendorPromotionsView({
       if (!listingPickerOpen) setListingSearch("");
       return;
     }
-    setListingSearch(selectedListing.title || "Untitled property");
+    setListingSearch(selectedListing.title || t("vendor.promotions.untitledProperty"));
   }, [listingPickerOpen, selectedListing]);
 
   useEffect(() => {
@@ -1562,12 +1612,12 @@ export function VendorPromotionsView({
     const matchedListing = eligibleListings.find((item) => item.id === initialListingId);
     if (!matchedListing) return;
     setListingId(matchedListing.id);
-    setListingSearch(matchedListing.title || "Untitled property");
+    setListingSearch(matchedListing.title || t("vendor.promotions.untitledProperty"));
     setSelectedType("listing_boost");
     setSelectedPlanKey(promotionPlanPresets.listing_boost[0].key);
     setCreatorOpen(true);
     setInitialPrefillConsumed(true);
-  }, [canManagePromotions, eligibleListings, initialListingId, initialPrefillConsumed]);
+  }, [canManagePromotions, eligibleListings, initialListingId, initialPrefillConsumed, t]);
 
   useEffect(() => {
     if (!selectedPlan) return;
@@ -1598,13 +1648,13 @@ export function VendorPromotionsView({
   const endsAtPreview = useMemo(() => {
     if (selectedType === "hero_ad") {
       const lastHeroDay = heroRangeKeyList[heroRangeKeyList.length - 1];
-      return lastHeroDay ? formatDatePickerLabel(lastHeroDay) : "Select plan and date";
+      return lastHeroDay ? formatDatePickerLabel(lastHeroDay, locale) : t("vendor.promotions.selectPlanAndDate");
     }
     const parsedHours = Number(selectedPlan?.durationHours ?? 0);
     const start = new Date(startsAt);
-    if (!Number.isFinite(parsedHours) || !Number.isFinite(start.getTime())) return "N/A";
-    return formatDateTime(new Date(start.getTime() + parsedHours * 60 * 60 * 1000).toISOString());
-  }, [heroRangeKeyList, selectedPlan, selectedType, startsAt]);
+    if (!Number.isFinite(parsedHours) || !Number.isFinite(start.getTime())) return t("vendor.promotions.notAvailable");
+    return formatDateTime(new Date(start.getTime() + parsedHours * 60 * 60 * 1000).toISOString(), locale, t("vendor.promotions.notAvailable"));
+  }, [heroRangeKeyList, locale, selectedPlan, selectedType, startsAt, t]);
 
   const activePromotions = useMemo(
     () => (data?.items ?? []).filter((item) => getEffectivePromotionStatus(item) === "active"),
@@ -1667,13 +1717,13 @@ export function VendorPromotionsView({
       setTitle("");
       setDescription("");
       setStartsAt(formatDateTimeInput(new Date(Date.now() + 60 * 60 * 1000)));
-      setSelectedHeroSlot("Slot 1");
+      setSelectedHeroSlot(heroSlotLabels[0]);
       setSelectedHeroStartKey(null);
     } else {
       const matchedListing = eligibleListings.find((item) => item.id === prefillListingId);
       if (matchedListing) {
         setListingId(matchedListing.id);
-        setListingSearch(matchedListing.title || "Untitled property");
+        setListingSearch(matchedListing.title || t("vendor.promotions.untitledProperty"));
         setSelectedType("listing_boost");
         setHeroTargetType("listing");
         setSelectedPlanKey(promotionPlanPresets.listing_boost[0].key);
@@ -1923,7 +1973,7 @@ export function VendorPromotionsView({
             >
               {promotionStatusScopes.map((option) => (
                 <option key={option.value} value={option.value}>
-                  {option.label}
+                  {t(option.labelKey)}
                 </option>
               ))}
             </CustomSelect>
@@ -1932,7 +1982,7 @@ export function VendorPromotionsView({
           <TabRow>
             {promotionTypeTabs.map((tab) => (
               <FilterTab key={tab.value} type="button" $active={typeFilter === tab.value} onClick={() => setTypeFilter(tab.value)}>
-                {tab.label}
+                {t(tab.labelKey)}
               </FilterTab>
             ))}
           </TabRow>
@@ -1971,9 +2021,9 @@ export function VendorPromotionsView({
                               <PromotionTitle>{item.title || linkedListing?.title || t("vendor.promotions.untitled")}</PromotionTitle>
                               <PromotionMeta>
                                 <span>
-                                  {promotionProducts.find((product) => product.type === item.promotion_type)?.label ||
+                                  {(item.promotion_type ? getPromotionTypeLabel(item.promotion_type as PromotionType, t) : null) ||
                                     item.promotion_type ||
-                                    "Promotion"}
+                                    t("vendor.promotions.productFallback")}
                                 </span>
                                 {linkedListing?.title ? (
                                   <>
@@ -1984,11 +2034,11 @@ export function VendorPromotionsView({
                               </PromotionMeta>
                             </div>
                             <PromotionTopRight>
-                              <Pill $tone={statusTone(effectiveStatus)}>{effectiveStatus || "N/A"}</Pill>
+                              <Pill $tone={statusTone(effectiveStatus)}>{getPromotionStatusLabel(effectiveStatus, t)}</Pill>
                               {canManagePromotions && (isPayablePromotionStatus(effectiveStatus) || effectiveStatus === "expired") ? (
                                 <PromotionActionButton type="button" onClick={() => openPaymentWallForItem(item)}>
                                   <Megaphone size={14} />
-                                  <span>{effectiveStatus === "expired" ? "Refresh boost" : "Pay now"}</span>
+                                  <span>{effectiveStatus === "expired" ? t("vendor.promotions.refreshBoost") : t("vendor.promotions.payNow")}</span>
                                 </PromotionActionButton>
                               ) : null}
                             </PromotionTopRight>
@@ -1996,12 +2046,12 @@ export function VendorPromotionsView({
                           <PromotionMeta>
                             <span>
                               <CalendarClock size={14} style={{ verticalAlign: "text-bottom", marginRight: 6 }} />
-                              {formatDateTime(item.starts_at)}
+                              {formatDateTime(item.starts_at, locale, t("vendor.promotions.notAvailable"))}
                             </span>
                             <span>•</span>
-                            <span>{formatCurrency(item.price_per_24h ?? undefined, "MMK", "N/A", language)} / 24h</span>
+                            <span>{t("vendor.promotions.per24h", { amount: formatCurrency(item.price_per_24h ?? undefined, "MMK", t("vendor.promotions.notAvailable"), language) })}</span>
                             <span>•</span>
-                            <span>{item.duration_hours ? `${item.duration_hours}h` : "N/A"}</span>
+                            <span>{item.duration_hours ? t("vendor.promotions.hours", { count: item.duration_hours }) : t("vendor.promotions.notAvailable")}</span>
                           </PromotionMeta>
                         </div>
                       </PromotionRowMain>
@@ -2018,17 +2068,17 @@ export function VendorPromotionsView({
           <ModalShell>
             <ModalHeader>
               <div>
-                <Title style={{ fontSize: "1.3rem" }}>Create Promotion</Title>
-                <Subtitle style={{ maxWidth: "none" }}>Choose what to promote, then pick a plan and schedule.</Subtitle>
+                <Title style={{ fontSize: "1.3rem" }}>{t("vendor.promotions.createTitle")}</Title>
+                <Subtitle style={{ maxWidth: "none" }}>{t("vendor.promotions.createCopy")}</Subtitle>
               </div>
-              <ModalClose type="button" onClick={closeCreator} aria-label="Close">
+              <ModalClose type="button" onClick={closeCreator} aria-label={t("common.close")}>
                 <X size={18} />
               </ModalClose>
             </ModalHeader>
 
             <ModalBody>
               {noEligibleListings && selectedType !== "hero_ad" ? (
-                <Empty>You need at least one active listing before purchasing this promotion.</Empty>
+                <Empty>{t("vendor.promotions.needActiveListing")}</Empty>
               ) : null}
 
               <TypeTabs>
@@ -2045,7 +2095,7 @@ export function VendorPromotionsView({
                     }}
                   >
                     {productIcon(product.type)}
-                    <span>{product.label}</span>
+                    <span>{getPromotionTypeLabel(product.type, t)}</span>
                   </TypeTab>
                 ))}
               </TypeTabs>
@@ -2055,9 +2105,9 @@ export function VendorPromotionsView({
                   <FullWidth>
                     <div style={{ display: "grid", gap: 14 }}>
                       <div>
-                        <CardTitle>What do you want to promote?</CardTitle>
+                        <CardTitle>{t("vendor.promotions.whatToPromote")}</CardTitle>
                         <CardCopy style={{ marginTop: 6 }}>
-                          Pick either your verified agency profile or one active listing for this hero slot.
+                          {t("vendor.promotions.whatToPromoteCopy")}
                         </CardCopy>
                       </div>
                       <HeroTargetGrid>
@@ -2071,8 +2121,8 @@ export function VendorPromotionsView({
                               <Building2 size={18} />
                             </HeroTargetIcon>
                             <div>
-                              <HeroTargetTitle>Agency profile</HeroTargetTitle>
-                              <HeroTargetCopy>Lead with your brand, trust, and agency identity.</HeroTargetCopy>
+                              <HeroTargetTitle>{t("listing.agencyProfile")}</HeroTargetTitle>
+                              <HeroTargetCopy>{t("vendor.promotions.heroAgencyProfileCopy")}</HeroTargetCopy>
                             </div>
                           </HeroTargetTop>
                         </HeroTargetCard>
@@ -2086,8 +2136,8 @@ export function VendorPromotionsView({
                               <House size={18} />
                             </HeroTargetIcon>
                             <div>
-                              <HeroTargetTitle>One listing</HeroTargetTitle>
-                              <HeroTargetCopy>Feature one active listing directly in the homepage hero.</HeroTargetCopy>
+                              <HeroTargetTitle>{t("vendor.promotions.oneListing")}</HeroTargetTitle>
+                              <HeroTargetCopy>{t("vendor.promotions.heroOneListingCopy")}</HeroTargetCopy>
                             </div>
                           </HeroTargetTop>
                         </HeroTargetCard>
@@ -2097,7 +2147,7 @@ export function VendorPromotionsView({
                         <HeroAgencyPreview>
                           <HeroAgencyPreviewTop>
                             <HeroAgencyPreviewLogo>
-                              {(data?.workspace?.vendorName || "Agency")
+                              {(data?.workspace?.vendorName || t("agency.label"))
                                 .split(/\s+/)
                                 .filter(Boolean)
                                 .slice(0, 2)
@@ -2105,27 +2155,27 @@ export function VendorPromotionsView({
                                 .join("") || "AG"}
                             </HeroAgencyPreviewLogo>
                             <div>
-                              <HeroAgencyPreviewName>{data?.workspace?.vendorName || "Your agency profile"}</HeroAgencyPreviewName>
+                              <HeroAgencyPreviewName>{data?.workspace?.vendorName || t("vendor.promotions.yourAgencyProfile")}</HeroAgencyPreviewName>
                               <HeroAgencyPreviewMeta>
                                 <ShieldCheck size={14} />
-                                <span>Verified agency spotlight</span>
+                                <span>{t("home.verifiedAgencySpotlight")}</span>
                               </HeroAgencyPreviewMeta>
                             </div>
                           </HeroAgencyPreviewTop>
                           <HeroAgencyPreviewCopy>
-                            Buyers will land on your agency profile and see your listings, trust badge, and brand first.
+                            {t("vendor.promotions.heroAgencyPreviewCopy")}
                           </HeroAgencyPreviewCopy>
                         </HeroAgencyPreview>
                       ) : (
                         noEligibleListings ? (
-                          <Empty>You need at least one active listing before using a listing hero placement.</Empty>
+                          <Empty>{t("vendor.promotions.needActiveListingHero")}</Empty>
                         ) : (
                         <SearchableField
                           onBlur={() => {
                             setTimeout(() => {
                               setListingPickerOpen(false);
                               if (selectedListing) {
-                                setListingSearch(selectedListing.title || "Untitled property");
+                                setListingSearch(selectedListing.title || t("vendor.promotions.untitledProperty"));
                               } else if (!normalizedListingSearch) {
                                 setListingSearch("");
                               }
@@ -2134,12 +2184,12 @@ export function VendorPromotionsView({
                         >
                           <FloatingField data-filled={Boolean(listingSearch)}>
                             <FloatingLabel htmlFor="promotion-listing-search" $filled>
-                              Listing
+                              {t("listing.property")}
                             </FloatingLabel>
                             <SearchableTrigger
                               id="promotion-listing-search"
                               value={listingSearch}
-                              placeholder="Search or choose a listing"
+                              placeholder={t("vendor.promotions.searchOrChooseListing")}
                               onFocus={() => setListingPickerOpen(true)}
                               onChange={(event) => {
                                 setListingSearch(event.target.value);
@@ -2161,19 +2211,19 @@ export function VendorPromotionsView({
                                     onMouseDown={(event) => {
                                       event.preventDefault();
                                       setListingId(item.id);
-                                      setListingSearch(item.title || "Untitled property");
+                                      setListingSearch(item.title || t("vendor.promotions.untitledProperty"));
                                       setListingPickerOpen(false);
                                     }}
                                   >
-                                    <SearchableOptionTitle>{item.title || "Untitled property"}</SearchableOptionTitle>
+                                    <SearchableOptionTitle>{item.title || t("vendor.promotions.untitledProperty")}</SearchableOptionTitle>
                                     <SearchableOptionMeta>
-                                      {formatPropertyTypeValue(item.property_type)} • {item.deal_type || "N/A"} •{" "}
-                                      {item.township || item.city || "N/A"}
+                                      {formatPropertyTypeValue(item.property_type, t)} • {item.deal_type || t("vendor.promotions.notAvailable")} •{" "}
+                                      {item.township || item.city || t("vendor.promotions.notAvailable")}
                                     </SearchableOptionMeta>
                                   </SearchableOption>
                                 ))
                               ) : (
-                                <SearchableEmpty>No matching listings found.</SearchableEmpty>
+                                <SearchableEmpty>{t("vendor.promotions.noMatchingListings")}</SearchableEmpty>
                               )}
                             </SearchableMenu>
                           ) : null}
@@ -2184,14 +2234,14 @@ export function VendorPromotionsView({
                   </FullWidth>
                 ) : (
                   noEligibleListings ? (
-                    <Empty>You need at least one active listing before purchasing this promotion.</Empty>
+                    <Empty>{t("vendor.promotions.needActiveListing")}</Empty>
                   ) : (
                   <SearchableField
                     onBlur={() => {
                       setTimeout(() => {
                         setListingPickerOpen(false);
                         if (selectedListing) {
-                          setListingSearch(selectedListing.title || "Untitled property");
+                          setListingSearch(selectedListing.title || t("vendor.promotions.untitledProperty"));
                         } else if (!normalizedListingSearch) {
                           setListingSearch("");
                         }
@@ -2200,12 +2250,12 @@ export function VendorPromotionsView({
                   >
                     <FloatingField data-filled={Boolean(listingSearch)}>
                       <FloatingLabel htmlFor="promotion-listing-search" $filled>
-                        Listing
+                        {t("listing.property")}
                       </FloatingLabel>
                       <SearchableTrigger
                         id="promotion-listing-search"
                         value={listingSearch}
-                        placeholder="Search or choose a listing"
+                        placeholder={t("vendor.promotions.searchOrChooseListing")}
                         onFocus={() => setListingPickerOpen(true)}
                         onChange={(event) => {
                           setListingSearch(event.target.value);
@@ -2227,19 +2277,19 @@ export function VendorPromotionsView({
                               onMouseDown={(event) => {
                                 event.preventDefault();
                                 setListingId(item.id);
-                                setListingSearch(item.title || "Untitled property");
+                                setListingSearch(item.title || t("vendor.promotions.untitledProperty"));
                                 setListingPickerOpen(false);
                               }}
                             >
-                              <SearchableOptionTitle>{item.title || "Untitled property"}</SearchableOptionTitle>
+                              <SearchableOptionTitle>{item.title || t("vendor.promotions.untitledProperty")}</SearchableOptionTitle>
                               <SearchableOptionMeta>
-                                {formatPropertyTypeValue(item.property_type)} • {item.deal_type || "N/A"} •{" "}
-                                {item.township || item.city || "N/A"}
+                                {formatPropertyTypeValue(item.property_type, t)} • {item.deal_type || t("vendor.promotions.notAvailable")} •{" "}
+                                {item.township || item.city || t("vendor.promotions.notAvailable")}
                               </SearchableOptionMeta>
                             </SearchableOption>
                           ))
                         ) : (
-                          <SearchableEmpty>No matching listings found.</SearchableEmpty>
+                          <SearchableEmpty>{t("vendor.promotions.noMatchingListings")}</SearchableEmpty>
                         )}
                       </SearchableMenu>
                     ) : null}
@@ -2249,7 +2299,7 @@ export function VendorPromotionsView({
 
                 <FloatingField data-filled={Boolean(title)}>
                   <FloatingLabel htmlFor="promotion-title" $filled={Boolean(title)}>
-                    Title
+                    {t("vendor.promotions.titleField")}
                   </FloatingLabel>
                   <FloatingInput
                     id="promotion-title"
@@ -2261,14 +2311,14 @@ export function VendorPromotionsView({
                 <FullWidth>
                   <FloatingField data-filled={Boolean(description)}>
                     <FloatingLabel htmlFor="promotion-description" $filled={Boolean(description)}>
-                      Description
+                      {t("listing.description")}
                     </FloatingLabel>
                     <FloatingTextarea
                       id="promotion-description"
                       value={description}
                       onChange={(event) => handleDescriptionChange(event.target.value)}
                     />
-                    <WordCounter>{descriptionWordCount}/40 words</WordCounter>
+                    <WordCounter>{t("vendor.promotions.words", { count: descriptionWordCount, limit: 40 })}</WordCounter>
                   </FloatingField>
                 </FullWidth>
               </FormGrid>
@@ -2280,13 +2330,13 @@ export function VendorPromotionsView({
                       {!selectedListing.cover_image_url ? <ImageIcon size={18} /> : null}
                     </ListingMiniImage>
                     <div>
-                      <ListingMiniTitle>{selectedListing.title || "Untitled property"}</ListingMiniTitle>
+                      <ListingMiniTitle>{selectedListing.title || t("vendor.promotions.untitledProperty")}</ListingMiniTitle>
                       <ListingMiniMeta>
-                        {formatPropertyTypeValue(selectedListing.property_type)} • {selectedListing.deal_type || "N/A"} •{" "}
-                        {selectedListing.township || selectedListing.city || "N/A"}
+                        {formatPropertyTypeValue(selectedListing.property_type, t)} • {selectedListing.deal_type || t("vendor.promotions.notAvailable")} •{" "}
+                        {selectedListing.township || selectedListing.city || t("vendor.promotions.notAvailable")}
                       </ListingMiniMeta>
                       <ListingMiniMeta>
-                        {formatCurrency(selectedListing.price ?? undefined, selectedListing.currency ?? "MMK", "Contact", language)}
+                        {formatCurrency(selectedListing.price ?? undefined, selectedListing.currency ?? "MMK", t("listing.contactPrice"), language)}
                       </ListingMiniMeta>
                     </div>
                   </ListingMini>
@@ -2294,15 +2344,15 @@ export function VendorPromotionsView({
               ) : null}
 
               <div>
-                <CardTitle>Select a plan</CardTitle>
-                <CardCopy style={{ marginTop: 6 }}>Choose a preset duration and daily rate.</CardCopy>
+                <CardTitle>{t("vendor.promotions.selectPlan")}</CardTitle>
+                <CardCopy style={{ marginTop: 6 }}>{t("vendor.promotions.selectPlanCopy")}</CardCopy>
               </div>
               <PlanGrid>
                 {promotionPlanPresets[selectedType].map((plan, index, allPlans) => {
                   const baseRate = allPlans[0]?.pricePer24h ?? plan.pricePer24h;
                   const savedPercent =
                     baseRate > plan.pricePer24h ? Math.round(((baseRate - plan.pricePer24h) / baseRate) * 100) : 0;
-                  const badge = getPlanBadge(selectedType, index, allPlans.length);
+                  const badge = getPlanBadge(t, index, allPlans.length);
                   return (
                     <PlanCard
                       key={plan.key}
@@ -2321,13 +2371,13 @@ export function VendorPromotionsView({
                           </PlanBadge>
                         ) : null}
                       </PlanTop>
-                      <PlanTitle>{plan.label}</PlanTitle>
-                      <PlanMeta>{formatCurrency(plan.pricePer24h, "MMK", "N/A", language)} / 24h</PlanMeta>
-                      <PlanMeta>Total {formatCurrency(plan.totalPrice, "MMK", "N/A", language)}</PlanMeta>
+                      <PlanTitle>{getPlanLabel(plan.key, t)}</PlanTitle>
+                      <PlanMeta>{t("vendor.promotions.per24h", { amount: formatCurrency(plan.pricePer24h, "MMK", t("vendor.promotions.notAvailable"), language) })}</PlanMeta>
+                      <PlanMeta>{t("vendor.promotions.totalPrice", { amount: formatCurrency(plan.totalPrice, "MMK", t("vendor.promotions.notAvailable"), language) })}</PlanMeta>
                       {savedPercent > 0 ? (
                         <PlanSaving>
                           <Percent size={13} />
-                          Save {savedPercent}%
+                          {t("vendor.promotions.savePercent", { percent: savedPercent })}
                         </PlanSaving>
                       ) : null}
                     </PlanCard>
@@ -2339,14 +2389,14 @@ export function VendorPromotionsView({
                 <Card>
                   <CardHeader>
                     <div>
-                      <CardTitle>Hero slot availability</CardTitle>
-                      <CardCopy>Select a slot, then choose a free start date for your chosen plan.</CardCopy>
+                      <CardTitle>{t("vendor.promotions.heroSlotAvailability")}</CardTitle>
+                      <CardCopy>{t("vendor.promotions.heroSlotAvailabilityCopy")}</CardCopy>
                     </div>
                   </CardHeader>
                   <SlotLegend>
-                    <span><SlotLegendDot $tone="free" /> Free</span>
-                    <span><SlotLegendDot $tone="blocked" /> Blocked</span>
-                    <span><SlotLegendDot $tone="selected" /> Selected</span>
+                    <span><SlotLegendDot $tone="free" /> {t("vendor.promotions.free")}</span>
+                    <span><SlotLegendDot $tone="blocked" /> {t("vendor.promotions.blocked")}</span>
+                    <span><SlotLegendDot $tone="selected" /> {t("vendor.promotions.selected")}</span>
                   </SlotLegend>
                   {(() => {
                     const blockedSet = new Set(
@@ -2360,29 +2410,29 @@ export function VendorPromotionsView({
                           <CustomSelect
                             id="hero-slot"
                             name="hero-slot"
-                            label="Hero slot"
+                            label={t("vendor.promotions.heroSlot")}
                             value={selectedHeroSlot}
                             onChange={(value) => setSelectedHeroSlot(value)}
                           >
                             {heroSlotLabels.map((slot) => (
                               <option key={slot} value={slot}>
-                                {slot}
+                                {getHeroSlotLabel(slot, t)}
                               </option>
                             ))}
                           </CustomSelect>
                           <FloatingField data-filled={Boolean(selectedHeroStartKey)}>
                             <FloatingLabel htmlFor="hero-start-display" $filled={Boolean(selectedHeroStartKey)}>
-                              Selected start
+                              {t("vendor.promotions.selectedStart")}
                             </FloatingLabel>
                             <FloatingInput
                               id="hero-start-display"
-                              value={selectedHeroStartKey ? formatDatePickerLabel(selectedHeroStartKey) : "Choose below"}
+                              value={selectedHeroStartKey ? formatDatePickerLabel(selectedHeroStartKey, locale) : t("vendor.promotions.chooseBelow")}
                               readOnly
                             />
                           </FloatingField>
                           <FloatingField data-filled={Boolean(endsAtPreview)}>
                             <FloatingLabel htmlFor="hero-ends-at" $filled={Boolean(endsAtPreview)}>
-                              Ends at
+                              {t("vendor.promotions.endsAt")}
                             </FloatingLabel>
                             <FloatingInput id="hero-ends-at" value={endsAtPreview} readOnly />
                           </FloatingField>
@@ -2392,6 +2442,9 @@ export function VendorPromotionsView({
                           value={selectedHeroStartKey || ""}
                           blockedKeys={blockedSet}
                           selectedRangeKeys={heroRangeKeys}
+                          weekdayLabels={calendarWeekdayLabels}
+                          todayLabel={t("hub.today")}
+                          locale={locale}
                           onChange={(value) => handleHeroDaySelect(selectedHeroSlot, value)}
                         />
                       </>
@@ -2406,13 +2459,13 @@ export function VendorPromotionsView({
                 {onBack ? (
                   <Button type="button" onClick={onBack}>
                     <ArrowLeft size={16} />
-                    <span>Back</span>
+                    <span>{t("vendor.promotions.back")}</span>
                   </Button>
                 ) : null}
               </ButtonRow>
               <ButtonRow>
                 <Button type="button" onClick={closeCreator}>
-                  <span>Cancel</span>
+                  <span>{t("vendor.promotions.cancel")}</span>
                 </Button>
                 <PrimaryButton
                   type="button"
@@ -2421,7 +2474,7 @@ export function VendorPromotionsView({
                   disabled={saving || !selectedPlan || (listingRequired && !listingId) || (selectedType === "hero_ad" && !selectedHeroStartKey)}
                 >
                   <Megaphone size={16} />
-                  <span>{saving ? "Saving..." : "Create promotion"}</span>
+                  <span>{saving ? t("vendor.promotions.saving") : t("vendor.promotions.create")}</span>
                 </PrimaryButton>
               </ButtonRow>
             </ModalFooter>
@@ -2434,45 +2487,44 @@ export function VendorPromotionsView({
           <PaymentWallShell>
             <ModalHeader>
               <div>
-                <Title style={{ fontSize: "1.22rem" }}>Promotion draft created</Title>
-                <Subtitle style={{ maxWidth: "none" }}>The promotion is saved. Payment is the next step before activation.</Subtitle>
+                <Title style={{ fontSize: "1.22rem" }}>{t("vendor.promotions.draftCreated")}</Title>
+                <Subtitle style={{ maxWidth: "none" }}>{t("vendor.promotions.draftCreatedCopy")}</Subtitle>
               </div>
-              <ModalClose type="button" onClick={() => void returnToDrafts("Promotion saved as draft.")} aria-label="Close">
+              <ModalClose type="button" onClick={() => void returnToDrafts(t("vendor.promotions.savedDraft"))} aria-label={t("common.close")}>
                 <X size={18} />
               </ModalClose>
             </ModalHeader>
             <ModalBody>
               <PaymentPlanCard>
-                <PromotionTitle>{createdPromotion.title || "Untitled promotion"}</PromotionTitle>
+                <PromotionTitle>{createdPromotion.title || t("vendor.promotions.untitled")}</PromotionTitle>
                 <PaymentMeta>
-                  <span>{promotionProducts.find((item) => item.type === createdPromotion.promotion_type)?.label || "Promotion"}</span>
+                  <span>{(createdPromotion.promotion_type ? getPromotionTypeLabel(createdPromotion.promotion_type as PromotionType, t) : null) || t("vendor.promotions.productFallback")}</span>
                   <span>•</span>
-                  <span>{selectedPlan?.label || "Selected plan"}</span>
+                  <span>{selectedPlan ? getPlanLabel(selectedPlan.key, t) : t("vendor.promotions.selectedPlan")}</span>
                   <span>•</span>
-                  <span>{formatCurrency(selectedPlan?.totalPrice ?? undefined, "MMK", "N/A", language)}</span>
+                  <span>{formatCurrency(selectedPlan?.totalPrice ?? undefined, "MMK", t("vendor.promotions.notAvailable"), language)}</span>
                 </PaymentMeta>
                 <PaymentMeta>
-                  <span>Status: {createdPromotion.status || "draft"}</span>
+                  <span>{t("vendor.promotions.statusLabel", { status: getPromotionStatusLabel(createdPromotion.status || "draft", t) })}</span>
                   <span>•</span>
-                  <span>{selectedType === "hero_ad" ? endsAtPreview : formatDateTime(startsAt)}</span>
+                  <span>{selectedType === "hero_ad" ? endsAtPreview : formatDateTime(startsAt, locale, t("vendor.promotions.notAvailable"))}</span>
                 </PaymentMeta>
               </PaymentPlanCard>
 
               <PaymentNotice>
-                Dev payment wall is enabled right now. Pressing pay will mark this promotion active for testing.
-                Later, once Dinger keys are added and `ENABLE_PROMOTION_DINGER_CHECKOUT=true`, this same action will hand off to Dinger checkout.
+                {t("vendor.promotions.paymentNotice")}
               </PaymentNotice>
             </ModalBody>
             <ModalFooter>
               <ButtonRow>
-                <Button type="button" onClick={() => void returnToDrafts("Promotion saved as draft.")} disabled={checkoutLoading}>
-                  <span>Pay later</span>
+                <Button type="button" onClick={() => void returnToDrafts(t("vendor.promotions.savedDraft"))} disabled={checkoutLoading}>
+                  <span>{t("vendor.promotions.payLater")}</span>
                 </Button>
               </ButtonRow>
               <ButtonRow>
                 <PrimaryButton type="button" $primary onClick={() => void handlePromotionCheckout()} disabled={checkoutLoading}>
                   <Megaphone size={16} />
-                  <span>{checkoutLoading ? "Preparing..." : "Pay now"}</span>
+                  <span>{checkoutLoading ? t("vendor.promotions.preparing") : t("vendor.promotions.payNow")}</span>
                 </PrimaryButton>
               </ButtonRow>
             </ModalFooter>
