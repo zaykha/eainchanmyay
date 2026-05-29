@@ -10,6 +10,7 @@ import {
   Bath,
   BedDouble,
   BadgeCheck,
+  Building2,
   Map,
   MapPin,
   Ruler,
@@ -50,6 +51,15 @@ const Page = styled.div`
     radial-gradient(circle at top left, rgba(255, 123, 153, 0.12), transparent 26%),
     linear-gradient(180deg, #f8fafc 0%, #eef2f8 100%);
   color: #172033;
+
+  @media (max-width: 920px) {
+    position: fixed;
+    inset: 0;
+    height: 100dvh;
+    overflow: hidden;
+    overscroll-behavior: none;
+    touch-action: pan-x pan-y;
+  }
 `;
 
 const Shell = styled.div`
@@ -60,6 +70,8 @@ const Shell = styled.div`
 
   @media (max-width: 920px) {
     padding: 0;
+    height: 100dvh;
+    overflow: hidden;
   }
 `;
 
@@ -114,7 +126,7 @@ const PanelHeader = styled.div`
 const BackLink = styled(Link)`
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   font-size: 0.84rem;
   color: #64748b;
   margin-bottom: 8px;
@@ -129,7 +141,7 @@ const Title = styled.h1`
 const SearchRow = styled.form`
   display: grid;
   grid-template-columns: 1fr auto auto;
-  gap: 10px;
+  gap: 8px;
   margin-top: 12px;
 `;
 
@@ -152,6 +164,17 @@ const SearchInputWrap = styled.div`
     font: inherit;
     color: #172033;
     outline: none;
+  }
+
+  @media (max-width: 920px) {
+    height: 40px;
+    padding: 0 12px;
+    gap: 6px;
+    border-radius: 14px;
+
+    input {
+      font-size: 16px;
+    }
   }
 `;
 
@@ -207,12 +230,21 @@ const ActionButton = styled.button<{ $primary?: boolean }>`
     cursor: not-allowed;
     opacity: 0.55;
   }
+
+  @media (max-width: 920px) {
+    height: 40px;
+    min-width: 40px;
+    padding: 0 11px;
+    border-radius: 14px;
+    box-shadow: ${(props) =>
+      props.$primary ? "0 10px 22px rgba(225, 29, 72, 0.18)" : "0 6px 14px rgba(15, 23, 42, 0.05)"};
+  }
 `;
 
 const SummaryRow = styled.div`
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
   padding: 10px 16px;
   background: rgba(255, 255, 255, 0.88);
   border-bottom: 1px solid rgba(148, 163, 184, 0.14);
@@ -250,10 +282,14 @@ const ListScroller = styled.div`
 `;
 
 const ListingButton = styled.article<{ $selected?: boolean }>`
+  position: relative;
   display: grid;
-  grid-template-columns: 120px minmax(0, 1fr);
-  gap: 12px;
-  padding: 12px;
+  grid-template-columns: 112px minmax(0, 1fr);
+  grid-template-areas:
+    "image content"
+    "image actions";
+  gap: 8px;
+  padding: 8px;
   border-radius: 18px;
   border: 1px solid
     ${(props) => (props.$selected ? "rgba(225, 29, 72, 0.34)" : "rgba(148, 163, 184, 0.18)")};
@@ -262,13 +298,20 @@ const ListingButton = styled.article<{ $selected?: boolean }>`
     props.$selected ? "0 18px 30px rgba(225, 29, 72, 0.12)" : "0 12px 26px rgba(15, 23, 42, 0.05)"};
   cursor: pointer;
   align-self: start;
-  min-height: 156px;
+  min-height: 148px;
   width: 100%;
-  overflow: hidden;
+  overflow: visible;
+
+  @media (max-width: 920px) {
+    grid-template-areas:
+      "image content"
+      "actions actions";
+  }
 `;
 
 const ListingImage = styled.div`
-  width: 120px;
+  grid-area: image;
+  width: 112px;
   aspect-ratio: 1.05;
   border-radius: 16px;
   background: linear-gradient(135deg, #d7dde6, #b3c1d3);
@@ -283,24 +326,48 @@ const ListingImage = styled.div`
 `;
 
 const ListingContent = styled.div`
+  grid-area: content;
   min-width: 0;
   display: grid;
-  gap: 8px;
+  gap: 5px;
   align-content: start;
-  min-height: 132px;
+  min-height: 124px;
+  padding-top: 10px;
+
+  @media (max-width: 920px) {
+    gap: 3px;
+    min-height: auto;
+    padding-top: 10px;
+  }
 `;
 
 const ListingTop = styled.div`
   display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  align-items: flex-start;
+  flex-direction: column;
+  gap: 3px;
+  padding-right: 96px;
+
+  @media (max-width: 920px) {
+    gap: 3px;
+    padding-right: 84px;
+  }
+`;
+
+const ListingTopMain = styled.div`
+  min-width: 0;
 `;
 
 const ListingTitle = styled.h3`
   margin: 0;
   font-size: 0.95rem;
-  line-height: 1.3;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  @media (max-width: 920px) {
+    font-size: 0.82rem;
+  }
 `;
 
 const PriceLabel = styled.div`
@@ -308,24 +375,45 @@ const PriceLabel = styled.div`
   font-weight: 800;
   color: #e11d48;
   white-space: nowrap;
+
+  @media (max-width: 920px) {
+    font-size: 0.8rem;
+  }
 `;
 
 const MetaLine = styled.div`
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 4px;
   align-items: center;
   color: #667085;
-  font-size: 0.84rem;
+  font-size: 0.8rem;
+
+  @media (max-width: 920px) {
+    font-size: 0.72rem;
+    gap: 3px;
+  }
+`;
+
+const PreviewLocation = styled(MetaLine)`
+  flex-wrap: nowrap;
+  min-width: 0;
+`;
+
+const LocationText = styled.span`
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 `;
 
 const MiniPill = styled.span<{ $tone?: "accent" | "neutral" }>`
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 9px;
+  gap: 4px;
+  padding: 4px 8px;
   border-radius: 999px;
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 800;
   background: ${(props) =>
     props.$tone === "accent" ? "rgba(255, 236, 240, 0.95)" : "rgba(241, 245, 249, 0.95)"};
@@ -333,28 +421,104 @@ const MiniPill = styled.span<{ $tone?: "accent" | "neutral" }>`
   border: 1px solid
     ${(props) =>
       props.$tone === "accent" ? "rgba(225, 29, 72, 0.18)" : "rgba(148, 163, 184, 0.18)"};
+
+  @media (max-width: 920px) {
+    gap: 4px;
+    padding: 3px 6px;
+    font-size: 0.62rem;
+  }
 `;
 
-const FactsRow = styled.div`
+const FloatingDealPill = styled(MiniPill)`
+  position: absolute;
+  top: 0;
+  right: 16px;
+  transform: translateY(-50%);
+  z-index: 2;
+  background: linear-gradient(135deg, #ff4d73, #e11d48);
+  color: #fff;
+  border-color: rgba(225, 29, 72, 0.92);
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
+
+  @media (max-width: 920px) {
+    right: 20px;
+  }
+`;
+
+const FloatingPropertyPill = styled(MiniPill)`
+  position: absolute;
+  top: 0;
+  right: 72px;
+  transform: translateY(-50%);
+  z-index: 2;
+  max-width: calc(100% - 116px);
+  background: rgba(241, 245, 249, 0.98);
+  color: #334155;
+  border-color: rgba(148, 163, 184, 0.28);
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.06);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  @media (max-width: 920px) {
+    right: 72px;
+    max-width: calc(100% - 116px);
+  }
+`;
+
+const CompactInfoRow = styled.div`
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  color: #475569;
-  font-size: 0.78rem;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 6px;
+  min-width: 0;
+  width: 100%;
+
+  @media (max-width: 920px) {
+    gap: 5px;
+  }
 `;
 
-const Fact = styled.span`
+const CompactStats = styled.div`
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  flex-wrap: nowrap;
+  gap: 8px;
+  min-width: 0;
+  color: #475569;
+  font-size: 0.72rem;
+
+  @media (max-width: 920px) {
+    gap: 5px;
+    font-size: 0.68rem;
+  }
+`;
+
+const CompactStat = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+  white-space: nowrap;
+
+  svg {
+    flex: 0 0 auto;
+  }
 `;
 
 const CardActions = styled.div`
+  grid-area: actions;
   display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 6px;
-  padding-top: 2px;
+  width: 100%;
+  gap: 6px;
+  flex-wrap: nowrap;
+  margin-top: 2px;
+  padding-top: 0;
+
+  @media (max-width: 920px) {
+    margin-top: 0;
+    gap: 6px;
+  }
 `;
 
 const CardLink = styled(Link)<{ $accent?: boolean }>`
@@ -362,14 +526,23 @@ const CardLink = styled(Link)<{ $accent?: boolean }>`
   align-items: center;
   justify-content: center;
   min-height: 34px;
-  padding: 0 12px;
+  padding: 0 9px;
   border-radius: 10px;
   font-weight: 800;
-  font-size: 0.82rem;
+  font-size: 0.74rem;
+  flex: 1 1 0;
+  white-space: nowrap;
   border: 1px solid
     ${(props) => (props.$accent ? "rgba(225, 29, 72, 0.86)" : "rgba(148, 163, 184, 0.22)")};
   background: ${(props) => (props.$accent ? "linear-gradient(135deg, #ff4d73, #e11d48)" : "#fff")};
   color: ${(props) => (props.$accent ? "#fff" : "#172033")};
+
+  @media (max-width: 920px) {
+    min-height: 28px;
+    padding: 0 8px;
+    border-radius: 9px;
+    font-size: 0.7rem;
+  }
 `;
 
 const MapCanvas = styled.div`
@@ -399,6 +572,13 @@ const SearchAreaButton = styled.button`
   font-weight: 800;
   box-shadow: 0 18px 34px rgba(225, 29, 72, 0.24);
   cursor: pointer;
+
+  @media (max-width: 920px) {
+    min-height: 36px;
+    padding: 0 16px;
+    font-size: 0.92rem;
+    box-shadow: 0 12px 24px rgba(225, 29, 72, 0.18);
+  }
 `;
 
 const MapPreviewWrap = styled.div`
@@ -414,25 +594,91 @@ const MapPreviewWrap = styled.div`
   @media (max-width: 920px) {
     left: 12px;
     right: 12px;
-    bottom: 88px;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 118px);
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
   }
 `;
 
 const MapPreviewCard = styled.div`
   pointer-events: auto;
+  position: relative;
   width: min(420px, 100%);
   background: rgba(255, 255, 255, 0.98);
   border: 1px solid rgba(148, 163, 184, 0.18);
   border-radius: 22px;
   box-shadow: 0 24px 50px rgba(15, 23, 42, 0.18);
-  padding: 14px;
+  padding: 8px;
   display: grid;
-  grid-template-columns: 106px minmax(0, 1fr);
-  gap: 14px;
+  grid-template-columns: 112px minmax(0, 1fr);
+  gap: 8px;
+
+  @media (max-width: 920px) {
+    position: relative;
+    width: 100%;
+    max-width: 100%;
+    padding: 8px;
+    border-radius: 20px;
+    box-shadow: 0 16px 34px rgba(15, 23, 42, 0.16);
+    grid-template-columns: 112px minmax(0, 1fr);
+    gap: 8px;
+  }
+`;
+
+const PreviewContent = styled.div`
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+  align-content: start;
+  padding-right: 84px;
+  padding-top: 10px;
+
+  @media (max-width: 920px) {
+    gap: 3px;
+    padding-right: 84px;
+    padding-top: 10px;
+  }
 `;
 
 const PreviewImage = styled(ListingImage)`
-  width: 106px;
+  grid-column: 1;
+  grid-row: 1;
+  align-self: start;
+  width: 112px;
+
+  @media (max-width: 920px) {
+    width: 112px;
+    border-radius: 16px;
+  }
+`;
+
+const PreviewActions = styled(CardActions)`
+  grid-area: auto;
+  margin-top: 2px;
+  padding-top: 0;
+`;
+
+const MobileListButton = styled.button`
+  display: none;
+
+  @media (max-width: 920px) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 34px;
+    padding: 0 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(225, 29, 72, 0.9);
+    background: linear-gradient(135deg, #ff4d73, #e11d48);
+    color: #fff;
+    font-weight: 800;
+    box-shadow: 0 14px 26px rgba(225, 29, 72, 0.2);
+    pointer-events: auto;
+  }
 `;
 
 const EmptyState = styled.div`
@@ -462,8 +708,12 @@ const MobileTopCard = styled.div`
 
 const MobileSearchRow = styled.form`
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 8px;
+`;
+
+const MobileSearchButton = styled(ActionButton)`
+  padding: 0 12px;
 `;
 
 const FloatingListButton = styled.button`
@@ -480,6 +730,10 @@ const FloatingListButton = styled.button`
   color: #fff;
   font-weight: 800;
   box-shadow: 0 22px 44px rgba(225, 29, 72, 0.24);
+
+  @media (max-width: 920px) {
+    display: none;
+  }
 `;
 
 const MobileListSheet = styled.div`
@@ -675,13 +929,13 @@ function MapListingCard({
     .map((part) => translateLocationName(String(part), language))
     .join(", ");
   const facts = [
-    listing.bedrooms ? { key: "beds", icon: <BedDouble size={15} />, label: `${listing.bedrooms} ${t("listing.bedrooms")}` } : null,
-    listing.bathrooms ? { key: "baths", icon: <Bath size={15} />, label: `${listing.bathrooms} ${t("listing.bathrooms")}` } : null,
+    listing.bedrooms ? { key: "beds", icon: <BedDouble size={15} />, label: `${listing.bedrooms}` } : null,
+    listing.bathrooms ? { key: "baths", icon: <Bath size={15} />, label: `${listing.bathrooms}` } : null,
     listing.areaSqft
       ? {
           key: "area",
           icon: <Ruler size={15} />,
-          label: `${listing.areaSqft.toLocaleString(language === "mm" ? "my-MM" : "en-US")} ${t("listing.areaSqft")}`,
+          label: `${listing.areaSqft.toLocaleString(language === "mm" ? "my-MM" : "en-US")}`,
         }
       : null,
   ].filter(Boolean) as Array<{ key: string; icon: ReactNode; label: string }>;
@@ -703,46 +957,55 @@ function MapListingCard({
           }
         }}
       >
+        <FloatingPropertyPill>
+          <Building2 size={13} />
+          {formatPropertyTypeValue(listing.propertyType, t) || t("listing.property")}
+        </FloatingPropertyPill>
+        <FloatingDealPill>
+          {listing.dealType ? (listing.dealType === "rent" ? t("listing.forRent") : t("listing.forSale")) : t("common.notAvailable")}
+        </FloatingDealPill>
         <ListingImage>
           {listing.imageUrl ? <img src={listing.imageUrl} alt={listing.title} /> : null}
         </ListingImage>
         <ListingContent>
           <ListingTop>
-            <div>
+            <ListingTopMain>
               <ListingTitle>{listing.title || t("listing.property")}</ListingTitle>
-              <MetaLine>
-                <MiniPill>{listing.dealType ? (listing.dealType === "rent" ? t("listing.forRent") : t("listing.forSale")) : t("common.notAvailable")}</MiniPill>
-                <MiniPill>{formatPropertyTypeValue(listing.propertyType, t) || t("listing.property")}</MiniPill>
-                {listing.verificationStatus === "approved" ? (
-                  <MiniPill $tone="accent">
-                    <BadgeCheck size={14} />
-                    {t("agency.verifiedStatus")}
-                  </MiniPill>
-                ) : null}
-              </MetaLine>
-            </div>
+            </ListingTopMain>
             <PriceLabel>{formatCurrency(listing.price, listing.currency, t("listing.contactPrice"), language)}</PriceLabel>
+            <CompactInfoRow>
+              {facts.length ? (
+                <CompactStats>
+                  {facts.map((fact) => (
+                    <CompactStat key={fact.key}>
+                      {fact.icon}
+                      {fact.label}
+                    </CompactStat>
+                  ))}
+                </CompactStats>
+              ) : null}
+            </CompactInfoRow>
           </ListingTop>
-          <MetaLine>
+          <PreviewLocation>
             <MapPin size={15} />
-            {locationLine || (listing.stateRegion ? translateLocationName(listing.stateRegion, language) : "") || t("map.locationPending")}
-          </MetaLine>
-          {facts.length ? (
-            <FactsRow>
-              {facts.map((fact) => (
-                <Fact key={fact.key}>
-                  {fact.icon}
-                  {fact.label}
-                </Fact>
-              ))}
-            </FactsRow>
+            <LocationText>
+              {locationLine || (listing.stateRegion ? translateLocationName(listing.stateRegion, language) : "") || t("map.locationPending")}
+            </LocationText>
+          </PreviewLocation>
+          {listing.verificationStatus === "approved" ? (
+            <MetaLine>
+              <MiniPill $tone="accent">
+                <BadgeCheck size={14} />
+                {t("agency.verifiedStatus")}
+              </MiniPill>
+            </MetaLine>
           ) : null}
-          <CardActions onClick={(event) => event.stopPropagation()}>
+          <PreviewActions onClick={(event) => event.stopPropagation()}>
             <CardLink href={`/listing/${listing.id}`}>{t("map.viewDetails")}</CardLink>
             <CardLink href={`/listing/${listing.id}#contact`} $accent>
               {t("map.contact")}
             </CardLink>
-          </CardActions>
+          </PreviewActions>
         </ListingContent>
       </ListingButton>
     </div>
@@ -779,6 +1042,7 @@ export default function PropertyMapView() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [mobileListOpen, setMobileListOpen] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
+  const [viewportReady, setViewportReady] = useState(false);
   const [listings, setListings] = useState<Listing[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -786,8 +1050,11 @@ export default function PropertyMapView() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [appliedBounds, setAppliedBounds] = useState<ListingQueryBounds | null>(null);
   const [pendingBounds, setPendingBounds] = useState<ListingQueryBounds | null>(null);
+  const [hasUserMovedMap, setHasUserMovedMap] = useState(false);
+  const [mobilePropertyTypePillsVisible, setMobilePropertyTypePillsVisible] = useState(false);
   const requestIdRef = useRef(0);
   const cardRefs = useRef<Record<string, HTMLElement | null>>({});
+  const initialBoundsSeenRef = useRef(false);
 
   const filters = useMemo<ListingFilters>(
     () => ({
@@ -883,13 +1150,19 @@ export default function PropertyMapView() {
     () => (selectedListing && hasCoordinates(selectedListing) ? selectedListing : markerListings[0] ?? null),
     [markerListings, selectedListing]
   );
-  const searchAreaVisible = buildBoundsKey(pendingBounds) !== buildBoundsKey(appliedBounds) && pendingBounds !== null;
+  const hasPendingAreaChange =
+    pendingBounds !== null && buildBoundsKey(pendingBounds) !== buildBoundsKey(appliedBounds);
+  const searchAreaVisible =
+    hasPendingAreaChange && (!isMobileViewport ? true : hasUserMovedMap && !mobilePropertyTypePillsVisible);
   const homeHref = useMemo(() => buildHomeSearchHref(filters), [filters]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     const media = window.matchMedia("(max-width: 920px)");
-    const sync = () => setIsMobileViewport(media.matches);
+    const sync = () => {
+      setIsMobileViewport(media.matches);
+      setViewportReady(true);
+    };
     sync();
     media.addEventListener("change", sync);
     return () => media.removeEventListener("change", sync);
@@ -915,6 +1188,26 @@ export default function PropertyMapView() {
     setQuery(searchDraft);
   };
 
+  const showMobilePropertyTypePills = () => {
+    if (!isMobileViewport) return;
+    setMobilePropertyTypePillsVisible(true);
+  };
+
+  const hideMobilePropertyTypePills = () => {
+    if (!isMobileViewport) return;
+    setMobilePropertyTypePillsVisible(false);
+  };
+
+  const handleBoundsChange = (nextBounds: ListingQueryBounds) => {
+    setPendingBounds(nextBounds);
+    if (!initialBoundsSeenRef.current) {
+      initialBoundsSeenRef.current = true;
+      return;
+    }
+    setHasUserMovedMap(true);
+    setMobilePropertyTypePillsVisible(false);
+  };
+
   const resetFilters = () => {
     setDealType("");
     setPropertyType("");
@@ -927,6 +1220,7 @@ export default function PropertyMapView() {
     setBathrooms("");
     setAppliedBounds(null);
     setPendingBounds(null);
+    setHasUserMovedMap(false);
   };
 
   const renderListContent = () => {
@@ -969,66 +1263,71 @@ export default function PropertyMapView() {
   const previewCard = selectedListing ? (
     <MapPreviewCard>
       <PreviewImage>{selectedListing.imageUrl ? <img src={selectedListing.imageUrl} alt={selectedListing.title || t("listing.property")} /> : null}</PreviewImage>
-      <ListingContent>
+      <FloatingPropertyPill>
+        <Building2 size={13} />
+        {formatPropertyTypeValue(selectedListing.propertyType, t) || t("listing.property")}
+      </FloatingPropertyPill>
+      <FloatingDealPill>
+        {selectedListing.dealType
+          ? selectedListing.dealType === "rent"
+            ? t("listing.forRent")
+            : t("listing.forSale")
+          : t("common.notAvailable")}
+      </FloatingDealPill>
+      <PreviewContent>
         <ListingTop>
-          <div>
+          <ListingTopMain>
             <ListingTitle>{selectedListing.title || t("listing.property")}</ListingTitle>
-            <MetaLine>
-              <MiniPill>
-                {selectedListing.dealType
-                  ? selectedListing.dealType === "rent"
-                    ? t("listing.forRent")
-                    : t("listing.forSale")
-                  : t("common.notAvailable")}
-              </MiniPill>
-              <MiniPill>{formatPropertyTypeValue(selectedListing.propertyType, t) || t("listing.property")}</MiniPill>
-            </MetaLine>
-          </div>
+          </ListingTopMain>
           <PriceLabel>{formatCurrency(selectedListing.price, selectedListing.currency, t("listing.contactPrice"), language)}</PriceLabel>
+          <CompactInfoRow>
+            <CompactStats>
+              {selectedListing.bedrooms ? (
+                <CompactStat>
+                  <BedDouble size={isMobileViewport ? 12 : 15} />
+                  {selectedListing.bedrooms}
+                </CompactStat>
+              ) : null}
+              {selectedListing.bathrooms ? (
+                <CompactStat>
+                  <Bath size={isMobileViewport ? 12 : 15} />
+                  {selectedListing.bathrooms}
+                </CompactStat>
+              ) : null}
+              {selectedListing.areaSqft ? (
+                <CompactStat>
+                  <Ruler size={isMobileViewport ? 12 : 15} />
+                  {selectedListing.areaSqft.toLocaleString(language === "mm" ? "my-MM" : "en-US")}
+                </CompactStat>
+              ) : null}
+            </CompactStats>
+          </CompactInfoRow>
         </ListingTop>
-        <MetaLine>
+        <PreviewLocation>
           <MapPin size={15} />
-          {[selectedListing.township, selectedListing.district || selectedListing.city]
-            .filter(Boolean)
-            .map((part) => translateLocationName(String(part), language))
-            .join(", ") ||
-            (selectedListing.stateRegion ? translateLocationName(selectedListing.stateRegion, language) : "") ||
-            t("map.locationPending")}
-        </MetaLine>
-        <FactsRow>
-          {selectedListing.bedrooms ? (
-            <Fact>
-              <BedDouble size={15} />
-              {selectedListing.bedrooms} {t("listing.bedrooms")}
-            </Fact>
-          ) : null}
-          {selectedListing.bathrooms ? (
-            <Fact>
-              <Bath size={15} />
-              {selectedListing.bathrooms} {t("listing.bathrooms")}
-            </Fact>
-          ) : null}
-          {selectedListing.areaSqft ? (
-            <Fact>
-              <Ruler size={15} />
-              {selectedListing.areaSqft.toLocaleString(language === "mm" ? "my-MM" : "en-US")} {t("listing.areaSqft")}
-            </Fact>
-          ) : null}
-        </FactsRow>
-        <CardActions>
+          <LocationText>
+            {[selectedListing.township, selectedListing.district || selectedListing.city]
+              .filter(Boolean)
+              .map((part) => translateLocationName(String(part), language))
+              .join(", ") ||
+              (selectedListing.stateRegion ? translateLocationName(selectedListing.stateRegion, language) : "") ||
+              t("map.locationPending")}
+          </LocationText>
+        </PreviewLocation>
+        <PreviewActions>
           <CardLink href={`/listing/${selectedListing.id}`}>{t("map.viewDetails")}</CardLink>
           <CardLink href={`/listing/${selectedListing.id}#contact`} $accent>
             {t("map.contact")}
           </CardLink>
-        </CardActions>
-      </ListingContent>
+        </PreviewActions>
+      </PreviewContent>
     </MapPreviewCard>
   ) : null;
 
   return (
     <Page>
       <Shell>
-        {!isMobileViewport ? (
+        {viewportReady && !isMobileViewport ? (
         <DesktopLayout>
           <ListPanel>
             <PanelHeader>
@@ -1111,10 +1410,11 @@ export default function PropertyMapView() {
           <MapPanel>
             <MapCanvas>
               <PropertyMapLeaflet
+                key="desktop-map"
                 listings={markerListings}
                 selectedId={selectedListing?.id ?? null}
                 onSelect={setSelectedId}
-                onBoundsChange={setPendingBounds}
+                onBoundsChange={handleBoundsChange}
                 focusedListing={focusedMapListing}
               />
             </MapCanvas>
@@ -1135,15 +1435,16 @@ export default function PropertyMapView() {
         </DesktopLayout>
         ) : null}
 
-        {isMobileViewport ? (
+        {viewportReady && isMobileViewport ? (
         <MobileLayout>
           <MapPanel style={{ minHeight: "100vh", borderRadius: 0, border: "none" }}>
             <MapCanvas>
               <PropertyMapLeaflet
+                key="mobile-map"
                 listings={markerListings}
                 selectedId={selectedListing?.id ?? null}
                 onSelect={setSelectedId}
-                onBoundsChange={setPendingBounds}
+                onBoundsChange={handleBoundsChange}
                 focusedListing={focusedMapListing}
               />
             </MapCanvas>
@@ -1153,36 +1454,53 @@ export default function PropertyMapView() {
                 <MobileSearchRow
                   onSubmit={(event) => {
                     event.preventDefault();
-                    submitSearch();
                   }}
                 >
                   <SearchInputWrap>
                     <Search size={16} />
-                  <input
+                    <input
                       value={searchDraft}
                       onChange={(event) => setSearchDraft(event.target.value)}
+                      onFocus={showMobilePropertyTypePills}
+                      onClick={showMobilePropertyTypePills}
+                      onBlur={hideMobilePropertyTypePills}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                        }
+                      }}
                       placeholder={t("map.searchProperties")}
                     />
                   </SearchInputWrap>
                   <ActionButton type="button" onClick={() => setFilterOpen(true)}>
                     <SlidersHorizontal size={16} />
                   </ActionButton>
+                  <MobileSearchButton
+                    type="button"
+                    $primary
+                    aria-label={t("map.search")}
+                    onClick={submitSearch}
+                  >
+                    <Search size={16} />
+                  </MobileSearchButton>
                 </MobileSearchRow>
               </MobileTopCard>
-              <ChipRow>
-                <Chip $active={!propertyType} onClick={() => setPropertyType("")}>
-                  {t("filter.allTypes")}
-                </Chip>
-                {propertyTypeDefinitions.slice(0, 6).map((item) => (
-                  <Chip
-                    key={item.value}
-                    $active={propertyType === item.value}
-                    onClick={() => setPropertyType((current) => (current === item.value ? "" : item.value))}
-                  >
-                    {formatPropertyTypeValue(item.value, t) || item.label}
+              {mobilePropertyTypePillsVisible ? (
+                <ChipRow>
+                  <Chip $active={!propertyType} onClick={() => setPropertyType("")}>
+                    {t("filter.allTypes")}
                   </Chip>
-                ))}
-              </ChipRow>
+                  {propertyTypeDefinitions.slice(0, 6).map((item) => (
+                    <Chip
+                      key={item.value}
+                      $active={propertyType === item.value}
+                      onClick={() => setPropertyType((current) => (current === item.value ? "" : item.value))}
+                    >
+                      {formatPropertyTypeValue(item.value, t) || item.label}
+                    </Chip>
+                  ))}
+                </ChipRow>
+              ) : null}
             </MobileTopBar>
 
             {searchAreaVisible ? (
@@ -1191,6 +1509,7 @@ export default function PropertyMapView() {
                   type="button"
                   onClick={() => {
                     setAppliedBounds(pendingBounds);
+                    setHasUserMovedMap(false);
                   }}
                 >
                   {t("map.searchThisArea")}
@@ -1198,12 +1517,15 @@ export default function PropertyMapView() {
               </MapOverlayTop>
             ) : null}
 
-            <MapPreviewWrap>{!mobileListOpen ? previewCard : null}</MapPreviewWrap>
-
-            <FloatingListButton type="button" onClick={() => setMobileListOpen(true)}>
-              <Map size={16} />
-              {t("map.showList")}
-            </FloatingListButton>
+            <MapPreviewWrap>
+              {!mobileListOpen && isMobileViewport ? (
+                <MobileListButton type="button" onClick={() => setMobileListOpen(true)}>
+                  <Map size={14} />
+                  {t("map.showList")}
+                </MobileListButton>
+              ) : null}
+              {!mobileListOpen ? previewCard : null}
+            </MapPreviewWrap>
           </MapPanel>
         </MobileLayout>
         ) : null}
@@ -1347,6 +1669,7 @@ export default function PropertyMapView() {
                 onClick={() => {
                   setAppliedBounds(null);
                   setPendingBounds(null);
+                  setHasUserMovedMap(false);
                   setFilterOpen(false);
                 }}
               >

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import { createGlobalStyle } from "styled-components";
-import { MapContainer, Marker, useMap, useMapEvents } from "react-leaflet";
+import { MapContainer, useMap, useMapEvents } from "react-leaflet";
 import type { Listing } from "@/app/living-site/lib/data";
 import type { ListingQueryBounds } from "@/app/living-site/hooks/useInfiniteListings";
 
@@ -265,6 +265,61 @@ function BottomRightZoomControl() {
   return null;
 }
 
+function MarkerLayer({
+  listings,
+  selectedId,
+  onSelect,
+}: {
+  listings: Listing[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    const layerGroup = L.layerGroup();
+    let disposed = false;
+
+    const attachMarkers = () => {
+      if (disposed) return;
+      try {
+        listings.forEach((listing) => {
+          const marker = L.marker(
+            [listing.latitude as number, listing.longitude as number],
+            {
+              icon: createMarkerIcon(
+                formatMarkerPrice(listing),
+                listing.id === selectedId
+              ),
+            }
+          );
+          marker.on("click", () => onSelect(listing.id));
+          marker.addTo(layerGroup);
+        });
+        layerGroup.addTo(map);
+      } catch {
+        return;
+      }
+    };
+
+    map.whenReady(attachMarkers);
+
+    return () => {
+      disposed = true;
+      try {
+        layerGroup.clearLayers();
+        if (map.hasLayer(layerGroup)) {
+          map.removeLayer(layerGroup);
+        }
+      } catch {
+        return;
+      }
+    };
+  }, [listings, map, onSelect, selectedId]);
+
+  return null;
+}
+
 export default function PropertyMapLeaflet({
   listings,
   selectedId,
@@ -312,16 +367,11 @@ export default function PropertyMapLeaflet({
           focusedListing={focusedListing}
           onBoundsChange={onBoundsChange}
         />
-        {visibleListings.map((listing) => (
-          <Marker
-            key={listing.id}
-            position={[listing.latitude as number, listing.longitude as number]}
-            icon={createMarkerIcon(formatMarkerPrice(listing), listing.id === selectedId)}
-            eventHandlers={{
-              click: () => onSelect(listing.id),
-            }}
-          />
-        ))}
+        <MarkerLayer
+          listings={visibleListings}
+          selectedId={selectedId}
+          onSelect={onSelect}
+        />
       </MapContainer>
     </>
   );

@@ -720,7 +720,7 @@ const HeroSceneFact = styled.span`
   }
 `;
 
-const HeroSceneCard = styled.div<{ $agency?: boolean; $image?: string }>`
+const HeroSceneCard = styled.div<{ $agency?: boolean; $image?: string; $clickable?: boolean }>`
   position: relative;
   z-index: 1;
   min-height: 0;
@@ -739,6 +739,22 @@ const HeroSceneCard = styled.div<{ $agency?: boolean; $image?: string }>`
   align-content: ${(props) => (props.$agency ? "stretch" : "end")};
   grid-template-rows: ${(props) => (props.$agency ? "1fr" : "auto")};
   padding: ${(props) => (props.$agency ? "0" : "14px")};
+  cursor: ${(props) => (props.$clickable ? "pointer" : "default")};
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    border-color 160ms ease;
+
+  &:hover,
+  &:focus-visible {
+    transform: ${(props) => (props.$clickable ? "translateY(-2px)" : "none")};
+    box-shadow: ${(props) =>
+      props.$clickable
+        ? "inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 20px 40px rgba(9, 14, 26, 0.2)"
+        : "inset 0 1px 0 rgba(255, 255, 255, 0.14)"};
+    border-color: ${(props) => (props.$clickable ? "rgba(255, 255, 255, 0.24)" : "rgba(255, 255, 255, 0.12)")};
+    outline: none;
+  }
 
   @media (max-width: 720px) {
     border-radius: 22px;
@@ -1642,15 +1658,14 @@ const LocationFooter = styled.div`
 const FilterOverlay = styled.div`
   position: fixed;
   inset: 0;
-  background: rgba(12, 18, 36, 0.45);
+  background: rgba(8, 12, 22, 0.64);
   display: grid;
   place-items: center;
-  z-index: 80;
-  padding: 16px;
+  z-index: 110;
+  padding: 24px;
 
   @media (max-width: 720px) {
-    padding: 0;
-    align-items: stretch;
+    padding: 18px;
   }
 `;
 
@@ -1658,17 +1673,18 @@ const FilterCard = styled.div`
   width: min(520px, 100%);
   background: var(--color-surface);
   border: 1px solid var(--color-outline);
-  border-radius: 16px;
+  border-radius: 24px;
   padding: 16px;
-  box-shadow: var(--shadow-soft);
+  box-shadow: 0 28px 80px rgba(15, 23, 42, 0.28);
   display: grid;
   gap: 14px;
+  max-height: min(82vh, 760px);
+  overflow-y: auto;
 
   @media (max-width: 720px) {
-    height: 100dvh;
-    max-height: 100dvh;
-    border-radius: 0;
-    overflow-y: auto;
+    width: min(520px, 100%);
+    max-height: min(72vh, 620px);
+    border-radius: 22px;
   }
 `;
 
@@ -2319,7 +2335,26 @@ export function HomePageClient() {
                           </>
                         )}
                       </HeroSceneCopy>
-                      <HeroSceneCard $agency $image={currentHeroSlide.coverImageUrl ?? undefined}>
+                      <HeroSceneCard
+                        $agency
+                        $image={currentHeroSlide.coverImageUrl ?? undefined}
+                        $clickable={Boolean(currentHeroSlide.targetUrl)}
+                        role={currentHeroSlide.targetUrl ? "link" : undefined}
+                        tabIndex={currentHeroSlide.targetUrl ? 0 : undefined}
+                        aria-label={currentHeroSlide.targetUrl ? t("home.viewAgencyProfile") : undefined}
+                        onClick={() => {
+                          if (currentHeroSlide.targetUrl) {
+                            router.push(currentHeroSlide.targetUrl);
+                          }
+                        }}
+                        onKeyDown={(event) => {
+                          if (!currentHeroSlide.targetUrl) return;
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            router.push(currentHeroSlide.targetUrl);
+                          }
+                        }}
+                      >
                         <HeroSceneCardOverlay $fill>
                           <HeroAgencyCardTop>
                             <HeroAgencyLogo $image={currentHeroSlide.logoUrl ?? undefined}>
@@ -2412,7 +2447,25 @@ export function HomePageClient() {
                           </HeroSceneFact>
                         </HeroSceneFactRow>
                       </HeroSceneCopy>
-                      <HeroSceneCard $image={currentHeroSlide.imageUrl ?? undefined}>
+                      <HeroSceneCard
+                        $image={currentHeroSlide.imageUrl ?? undefined}
+                        $clickable={Boolean(currentHeroSlide.targetUrl)}
+                        role={currentHeroSlide.targetUrl ? "link" : undefined}
+                        tabIndex={currentHeroSlide.targetUrl ? 0 : undefined}
+                        aria-label={currentHeroSlide.targetUrl ? t("map.viewDetails") : undefined}
+                        onClick={() => {
+                          if (currentHeroSlide.targetUrl) {
+                            router.push(currentHeroSlide.targetUrl);
+                          }
+                        }}
+                        onKeyDown={(event) => {
+                          if (!currentHeroSlide.targetUrl) return;
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            router.push(currentHeroSlide.targetUrl);
+                          }
+                        }}
+                      >
                         <HeroSceneCardBadges>
                           <HeroSceneCardBadge>{formatHomeDealType(currentHeroSlide.dealType, t) || t("listing.forSale")}</HeroSceneCardBadge>
                           <HeroSceneCardBadge $dark>
