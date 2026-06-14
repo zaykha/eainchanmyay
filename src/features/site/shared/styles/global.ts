@@ -52,6 +52,11 @@ export const GlobalStyle = createGlobalStyle`
     background-attachment: var(--body-bg-attachment, fixed);
   }
 
+  html[lang="mm"] body,
+  body[data-lang="mm"] {
+    font-family: "Noto Sans Myanmar", "Padauk", "Myanmar Text", var(--font-primary), system-ui, sans-serif;
+  }
+
   a {
     color: inherit;
     text-decoration: none;
@@ -67,6 +72,32 @@ export const GlobalStyle = createGlobalStyle`
   select,
   textarea {
     font-family: inherit;
+  }
+
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible,
+  [role="button"]:focus-visible,
+  [tabindex]:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 18%, transparent);
+  }
+
+  input:focus,
+  select:focus,
+  textarea:focus {
+    outline: none;
+    border-color: var(--color-primary);
+  }
+
+  @media (max-width: 720px) {
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]),
+    textarea,
+    select {
+      font-size: 16px !important;
+    }
   }
 
   h1,

@@ -5,13 +5,13 @@ import { useEffect, useState } from "react";
 import { Mail, MapPin, Phone, ShieldCheck } from "lucide-react";
 import styled from "styled-components";
 import { useParams } from "next/navigation";
-import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
-import { MarketplaceHeader } from "@/app/living-site/components/MarketplaceHeader";
-import { SectionTitle } from "@/app/living-site/components/PageSection";
-import { formatCurrency } from "@/app/living-site/lib/format";
-import { resolveImage } from "@/app/living-site/lib/images";
-import { useAppState } from "@/app/living-site/lib/app-state";
-import { useI18n } from "@/app/living-site/lib/i18n";
+import { LoadingOverlay } from "@/features/site/shared/components/LoadingOverlay";
+import { MarketplaceHeader } from "@/features/site/shared/components/MarketplaceHeader";
+import { SectionTitle } from "@/features/site/shared/components/PageSection";
+import { formatCurrency } from "@/features/site/shared/lib/format";
+import { resolveImage } from "@/features/site/shared/lib/images";
+import { useAppState } from "@/features/site/shared/lib/app-state";
+import { useI18n } from "@/features/site/shared/lib/i18n";
 
 type AgencyPayload = {
   agency: {

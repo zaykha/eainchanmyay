@@ -1,1 +1,1 @@
-export { default } from "../living-site/privacy/page";
+export { default } from "@/features/site/public/privacy/PrivacyPage";

@@ -1,5 +1,5 @@
-import { supabase, isSupabaseConfigured } from "@/app/living-site/lib/supabase";
-import { resolveListingImage } from "@/app/living-site/lib/images";
+import { supabase, isSupabaseConfigured } from "@/features/site/shared/lib/supabase";
+import { resolveListingImage } from "@/features/site/shared/lib/images";
 import { publicListingQueryStatuses } from "@/lib/lifecycle";
 import type { PropertyType } from "@/lib/property-types";
 

@@ -1,1 +1,1 @@
-export { default } from "../living-site/request-sale/page";
+export { default } from "@/features/site/public/request-sale/RequestSalePage";

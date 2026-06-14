@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { User } from "@supabase/supabase-js";
-import { supabase, isSupabaseConfigured } from "@/app/living-site/lib/supabase";
+import { supabase, isSupabaseConfigured } from "@/features/site/shared/lib/supabase";
 
 type AuthContextValue = {
   user: User | null;

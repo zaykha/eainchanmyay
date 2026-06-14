@@ -1,1 +1,1 @@
-export { default } from "../../living-site/inquiries/new/page";
+export { default } from "@/features/site/public/inquiries/new/NewInquiryPage";

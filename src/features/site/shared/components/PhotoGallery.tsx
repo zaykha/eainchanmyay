@@ -1,7 +1,7 @@
 "use client";
 
 import styled from "styled-components";
-import { resolvePhotoUrl } from "@/app/living-site/lib/images";
+import { resolvePhotoUrl } from "@/features/site/shared/lib/images";
 
 const Gallery = styled.div`
   display: grid;

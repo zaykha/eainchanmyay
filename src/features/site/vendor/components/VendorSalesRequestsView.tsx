@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 import styled from "styled-components";
 import { ClipboardList } from "lucide-react";
-import { useAppState } from "@/app/living-site/lib/app-state";
-import { formatCurrency } from "@/app/living-site/lib/format";
-import { useI18n } from "@/app/living-site/lib/i18n";
-import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
+import { useAppState } from "@/features/site/shared/lib/app-state";
+import { formatCurrency } from "@/features/site/shared/lib/format";
+import { useI18n } from "@/features/site/shared/lib/i18n";
+import { LoadingOverlay } from "@/features/site/shared/components/LoadingOverlay";
 
 const Page = styled.div`
   display: grid;

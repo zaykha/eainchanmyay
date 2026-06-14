@@ -6,7 +6,7 @@
 - [x] User approved plan
 
 ## Implementation Steps
-1. [x] ✅ Add i18n keys to `src/app/living-site/lib/i18n.ts`
+1. [x] ✅ Add i18n keys to `src/features/site/lib/i18n.ts`
 2. [x] ✅ Update FormState + initialState in `page.tsx`
 3. [x] ✅ Replace step 4 UI (radio cards + sections)
 4. [x] ✅ Update validation logic

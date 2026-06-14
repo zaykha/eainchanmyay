@@ -2,8 +2,8 @@
 
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { User } from "@supabase/supabase-js";
-import { supabase, isSupabaseConfigured } from "@/app/living-site/lib/supabaseClient";
-import { getProfileSummary, type ProfileRole, upsertCustomerProfile } from "@/app/living-site/lib/data";
+import { supabase, isSupabaseConfigured } from "@/features/site/shared/lib/supabaseClient";
+import { getProfileSummary, type ProfileRole, upsertCustomerProfile } from "@/features/site/shared/lib/data";
 
 type AuthIntentRole = "customer" | "agent";
 

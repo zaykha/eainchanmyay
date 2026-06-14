@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import styled from "styled-components";
-import { useAppState } from "@/app/living-site/lib/app-state";
-import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
+import { useAppState } from "@/features/site/shared/lib/app-state";
+import { LoadingOverlay } from "@/features/site/shared/components/LoadingOverlay";
 
 const Page = styled.div`
   min-height: 100vh;

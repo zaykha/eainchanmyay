@@ -19,15 +19,15 @@ import {
   X,
 } from "lucide-react";
 import styled from "styled-components";
-import { CustomSelect } from "@/app/living-site/components/form-controls/CustomSelect";
-import type { Listing, ListingFilters } from "@/app/living-site/lib/data";
-import { formatCurrency } from "@/app/living-site/lib/format";
+import { CustomSelect } from "@/features/site/shared/components/form-controls/CustomSelect";
+import type { Listing, ListingFilters } from "@/features/site/shared/lib/data";
+import { formatCurrency } from "@/features/site/shared/lib/format";
 import {
   buildListingQuery,
   type ListingQueryBounds,
-} from "@/app/living-site/hooks/useInfiniteListings";
-import { useI18n } from "@/app/living-site/lib/i18n";
-import { getDistricts, getStates, getTownships, translateLocationName } from "@/app/living-site/lib/myanmar-geo";
+} from "@/features/site/shared/hooks/useInfiniteListings";
+import { useI18n } from "@/features/site/shared/lib/i18n";
+import { getDistricts, getStates, getTownships, translateLocationName } from "@/features/site/shared/lib/myanmar-geo";
 import { formatPropertyTypeValue, propertyTypeDefinitions } from "@/lib/property-types";
 
 const PropertyMapLeaflet = dynamic(() => import("./PropertyMapLeaflet"), {
@@ -140,7 +140,7 @@ const Title = styled.h1`
 
 const SearchRow = styled.form`
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: auto 1fr auto auto;
   gap: 8px;
   margin-top: 12px;
 `;
@@ -157,8 +157,15 @@ const SearchInputWrap = styled.div`
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
   color: #475569;
 
+  svg {
+    flex: 0 0 auto;
+    display: block;
+    color: #64748b;
+  }
+
   input {
     flex: 1;
+    min-width: 0;
     border: none;
     background: transparent;
     font: inherit;
@@ -230,6 +237,34 @@ const ActionButton = styled.button<{ $primary?: boolean }>`
     cursor: not-allowed;
     opacity: 0.55;
   }
+
+  @media (max-width: 920px) {
+    height: 40px;
+    min-width: 40px;
+    padding: 0 11px;
+    border-radius: 14px;
+    box-shadow: ${(props) =>
+      props.$primary ? "0 10px 22px rgba(225, 29, 72, 0.18)" : "0 6px 14px rgba(15, 23, 42, 0.05)"};
+  }
+`;
+
+const IconLinkButton = styled(Link)<{ $primary?: boolean }>`
+  height: 46px;
+  min-width: 46px;
+  padding: 0 13px;
+  border-radius: 15px;
+  border: 1px solid
+    ${(props) => (props.$primary ? "rgba(225, 29, 72, 0.92)" : "rgba(148, 163, 184, 0.24)")};
+  background: ${(props) =>
+    props.$primary
+      ? "linear-gradient(135deg, #ff4d73, #e11d48)"
+      : "rgba(255, 255, 255, 0.96)"};
+  color: ${(props) => (props.$primary ? "#fff" : "#172033")};
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: ${(props) =>
+    props.$primary ? "0 14px 28px rgba(225, 29, 72, 0.2)" : "0 8px 18px rgba(15, 23, 42, 0.06)"};
 
   @media (max-width: 920px) {
     height: 40px;
@@ -708,7 +743,7 @@ const MobileTopCard = styled.div`
 
 const MobileSearchRow = styled.form`
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   gap: 8px;
 `;
 
@@ -1342,8 +1377,11 @@ export default function PropertyMapView() {
                   submitSearch();
                 }}
               >
+                <IconLinkButton href={homeHref} aria-label={t("map.backToSearch")} title={t("map.backToSearch")}>
+                  <ArrowLeft size={18} />
+                </IconLinkButton>
                 <SearchInputWrap>
-                  <Search size={16} />
+                  <Search size={19} />
                   <input
                     value={searchDraft}
                     onChange={(event) => setSearchDraft(event.target.value)}
@@ -1456,8 +1494,11 @@ export default function PropertyMapView() {
                     event.preventDefault();
                   }}
                 >
+                  <IconLinkButton href={homeHref} aria-label={t("map.backToSearch")} title={t("map.backToSearch")}>
+                    <ArrowLeft size={18} />
+                  </IconLinkButton>
                   <SearchInputWrap>
-                    <Search size={16} />
+                    <Search size={19} />
                     <input
                       value={searchDraft}
                       onChange={(event) => setSearchDraft(event.target.value)}

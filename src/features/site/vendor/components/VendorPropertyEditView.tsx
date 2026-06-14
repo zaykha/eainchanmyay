@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import styled from "styled-components";
 import { normalizeSelectablePropertyType, propertyTypeDefinitions } from "@/lib/property-types";
 import { ArrowLeft, Save } from "lucide-react";
-import { useAppState } from "@/app/living-site/lib/app-state";
-import { getDistricts, getStates, getTownships } from "@/app/living-site/lib/myanmar-geo";
-import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
+import { useAppState } from "@/features/site/shared/lib/app-state";
+import { getDistricts, getStates, getTownships } from "@/features/site/shared/lib/myanmar-geo";
+import { LoadingOverlay } from "@/features/site/shared/components/LoadingOverlay";
 
 const Page = styled.div`
   display: grid;

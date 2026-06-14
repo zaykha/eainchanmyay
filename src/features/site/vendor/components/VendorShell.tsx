@@ -19,11 +19,11 @@ import {
   Users2,
   X,
 } from "lucide-react";
-import { useAppState } from "@/app/living-site/lib/app-state";
-import { readActiveVendorWorkspace, withActiveVendorHeaders } from "@/app/living-site/lib/active-context";
-import { useI18n } from "@/app/living-site/lib/i18n";
-import { readWorkspaceCache, writeWorkspaceCache } from "@/app/living-site/lib/vendor-workspace-cache";
-import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
+import { useAppState } from "@/features/site/shared/lib/app-state";
+import { readActiveVendorWorkspace, withActiveVendorHeaders } from "@/features/site/vendor/lib/active-context";
+import { useI18n } from "@/features/site/shared/lib/i18n";
+import { readWorkspaceCache, writeWorkspaceCache } from "@/features/site/vendor/lib/vendor-workspace-cache";
+import { LoadingOverlay } from "@/features/site/shared/components/LoadingOverlay";
 import { isVendorStorefrontSetupComplete } from "@/lib/vendor-storefront";
 
 const Frame = styled.div`
@@ -52,7 +52,13 @@ const Sidebar = styled.aside<{ $open?: boolean }>`
     width: min(84vw, 300px);
     z-index: 120;
     transform: translateX(${(props) => (props.$open ? "0" : "-100%")});
-    transition: transform 180ms ease;
+    opacity: ${(props) => (props.$open ? 1 : 0)};
+    visibility: ${(props) => (props.$open ? "visible" : "hidden")};
+    pointer-events: ${(props) => (props.$open ? "auto" : "none")};
+    transition:
+      transform 240ms cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 180ms ease,
+      visibility 0s linear ${(props) => (props.$open ? "0s" : "240ms")};
     box-shadow: 0 20px 48px rgba(0, 0, 0, 0.36);
   }
 `;
@@ -96,6 +102,19 @@ const NavLink = styled(Link)<{ $active?: boolean }>`
   background: ${(props) => (props.$active ? "rgba(255,255,255,0.06)" : "transparent")};
   border: 1px solid ${(props) => (props.$active ? "rgba(255,255,255,0.08)" : "transparent")};
   font-weight: 600;
+
+  span {
+    font-size: 0.94rem;
+    line-height: 1.25;
+  }
+
+  @media (max-width: 960px) {
+    padding: 13px 14px;
+
+    span {
+      font-size: 0.98rem;
+    }
+  }
 `;
 
 const SidebarHint = styled.p`
@@ -103,6 +122,10 @@ const SidebarHint = styled.p`
   color: #8e98aa;
   font-size: 0.88rem;
   line-height: 1.55;
+
+  @media (max-width: 960px) {
+    font-size: 0.92rem;
+  }
 `;
 
 const Content = styled.main`
@@ -134,6 +157,16 @@ const MobileBrand = styled.div`
   gap: 10px;
   font-weight: 700;
   color: #f8fafc;
+  min-width: 0;
+`;
+
+const MobileBrandText = styled.span`
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.96rem;
+  line-height: 1.2;
 `;
 
 const IconButton = styled.button`
@@ -152,12 +185,15 @@ const Overlay = styled.button<{ $open?: boolean }>`
   display: none;
 
   @media (max-width: 960px) {
-    display: ${(props) => (props.$open ? "block" : "none")};
+    display: block;
     position: fixed;
     inset: 0;
     z-index: 110;
     border: none;
     background: rgba(4, 7, 12, 0.56);
+    opacity: ${(props) => (props.$open ? 1 : 0)};
+    pointer-events: ${(props) => (props.$open ? "auto" : "none")};
+    transition: opacity 180ms ease;
   }
 `;
 
@@ -493,7 +529,7 @@ export function VendorShell({ children }: { children: React.ReactNode }) {
             <BrandMark>
               <img src="/KTLogo.png" alt="Eain Chan Myay" />
             </BrandMark>
-            <span>{workspace?.vendor.name || t("vendorShell.mobileBrandFallback")}</span>
+            <MobileBrandText>{workspace?.vendor.name || t("vendorShell.mobileBrandFallback")}</MobileBrandText>
           </MobileBrand>
           <div style={{ width: 42 }} />
         </MobileBar>

@@ -1,1 +1,1 @@
-export { default } from "../living-site/auth/page";
+export { default } from "@/features/site/public/auth/AuthPage";

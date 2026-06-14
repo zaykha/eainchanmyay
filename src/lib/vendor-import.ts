@@ -1,4 +1,4 @@
-import { getDistricts, getStates, getTownships } from "@/app/living-site/lib/myanmar-geo";
+import { getDistricts, getStates, getTownships } from "@/features/site/shared/lib/myanmar-geo";
 
 const maxImagesPerProperty = 10;
 export const vendorImportMaxRows = 50;

@@ -1,4 +1,4 @@
-import { translate } from "@/app/living-site/lib/i18n";
+import { translate } from "@/features/site/shared/lib/i18n";
 
 export function formatCurrency(
   value?: number,

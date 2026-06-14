@@ -1,4 +1,4 @@
-import { VendorVerificationView } from "@/app/living-site/components/vendor/VendorVerificationView";
+import { VendorVerificationView } from "@/features/site/vendor/components/VendorVerificationView";
 
 export default function VendorVerificationPage() {
   return <VendorVerificationView />;

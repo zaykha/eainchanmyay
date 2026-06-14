@@ -4,9 +4,9 @@ import Link from "next/link";
 import { useDeferredValue, useMemo, useState } from "react";
 import styled from "styled-components";
 import { ArrowRight, Building2, MapPin, Search, ShieldCheck } from "lucide-react";
-import { MarketplaceHeader } from "@/app/living-site/components/MarketplaceHeader";
-import { PageSection, Panel } from "@/app/living-site/components/PageSection";
-import { useAppState } from "@/app/living-site/lib/app-state";
+import { MarketplaceHeader } from "@/features/site/shared/components/MarketplaceHeader";
+import { PageSection, Panel } from "@/features/site/shared/components/PageSection";
+import { useAppState } from "@/features/site/shared/lib/app-state";
 import type { PublicAgencyCardRecord } from "@/lib/public-agencies";
 
 const UI = {

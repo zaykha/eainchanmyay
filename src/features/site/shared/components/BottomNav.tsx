@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import styled from "styled-components";
 import { Compass, ClipboardList, Settings } from "lucide-react";
-import { useI18n } from "@/app/living-site/lib/i18n";
+import { useI18n } from "@/features/site/shared/lib/i18n";
 
 const Shell = styled.nav`
   position: fixed;

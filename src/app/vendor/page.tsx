@@ -1,4 +1,4 @@
-import { VendorDashboardView } from "@/app/living-site/components/vendor/VendorDashboardView";
+import { VendorDashboardView } from "@/features/site/vendor/components/VendorDashboardView";
 
 export default function VendorPage() {
   return <VendorDashboardView />;

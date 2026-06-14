@@ -3,13 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import styled from "styled-components";
 import { MapPinned, Plus, SearchCheck, Trash2, UserRound, X } from "lucide-react";
-import { useAppState } from "@/app/living-site/lib/app-state";
-import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
-import { CustomSelect } from "@/app/living-site/components/form-controls/CustomSelect";
-import { supabase } from "@/app/living-site/lib/supabaseClient";
-import { withActiveVendorHeaders } from "@/app/living-site/lib/active-context";
-import { useI18n } from "@/app/living-site/lib/i18n";
-import { translateLocationName } from "@/app/living-site/lib/myanmar-geo";
+import { useAppState } from "@/features/site/shared/lib/app-state";
+import { LoadingOverlay } from "@/features/site/shared/components/LoadingOverlay";
+import { CustomSelect } from "@/features/site/shared/components/form-controls/CustomSelect";
+import { supabase } from "@/features/site/shared/lib/supabaseClient";
+import { withActiveVendorHeaders } from "@/features/site/vendor/lib/active-context";
+import { useI18n } from "@/features/site/shared/lib/i18n";
+import { translateLocationName } from "@/features/site/shared/lib/myanmar-geo";
 import { formatPropertyTypeValue } from "@/lib/property-types";
 
 const Page = styled.div<{ $embedded?: boolean }>`

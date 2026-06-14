@@ -5,16 +5,16 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowUpRight, Bath, BedDouble, Building2, House, Map, MapPin, Menu, MessageCircleMore, Plus, Search, ShieldCheck, SlidersHorizontal, Sparkles, Star, X } from "lucide-react";
 import styled, { keyframes } from "styled-components";
-import { ListingGrid } from "@/app/living-site/components/ListingGrid";
-import { CustomSelect } from "@/app/living-site/components/form-controls/CustomSelect";
-import { useLanguage } from "@/app/living-site/components/Providers";
-import { buildListingQuery, useInfiniteListings } from "@/app/living-site/hooks/useInfiniteListings";
-import { useAppState } from "@/app/living-site/lib/app-state";
-import { formatCurrency } from "@/app/living-site/lib/format";
-import { resolveHeaderAccountPresentation } from "@/app/living-site/lib/header-account";
-import { useI18n } from "@/app/living-site/lib/i18n";
+import { ListingGrid } from "@/features/site/shared/components/ListingGrid";
+import { CustomSelect } from "@/features/site/shared/components/form-controls/CustomSelect";
+import { useLanguage } from "@/features/site/shared/components/Providers";
+import { buildListingQuery, useInfiniteListings } from "@/features/site/shared/hooks/useInfiniteListings";
+import { useAppState } from "@/features/site/shared/lib/app-state";
+import { formatCurrency } from "@/features/site/shared/lib/format";
+import { resolveHeaderAccountPresentation } from "@/features/site/shared/lib/header-account";
+import { useI18n } from "@/features/site/shared/lib/i18n";
 import { formatPropertyTypeValue, isBedBathPropertyType } from "@/lib/property-types";
-import { getDistricts, getStates, getTownships, translateLocationName } from "@/app/living-site/lib/myanmar-geo";
+import { getDistricts, getStates, getTownships, translateLocationName } from "@/features/site/shared/lib/myanmar-geo";
 
 const PageFrame = styled.div`
   min-height: 100vh;

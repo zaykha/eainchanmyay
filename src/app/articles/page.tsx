@@ -1,2 +1,2 @@
-export { metadata } from "../living-site/articles/page";
-export { default } from "../living-site/articles/page";
+export { metadata } from "@/features/site/public/articles/ArticlesPage";
+export { default } from "@/features/site/public/articles/ArticlesPage";

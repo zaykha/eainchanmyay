@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { resolveListingImage } from "@/app/living-site/lib/images";
+import { resolveListingImage } from "@/features/site/shared/lib/images";
 import { publicListingQueryStatuses } from "@/lib/lifecycle";
 import { getVendorPlan } from "@/lib/vendor-plans";
 import { getVendorStorefrontBadges } from "@/lib/vendor-storefront";

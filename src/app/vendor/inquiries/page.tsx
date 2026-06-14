@@ -1,4 +1,4 @@
-import { VendorInquiriesView } from "@/app/living-site/components/vendor/VendorInquiriesView";
+import { VendorInquiriesView } from "@/features/site/vendor/components/VendorInquiriesView";
 
 export default function VendorInquiriesPage() {
   return <VendorInquiriesView />;

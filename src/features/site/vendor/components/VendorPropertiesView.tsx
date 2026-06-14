@@ -17,17 +17,21 @@ import {
   Search,
   Store,
   Warehouse,
+  X,
 } from "lucide-react";
-import { useAppState } from "@/app/living-site/lib/app-state";
-import { withActiveVendorHeaders } from "@/app/living-site/lib/active-context";
-import { formatCurrency } from "@/app/living-site/lib/format";
-import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
-import { CustomSelect } from "@/app/living-site/components/form-controls/CustomSelect";
-import { useI18n } from "@/app/living-site/lib/i18n";
+import { useAppState } from "@/features/site/shared/lib/app-state";
+import { withActiveVendorHeaders } from "@/features/site/vendor/lib/active-context";
+import { formatCurrency } from "@/features/site/shared/lib/format";
+import { LoadingOverlay } from "@/features/site/shared/components/LoadingOverlay";
+import { CustomSelect } from "@/features/site/shared/components/form-controls/CustomSelect";
+import { useI18n } from "@/features/site/shared/lib/i18n";
 
 const Page = styled.div<{ $embedded?: boolean }>`
   display: grid;
   gap: ${(props) => (props.$embedded ? "16px" : "20px")};
+   @media (max-width: 720px) {
+    gap: 2px;
+  }
 `;
 
 const Header = styled.div<{ $embedded?: boolean }>`
@@ -85,6 +89,179 @@ const Filters = styled.form<{ $compact?: boolean }>`
   @media (max-width: 640px) {
     grid-template-columns: 1fr;
   }
+`;
+
+const MobileFilterBar = styled.div`
+  display: none;
+
+  @media (max-width: 640px) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+  }
+`;
+
+const MobileFilterLauncher = styled.button<{ $embedded?: boolean }>`
+  display: none;
+
+  @media (max-width: 640px) {
+    width: 46px;
+    height: 46px;
+    padding: 0;
+    border-radius: 14px;
+    border: 1px solid ${(props) => (props.$embedded ? "var(--color-outline)" : "rgba(255, 255, 255, 0.08)")};
+    background: ${(props) => (props.$embedded ? "var(--color-surface)" : "#151b29")};
+    color: ${(props) => (props.$embedded ? "var(--color-text)" : "#f8fafc")};
+    display: inline-grid;
+    place-items: center;
+    cursor: pointer;
+    position: relative;
+  }
+`;
+
+const MobileFilterCount = styled.span`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-primary) 14%, white);
+  color: var(--color-primary);
+  font-size: 0.72rem;
+  font-weight: 800;
+
+  @media (max-width: 640px) {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    box-shadow: 0 0 0 3px var(--color-surface);
+  }
+`;
+
+const MobileFilterSummary = styled.div`
+  display: none;
+
+  @media (max-width: 640px) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: -2px;
+  }
+`;
+
+const MobileFilterPill = styled.span`
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 9px;
+  border-radius: 999px;
+  border: 1px solid var(--color-outline);
+  background: color-mix(in srgb, var(--color-surface-2) 84%, white);
+  color: var(--color-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+`;
+
+const MobileOnlyFilterFields = styled.div`
+  display: contents;
+
+  @media (max-width: 640px) {
+    display: none;
+  }
+`;
+
+const FilterSheetOverlay = styled.button<{ $open?: boolean }>`
+  display: none;
+
+  @media (max-width: 640px) {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 120;
+    border: none;
+    background: rgba(15, 23, 42, 0.42);
+    opacity: ${(props) => (props.$open ? 1 : 0)};
+    pointer-events: ${(props) => (props.$open ? "auto" : "none")};
+    transition: opacity 180ms ease;
+  }
+`;
+
+const FilterSheet = styled.div<{ $open?: boolean }>`
+  display: none;
+
+  @media (max-width: 640px) {
+    display: grid;
+    gap: 14px;
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    z-index: 130;
+    padding: 16px;
+    border-radius: 24px;
+    border: 1px solid var(--color-outline);
+    background: var(--color-surface);
+    box-shadow: 0 24px 64px rgba(15, 23, 42, 0.18);
+    transform: translateY(${(props) => (props.$open ? "0" : "24px")});
+    opacity: ${(props) => (props.$open ? 1 : 0)};
+    pointer-events: ${(props) => (props.$open ? "auto" : "none")};
+    transition:
+      transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 180ms ease;
+  }
+`;
+
+const FilterSheetHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+`;
+
+const FilterSheetTitle = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text);
+  font-size: 0.94rem;
+  font-weight: 800;
+`;
+
+const FilterSheetClose = styled.button`
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  border: 1px solid var(--color-outline);
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+`;
+
+const FilterSheetBody = styled.div`
+  display: grid;
+  gap: 12px;
+`;
+
+const FilterSheetActions = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+`;
+
+const FilterSheetButton = styled.button<{ $primary?: boolean }>`
+  min-height: 42px;
+  border-radius: 14px;
+  border: 1px solid ${(props) => (props.$primary ? "transparent" : "var(--color-outline)")};
+  background: ${(props) => (props.$primary ? "var(--gradient)" : "var(--color-surface-2)")};
+  color: ${(props) => (props.$primary ? "#fff" : "var(--color-text)")};
+  font-size: 0.88rem;
+  font-weight: 800;
+  cursor: pointer;
 `;
 
 const SearchField = styled.div<{ $embedded?: boolean }>`
@@ -145,6 +322,10 @@ const Grid = styled.div`
   @media (max-width: 980px) {
     grid-template-columns: 1fr;
   }
+
+  @media (max-width: 640px) {
+    gap: 18px;
+  }
 `;
 
 const EmbeddedViewport = styled.div`
@@ -165,6 +346,10 @@ const EmbeddedScroller = styled.div`
   display: grid;
   align-content: start;
   gap: 14px;
+
+  @media (max-width: 640px) {
+    gap: 18px;
+  }
 `;
 
 const shimmer = keyframes`
@@ -245,12 +430,16 @@ const Card = styled.div<{ $embedded?: boolean }>`
 
 const EmbeddedCardRow = styled.div`
   display: grid;
-  grid-template-columns: 156px minmax(0, 1fr) auto;
+  grid-template-columns: 156px minmax(0, 1fr);
   gap: 12px;
   align-items: center;
 
   @media (max-width: 720px) {
     grid-template-columns: 132px minmax(0, 1fr);
+  }
+
+  @media (min-width: 641px) {
+    grid-template-columns: 156px minmax(0, 1fr) auto;
   }
 `;
 
@@ -355,6 +544,12 @@ const EmbeddedPill = styled(Pill)<{ $tone?: "neutral" | "deal" | "price" | "stat
   font-size: ${(props) => (props.$compact ? "0.66rem" : "0.72rem")};
 `;
 
+const TypePill = styled(Pill)`
+  @media (max-width: 640px) {
+    display: none;
+  }
+`;
+
 const IconPill = styled(Pill)`
   gap: 6px;
 
@@ -445,7 +640,23 @@ const PropertyTypeTag = styled.div<{ $compact?: boolean }>`
     width: 20px;
     height: 20px;
   }
+
+  @media (max-width: 640px) {
+    display: none;
+  }
 `;
+
+function PropertyTypeIcon({ type }: { type: string | null | undefined }) {
+  const normalized = String(type ?? "").trim().toLowerCase();
+  if (normalized === "land") return <LandPlot />;
+  if (normalized === "house") return <Home />;
+  if (["condo", "mini_condo", "apartment", "serviced_apartment"].includes(normalized)) return <Building2 />;
+  if (["shop", "shop_office", "marketplace", "restaurant"].includes(normalized)) return <Store />;
+  if (normalized === "office") return <BriefcaseBusiness />;
+  if (normalized === "hotel") return <Hotel />;
+  if (["warehouse", "industrial"].includes(normalized)) return <Warehouse />;
+  return <Building2 />;
+}
 
 const EmptyCard = styled.div<{ $embedded?: boolean }>`
   border-radius: 24px;
@@ -560,18 +771,6 @@ function getListingStatusTone(status: string | null | undefined) {
   return "neutral" as const;
 }
 
-function PropertyTypeIcon({ type }: { type: string | null | undefined }) {
-  const normalized = String(type ?? "").trim().toLowerCase();
-  if (normalized === "land") return <LandPlot />;
-  if (normalized === "house") return <Home />;
-  if (["condo", "mini_condo", "apartment", "serviced_apartment"].includes(normalized)) return <Building2 />;
-  if (["shop", "shop_office", "marketplace", "restaurant"].includes(normalized)) return <Store />;
-  if (normalized === "office") return <BriefcaseBusiness />;
-  if (normalized === "hotel") return <Hotel />;
-  if (["warehouse", "industrial"].includes(normalized)) return <Warehouse />;
-  return <Building2 />;
-}
-
 type VendorPropertiesViewProps = {
   embedded?: boolean;
   hideHeader?: boolean;
@@ -601,6 +800,7 @@ export function VendorPropertiesView({
   const [status, setStatus] = useState("");
   const [dealType, setDealType] = useState("");
   const [propertyType, setPropertyType] = useState("");
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   const filteredItems = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -682,6 +882,12 @@ export function VendorPropertiesView({
     setQuery(searchInput.trim());
   }
 
+  function clearFilters() {
+    setStatus("");
+    setDealType("");
+    setPropertyType("");
+  }
+
   const resolvedTitle = title ?? t("vendor.properties.title");
   const resolvedSubtitle = subtitle ?? t("vendor.properties.subtitle");
   const recommendedUpgrade = workspaceLimits?.suggestedUpgrade
@@ -690,6 +896,12 @@ export function VendorPropertiesView({
         price: workspaceLimits.suggestedUpgrade.priceLabel,
       })
     : "";
+  const activeFilterCount = [status, dealType, propertyType].filter(Boolean).length;
+  const mobileFilterPills = [
+    status ? getListingStatusLabel(status, t) : null,
+    dealType ? getDealTypeLabel(dealType, t) : null,
+    propertyType ? formatPropertyTypeValue(propertyType, t) : null,
+  ].filter(Boolean) as string[];
 
   if (loading) {
     return embedded ? (
@@ -750,66 +962,168 @@ export function VendorPropertiesView({
           applySearch();
         }}
       >
-        <SearchField $embedded={embedded}>
-          <Input
+        <MobileFilterBar>
+          <SearchField $embedded={embedded}>
+            <Input
+              $embedded={embedded}
+              $compact={isMyanmar}
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+              placeholder={t("vendor.properties.searchPlaceholder")}
+              aria-label={t("vendor.properties.searchAria")}
+            />
+            <SearchButton type="submit" $embedded={embedded} aria-label={t("vendor.properties.searchButtonAria")}>
+              <Search />
+            </SearchButton>
+          </SearchField>
+          <MobileFilterLauncher
+            type="button"
             $embedded={embedded}
-            $compact={isMyanmar}
-            value={searchInput}
-            onChange={(event) => setSearchInput(event.target.value)}
-            placeholder={t("vendor.properties.searchPlaceholder")}
-            aria-label={t("vendor.properties.searchAria")}
-          />
-          <SearchButton type="submit" $embedded={embedded} aria-label={t("vendor.properties.searchButtonAria")}>
-            <Search />
-          </SearchButton>
-        </SearchField>
-        <CustomSelect
-          id="vendor-property-status"
-          name="vendor-property-status"
-          label={t("vendor.properties.status")}
-          value={status}
-          onChange={setStatus}
-          hideLabel
-        >
-          <option value="">{t("vendor.properties.allStatuses")}</option>
-          <option value="draft">{t("vendor.properties.status.draft")}</option>
-          <option value="active">{t("vendor.properties.status.active")}</option>
-          <option value="paused">{t("vendor.properties.status.paused")}</option>
-          <option value="reserved">{t("vendor.properties.status.reserved")}</option>
-          <option value="sold">{t("vendor.properties.status.sold")}</option>
-          <option value="rented">{t("vendor.properties.status.rented")}</option>
-          <option value="expired">{t("vendor.properties.status.expired")}</option>
-          <option value="archived">{t("vendor.properties.status.archived")}</option>
-          <option value="rejected">{t("vendor.properties.status.rejected")}</option>
-        </CustomSelect>
-        <CustomSelect
-          id="vendor-property-deal"
-          name="vendor-property-deal"
-          label={t("vendor.properties.deal")}
-          value={dealType}
-          onChange={setDealType}
-          hideLabel
-        >
-          <option value="">{t("vendor.properties.allDeals")}</option>
-          <option value="sale">{getDealTypeLabel("sale", t)}</option>
-          <option value="rent">{getDealTypeLabel("rent", t)}</option>
-        </CustomSelect>
-        <CustomSelect
-          id="vendor-property-type"
-          name="vendor-property-type"
-          label={t("vendor.properties.type")}
-          value={propertyType}
-          onChange={setPropertyType}
-          hideLabel
-        >
-          <option value="">{t("vendor.properties.allTypes")}</option>
-          {propertyTypeDefinitions.map((option) => (
-            <option key={option.value} value={option.value}>
-              {formatPropertyTypeValue(option.value, t)}
-            </option>
-          ))}
-        </CustomSelect>
+            aria-label={t("home.filters")}
+            onClick={() => setMobileFiltersOpen(true)}
+          >
+            <Filter size={16} />
+            {activeFilterCount > 0 ? <MobileFilterCount>{activeFilterCount}</MobileFilterCount> : null}
+          </MobileFilterLauncher>
+        </MobileFilterBar>
+        <MobileOnlyFilterFields>
+          <SearchField $embedded={embedded}>
+            <Input
+              $embedded={embedded}
+              $compact={isMyanmar}
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+              placeholder={t("vendor.properties.searchPlaceholder")}
+              aria-label={t("vendor.properties.searchAria")}
+            />
+            <SearchButton type="submit" $embedded={embedded} aria-label={t("vendor.properties.searchButtonAria")}>
+              <Search />
+            </SearchButton>
+          </SearchField>
+          <CustomSelect
+            id="vendor-property-status"
+            name="vendor-property-status"
+            label={t("vendor.properties.status")}
+            value={status}
+            onChange={setStatus}
+            hideLabel
+          >
+            <option value="">{t("vendor.properties.allStatuses")}</option>
+            <option value="draft">{t("vendor.properties.status.draft")}</option>
+            <option value="active">{t("vendor.properties.status.active")}</option>
+            <option value="paused">{t("vendor.properties.status.paused")}</option>
+            <option value="reserved">{t("vendor.properties.status.reserved")}</option>
+            <option value="sold">{t("vendor.properties.status.sold")}</option>
+            <option value="rented">{t("vendor.properties.status.rented")}</option>
+            <option value="expired">{t("vendor.properties.status.expired")}</option>
+            <option value="archived">{t("vendor.properties.status.archived")}</option>
+            <option value="rejected">{t("vendor.properties.status.rejected")}</option>
+          </CustomSelect>
+          <CustomSelect
+            id="vendor-property-deal"
+            name="vendor-property-deal"
+            label={t("vendor.properties.deal")}
+            value={dealType}
+            onChange={setDealType}
+            hideLabel
+          >
+            <option value="">{t("vendor.properties.allDeals")}</option>
+            <option value="sale">{getDealTypeLabel("sale", t)}</option>
+            <option value="rent">{getDealTypeLabel("rent", t)}</option>
+          </CustomSelect>
+          <CustomSelect
+            id="vendor-property-type"
+            name="vendor-property-type"
+            label={t("vendor.properties.type")}
+            value={propertyType}
+            onChange={setPropertyType}
+            hideLabel
+          >
+            <option value="">{t("vendor.properties.allTypes")}</option>
+            {propertyTypeDefinitions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {formatPropertyTypeValue(option.value, t)}
+              </option>
+            ))}
+          </CustomSelect>
+        </MobileOnlyFilterFields>
       </Filters>
+      <MobileFilterSummary>
+        {mobileFilterPills.map((pill) => (
+          <MobileFilterPill key={pill}>{pill}</MobileFilterPill>
+        ))}
+      </MobileFilterSummary>
+      <FilterSheetOverlay type="button" $open={mobileFiltersOpen} aria-label={t("home.filters")} onClick={() => setMobileFiltersOpen(false)} />
+      <FilterSheet $open={mobileFiltersOpen}>
+        <FilterSheetHeader>
+          <FilterSheetTitle>
+            <Filter size={16} />
+            <span>{t("home.filters")}</span>
+          </FilterSheetTitle>
+          <FilterSheetClose type="button" aria-label={t("vendorShell.closeMenu")} onClick={() => setMobileFiltersOpen(false)}>
+            <X size={16} />
+          </FilterSheetClose>
+        </FilterSheetHeader>
+        <FilterSheetBody>
+          <CustomSelect
+            id="vendor-property-status-mobile"
+            name="vendor-property-status-mobile"
+            label={t("vendor.properties.status")}
+            value={status}
+            onChange={setStatus}
+          >
+            <option value="">{t("vendor.properties.allStatuses")}</option>
+            <option value="draft">{t("vendor.properties.status.draft")}</option>
+            <option value="active">{t("vendor.properties.status.active")}</option>
+            <option value="paused">{t("vendor.properties.status.paused")}</option>
+            <option value="reserved">{t("vendor.properties.status.reserved")}</option>
+            <option value="sold">{t("vendor.properties.status.sold")}</option>
+            <option value="rented">{t("vendor.properties.status.rented")}</option>
+            <option value="expired">{t("vendor.properties.status.expired")}</option>
+            <option value="archived">{t("vendor.properties.status.archived")}</option>
+            <option value="rejected">{t("vendor.properties.status.rejected")}</option>
+          </CustomSelect>
+          <CustomSelect
+            id="vendor-property-deal-mobile"
+            name="vendor-property-deal-mobile"
+            label={t("vendor.properties.deal")}
+            value={dealType}
+            onChange={setDealType}
+          >
+            <option value="">{t("vendor.properties.allDeals")}</option>
+            <option value="sale">{getDealTypeLabel("sale", t)}</option>
+            <option value="rent">{getDealTypeLabel("rent", t)}</option>
+          </CustomSelect>
+          <CustomSelect
+            id="vendor-property-type-mobile"
+            name="vendor-property-type-mobile"
+            label={t("vendor.properties.type")}
+            value={propertyType}
+            onChange={setPropertyType}
+          >
+            <option value="">{t("vendor.properties.allTypes")}</option>
+            {propertyTypeDefinitions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {formatPropertyTypeValue(option.value, t)}
+              </option>
+            ))}
+          </CustomSelect>
+        </FilterSheetBody>
+        <FilterSheetActions>
+          <FilterSheetButton
+            type="button"
+            onClick={() => {
+              clearFilters();
+              setMobileFiltersOpen(false);
+            }}
+          >
+            {t("filter.clearFilters")}
+          </FilterSheetButton>
+          <FilterSheetButton type="button" $primary onClick={() => setMobileFiltersOpen(false)}>
+            {t("filter.apply")}
+          </FilterSheetButton>
+        </FilterSheetActions>
+      </FilterSheet>
 
       {embedded ? (
         <EmbeddedViewport>
@@ -914,7 +1228,7 @@ export function VendorPropertiesView({
                   </CardTop>
                   <Meta>
                     <Pill $compact={isMyanmar} $tone="deal">{getDealTypeLabel(property.deal_type, t)}</Pill>
-                    <Pill $compact={isMyanmar}>{formatPropertyTypeValue(property.property_type, t)}</Pill>
+                    <TypePill $compact={isMyanmar}>{formatPropertyTypeValue(property.property_type, t)}</TypePill>
                     <Pill $compact={isMyanmar} $tone={property.verification_status === "verified" || property.verification_status === "approved" ? "status-success" : "status-muted"}>
                       {`${t("vendor.properties.verification")}: ${labelize(property.verification_status)}`}
                     </Pill>

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { PartnersIndexView } from "@/app/living-site/partners/PartnersIndexView";
+import { PartnersIndexView } from "@/features/site/public/partners/PartnersIndexView";
 import { getPublicAgencies } from "@/lib/public-agencies";
 
 export const metadata: Metadata = {

@@ -1,1 +1,1 @@
-export { default } from "../living-site/faq/page";
+export { default } from "@/features/site/public/faq/FaqPage";

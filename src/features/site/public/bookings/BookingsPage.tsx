@@ -1,10 +1,10 @@
 "use client";
 
 import styled from "styled-components";
-import { MarketplaceHeader } from "@/app/living-site/components/MarketplaceHeader";
-import { SectionTitle } from "@/app/living-site/components/PageSection";
-import { EAIN_CONTACT_PHONE } from "@/app/living-site/lib/constants";
-import { useI18n } from "@/app/living-site/lib/i18n";
+import { MarketplaceHeader } from "@/features/site/shared/components/MarketplaceHeader";
+import { SectionTitle } from "@/features/site/shared/components/PageSection";
+import { EAIN_CONTACT_PHONE } from "@/features/site/shared/lib/constants";
+import { useI18n } from "@/features/site/shared/lib/i18n";
 
 const PageShell = styled.div`
   max-width: 1140px;

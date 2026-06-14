@@ -1,4 +1,4 @@
-import type { ProfileRole } from "@/app/living-site/lib/data";
+import type { ProfileRole } from "@/features/site/shared/lib/data";
 
 type HeaderAccountState = {
   user: { email?: string | null } | null;

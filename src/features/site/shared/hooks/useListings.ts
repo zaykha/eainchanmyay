@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { getListings, type Listing, type ListingFilters } from "@/app/living-site/lib/data";
+import { getListings, type Listing, type ListingFilters } from "@/features/site/shared/lib/data";
 
 export function useListings(filters?: ListingFilters) {
   const [listings, setListings] = useState<Listing[]>([]);

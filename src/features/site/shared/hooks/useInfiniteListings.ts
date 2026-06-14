@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { Listing, ListingFilters } from "@/app/living-site/lib/data";
+import type { Listing, ListingFilters } from "@/features/site/shared/lib/data";
 
 const pageSize = 6;
 const mapPageSize = 120;

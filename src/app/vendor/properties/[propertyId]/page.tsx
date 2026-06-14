@@ -1,4 +1,4 @@
-import { VendorPropertyDetailView } from "@/app/living-site/components/vendor/VendorPropertyDetailView";
+import { VendorPropertyDetailView } from "@/features/site/vendor/components/VendorPropertyDetailView";
 
 export default async function VendorPropertyDetailPage({
   params,

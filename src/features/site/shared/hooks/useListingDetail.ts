@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { ListingDetail } from "@/app/living-site/lib/data";
+import type { ListingDetail } from "@/features/site/shared/lib/data";
 
 const detailCache = new Map<string, ListingDetail | null>();
 const detailCachePrefix = "ecm_listing_detail_v2";

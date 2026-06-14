@@ -4,8 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import { createGlobalStyle } from "styled-components";
 import { MapContainer, useMap, useMapEvents } from "react-leaflet";
-import type { Listing } from "@/app/living-site/lib/data";
-import type { ListingQueryBounds } from "@/app/living-site/hooks/useInfiniteListings";
+import type { Listing } from "@/features/site/shared/lib/data";
+import type { ListingQueryBounds } from "@/features/site/shared/hooks/useInfiniteListings";
 
 const defaultCenter: [number, number] = [16.8661, 96.1951];
 const defaultZoom = 12;

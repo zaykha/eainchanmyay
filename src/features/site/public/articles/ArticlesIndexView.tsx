@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { useDeferredValue, useMemo, useState } from "react";
 import styled from "styled-components";
-import { ArrowRight, Clock3, Search, Sparkles } from "lucide-react";
-import { MarketplaceHeader } from "@/app/living-site/components/MarketplaceHeader";
-import { PageSection, Panel } from "@/app/living-site/components/PageSection";
+import { ArrowRight, Clock3, Search, SlidersHorizontal, Sparkles, X } from "lucide-react";
+import { MarketplaceHeader } from "@/features/site/shared/components/MarketplaceHeader";
+import { PageSection, Panel } from "@/features/site/shared/components/PageSection";
 import type { ArticleRecord } from "@/lib/articles-shared";
 import { formatArticleDate, getArticleSearchHaystack } from "@/lib/articles-shared";
 
@@ -118,6 +118,10 @@ const SearchIcon = styled(Search)`
 const ChipSection = styled.div`
   display: grid;
   gap: 10px;
+
+  @media (max-width: 720px) {
+    display: none;
+  }
 `;
 
 const ChipLabel = styled.div`
@@ -144,6 +148,92 @@ const Chip = styled.button<{ $active?: boolean }>`
   font-size: 0.88rem;
   font-weight: 700;
   text-align: left;
+`;
+
+const MobileFilterTrigger = styled.button`
+  display: none;
+
+  @media (max-width: 720px) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 42px;
+    width: 100%;
+    padding: 0 14px;
+    border-radius: 16px;
+    border: 1px solid var(--color-outline);
+    background: rgba(255, 255, 255, 0.96);
+    color: var(--color-text);
+    font-size: 0.9rem;
+    font-weight: 700;
+  }
+`;
+
+const MobileFilterSummary = styled.span`
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`;
+
+const FilterOverlay = styled.div`
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(15, 23, 42, 0.34);
+  display: grid;
+  align-items: end;
+  padding: 14px;
+`;
+
+const FilterDialog = styled.div`
+  width: min(100%, 420px);
+  max-height: min(72vh, 560px);
+  margin: 0 auto;
+  border-radius: 26px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: #fff;
+  box-shadow: 0 28px 60px rgba(15, 23, 42, 0.18);
+  display: grid;
+  grid-template-rows: auto 1fr;
+  overflow: hidden;
+`;
+
+const FilterHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+`;
+
+const FilterTitle = styled.h2`
+  margin: 0;
+  color: var(--color-text);
+  font-size: 1rem;
+`;
+
+const FilterClose = styled.button`
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 1px solid var(--color-outline);
+  background: #fff;
+  color: var(--color-text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+`;
+
+const FilterBody = styled.div`
+  overflow-y: auto;
+  padding: 14px 16px 16px;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 10px;
 `;
 
 const FeaturedLink = styled(Link)`
@@ -315,7 +405,9 @@ export function ArticlesIndexView({
 }: ArticlesIndexViewProps) {
   const [query, setQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState(UI.allCategories);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const deferredQuery = useDeferredValue(query);
+  const categoryOptions = [UI.allCategories, ...categories];
 
   const filteredArticles = useMemo(() => {
     const normalizedQuery = deferredQuery.trim().toLowerCase();
@@ -360,10 +452,17 @@ export function ArticlesIndexView({
             />
           </SearchWrap>
 
+          <MobileFilterTrigger type="button" onClick={() => setMobileFiltersOpen(true)}>
+            <MobileFilterSummary>
+              {activeCategory === UI.allCategories ? UI.categories : `${UI.categories}: ${activeCategory}`}
+            </MobileFilterSummary>
+            <SlidersHorizontal size={16} />
+          </MobileFilterTrigger>
+
           <ChipSection>
             <ChipLabel>{UI.categories}</ChipLabel>
             <ChipRow>
-              {[UI.allCategories, ...categories].map((category) => (
+              {categoryOptions.map((category) => (
                 <Chip
                   key={category}
                   type="button"
@@ -435,6 +534,35 @@ export function ArticlesIndexView({
 
         <Disclaimer>{disclaimer || UI.disclaimer}</Disclaimer>
       </Wrapper>
+
+      {mobileFiltersOpen ? (
+        <FilterOverlay onClick={() => setMobileFiltersOpen(false)}>
+          <FilterDialog onClick={(event) => event.stopPropagation()}>
+            <FilterHeader>
+              <FilterTitle>{UI.categories}</FilterTitle>
+              <FilterClose type="button" onClick={() => setMobileFiltersOpen(false)} aria-label="Close filters">
+                <X size={16} />
+              </FilterClose>
+            </FilterHeader>
+            <FilterBody>
+              {categoryOptions.map((category) => (
+                <Chip
+                  key={category}
+                  type="button"
+                  $active={category === activeCategory}
+                  onClick={() => {
+                    setActiveCategory(category);
+                    setMobileFiltersOpen(false);
+                  }}
+                  aria-pressed={category === activeCategory}
+                >
+                  {category}
+                </Chip>
+              ))}
+            </FilterBody>
+          </FilterDialog>
+        </FilterOverlay>
+      ) : null}
     </Shell>
   );
 }

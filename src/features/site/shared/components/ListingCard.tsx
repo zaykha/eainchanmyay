@@ -15,10 +15,10 @@ import {
   Warehouse,
 } from "lucide-react";
 import styled from "styled-components";
-import type { Listing } from "@/app/living-site/lib/data";
-import { formatCurrency } from "@/app/living-site/lib/format";
-import { useI18n } from "@/app/living-site/lib/i18n";
-import { translateLocationName } from "@/app/living-site/lib/myanmar-geo";
+import type { Listing } from "@/features/site/shared/lib/data";
+import { formatCurrency } from "@/features/site/shared/lib/format";
+import { useI18n } from "@/features/site/shared/lib/i18n";
+import { translateLocationName } from "@/features/site/shared/lib/myanmar-geo";
 import { formatPropertyTypeValue } from "@/lib/property-types";
 
 const Card = styled.article`

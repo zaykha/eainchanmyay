@@ -1,1 +1,1 @@
-export { default } from "../living-site/account/page";
+export { default } from "@/features/site/public/account/AccountPage";

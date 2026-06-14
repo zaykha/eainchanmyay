@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { RequestSalePageContent } from "@/app/living-site/request-sale/page";
+import { RequestSalePageContent } from "@/features/site/public/request-sale/RequestSalePage";
 
 function HubEditSkeleton() {
   return (

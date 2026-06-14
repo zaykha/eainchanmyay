@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getVendorRequestContext } from "@/app/api/vendor/_lib/context";
-import { resolveListingImage } from "@/app/living-site/lib/images";
+import { resolveListingImage } from "@/features/site/shared/lib/images";
 import { calculatePromotionEndsAt, isPromotionListingStatusEligible, normalizePromotionTargetType, normalizePromotionType, selectActiveBoostedListingPromotions, selectActiveHeroPromotions } from "@/lib/vendor-promotions";
 import { isAdminOrOwner, isOwner } from "@/lib/vendor-permissions";
 

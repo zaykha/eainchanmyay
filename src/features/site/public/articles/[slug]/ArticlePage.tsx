@@ -3,8 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import styled from "styled-components";
 import { ArrowLeft, ArrowUpRight, Clock3, MapPin, Sparkles } from "lucide-react";
-import { MarketplaceHeader } from "@/app/living-site/components/MarketplaceHeader";
-import { PageSection, Panel } from "@/app/living-site/components/PageSection";
+import { MarketplaceHeader } from "@/features/site/shared/components/MarketplaceHeader";
+import { PageSection, Panel } from "@/features/site/shared/components/PageSection";
 import {
   formatArticleDate,
   getArticleBySlug,

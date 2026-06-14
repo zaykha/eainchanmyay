@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Space_Grotesk } from "next/font/google";
 import "./globals.css";
-import { StyledComponentsRegistry } from "@/app/living-site/lib/styled-components-registry";
-import { Providers } from "@/app/living-site/components/Providers";
+import { StyledComponentsRegistry } from "@/features/site/shared/lib/styled-components-registry";
+import { Providers } from "@/features/site/shared/components/Providers";
 
 const spaceGrotesk = Space_Grotesk({
   variable: "--font-primary",

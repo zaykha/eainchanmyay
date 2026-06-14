@@ -44,10 +44,10 @@ import {
   Users2,
   X,
 } from "lucide-react";
-import { useLanguage } from "@/app/living-site/components/Providers";
-import { Panel } from "@/app/living-site/components/PageSection";
-import { useAppState } from "@/app/living-site/lib/app-state";
-import { supabase } from "@/app/living-site/lib/supabaseClient";
+import { useLanguage } from "@/features/site/shared/components/Providers";
+import { Panel } from "@/features/site/shared/components/PageSection";
+import { useAppState } from "@/features/site/shared/lib/app-state";
+import { supabase } from "@/features/site/shared/lib/supabaseClient";
 import {
   deriveActiveContextFromPath,
   readActiveContext,
@@ -55,30 +55,36 @@ import {
   withActiveVendorHeaders,
   writeActiveContext,
   writeActiveVendorWorkspace,
-} from "@/app/living-site/lib/active-context";
-import { readWorkspaceCache, writeWorkspaceCache } from "@/app/living-site/lib/vendor-workspace-cache";
-import { formatCurrency } from "@/app/living-site/lib/format";
+} from "@/features/site/vendor/lib/active-context";
+import { readWorkspaceCache, writeWorkspaceCache } from "@/features/site/vendor/lib/vendor-workspace-cache";
+import { formatCurrency } from "@/features/site/shared/lib/format";
 import {
   getInquiriesForUser,
   getOwnedPropertiesForUser,
   getSavedPropertiesForUser,
   getViewingRequestsForUser,
-} from "@/app/living-site/lib/data";
-import { useI18n } from "@/app/living-site/lib/i18n";
-import { translateLocationName } from "@/app/living-site/lib/myanmar-geo";
+} from "@/features/site/shared/lib/data";
+import { useI18n } from "@/features/site/shared/lib/i18n";
+import { translateLocationName } from "@/features/site/shared/lib/myanmar-geo";
 import { getUpgradePlan, getVendorPlan } from "@/lib/vendor-plans";
 import { listingStatuses, normalizeListingStatus, type ListingStatus } from "@/lib/lifecycle";
 import { isVendorStorefrontSetupComplete } from "@/lib/vendor-storefront";
 import { formatPropertyTypeValue } from "@/lib/property-types";
-import { CustomSelect } from "@/app/living-site/components/form-controls/CustomSelect";
+import { CustomSelect } from "@/features/site/shared/components/form-controls/CustomSelect";
 import {
   VendorPropertiesView,
   type VendorPropertyItem,
-} from "@/app/living-site/components/vendor/VendorPropertiesView";
-import { VendorImportView } from "@/app/living-site/components/vendor/VendorImportView";
-import { VendorInquiriesView } from "@/app/living-site/components/vendor/VendorInquiriesView";
-import { VendorVerificationView } from "@/app/living-site/components/vendor/VendorVerificationView";
-import { VendorPromotionsView } from "@/app/living-site/components/vendor/VendorPromotionsView";
+} from "@/features/site/vendor/components/VendorPropertiesView";
+import { VendorImportView } from "@/features/site/vendor/components/VendorImportView";
+import { VendorInquiriesView } from "@/features/site/vendor/components/VendorInquiriesView";
+import { HubPage } from "@/features/site/vendor/components/HubPage";
+import { HubListingDetailView } from "@/features/site/vendor/components/HubListingDetailView";
+import { HubAppointmentsView } from "@/features/site/vendor/components/HubAppointmentsView";
+import { HubAppointmentEditorModal } from "@/features/site/vendor/components/HubAppointmentEditorModal";
+import { HubStaffAppointmentsModal } from "@/features/site/vendor/components/HubStaffAppointmentsModal";
+import { VendorVerificationView } from "@/features/site/vendor/components/VendorVerificationView";
+import { VendorPromotionsView } from "@/features/site/vendor/components/VendorPromotionsView";
+import type { HubSection } from "@/features/site/vendor/lib/hub-sections";
 import { HubAnalyticsContent } from "@/app/hub/analytics/page";
 
 const shimmer = keyframes`
@@ -167,165 +173,12 @@ type VendorAppointmentsDashboardPayload = {
   }>;
 };
 
-type AppointmentDatePickerProps = {
-  name: string;
-  value: string;
-  onChange: (value: string) => void;
-  locale: string;
-  disabled?: boolean;
-};
-
-function AppointmentDatePicker({ name, value, onChange, locale, disabled }: AppointmentDatePickerProps) {
-  const [open, setOpen] = useState(false);
-  const selectedDate = value ? parseDateOnly(value) : null;
-  const [currentMonth, setCurrentMonth] = useState<Date>(selectedDate ?? new Date());
-  const days = useMemo(() => getCalendarDays(currentMonth), [currentMonth]);
-  const monthLabel = currentMonth.toLocaleDateString(locale, {
-    month: "long",
-    year: "numeric",
-  });
-
-  return (
-    <>
-      <AppointmentDateTrigger
-        type="button"
-        name={name}
-        disabled={disabled}
-        onClick={() => {
-          if (disabled) return;
-          setCurrentMonth(selectedDate ?? new Date());
-          setOpen(true);
-        }}
-      >
-        <AppointmentSelectValue $muted={!value}>
-          {formatDatePickerLabel(value, locale) || "Select date"}
-        </AppointmentSelectValue>
-      </AppointmentDateTrigger>
-      {open && (
-        <AppointmentCalendarOverlay onClick={() => setOpen(false)}>
-          <AppointmentCalendarCard onClick={(event) => event.stopPropagation()}>
-            <AppointmentCalendarHeader>
-              <AppointmentCalendarNav
-                type="button"
-                onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}
-                disabled={disabled}
-              >
-                Prev
-              </AppointmentCalendarNav>
-              <strong>{monthLabel}</strong>
-              <AppointmentCalendarNav
-                type="button"
-                onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))}
-                disabled={disabled}
-              >
-                Next
-              </AppointmentCalendarNav>
-            </AppointmentCalendarHeader>
-            <AppointmentCalendarGrid>
-              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-                <span
-                  key={day}
-                  style={{
-                    textAlign: "center",
-                    fontSize: "0.75rem",
-                    color: "var(--color-muted)",
-                    fontWeight: 600,
-                  }}
-                >
-                  {day}
-                </span>
-              ))}
-              {days.map((item) => {
-                const key = toDateString(item.date);
-                const active = value === key;
-                return (
-                  <AppointmentCalendarDay
-                    key={key}
-                    type="button"
-                    $muted={!item.inMonth}
-                    $active={active}
-                    onClick={() => {
-                      if (disabled) return;
-                      onChange(key);
-                      setOpen(false);
-                    }}
-                  >
-                    {item.date.getDate()}
-                  </AppointmentCalendarDay>
-                );
-              })}
-            </AppointmentCalendarGrid>
-          </AppointmentCalendarCard>
-        </AppointmentCalendarOverlay>
-      )}
-    </>
-  );
-}
-
 function toLocalDateKey(value: string | Date) {
   const date = value instanceof Date ? value : new Date(value);
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(
     2,
     "0"
   )}`;
-}
-
-function parseDateOnly(value: string) {
-  const parts = value.split("-").map((part) => Number(part));
-  if (parts.length !== 3 || parts.some((part) => Number.isNaN(part))) return null;
-  const [year, month, day] = parts;
-  return new Date(year, month - 1, day);
-}
-
-function formatDatePickerLabel(value: string | undefined, locale: string) {
-  if (!value) return "";
-  const parsed = parseDateOnly(value);
-  if (!parsed) return "";
-  return parsed.toLocaleDateString(locale, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
-function getCalendarDays(monthDate: Date) {
-  const year = monthDate.getFullYear();
-  const month = monthDate.getMonth();
-  const start = new Date(year, month, 1);
-  const startDay = start.getDay();
-  const first = new Date(year, month, 1 - startDay);
-  const days: Array<{ date: Date; inMonth: boolean }> = [];
-
-  for (let i = 0; i < 42; i += 1) {
-    const current = new Date(first);
-    current.setDate(first.getDate() + i);
-    days.push({ date: current, inMonth: current.getMonth() === month });
-  }
-
-  return days;
-}
-
-function toDateString(value: Date) {
-  const year = value.getFullYear();
-  const month = `${value.getMonth() + 1}`.padStart(2, "0");
-  const day = `${value.getDate()}`.padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function getDatePart(value: string) {
-  if (!value) return "";
-  return value.slice(0, 10);
-}
-
-function getTimePart(value: string) {
-  if (!value) return "";
-  const normalized = value.includes("T") ? value.split("T")[1] : value;
-  return normalized.slice(0, 5);
-}
-
-function combineDateAndTime(date: string, time: string) {
-  if (!date) return "";
-  return `${date}T${time || "09:00"}`;
 }
 
 const HUB_SNAPSHOT_TEMPLATE: VendorOverviewPayload = {
@@ -505,6 +358,11 @@ const VendorIdentity = styled.div`
   align-items: center;
   gap: 14px;
   min-width: 0;
+
+  @media (max-width: 640px) {
+    align-items: flex-start;
+    gap: 10px;
+  }
 `;
 
 const VendorLogoBadge = styled.div<{ $image?: string }>`
@@ -520,6 +378,13 @@ const VendorLogoBadge = styled.div<{ $image?: string }>`
   place-items: center;
   color: var(--color-muted);
   overflow: hidden;
+
+  @media (max-width: 640px) {
+    width: 46px;
+    height: 46px;
+    flex-basis: 46px;
+    border-radius: 14px;
+  }
 `;
 
 const HeaderInner = styled.div`
@@ -1326,14 +1191,6 @@ const VendorGrid = styled.div`
   }
 `;
 
-const VendorColumn = styled.div`
-  display: grid;
-  gap: 16px;
-  align-content: start;
-  align-self: stretch;
-  grid-template-rows: auto minmax(0, 1fr);
-`;
-
 const VendorSkeleton = styled.div`
   display: grid;
   gap: 16px;
@@ -1407,72 +1264,22 @@ const VendorCard = styled(Panel)`
   display: grid;
   gap: 14px;
   align-self: start;
+
+  @media (max-width: 640px) {
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+
+    &::after {
+      display: none;
+    }
+  }
 `;
 
 const VendorCardFill = styled(VendorCard)`
   align-self: start;
-`;
-
-const VendorActionRail = styled(VendorCard)<{ $expanded?: boolean }>`
-  position: relative;
-  align-self: stretch;
-  overflow: visible;
-  padding: 0;
-  gap: 0;
-  min-width: 84px;
-  width: 84px;
-  border: none;
-  background: transparent;
-  box-shadow: none;
-
-  @media (max-width: 960px) {
-    padding: 14px;
-    width: auto;
-    min-width: 0;
-    border: 1px solid rgba(15, 23, 42, 0.08);
-    background: var(--color-surface);
-    box-shadow: var(--frame-shadow);
-  }
-`;
-
-const HubRailSurface = styled.div<{ $expanded?: boolean }>`
-  position: absolute;
-  top: 0;
-  left: 0;
-  z-index: 5;
-  width: ${(props) => (props.$expanded ? "248px" : "84px")};
-  min-height: 100%;
-  padding: 12px;
-  border-radius: 28px;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: ${(props) => (props.$expanded ? "0 18px 44px rgba(15, 23, 42, 0.12)" : "var(--frame-shadow)")};
-  overflow: visible;
-  transition:
-    width 180ms ease,
-    box-shadow 180ms ease,
-    background 180ms ease;
-  will-change: width;
-
-  @media (max-width: 960px) {
-    position: relative;
-    width: 100%;
-    min-height: 0;
-    padding: 0;
-    border: none;
-    background: transparent;
-    box-shadow: none;
-    overflow: visible;
-  }
-`;
-
-const HubRailSpacer = styled.div`
-  width: 84px;
-  min-height: 100%;
-
-  @media (max-width: 960px) {
-    display: none;
-  }
 `;
 
 const VendorHero = styled.div`
@@ -1483,6 +1290,11 @@ const VendorHero = styled.div`
 const VendorTitle = styled.h2`
   margin: 0;
   font-size: clamp(1.5rem, 3vw, 2.1rem);
+
+  @media (max-width: 640px) {
+    font-size: 1.18rem;
+    line-height: 1.18;
+  }
 `;
 
 const VendorMeta = styled.div`
@@ -1515,6 +1327,12 @@ const VendorPill = styled.span<{ $tone?: "success" | "warning" | "neutral" }>`
     props.$tone === "success" ? "#0f766e" : props.$tone === "warning" ? "#b45309" : "var(--color-text)"};
   font-size: 0.82rem;
   font-weight: 700;
+
+  @media (max-width: 640px) {
+    gap: 5px;
+    padding: 5px 9px;
+    font-size: 0.76rem;
+  }
 `;
 
 const VendorPillLink = styled(Link)<{ $tone?: "success" | "warning" | "neutral" }>`
@@ -1541,6 +1359,12 @@ const VendorPillLink = styled(Link)<{ $tone?: "success" | "warning" | "neutral" 
   font-size: 0.82rem;
   font-weight: 700;
   text-decoration: none;
+
+  @media (max-width: 640px) {
+    gap: 5px;
+    padding: 5px 9px;
+    font-size: 0.76rem;
+  }
 `;
 
 const VendorActionGrid = styled.div`
@@ -1595,6 +1419,10 @@ const StarterTopRow = styled.div`
     flex-direction: column;
     align-items: stretch;
   }
+
+  @media (max-width: 640px) {
+    gap: 12px;
+  }
 `;
 
 const StarterSummary = styled.div`
@@ -1609,7 +1437,7 @@ const StarterSummary = styled.div`
   }
 
   @media (max-width: 640px) {
-    gap: 8px;
+    gap: 6px;
   }
 `;
 
@@ -1617,12 +1445,20 @@ const StarterSummaryItem = styled.div`
   display: grid;
   gap: 2px;
   min-width: 88px;
+
+  @media (max-width: 640px) {
+    min-width: 68px;
+  }
 `;
 
 const StarterSummaryLabel = styled.div`
   color: var(--color-muted);
   font-size: 0.76rem;
   line-height: 1.2;
+
+  @media (max-width: 640px) {
+    font-size: 0.71rem;
+  }
 `;
 
 const StarterSummaryValue = styled.div`
@@ -1630,6 +1466,18 @@ const StarterSummaryValue = styled.div`
   font-size: 0.92rem;
   font-weight: 800;
   line-height: 1.2;
+
+  @media (max-width: 640px) {
+    font-size: 0.84rem;
+  }
+`;
+
+const StarterSummaryBadge = styled.div<{ $mobileOrder?: number }>`
+  display: inline-flex;
+
+  @media (max-width: 640px) {
+    order: ${(props) => props.$mobileOrder ?? 0};
+  }
 `;
 
 const HubFeatureCard = styled.div`
@@ -2155,345 +2003,23 @@ const AppointmentQueueSideValue = styled.strong`
   font-size: 0.84rem;
 `;
 
-const StaffAppointmentsModalBody = styled.div`
-  min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
-  gap: 10px;
-  align-content: start;
-
-  @media (max-width: 980px) {
-    grid-template-columns: 1fr;
+const ListingDetailViewport = styled(HubSectionViewport)`
+  @media (max-width: 640px) {
+    min-height: auto;
+    max-height: none;
+    height: auto;
+    overflow: visible;
   }
 `;
 
-const StaffAppointmentsPanel = styled.div`
-  border: 1px solid var(--color-outline);
-  border-radius: 18px;
-  background: color-mix(in srgb, var(--color-surface-2) 84%, white);
-  padding: 12px;
-  display: grid;
-  gap: 8px;
-  min-height: 0;
-`;
-
-const StaffAppointmentsPanelHeader = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  flex-wrap: wrap;
-`;
-
-const StaffAppointmentsPanelTitle = styled.strong`
-  color: var(--color-text);
-  font-size: 0.94rem;
-`;
-
-const StaffAppointmentsPanelCopy = styled.span`
-  color: var(--color-muted);
-  font-size: 0.8rem;
-  line-height: 1.4;
-`;
-
-const StaffAppointmentsList = styled.div`
-  min-height: 0;
-  overflow-y: auto;
-  display: grid;
-  gap: 5px;
-  padding-right: 4px;
-`;
-
-const StaffAppointmentsRow = styled.div`
-  border: 1px solid var(--color-outline);
-  border-radius: 16px;
-  background: var(--color-surface);
-  padding: 8px 10px;
-  display: grid;
-  gap: 4px;
-`;
-
-const StaffAppointmentsRowTop = styled.div`
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-`;
-
-const StaffAppointmentsRowTitle = styled.strong`
-  color: var(--color-text);
-  font-size: 0.84rem;
-  line-height: 1.3;
-`;
-
-const StaffAppointmentsRowMeta = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  flex-wrap: wrap;
-  color: var(--color-muted);
-  font-size: 0.74rem;
-`;
-
-const StaffAppointmentsAside = styled.div`
-  border: 1px solid var(--color-outline);
-  border-radius: 18px;
-  background: color-mix(in srgb, var(--color-surface-2) 84%, white);
-  padding: 12px;
-  display: grid;
-  align-content: start;
-  gap: 8px;
-  min-height: 0;
-  overflow-y: auto;
-`;
-
-const StaffAppointmentsToggle = styled.button<{ $active?: boolean }>`
-  border: 1px solid
-    ${(props) =>
-      props.$active ? "color-mix(in srgb, var(--color-primary) 28%, var(--color-outline))" : "var(--color-outline)"};
-  border-radius: 999px;
-  padding: 7px 11px;
-  background: ${(props) => (props.$active ? "#fff1f3" : "var(--color-surface)")};
-  color: ${(props) => (props.$active ? "var(--color-primary)" : "var(--color-text)")};
-  font-weight: 700;
-  cursor: pointer;
-`;
-
-const StaffAppointmentsSummary = styled.div`
-  display: grid;
-  gap: 8px;
-`;
-
-const StaffAppointmentsSummaryRow = styled.div`
-  border: 1px solid var(--color-outline);
-  border-radius: 16px;
-  background: var(--color-surface);
-  padding: 10px 12px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-`;
-
-const StaffAppointmentsSummaryLabel = styled.span`
-  color: var(--color-muted);
-  font-size: 0.8rem;
-`;
-
-const StaffAppointmentsSummaryValue = styled.strong`
-  color: var(--color-text);
-  font-size: 0.9rem;
-`;
-
-const AppointmentClickable = styled.button`
-  width: 100%;
-  text-align: left;
-  border: 0;
-  background: transparent;
-  padding: 0;
-  cursor: pointer;
-`;
-
-const AppointmentEditorMeta = styled.div`
-  display: grid;
-  gap: 10px;
-`;
-
-const AppointmentEditorRow = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: var(--color-muted);
-  font-size: 0.9rem;
-  flex-wrap: wrap;
-`;
-
-const AppointmentEditorGrid = styled.div`
-  display: grid;
-  gap: 12px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-
-  @media (max-width: 760px) {
-    grid-template-columns: 1fr;
+const ListingDetailScroller = styled(HubSectionScroller)`
+  @media (max-width: 640px) {
+    min-height: auto;
+    height: auto;
+    overflow: visible;
+    padding-right: 0;
   }
 `;
-
-const AppointmentEditorSections = styled.div`
-  display: grid;
-  gap: 16px;
-`;
-
-const AppointmentEditorSection = styled.section`
-  display: grid;
-  gap: 14px;
-  padding: 16px;
-  border: 1px solid var(--color-outline);
-  border-radius: 18px;
-  background: color-mix(in srgb, var(--color-surface-2) 84%, white);
-`;
-
-const AppointmentEditorSectionHeader = styled.div`
-  display: grid;
-  gap: 4px;
-`;
-
-const AppointmentEditorSectionTitle = styled.strong`
-  color: var(--color-text);
-  font-size: 0.98rem;
-`;
-
-const AppointmentEditorSectionCopy = styled.span`
-  color: var(--color-muted);
-  font-size: 0.86rem;
-  line-height: 1.45;
-`;
-
-const AppointmentEditorLabel = styled.div`
-  color: var(--color-muted);
-  font-size: 0.8rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-`;
-
-const AppointmentEditorField = styled.div`
-  display: grid;
-  gap: 8px;
-`;
-
-const AppointmentEditorInput = styled.input`
-  width: 100%;
-  height: 50px;
-  border-radius: 14px;
-  border: 1px solid var(--color-outline);
-  background: var(--color-surface);
-  color: var(--color-text);
-  padding: 0 16px;
-  font: inherit;
-  outline: none;
-
-  &:focus {
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 18%, transparent);
-  }
-
-  &:disabled {
-    opacity: 0.7;
-    cursor: not-allowed;
-  }
-`;
-
-const DangerButton = styled.button`
-  border: 1px solid color-mix(in srgb, var(--color-primary) 30%, var(--color-outline));
-  border-radius: var(--radius-md);
-  padding: 10px 14px;
-  background: color-mix(in srgb, var(--color-primary) 8%, white);
-  color: var(--color-primary);
-  font-weight: 700;
-  cursor: pointer;
-`;
-
-const AppointmentTextArea = styled.textarea`
-  min-height: 108px;
-  width: 100%;
-  border-radius: 14px;
-  border: 1px solid var(--color-outline);
-  background: var(--color-surface);
-  color: var(--color-text);
-  padding: 14px 16px;
-  resize: vertical;
-  font: inherit;
-
-  &:focus {
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 18%, transparent);
-  }
-`;
-
-const AppointmentSelectValue = styled.span<{ $muted?: boolean }>`
-  color: ${(props) => (props.$muted ? "var(--color-muted)" : "var(--color-text)")};
-  font-size: 0.95rem;
-  line-height: 1.2;
-`;
-
-const AppointmentDateTrigger = styled.button`
-  width: 100%;
-  border-radius: 12px;
-  border: 1px solid var(--color-outline);
-  padding: 0 16px;
-  background: var(--color-surface);
-  color: var(--color-text);
-  height: 50px;
-  text-align: left;
-  cursor: pointer;
-  outline: none;
-  display: flex;
-  align-items: center;
-
-  &:focus {
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 25%, transparent);
-  }
-`;
-
-const AppointmentCalendarOverlay = styled.div`
-  position: fixed;
-  inset: 0;
-  background: rgba(12, 18, 36, 0.4);
-  display: grid;
-  place-items: center;
-  z-index: 110;
-  padding: 16px;
-`;
-
-const AppointmentCalendarCard = styled.div`
-  width: min(420px, 100%);
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-outline);
-  border-radius: 16px;
-  box-shadow: var(--shadow-soft);
-  padding: 16px;
-  display: grid;
-  gap: 12px;
-`;
-
-const AppointmentCalendarHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-`;
-
-const AppointmentCalendarNav = styled.button`
-  border: 1px solid var(--color-outline);
-  border-radius: 10px;
-  padding: 6px 10px;
-  background: var(--color-surface);
-  cursor: pointer;
-  color: var(--color-text);
-`;
-
-const AppointmentCalendarGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 6px;
-`;
-
-const AppointmentCalendarDay = styled.button<{ $muted?: boolean; $active?: boolean }>`
-  border: 1px solid var(--color-outline);
-  border-radius: 10px;
-  padding: 8px 0;
-  background: ${(props) =>
-    props.$active ? "color-mix(in srgb, var(--color-primary) 18%, transparent)" : "transparent"};
-  color: ${(props) =>
-    props.$active ? "var(--color-primary)" : props.$muted ? "var(--color-muted)" : "var(--color-text)"};
-  cursor: pointer;
-  font-weight: 600;
-`;
-
-const ListingDetailViewport = styled(HubSectionViewport)``;
-
-const ListingDetailScroller = styled(HubSectionScroller)``;
 
 const WorkspaceSectionViewport = styled(HubSectionViewport)``;
 
@@ -3047,6 +2573,14 @@ const WorkspaceSwitchButton = styled(CompactGhostButton)`
   align-items: center;
   gap: 8px;
   width: fit-content;
+
+  @media (max-width: 640px) {
+    min-height: 36px;
+    padding: 0 12px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    gap: 6px;
+  }
 `;
 
 const CompactCTAButton = styled(CTAButton)`
@@ -3172,6 +2706,10 @@ const ListingDetailHeader = styled.div`
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
+
+  @media (max-width: 640px) {
+    align-items: flex-start;
+  }
 `;
 
 const ListingDetailBack = styled.button`
@@ -3184,11 +2722,29 @@ const ListingDetailBack = styled.button`
   font-size: 0.82rem;
   font-weight: 700;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  @media (max-width: 640px) {
+    min-height: 32px;
+    min-width: 32px;
+    padding: 0;
+    justify-content: center;
+    flex: 0 0 32px;
+  }
 `;
 
 const ListingDetailTitleWrap = styled.div`
   display: grid;
   gap: 4px;
+`;
+
+const ListingDetailTitleRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 `;
 
 const ListingDetailTitle = styled.h3`
@@ -3201,6 +2757,33 @@ const ListingDetailCopy = styled.p`
   margin: 0;
   color: var(--color-muted);
   line-height: 1.45;
+
+  @media (max-width: 640px) {
+    display: none;
+  }
+`;
+
+const ListingDetailBackLabel = styled.span`
+  @media (max-width: 640px) {
+    display: none;
+  }
+`;
+
+const ListingDetailHeaderCTA = styled(CTAButton)`
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  @media (max-width: 640px) {
+    min-height: 28px;
+    padding: 0 9px;
+    font-size: 0.72rem;
+  }
 `;
 
 const ListingDetailHero = styled.div`
@@ -3250,8 +2833,8 @@ const ListingDetailMetaGrid = styled.div`
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  @media (max-width: 600px) {
-    grid-template-columns: 1fr;
+  @media (max-width: 640px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 `;
 
@@ -3266,8 +2849,8 @@ const ListingDetailMetaCard = styled.div<{ $wide?: boolean }>`
   min-height: 76px;
   ${(props) => (props.$wide ? "grid-column: span 2;" : "")}
 
-  @media (max-width: 600px) {
-    grid-column: auto;
+  @media (max-width: 640px) {
+    min-height: 68px;
   }
 `;
 
@@ -3317,6 +2900,45 @@ const ListingDetailPills = styled.div`
   flex-wrap: wrap;
 `;
 
+const ListingStatusPillButton = styled.button<{ $tone?: "neutral" | "warning" | "success" }>`
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid
+    ${(props) =>
+      props.$tone === "warning"
+        ? "rgba(235, 35, 64, 0.14)"
+        : props.$tone === "success"
+          ? "rgba(16, 185, 129, 0.14)"
+          : "var(--color-outline)"};
+  background: ${(props) =>
+    props.$tone === "warning"
+      ? "#fff1f3"
+      : props.$tone === "success"
+        ? "#ecfdf5"
+        : "var(--color-surface)"};
+  color: ${(props) =>
+    props.$tone === "warning"
+      ? "#b4233a"
+      : props.$tone === "success"
+        ? "#0f766e"
+        : "var(--color-text)"};
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 8px 16px rgba(15, 23, 42, 0.08);
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+`;
+
 const ListingStatusSelectWrap = styled.div`
   min-width: 220px;
   max-width: 280px;
@@ -3326,28 +2948,6 @@ const ListingStatusMessage = styled.div<{ $tone?: "danger" | "success" }>`
   color: ${(props) => (props.$tone === "danger" ? "var(--color-danger)" : "#0f766e")};
   font-size: 0.82rem;
   font-weight: 600;
-`;
-
-const ListingStatusAction = styled.button`
-  min-height: 24px;
-  padding: 0 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(235, 35, 64, 0.18);
-  background: linear-gradient(135deg, #ff4b6b 0%, #df274c 100%);
-  color: #fff;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.72rem;
-  font-weight: 700;
-  cursor: pointer;
-  box-shadow: 0 8px 16px rgba(223, 39, 76, 0.14);
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    box-shadow: none;
-  }
 `;
 
 const ListingPromoteAction = styled.button`
@@ -3675,6 +3275,11 @@ const HubInsightCard = styled.div`
   background: color-mix(in srgb, var(--color-surface-2) 78%, white);
   overflow: visible;
   padding: 24px 14px 18px;
+
+  @media (max-width: 640px) {
+    min-height: auto;
+    padding: 16px 12px 14px;
+  }
 `;
 
 const HubInsightBody = styled.div`
@@ -3682,6 +3287,10 @@ const HubInsightBody = styled.div`
   min-height: 98px;
   border-radius: 14px;
   overflow: visible;
+
+  @media (max-width: 640px) {
+    min-height: auto;
+  }
 `;
 
 const HubInsightCardInner = styled.div<{ $blurred?: boolean }>`
@@ -3699,6 +3308,24 @@ const HubInsightCardTop = styled.div`
   top: 0;
   left: 14px;
   transform: translateY(-50%);
+
+  @media (max-width: 640px) {
+    position: static;
+    transform: none;
+    margin-bottom: 0;
+  }
+`;
+
+const HubInsightHeaderRow = styled.div`
+  display: contents;
+
+  @media (max-width: 640px) {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
 `;
 
 const HubInsightCardTitle = styled.span`
@@ -3719,6 +3346,12 @@ const HubInsightCardTitle = styled.span`
     width: 15px;
     height: 15px;
     color: var(--color-text);
+  }
+
+  @media (max-width: 640px) {
+    min-height: 28px;
+    padding: 0 10px;
+    font-size: 0.75rem;
   }
 `;
 
@@ -3821,6 +3454,11 @@ const HubInsightPieWrap = styled.div`
   grid-template-columns: 96px minmax(0, 1fr);
   gap: 14px;
   align-items: center;
+
+  @media (max-width: 640px) {
+    grid-template-columns: 84px minmax(0, 1fr);
+    gap: 10px;
+  }
 `;
 
 const HubInsightPie = styled.div<{ $gradient: string }>`
@@ -3830,6 +3468,11 @@ const HubInsightPie = styled.div<{ $gradient: string }>`
   background: ${(props) => props.$gradient};
   position: relative;
   box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.06);
+
+  @media (max-width: 640px) {
+    width: 84px;
+    height: 84px;
+  }
 
   &::after {
     content: "";
@@ -3974,6 +3617,23 @@ const HubInsightRangeMeta = styled.div`
   gap: 10px;
   font-size: 0.86rem;
   color: var(--color-text);
+
+  @media (max-width: 640px) {
+    gap: 8px;
+    align-items: flex-start;
+  }
+`;
+
+const HubInsightRangeValue = styled.span`
+  color: var(--color-muted);
+  text-align: right;
+  font-size: 0.82rem;
+  line-height: 1.3;
+
+  @media (max-width: 640px) {
+    font-size: 0.73rem;
+    letter-spacing: -0.01em;
+  }
 `;
 
 const HubInsightRangeTrack = styled.div`
@@ -4045,6 +3705,30 @@ const HubInsightFooterLink = styled(Link)`
 
   &:hover {
     text-decoration: underline;
+  }
+
+  @media (max-width: 640px) {
+    position: static;
+    transform: none;
+    min-height: 28px;
+    margin: 0;
+    padding: 0 10px;
+    font-size: 0.72rem;
+    white-space: nowrap;
+  }
+`;
+
+const DesktopLabel = styled.span`
+  @media (max-width: 640px) {
+    display: none;
+  }
+`;
+
+const MobileLabel = styled.span`
+  display: none;
+
+  @media (max-width: 640px) {
+    display: inline;
   }
 `;
 
@@ -4136,6 +3820,13 @@ const HubNavItem = styled(Link)<{ $active?: boolean; $disabled?: boolean; $expan
     grid-template-columns: 36px minmax(0,1fr) 18px;
     gap: 12px;
     justify-content: stretch;
+
+    html[lang="mm"] & {
+      min-height: 62px;
+      align-items: flex-start;
+      overflow: visible;
+      padding-block: 11px;
+    }
   }
 `;
 
@@ -4181,6 +3872,12 @@ const HubNavButton = styled.button<{ $active?: boolean; $expanded?: boolean }>`
     grid-template-columns: 36px minmax(0,1fr) 18px;
     gap: 12px;
     justify-content: stretch;
+
+    html[lang="mm"] & {
+      min-height: 62px;
+      align-items: flex-start;
+      padding-block: 11px;
+    }
   }
 `;
 
@@ -4252,6 +3949,14 @@ const HubNavBody = styled.div<{ $expanded?: boolean }>`
     opacity: 1;
     transform: none;
     pointer-events: auto;
+    max-width: none;
+    gap: 2px;
+    overflow: visible;
+
+    html[lang="mm"] & {
+      gap: 4px;
+      padding-block: 2px;
+    }
   }
 `;
 
@@ -4260,10 +3965,32 @@ const HubNavTitleRow = styled.div`
   align-items: center;
   gap: 8px;
   min-width: 0;
+
+  html[lang="mm"] & {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
 `;
 
 const HubNavTitle = styled.strong<{ $active?: boolean }>`
   color: ${(props) => (props.$active ? "var(--color-primary)" : "var(--color-text)")};
+  font-size: 0.92rem;
+  line-height: 1.25;
+
+  @media (max-width: 960px) {
+    font-size: 0.98rem;
+
+    html[lang="mm"] & {
+      font-family: "Noto Sans Myanmar", "Padauk", "Myanmar Text", sans-serif;
+      font-size: 0.92rem;
+      line-height: 1.7;
+      padding-block: 2px 3px;
+      white-space: normal;
+      overflow: visible;
+      text-overflow: clip;
+      overflow-wrap: anywhere;
+    }
+  }
 `;
 
 const HubNavBadge = styled.span`
@@ -4298,6 +4025,7 @@ const HubNavArrow = styled.div<{ $expanded?: boolean }>`
   @media (max-width: 960px) {
     opacity: 1;
     transform: none;
+    max-width: 18px;
   }
 `;
 
@@ -4334,6 +4062,10 @@ const ModalOverlay = styled.div`
   place-items: center;
   z-index: 90;
   padding: 16px;
+
+  @media (max-width: 720px) {
+    padding: 0;
+  }
 `;
 
 const GhostButton = styled.button`
@@ -4351,30 +4083,6 @@ const ModalCard = styled(Panel)`
   width: min(720px, 94vw);
   display: grid;
   gap: 14px;
-`;
-
-const AppointmentModalCard = styled(ModalCard)`
-  height: min(760px, calc(100vh - 48px));
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  box-shadow: 0 24px 54px rgba(15, 23, 42, 0.14);
-
-  &::after {
-    display: none;
-  }
-`;
-
-const StaffAppointmentsModalCard = styled(ModalCard)`
-  width: min(1120px, 96vw);
-  max-width: 1120px;
-  max-height: 70vh;
-  overflow-y: auto;
-  align-content: start;
-  box-shadow: 0 24px 54px rgba(15, 23, 42, 0.14);
-
-  &::after {
-    display: none;
-  }
 `;
 
 const ModalHeader = styled.div`
@@ -4591,8 +4299,8 @@ function AccountHeader({ isVendor }: { isVendor: boolean }) {
                 <VendorSectionTitle>{t("settings.language")}</VendorSectionTitle>
                 <Muted>{t("header.languagePrompt")}</Muted>
               </div>
-              <GhostButton type="button" onClick={() => setLanguageOpen(false)}>
-                {t("header.close")}
+              <GhostButton type="button" aria-label={t("header.close")} onClick={() => setLanguageOpen(false)}>
+                X
               </GhostButton>
             </ModalHeader>
             <VendorActionGrid>
@@ -4802,18 +4510,7 @@ export default function AccountPage() {
   const [activeSale, setActiveSale] = useState<Record<string, unknown> | null>(null);
   const [onboardingPending, setOnboardingPending] = useState(false);
   const [hubRailExpanded, setHubRailExpanded] = useState(false);
-  type HubSection =
-    | "snapshot"
-    | "analytics"
-    | "boostings"
-    | "manage-listings"
-    | "bulk-upload"
-    | "lead-inbox"
-    | "appointments"
-    | "listing-detail"
-    | "team"
-    | "settings"
-    | "verification";
+  const [hubRailMobileOpen, setHubRailMobileOpen] = useState(false);
   const [hubSection, setHubSection] = useState<HubSection>("snapshot");
   const searchParams = useSearchParams();
   const [selectedHubProperty, setSelectedHubProperty] = useState<VendorPropertyItem | null>(null);
@@ -6174,6 +5871,79 @@ export default function AccountPage() {
     workspaceOptions.find((workspace) => workspace.vendor.id === (activeVendorId ?? vendorWorkspace?.vendor.id ?? "")) ??
     workspaceOptions[0] ??
     null;
+  const currentHubMobileMeta = useMemo(() => {
+    const workspaceName =
+      currentWorkspaceOption?.vendor.name || vendorWorkspace?.vendor.name || t("header.agencyWorkspace");
+
+    switch (hubSection) {
+      case "manage-listings":
+      case "listing-detail":
+      case "bulk-upload":
+        return {
+          label: workspaceName,
+          title: t("hub.manageListings"),
+          image: undefined,
+          icon: <Plus />,
+        };
+      case "appointments":
+        return {
+          label: workspaceName,
+          title: t("hub.appointments"),
+          image: undefined,
+          icon: <Calendar />,
+        };
+      case "boostings":
+        return {
+          label: workspaceName,
+          title: t("hub.boostings"),
+          image: undefined,
+          icon: <Megaphone />,
+        };
+      case "analytics":
+        return {
+          label: workspaceName,
+          title: t("hub.analytics"),
+          image: undefined,
+          icon: <BarChart3 />,
+        };
+      case "lead-inbox":
+        return {
+          label: workspaceName,
+          title: t("hub.leadInbox"),
+          image: undefined,
+          icon: <MessageSquareText />,
+        };
+      case "settings":
+        return {
+          label: workspaceName,
+          title: t("hub.organizationSettings"),
+          image: undefined,
+          icon: <Settings />,
+        };
+      case "team":
+        return {
+          label: workspaceName,
+          title: t("vendor.team.title"),
+          image: undefined,
+          icon: <Users2 />,
+        };
+      case "verification":
+        return {
+          label: workspaceName,
+          title: t("agency.verification"),
+          image: undefined,
+          icon: <ShieldCheck />,
+        };
+      case "snapshot":
+      default:
+        return {
+          label: t("header.agencyWorkspace"),
+          title: workspaceName,
+          image: currentWorkspaceOption?.vendor.logo_url || vendorWorkspace?.vendor.logo_url || undefined,
+          icon: <Home />,
+        };
+    }
+  }, [currentWorkspaceOption?.vendor.logo_url, currentWorkspaceOption?.vendor.name, hubSection, t, vendorWorkspace?.vendor.logo_url, vendorWorkspace?.vendor.name]);
   const handleWorkspaceChange = (nextVendorId: string) => {
     if (!userId || !nextVendorId || nextVendorId === activeVendorId) return;
     const nextWorkspace = workspaceOptions.find((workspace) => workspace.vendor.id === nextVendorId) ?? null;
@@ -6288,6 +6058,26 @@ export default function AccountPage() {
     if (value === "expired") return t("hub.inviteStatusExpired");
     if (value === "revoked") return t("hub.inviteStatusRevoked");
     return labelize(value);
+  };
+  const getDealTypeLabel = (value: string | null | undefined) => {
+    const normalized = String(value ?? "").trim().toLowerCase();
+    if (normalized === "sale") return t("listing.forSale");
+    if (normalized === "rent") return t("listing.forRent");
+    return labelize(value);
+  };
+  const getCompactDealTypeLabel = (value: string | null | undefined) => {
+    const normalized = String(value ?? "").trim().toLowerCase();
+    if (normalized === "sale") return language === "en" ? "Sale" : t("listing.forSale");
+    if (normalized === "rent") return language === "en" ? "Rent" : t("listing.forRent");
+    return labelize(value);
+  };
+  const getListingStatusTone = (value: string | null | undefined) => {
+    const normalized = String(value ?? "").trim().toLowerCase();
+    if (normalized === "active") return "status-success" as const;
+    if (normalized === "reserved" || normalized === "paused" || normalized === "expired") return "status-warning" as const;
+    if (normalized === "sold" || normalized === "rented" || normalized === "rejected") return "status-danger" as const;
+    if (normalized === "draft" || normalized === "archived") return "status-muted" as const;
+    return "neutral" as const;
   };
   const workspaceSnapshotView = useMemo(() => HUB_SNAPSHOT_TEMPLATE, []);
   const summaryPortfolioValue =
@@ -6491,6 +6281,67 @@ export default function AccountPage() {
     if (!selectedHubPropertyDetail) return [];
     return selectedHubPropertyDetail.staff_summary;
   }, [selectedHubPropertyDetail]);
+  const appointmentEditorStatusOptions = useMemo(
+    () =>
+      appointmentComposerMode === "edit" && selectedAppointment?.source === "viewing_request"
+        ? [
+            { value: "new", label: t("hub.status.new") },
+            { value: "assigned", label: t("hub.status.assigned") },
+            { value: "contacted", label: t("hub.status.contacted") },
+            { value: "qualified", label: t("hub.status.qualified") },
+            { value: "appointment_scheduled", label: t("hub.status.appointmentScheduled") },
+            { value: "viewed", label: t("hub.status.viewed") },
+            { value: "negotiation", label: t("hub.status.negotiation") },
+            { value: "closed_won", label: t("hub.status.closedWon") },
+            { value: "closed_lost", label: t("hub.status.closedLost") },
+            { value: "unresponsive", label: t("hub.status.unresponsive") },
+            { value: "spam", label: t("hub.status.spam") },
+          ]
+        : [
+            { value: "requested", label: t("hub.status.requested") },
+            { value: "confirmed", label: t("hub.status.confirmed") },
+            { value: "completed", label: t("hub.status.completed") },
+            { value: "cancelled", label: t("hub.status.cancelled") },
+            { value: "no_show", label: t("hub.status.noShow") },
+          ],
+    [appointmentComposerMode, selectedAppointment?.source, t]
+  );
+  const appointmentEditorTimeOptions = useMemo(
+    () => [
+      "09:00",
+      "09:30",
+      "10:00",
+      "10:30",
+      "11:00",
+      "11:30",
+      "12:00",
+      "12:30",
+      "13:00",
+      "13:30",
+      "14:00",
+      "14:30",
+      "15:00",
+      "15:30",
+      "16:00",
+      "16:30",
+      "17:00",
+      "17:30",
+      "18:00",
+    ],
+    []
+  );
+  const appointmentEditorMeta = useMemo(
+    () =>
+      selectedAppointment
+        ? {
+            propertyTitle: selectedAppointment.property_title || t("hub.appointment"),
+            propertyLocation: selectedAppointment.property_location || t("hub.unspecified"),
+            startAt: selectedAppointment.start_at,
+            clientName: selectedAppointment.client_name || t("hub.buyer"),
+          }
+        : null,
+    [selectedAppointment, t]
+  );
 
   useEffect(() => {
     if (appointmentPopupDay === null) return;
@@ -6504,6 +6355,10 @@ export default function AccountPage() {
     window.addEventListener("pointerdown", handlePointerDown);
     return () => window.removeEventListener("pointerdown", handlePointerDown);
   }, [appointmentPopupDay]);
+
+  useEffect(() => {
+    setHubRailMobileOpen(false);
+  }, [hubSection]);
 
   useEffect(() => {
     if (!selectedAppointment) {
@@ -6615,20 +6470,15 @@ export default function AccountPage() {
           isHubPath &&
           (profileRole === "vendor_user" || onboardingPending || Boolean(vendorWorkspace?.vendor.id)) && (
           <>
-            <VendorGrid>
-              <VendorActionRail
-                data-hub-rail="true"
-                $expanded={hubRailExpanded}
-                onMouseEnter={() => setHubRailExpanded(true)}
-                onMouseLeave={() => setHubRailExpanded(false)}
-                onFocus={() => setHubRailExpanded(true)}
-                onBlur={(event) => {
-                  if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
-                    setHubRailExpanded(false);
-                  }
-                }}
-              >
-                <HubRailSurface $expanded={hubRailExpanded}>
+            <HubPage
+              closeMenuLabel={t("vendorShell.closeMenu")}
+              openMenuLabel={t("vendorShell.openMenu")}
+              mobileMeta={currentHubMobileMeta}
+              hubRailExpanded={hubRailExpanded}
+              hubRailMobileOpen={hubRailMobileOpen}
+              setHubRailExpanded={setHubRailExpanded}
+              setHubRailMobileOpen={setHubRailMobileOpen}
+              navigation={
                 <HubNavList>
                   {workspaceOptions.length > 0 && !canAccessHubSnapshot ? (
                     <HubNavButton
@@ -6637,7 +6487,10 @@ export default function AccountPage() {
                       type="button"
                       aria-label={t("hub.openWorkspaceSwitcher")}
                       aria-expanded={workspaceMenuOpen}
-                      onClick={() => setWorkspaceMenuOpen(true)}
+                      onClick={() => {
+                        setWorkspaceMenuOpen(true);
+                        setHubRailMobileOpen(false);
+                      }}
                     >
                       <HubNavIcon $active={workspaceMenuOpen} $image={currentWorkspaceOption?.vendor.logo_url || undefined}>
                         {!currentWorkspaceOption?.vendor.logo_url ? <Building2 /> : null}
@@ -6672,7 +6525,7 @@ export default function AccountPage() {
                   ) : null}
 
                   {isFreeAgencyPlan && canManageListingOperations ? (
-                    <HubNavItem $expanded={hubRailExpanded} href="/request-sale">
+                    <HubNavItem $expanded={hubRailExpanded} href="/request-sale" onClick={() => setHubRailMobileOpen(false)}>
                       <HubNavIcon>
                         <Plus />
                       </HubNavIcon>
@@ -6705,7 +6558,7 @@ export default function AccountPage() {
                   )}
 
                   {isFreeAgencyPlan ? (
-                    <HubNavItem $expanded={hubRailExpanded} href={freeUpgradeHref} $disabled>
+                    <HubNavItem $expanded={hubRailExpanded} href={freeUpgradeHref} $disabled onClick={() => setHubRailMobileOpen(false)}>
                       <HubNavIcon>
                         <Calendar />
                       </HubNavIcon>
@@ -6818,7 +6671,7 @@ export default function AccountPage() {
                   ) : null}
 
                   {isFreeAgencyPlan ? (
-                    <HubNavItem $expanded={hubRailExpanded} href={freeUpgradeHref} $disabled>
+                    <HubNavItem $expanded={hubRailExpanded} href={freeUpgradeHref} $disabled onClick={() => setHubRailMobileOpen(false)}>
                       <HubNavIcon>
                         <Users2 />
                       </HubNavIcon>
@@ -6849,7 +6702,7 @@ export default function AccountPage() {
                   ) : null}
 
                   {vendorWorkspace?.vendor.public_storefront_enabled && vendorWorkspace?.vendor.slug ? (
-                    <HubNavItem $expanded={hubRailExpanded} href={`/agency/${vendorWorkspace.vendor.slug}`}>
+                    <HubNavItem $expanded={hubRailExpanded} href={`/agency/${vendorWorkspace.vendor.slug}`} onClick={() => setHubRailMobileOpen(false)}>
                       <HubNavIcon>
                         <Globe2 />
                       </HubNavIcon>
@@ -6866,6 +6719,7 @@ export default function AccountPage() {
                     $expanded={hubRailExpanded}
                     type="button"
                     onClick={async () => {
+                      setHubRailMobileOpen(false);
                       await logout();
                       router.push("/");
                     }}
@@ -6881,10 +6735,8 @@ export default function AccountPage() {
                     </HubNavArrow>
                   </HubNavButton>
                 </HubNavList>
-              </HubRailSurface>
-              <HubRailSpacer />
-            </VendorActionRail>
-            <VendorColumn>
+              }
+            >
             {(canAccessHubSnapshot && (isFreeAgencyPlan || hubSection === "snapshot")) ? (
               <VendorCard>
                 <StarterHeader>
@@ -6921,31 +6773,45 @@ export default function AccountPage() {
                           {agentUsage} / {agentLimit}
                         </StarterSummaryValue>
                       </StarterSummaryItem>
-                      {canAccessBilling ? (
-                        <VendorPillLink href={isFreeAgencyPlan ? freeUpgradeHref : "/hub/upgrade"} $tone="warning">
-                          <Sparkles size={14} />
-                          {vendorWorkspace?.limits?.currentPlan?.name || currentVendorPlan.name}
-                        </VendorPillLink>
-                      ) : (
-                        <AppointmentPill $tone="warning">
-                          <Sparkles size={14} />
-                          {vendorWorkspace?.limits?.currentPlan?.name || currentVendorPlan.name}
-                        </AppointmentPill>
-                      )}
-                      {canAccessVerification ? (
-                        <VendorPillLink
-                          href={isFreeAgencyPlan ? freeUpgradeHref : "/hub?section=verification"}
-                          $tone={vendorWorkspace?.vendor.verified_status === "approved" ? "success" : "warning"}
-                        >
-                          {vendorWorkspace?.vendor.verified_status === "approved" ? <BadgeCheck size={14} /> : <ShieldCheck size={14} />}
-                          {vendorWorkspace?.vendor.verified_status === "approved" ? t("agency.verifiedStatus") : t("agency.unverifiedStatus")}
-                        </VendorPillLink>
-                      ) : (
-                        <AppointmentPill $tone={vendorWorkspace?.vendor.verified_status === "approved" ? "success" : "warning"}>
-                          {vendorWorkspace?.vendor.verified_status === "approved" ? <BadgeCheck size={14} /> : <ShieldCheck size={14} />}
-                          {vendorWorkspace?.vendor.verified_status === "approved" ? t("agency.verifiedStatus") : t("agency.unverifiedStatus")}
-                        </AppointmentPill>
-                      )}
+                      <StarterSummaryBadge $mobileOrder={3}>
+                        {canAccessVerification ? (
+                          <VendorPillLink
+                            href={isFreeAgencyPlan ? freeUpgradeHref : "/hub?section=verification"}
+                            $tone={vendorWorkspace?.vendor.verified_status === "approved" ? "success" : "warning"}
+                          >
+                            {vendorWorkspace?.vendor.verified_status === "approved" ? <BadgeCheck size={14} /> : <ShieldCheck size={14} />}
+                            <DesktopLabel>
+                              {vendorWorkspace?.vendor.verified_status === "approved" ? t("agency.verifiedStatus") : t("agency.unverifiedStatus")}
+                            </DesktopLabel>
+                            <MobileLabel>
+                              {vendorWorkspace?.vendor.verified_status === "approved" ? t("agency.verifiedShort") : t("agency.unverifiedShort")}
+                            </MobileLabel>
+                          </VendorPillLink>
+                        ) : (
+                          <AppointmentPill $tone={vendorWorkspace?.vendor.verified_status === "approved" ? "success" : "warning"}>
+                            {vendorWorkspace?.vendor.verified_status === "approved" ? <BadgeCheck size={14} /> : <ShieldCheck size={14} />}
+                            <DesktopLabel>
+                              {vendorWorkspace?.vendor.verified_status === "approved" ? t("agency.verifiedStatus") : t("agency.unverifiedStatus")}
+                            </DesktopLabel>
+                            <MobileLabel>
+                              {vendorWorkspace?.vendor.verified_status === "approved" ? t("agency.verifiedShort") : t("agency.unverifiedShort")}
+                            </MobileLabel>
+                          </AppointmentPill>
+                        )}
+                      </StarterSummaryBadge>
+                      <StarterSummaryBadge $mobileOrder={4}>
+                        {canAccessBilling ? (
+                          <VendorPillLink href={isFreeAgencyPlan ? freeUpgradeHref : "/hub/upgrade"} $tone="warning">
+                            <Sparkles size={14} />
+                            {vendorWorkspace?.limits?.currentPlan?.name || currentVendorPlan.name}
+                          </VendorPillLink>
+                        ) : (
+                          <AppointmentPill $tone="warning">
+                            <Sparkles size={14} />
+                            {vendorWorkspace?.limits?.currentPlan?.name || currentVendorPlan.name}
+                          </AppointmentPill>
+                        )}
+                      </StarterSummaryBadge>
                     </StarterSummary>
                   </StarterTopRow>
                 </StarterHeader>
@@ -7115,332 +6981,52 @@ export default function AccountPage() {
                         </WorkspaceSectionScroller>
                       </WorkspaceSectionViewport>
                     ) : hubSection === "listing-detail" && selectedHubProperty ? (
-                      <ListingDetailViewport>
-                        <ListingDetailScroller>
-                          <ListingDetailHeader>
-                            <ListingDetailTitleWrap>
-                              <ListingDetailTitle>{t("hub.listingDetailTitle")}</ListingDetailTitle>
-                              <ListingDetailCopy>{t("hub.listingDetailCopy")}</ListingDetailCopy>
-                            </ListingDetailTitleWrap>
-                            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                              {canCreateAppointments ? (
-                                <CTAButton
-                                  type="button"
-                                  onClick={() => openAppointmentCreator(selectedHubPropertyDetail?.property.id ?? selectedHubProperty.id)}
-                                >
-                                  {t("hub.scheduleAppointment")}
-                                </CTAButton>
-                              ) : null}
-                              <ListingDetailBack
-                                type="button"
-                                onClick={() => {
-                                  updateHubSection("manage-listings");
-                                }}
-                              >
-                                {t("hub.backToListings")}
-                              </ListingDetailBack>
-                            </div>
-                          </ListingDetailHeader>
-
-                          <ListingDetailHero>
-                            {selectedHubPropertyLoading ? (
-                              <>
-                                <SkeletonBlock $height={260} $radius={24} />
-                                <ListingDetailInfo>
-                                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
-                                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                                      <SkeletonBlock $height={28} $radius={999} style={{ width: 88 }} />
-                                      <SkeletonBlock $height={28} $radius={999} style={{ width: 82 }} />
-                                      <SkeletonBlock $height={28} $radius={999} style={{ width: 104 }} />
-                                    </div>
-                                    <SkeletonBlock $height={30} $radius={999} style={{ width: 118 }} />
-                                  </div>
-                                  <SkeletonBlock $height={28} style={{ width: "58%" }} />
-                                  <SkeletonBlock $height={22} style={{ width: "34%" }} />
-                                  <ListingDetailMetaGrid>
-                                    <SkeletonBlock $height={78} $radius={18} />
-                                    <SkeletonBlock $height={78} $radius={18} />
-                                    <SkeletonBlock $height={78} $radius={18} />
-                                    <SkeletonBlock $height={78} $radius={18} />
-                                  </ListingDetailMetaGrid>
-                                </ListingDetailInfo>
-                              </>
-                            ) : selectedHubPropertyError || !selectedHubPropertyDetail ? (
-                              <HubFeatureCopy>{selectedHubPropertyError ?? t("hub.unableLoadListingDetail")}</HubFeatureCopy>
-                            ) : (
-                              <>
-                                <ListingDetailImage $image={selectedHubPropertyDetail.property.cover_image_url || undefined}>
-                                  {!selectedHubPropertyDetail.property.cover_image_url ? <Building2 size={24} /> : null}
-                                </ListingDetailImage>
-                                <ListingDetailInfo>
-                                  <ListingDetailPillRow>
-                                    <ListingDetailPills>
-                                      <AppointmentPill>{labelize(selectedHubPropertyDetail.property.status)}</AppointmentPill>
-                                      <AppointmentPill $tone="warning">{labelize(selectedHubPropertyDetail.property.deal_type)}</AppointmentPill>
-                                      <AppointmentPill>{formatPropertyTypeValue(selectedHubPropertyDetail.property.property_type, t)}</AppointmentPill>
-                                    </ListingDetailPills>
-                                    {canManageListingOperations ? (
-                                      <ListingDetailActions>
-                                        <ListingStatusAction
-                                          type="button"
-                                          onClick={() => {
-                                            setListingStatusModalOpen(true);
-                                            setSelectedHubPropertyStatusError(null);
-                                            setSelectedHubPropertyStatusNotice(null);
-                                          }}
-                                          disabled={!availableListingStatusOptions.length || selectedHubPropertyDeleting}
-                                        >
-                                          {t("hub.updateStatus")}
-                                        </ListingStatusAction>
-                                        <ListingDetailIconAction
-                                          type="button"
-                                          aria-label={t("hub.editListing")}
-                                          title={t("hub.editListing")}
-                                          onClick={() => router.push(`/hub/${selectedHubPropertyDetail.property.id}/edit`)}
-                                          disabled={selectedHubPropertyDeleting}
-                                        >
-                                          <Pencil size={14} />
-                                        </ListingDetailIconAction>
-                                        <ListingDetailIconAction
-                                          type="button"
-                                          $tone="danger"
-                                          aria-label={t("hub.deleteListing")}
-                                          title={t("hub.deleteListing")}
-                                          onClick={() => {
-                                            setListingDeleteModalOpen(true);
-                                            setSelectedHubPropertyStatusError(null);
-                                            setSelectedHubPropertyStatusNotice(null);
-                                          }}
-                                          disabled={selectedHubPropertyDeleting || selectedHubPropertyStatusSaving}
-                                        >
-                                          <Trash2 size={14} />
-                                        </ListingDetailIconAction>
-                                      </ListingDetailActions>
-                                    ) : null}
-                                  </ListingDetailPillRow>
-                                  {selectedHubPropertyStatusError ? (
-                                    <ListingStatusMessage $tone="danger">{selectedHubPropertyStatusError}</ListingStatusMessage>
-                                  ) : null}
-                                  {selectedHubPropertyStatusNotice ? (
-                                    <ListingStatusMessage $tone="success">{selectedHubPropertyStatusNotice}</ListingStatusMessage>
-                                  ) : null}
-                                  <ListingDetailTitle>{selectedHubPropertyDetail.property.title || t("vendor.properties.untitled")}</ListingDetailTitle>
-                                  <ListingDetailPrice>
-                                    {formatCurrency(
-                                      selectedHubPropertyDetail.property.price ?? undefined,
-                                      selectedHubPropertyDetail.property.currency ?? "MMK",
-                                      t("listing.contactPrice"),
-                                      language
-                                    )}
-                                  </ListingDetailPrice>
-                                  {canManagePromotions &&
-                                  vendorWorkspace?.vendor.verified_status === "approved" &&
-                                  normalizeListingStatus(selectedHubPropertyDetail.property.status) === "active" ? (
-                                    <div style={{ display: "flex", justifyContent: "flex-start" }}>
-                                      <ListingPromoteAction
-                                        type="button"
-                                        onClick={() => updateHubSection("boostings", { listingId: selectedHubPropertyDetail.property.id })}
-                                        disabled={selectedHubPropertyDeleting || selectedHubPropertyStatusSaving}
-                                      >
-                                        <Megaphone size={13} />
-                                        <span>{t("hub.boostThisListing")}</span>
-                                      </ListingPromoteAction>
-                                    </div>
-                                  ) : null}
-                                  {(() => {
-                                    const property = selectedHubPropertyDetail.property;
-                                    const area = formatArea(property.area_sqft, locale, t("listing.areaSqft"));
-                                    const township = property.township?.trim() ? translateLocationName(property.township.trim(), language) : "";
-                                    const district = (property.district || property.city || "").trim()
-                                      ? translateLocationName((property.district || property.city || "").trim(), language)
-                                      : "";
-                                    const stateRegion = property.state_region?.trim() ? translateLocationName(property.state_region.trim(), language) : "";
-                                    const locationSecondary = [district, stateRegion].filter(Boolean).join(" • ");
-                                    const featureValue = [
-                                      property.has_parking ? t("requestSale.parking") : null,
-                                      property.has_lift ? t("requestSale.lift") : null,
-                                    ]
-                                      .filter(Boolean)
-                                      .join(" • ");
-                                    const factCards = [
-                                      township || locationSecondary
-                                        ? {
-                                            key: "location",
-                                            label: t("listing.location"),
-                                            icon: <MapPin size={14} />,
-                                            value: "",
-                                            renderValue: (
-                                              <ListingDetailLocationValue>
-                                                {township ? (
-                                                  <ListingDetailLocationPrimary>{township}</ListingDetailLocationPrimary>
-                                                ) : null}
-                                                {locationSecondary ? (
-                                                  <ListingDetailLocationSecondary>{locationSecondary}</ListingDetailLocationSecondary>
-                                                ) : null}
-                                              </ListingDetailLocationValue>
-                                            ),
-                                            wide: true,
-                                          }
-                                        : null,
-                                      area
-                                        ? {
-                                            key: "area",
-                                            label: t("filter.area"),
-                                            icon: <Ruler size={14} />,
-                                            value: area,
-                                            wide: true,
-                                          }
-                                        : null,
-                                      typeof property.bedrooms === "number"
-                                        ? {
-                                            key: "bedrooms",
-                                            label: t("filter.bedrooms"),
-                                            icon: <BedDouble size={14} />,
-                                            value: String(property.bedrooms),
-                                          }
-                                        : null,
-                                      typeof property.bathrooms === "number"
-                                        ? {
-                                            key: "bathrooms",
-                                            label: t("filter.bathrooms"),
-                                            icon: <Bath size={14} />,
-                                            value: String(property.bathrooms),
-                                          }
-                                        : null,
-                                      typeof property.room_count === "number"
-                                        ? {
-                                            key: "rooms",
-                                            label: t("hub.rooms"),
-                                            icon: <Home size={14} />,
-                                            value: String(property.room_count),
-                                          }
-                                        : null,
-                                      typeof property.floor_count === "number"
-                                        ? {
-                                            key: "floors",
-                                            label: t("hub.floors"),
-                                            icon: <Building2 size={14} />,
-                                            value: String(property.floor_count),
-                                          }
-                                        : null,
-                                      property.appointments_count > 0
-                                        ? {
-                                            key: "appointments",
-                                            label: t("hub.appointmentsCount"),
-                                            icon: <Calendar size={14} />,
-                                            value: t("hub.scheduledCount", { count: property.appointments_count }),
-                                          }
-                                        : null,
-                                      featureValue
-                                        ? {
-                                            key: "features",
-                                            label: t("hub.features"),
-                                            icon: <ShieldCheck size={14} />,
-                                            value: featureValue,
-                                          }
-                                        : null,
-                                    ].filter(Boolean) as Array<{
-                                      key: string;
-                                      label: string;
-                                      icon: JSX.Element;
-                                      value: string;
-                                      renderValue?: JSX.Element;
-                                      wide?: boolean;
-                                    }>;
-
-                                    return (
-                                  <ListingDetailMetaGrid>
-                                    {factCards.map((card) => (
-                                      <ListingDetailMetaCard key={card.key} $wide={card.wide}>
-                                        <ListingDetailMetaLabel>
-                                          {card.icon}
-                                          {card.label}
-                                        </ListingDetailMetaLabel>
-                                        {card.renderValue ? (
-                                          card.renderValue
-                                        ) : (
-                                          <ListingDetailMetaValue>{card.value}</ListingDetailMetaValue>
-                                        )}
-                                      </ListingDetailMetaCard>
-                                    ))}
-                                  </ListingDetailMetaGrid>
-                                    );
-                                  })()}
-                                </ListingDetailInfo>
-                              </>
-                            )}
-                          </ListingDetailHero>
-
-                          <ListingDetailLower>
-                            <ListingDetailCard>
-                              <ListingDetailSectionTitle>{t("hub.scheduledAppointments")}</ListingDetailSectionTitle>
-                              <ListingAppointmentList>
-                                {selectedHubPropertyLoading ? (
-                                  <>
-                                    <SkeletonBlock $height={84} $radius={18} />
-                                    <SkeletonBlock $height={84} $radius={18} />
-                                    <SkeletonBlock $height={84} $radius={18} />
-                                  </>
-                                ) : selectedPropertyAppointments.length ? (
-                                  selectedPropertyAppointments.map((appointment) => (
-                                    <ListingAppointmentRow
-                                      key={appointment.id}
-                                      as="button"
-                                      type="button"
-                                      onClick={() => openAppointmentEditor(appointment.id)}
-                                    >
-                                      <ListingAppointmentTime>{appointment.time}</ListingAppointmentTime>
-                                      <ListingAppointmentMain>
-                                        <ListingAppointmentTitle>{appointment.title}</ListingAppointmentTitle>
-                                        <ListingAppointmentMeta>
-                                          {t("hub.assignedTo", { client: appointment.client, assignee: appointment.assignee })}
-                                        </ListingAppointmentMeta>
-                                      </ListingAppointmentMain>
-                                      <AppointmentPill $tone={appointment.status === "Confirmed" ? "success" : "warning"}>
-                                        {appointment.status}
-                                      </AppointmentPill>
-                                    </ListingAppointmentRow>
-                                  ))
-                                ) : (
-                                  <HubFeatureCopy>{t("hub.noListingAppointments")}</HubFeatureCopy>
-                                )}
-                              </ListingAppointmentList>
-                            </ListingDetailCard>
-
-                            <ListingDetailCard>
-                              <ListingDetailSectionTitle>{t("hub.staffAssignment")}</ListingDetailSectionTitle>
-                              <ListingStaffList>
-                                {selectedHubPropertyLoading ? (
-                                  <>
-                                    <SkeletonBlock $height={62} $radius={16} />
-                                    <SkeletonBlock $height={62} $radius={16} />
-                                    <SkeletonBlock $height={62} $radius={16} />
-                                  </>
-                                ) : selectedPropertyStaff.length ? (
-                                  selectedPropertyStaff.map((staff) => (
-                                    <ListingStaffRow key={staff.id}>
-                                      <ListingStaffName>{staff.name}</ListingStaffName>
-                                      <ListingStaffMeta>
-                                        {staff.assigned_count > 1
-                                          ? t("hub.assignedAppointmentsPlural", { count: staff.assigned_count })
-                                          : t("hub.assignedAppointmentsSingular", { count: staff.assigned_count })}
-                                      </ListingStaffMeta>
-                                    </ListingStaffRow>
-                                  ))
-                                ) : (
-                                  <HubFeatureCopy>
-                                    {selectedHubPropertyDetail?.unassigned_count
-                                      ? selectedHubPropertyDetail.unassigned_count > 1
-                                        ? t("hub.unassignedAppointmentsPlural", { count: selectedHubPropertyDetail.unassigned_count })
-                                        : t("hub.unassignedAppointmentsSingular", { count: selectedHubPropertyDetail.unassigned_count })
-                                      : t("hub.noStaffAssignments")}
-                                  </HubFeatureCopy>
-                                )}
-                              </ListingStaffList>
-                            </ListingDetailCard>
-                          </ListingDetailLower>
-                        </ListingDetailScroller>
-                      </ListingDetailViewport>
+                      <HubListingDetailView
+                        t={t}
+                        locale={locale}
+                        language={language}
+                        selectedHubPropertyId={selectedHubProperty.id}
+                        detail={selectedHubPropertyDetail}
+                        loading={selectedHubPropertyLoading}
+                        error={selectedHubPropertyError}
+                        canCreateAppointments={canCreateAppointments}
+                        canManageListingOperations={canManageListingOperations}
+                        canShowPromoteAction={
+                          canManagePromotions &&
+                          vendorWorkspace?.vendor.verified_status === "approved" &&
+                          normalizeListingStatus(selectedHubPropertyDetail?.property.status) === "active"
+                        }
+                        deleting={selectedHubPropertyDeleting}
+                        statusSaving={selectedHubPropertyStatusSaving}
+                        statusError={selectedHubPropertyStatusError}
+                        statusNotice={selectedHubPropertyStatusNotice}
+                        hasStatusOptions={availableListingStatusOptions.length > 0}
+                        appointments={selectedPropertyAppointments}
+                        staff={selectedPropertyStaff}
+                        onBack={() => {
+                          updateHubSection("manage-listings");
+                        }}
+                        onScheduleAppointment={() => openAppointmentCreator(selectedHubPropertyDetail?.property.id ?? selectedHubProperty.id)}
+                        onOpenStatusModal={() => {
+                          setListingStatusModalOpen(true);
+                          setSelectedHubPropertyStatusError(null);
+                          setSelectedHubPropertyStatusNotice(null);
+                        }}
+                        onEditListing={() => router.push(`/hub/${selectedHubPropertyDetail?.property.id}/edit`)}
+                        onOpenDeleteModal={() => {
+                          setListingDeleteModalOpen(true);
+                          setSelectedHubPropertyStatusError(null);
+                          setSelectedHubPropertyStatusNotice(null);
+                        }}
+                        onPromoteListing={() => updateHubSection("boostings", { listingId: selectedHubPropertyDetail?.property.id ?? null })}
+                        onOpenAppointmentEditor={openAppointmentEditor}
+                        getListingStatusTone={getListingStatusTone}
+                        getListingStatusLabel={getListingStatusLabel}
+                        getDealTypeLabel={getDealTypeLabel}
+                        getCompactDealTypeLabel={getCompactDealTypeLabel}
+                        translateLocationName={translateLocationName}
+                        formatArea={formatArea}
+                      />
                     ) : hubSection === "lead-inbox" && canAccessLeadInbox ? (
                       <LeadInboxViewport>
                         <LeadInboxScroller>
@@ -7454,287 +7040,38 @@ export default function AccountPage() {
                         </LeadInboxScroller>
                       </LeadInboxViewport>
                     ) : hubSection === "appointments" && canAccessAppointments ? (
-                      <HubSectionViewport>
-                        <HubSectionScroller>
-                          <AppointmentLayout>
-                            <AppointmentTopGrid>
-                              <AppointmentCard>
-                                <AppointmentCardHeader>
-                                  <AppointmentCardTitleWrap>
-                                    <AppointmentCardTitle>
-                                      <Calendar size={16} style={{ marginRight: 8, verticalAlign: "text-bottom" }} />
-                                      {t("hub.calendar")}
-                                    </AppointmentCardTitle>
-                                  </AppointmentCardTitleWrap>
-                                  <AppointmentCardHeaderRight>
-                                  <AppointmentPill $tone="success">
-                                    <Calendar size={14} />
-                                    {t("hub.upcomingCount", { count: appointmentStats.upcoming })}
-                                  </AppointmentPill>
-                                    {appointmentCalendarView === "month" ? (
-                                      <AppointmentMonthNav>
-                                        <AppointmentMonthButton
-                                          type="button"
-                                          aria-label={t("hub.previousMonth")}
-                                          onClick={() => {
-                                            setAppointmentPopupDay(null);
-                                            setAppointmentMonthOffset((current) => current - 1);
-                                          }}
-                                        >
-                                          <ChevronLeft size={16} />
-                                        </AppointmentMonthButton>
-                                        <AppointmentMonthLabel>{appointmentMonthLabel}</AppointmentMonthLabel>
-                                        <AppointmentMonthButton
-                                          type="button"
-                                          aria-label={t("hub.nextMonth")}
-                                          onClick={() => {
-                                            setAppointmentPopupDay(null);
-                                            setAppointmentMonthOffset((current) => current + 1);
-                                          }}
-                                        >
-                                          <ChevronRight size={16} />
-                                        </AppointmentMonthButton>
-                                      </AppointmentMonthNav>
-                                    ) : null}
-                                    <AppointmentToggleRow>
-                                      <AppointmentToggleButton
-                                        type="button"
-                                        $active={appointmentCalendarView === "week"}
-                                        onClick={() => {
-                                          setAppointmentPopupDay(null);
-                                          setAppointmentCalendarView("week");
-                                        }}
-                                      >
-                                        {t("hub.sevenDays")}
-                                      </AppointmentToggleButton>
-                                      <AppointmentToggleButton
-                                        type="button"
-                                        $active={appointmentCalendarView === "month"}
-                                        onClick={() => {
-                                          setAppointmentPopupDay(null);
-                                          setAppointmentCalendarView("month");
-                                        }}
-                                      >
-                                        {t("hub.month")}
-                                      </AppointmentToggleButton>
-                                    </AppointmentToggleRow>
-                                  </AppointmentCardHeaderRight>
-                                </AppointmentCardHeader>
-                                {appointmentCalendarView === "week" ? (
-                                  <>
-                                    <AppointmentStats>
-                                      <AppointmentStat>
-                                        <AppointmentStatLabel>{t("hub.today")}</AppointmentStatLabel>
-                                        <AppointmentStatValue>{t("hub.appointmentsTotal", { count: appointmentStats.today })}</AppointmentStatValue>
-                                      </AppointmentStat>
-                                      <AppointmentStat>
-                                        <AppointmentStatLabel>{t("hub.unassigned")}</AppointmentStatLabel>
-                                        <AppointmentStatValue>{t("hub.appointmentsTotal", { count: appointmentStats.unassigned })}</AppointmentStatValue>
-                                      </AppointmentStat>
-                                      <AppointmentStat>
-                                        <AppointmentStatLabel>{t("hub.upcoming")}</AppointmentStatLabel>
-                                        <AppointmentStatValue>{t("hub.appointmentsTotal", { count: appointmentStats.upcoming })}</AppointmentStatValue>
-                                      </AppointmentStat>
-                                    </AppointmentStats>
-                                    <AppointmentWeekScroller>
-                                      <AppointmentWeekRow>
-                                        {appointmentWeekDays.map((day) => (
-                                          <AppointmentDayCell key={`${day.day}-${day.date}`} $active={day.active}>
-                                            <AppointmentDayName>{day.day}</AppointmentDayName>
-                                            <AppointmentDayDate>{day.date}</AppointmentDayDate>
-                                            <AppointmentCount $active={day.active}>
-                                              {day.count ? t("hub.viewingsCount", { count: day.count }) : t("hub.open")}
-                                            </AppointmentCount>
-                                          </AppointmentDayCell>
-                                        ))}
-                                      </AppointmentWeekRow>
-                                    </AppointmentWeekScroller>
-                                  </>
-                                ) : (
-                                  <AppointmentCalendarSplit>
-                                    <div>
-                                      <AppointmentMonthWeekdays>
-                                        {[t("hub.weekdayMon"), t("hub.weekdayTue"), t("hub.weekdayWed"), t("hub.weekdayThu"), t("hub.weekdayFri"), t("hub.weekdaySat"), t("hub.weekdaySun")].map((label) => (
-                                          <AppointmentMonthWeekday key={label}>{label}</AppointmentMonthWeekday>
-                                        ))}
-                                      </AppointmentMonthWeekdays>
-                                      <AppointmentMonthGrid>
-                                        {appointmentMonthCells.map((day) => (
-                                          <AppointmentMonthCell
-                                            key={day.key}
-                                            $muted={day.muted}
-                                            $active={day.active}
-                                            onClick={() => {
-                                              if (!day.active) return;
-                                              setAppointmentPopupDay((current) => (current === day.key ? null : day.key));
-                                            }}
-                                          >
-                                            <AppointmentDayDate>{day.day}</AppointmentDayDate>
-                                          {day.count ? <AppointmentDot $active={day.active} /> : null}
-                                          {appointmentPopupDay === day.key && day.details.length ? (
-                                            <AppointmentMonthPopup
-                                              ref={appointmentMonthPopupRef}
-                                              onClick={(event) => event.stopPropagation()}
-                                            >
-                                              <AppointmentMonthPopupTitle>
-                                                {appointmentMonthLabel} {day.day}
-                                              </AppointmentMonthPopupTitle>
-                                              <AppointmentMonthPopupList>
-                                                      {day.details.map((detail) => (
-                                                        <AppointmentMonthPopupItem
-                                                    key={`${day.key}-${detail.id}`}
-                                                    as="button"
-                                                    type="button"
-                                                    onClick={() => {
-                                                      setAppointmentPopupDay(null);
-                                                      openAppointmentEditor(detail.id);
-                                                    }}
-                                                  >
-                                                    <AppointmentMonthPopupProperty>
-                                                      {detail.property}
-                                                    </AppointmentMonthPopupProperty>
-                                                    <AppointmentMonthPopupMeta>
-                                                      {t("hub.assignedAt", { time: detail.time, assignee: detail.assignee })}
-                                                    </AppointmentMonthPopupMeta>
-                                                  </AppointmentMonthPopupItem>
-                                                ))}
-                                              </AppointmentMonthPopupList>
-                                            </AppointmentMonthPopup>
-                                          ) : null}
-                                          </AppointmentMonthCell>
-                                        ))}
-                                      </AppointmentMonthGrid>
-                                    </div>
-                                    <AppointmentStatsColumn>
-                                      <AppointmentStat>
-                                        <AppointmentStatLabel>{t("hub.today")}</AppointmentStatLabel>
-                                        <AppointmentStatValue>{t("hub.appointmentsTotal", { count: appointmentStats.today })}</AppointmentStatValue>
-                                      </AppointmentStat>
-                                      <AppointmentStat>
-                                        <AppointmentStatLabel>{t("hub.unassigned")}</AppointmentStatLabel>
-                                        <AppointmentStatValue>{t("hub.appointmentsTotal", { count: appointmentStats.unassigned })}</AppointmentStatValue>
-                                      </AppointmentStat>
-                                      <AppointmentStat>
-                                        <AppointmentStatLabel>{t("hub.upcoming")}</AppointmentStatLabel>
-                                        <AppointmentStatValue>{t("hub.appointmentsTotal", { count: appointmentStats.upcoming })}</AppointmentStatValue>
-                                      </AppointmentStat>
-                                    </AppointmentStatsColumn>
-                                  </AppointmentCalendarSplit>
-                                )}
-                              </AppointmentCard>
-
-                              <AppointmentCard>
-                                <AppointmentCardHeader>
-                                  <AppointmentCardTitleWrap>
-                                    <AppointmentCardTitle>
-                                      <Users2 size={16} style={{ marginRight: 8, verticalAlign: "text-bottom" }} />
-                                      {t("hub.assignment")}
-                                    </AppointmentCardTitle>
-                                    <AppointmentCardCopy>{t("hub.assignmentCopy")}</AppointmentCardCopy>
-                                  </AppointmentCardTitleWrap>
-                                  <AppointmentPill $tone={canManageTeam ? "success" : "neutral"}>
-                                    <Users2 size={14} />
-                                    {canManageTeam ? t("hub.ownerControls") : t("hub.viewOnly")}
-                                  </AppointmentPill>
-                                </AppointmentCardHeader>
-                                <AppointmentAssignmentList>
-                                  {appointmentAssignments.length ? appointmentAssignments.map((staff) => (
-                                    <AppointmentAssignmentRow
-                                      key={staff.id}
-                                      type="button"
-                                      onClick={() => {
-                                        setSelectedAppointmentStaffId(staff.id);
-                                        setShowPastStaffAppointments(false);
-                                      }}
-                                    >
-                                      <AppointmentAssignmentTop>
-                                        <AppointmentAssignmentName>{staff.name}</AppointmentAssignmentName>
-                                        <span>{labelize(staff.role)}</span>
-                                        <span>•</span>
-                                        <span>
-                                          {t("hub.scheduledViewingsCount", { count: staff.assigned_count })}
-                                        </span>
-                                      </AppointmentAssignmentTop>
-                                      <AppointmentPill>{t("hub.assignedCount", { count: staff.assigned_count })}</AppointmentPill>
-                                    </AppointmentAssignmentRow>
-                                  )) : <HubFeatureCopy>{t("hub.noActiveTeamForAssignment")}</HubFeatureCopy>}
-                                </AppointmentAssignmentList>
-                              </AppointmentCard>
-                            </AppointmentTopGrid>
-
-                              <AppointmentCard>
-                                <AppointmentCardHeader>
-                                  <AppointmentCardTitleWrap>
-                                    <AppointmentCardTitle>
-                                      <Clock size={16} style={{ marginRight: 8, verticalAlign: "text-bottom" }} />
-                                      {t("hub.board")}
-                                    </AppointmentCardTitle>
-                                    <AppointmentCardCopy>{t("hub.upcomingQueue")}</AppointmentCardCopy>
-                                  </AppointmentCardTitleWrap>
-                                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                                  <AppointmentPill $tone="warning">
-                                    <Clock size={14} />
-                                    {t("hub.unassignedCount", { count: appointmentStats.unassigned })}
-                                  </AppointmentPill>
-                                  {canCreateAppointments ? (
-                                    <CTAButton type="button" onClick={() => openAppointmentCreator()}>
-                                      {t("hub.createAppointment")}
-                                    </CTAButton>
-                                  ) : null}
-                                </div>
-                              </AppointmentCardHeader>
-                              <AppointmentQueueList>
-                                {appointmentDashboardLoading && !appointmentDashboard ? (
-                                  <>
-                                    <SkeletonBlock $height={92} $radius={18} />
-                                    <SkeletonBlock $height={92} $radius={18} />
-                                    <SkeletonBlock $height={92} $radius={18} />
-                                  </>
-                                ) : appointmentDashboardError ? (
-                                  <HubFeatureCopy>{appointmentDashboardError}</HubFeatureCopy>
-                                ) : appointmentQueue.length ? (
-                                  appointmentQueue.map((appointment) => (
-                                    <AppointmentQueueRow
-                                      key={appointment.id}
-                                      as="button"
-                                      type="button"
-                                      onClick={() => openAppointmentEditor(appointment.id)}
-                                    >
-                                      <AppointmentQueueTime>
-                                        <AppointmentQueueTimeValue>{appointment.time}</AppointmentQueueTimeValue>
-                                        <AppointmentQueueTimeLabel>{appointment.dayLabel}</AppointmentQueueTimeLabel>
-                                      </AppointmentQueueTime>
-                                      <AppointmentQueueMain>
-                                        <AppointmentQueueTitle>{appointment.property}</AppointmentQueueTitle>
-                                        <AppointmentQueueMeta>
-                                          {appointment.source === "viewing_request" && appointment.isUnread ? (
-                                            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                                              <AppointmentUnreadDot />
-                                              {t("hub.newRequest")}
-                                            </span>
-                                          ) : null}
-                                          <span>{appointment.client}</span>
-                                          <span>•</span>
-                                          <span>{appointment.location}</span>
-                                        </AppointmentQueueMeta>
-                                      </AppointmentQueueMain>
-                                      <AppointmentQueueSide>
-                                        <AppointmentQueueSideLabel>{t("hub.assignee")}</AppointmentQueueSideLabel>
-                                        <AppointmentQueueSideValue>{appointment.owner}</AppointmentQueueSideValue>
-                                      </AppointmentQueueSide>
-                                      <AppointmentPill $tone={appointment.status === "Confirmed" ? "success" : "warning"}>
-                                        {appointment.status}
-                                      </AppointmentPill>
-                                    </AppointmentQueueRow>
-                                  ))
-                                ) : (
-                                  <HubFeatureCopy>{t("hub.noUpcomingAppointments")}</HubFeatureCopy>
-                                )}
-                              </AppointmentQueueList>
-                            </AppointmentCard>
-                          </AppointmentLayout>
-                        </HubSectionScroller>
-                      </HubSectionViewport>
+                      <HubAppointmentsView
+                        t={t}
+                        appointmentStats={appointmentStats}
+                        appointmentCalendarView={appointmentCalendarView}
+                        appointmentMonthLabel={appointmentMonthLabel}
+                        appointmentWeekDays={appointmentWeekDays}
+                        appointmentMonthCells={appointmentMonthCells}
+                        appointmentPopupDay={appointmentPopupDay}
+                        appointmentMonthPopupRef={appointmentMonthPopupRef}
+                        appointmentAssignments={appointmentAssignments}
+                        appointmentDashboardLoading={appointmentDashboardLoading}
+                        appointmentDashboardError={appointmentDashboardError}
+                        hasAppointmentDashboard={Boolean(appointmentDashboard)}
+                        appointmentQueue={appointmentQueue}
+                        canManageTeam={canManageTeam}
+                        canCreateAppointments={canCreateAppointments}
+                        formatRoleLabel={labelize}
+                        onSetAppointmentMonthOffset={(delta) => {
+                          setAppointmentPopupDay(null);
+                          setAppointmentMonthOffset((current) => current + delta);
+                        }}
+                        onSetAppointmentPopupDay={setAppointmentPopupDay}
+                        onSetAppointmentCalendarView={setAppointmentCalendarView}
+                        onSelectAssignment={(staffId) => {
+                          setSelectedAppointmentStaffId(staffId);
+                        }}
+                        onCreateAppointment={() => openAppointmentCreator()}
+                        onOpenAppointmentEditor={openAppointmentEditor}
+                        onResetAssignmentHistory={() => {
+                          setShowPastStaffAppointments(false);
+                        }}
+                      />
                     ) : hubSection === "settings" && canAccessSettings ? (
                       <WorkspaceSectionViewport>
                         <WorkspaceSectionScroller>
@@ -8124,15 +7461,18 @@ export default function AccountPage() {
                         </HubInsightCard>
 
                         <HubInsightCard>
-                          <HubInsightCardTop>
-                            <HubInsightCardTitle>
-                              <TagIcon />
-                              {t("hub.listingsByType")}
-                            </HubInsightCardTitle>
-                          </HubInsightCardTop>
-                          <HubInsightFooterLink href="/hub?section=analytics">
-                            {t("hub.viewFullAnalytics")} <ArrowUpRight size={14} />
-                          </HubInsightFooterLink>
+                          <HubInsightHeaderRow>
+                            <HubInsightCardTop>
+                              <HubInsightCardTitle>
+                                <TagIcon />
+                                {t("hub.listingsByType")}
+                              </HubInsightCardTitle>
+                            </HubInsightCardTop>
+                            <HubInsightFooterLink href="/hub?section=analytics">
+                              <DesktopLabel>{t("hub.viewFullAnalytics")}</DesktopLabel>
+                              <MobileLabel>{t("hub.viewFull")}</MobileLabel> <ArrowUpRight size={14} />
+                            </HubInsightFooterLink>
+                          </HubInsightHeaderRow>
                           <HubInsightBody>
                             <HubInsightCardInner>
                               <HubInsightPieWrap>
@@ -8177,15 +7517,18 @@ export default function AccountPage() {
                         </HubInsightCard>
 
                         <HubInsightCard>
-                          <HubInsightCardTop>
-                            <HubInsightCardTitle>
-                              <BadgeCheck />
-                              {t("hub.salesByType")}
-                            </HubInsightCardTitle>
-                          </HubInsightCardTop>
-                          <HubInsightFooterLink href="/hub?section=analytics">
-                            {t("hub.viewFullAnalytics")} <ArrowUpRight size={14} />
-                          </HubInsightFooterLink>
+                          <HubInsightHeaderRow>
+                            <HubInsightCardTop>
+                              <HubInsightCardTitle>
+                                <BadgeCheck />
+                                {t("hub.salesByType")}
+                              </HubInsightCardTitle>
+                            </HubInsightCardTop>
+                            <HubInsightFooterLink href="/hub?section=analytics">
+                              <DesktopLabel>{t("hub.viewFullAnalytics")}</DesktopLabel>
+                              <MobileLabel>{t("hub.viewFull")}</MobileLabel> <ArrowUpRight size={14} />
+                            </HubInsightFooterLink>
+                          </HubInsightHeaderRow>
                           <HubInsightBody>
                             <HubInsightCardInner>
                               <HubInsightHero>
@@ -8218,15 +7561,18 @@ export default function AccountPage() {
                         </HubInsightCard>
 
                         <HubInsightCard>
-                          <HubInsightCardTop>
-                            <HubInsightCardTitle>
-                              <BarChart3 />
-                              {t("hub.priceRangeByType")}
-                            </HubInsightCardTitle>
-                          </HubInsightCardTop>
-                          <HubInsightFooterLink href="/hub?section=analytics">
-                            {t("hub.viewFullAnalytics")} <ArrowUpRight size={14} />
-                          </HubInsightFooterLink>
+                          <HubInsightHeaderRow>
+                            <HubInsightCardTop>
+                              <HubInsightCardTitle>
+                                <BarChart3 />
+                                {t("hub.priceRangeByType")}
+                              </HubInsightCardTitle>
+                            </HubInsightCardTop>
+                            <HubInsightFooterLink href="/hub?section=analytics">
+                              <DesktopLabel>{t("hub.viewFullAnalytics")}</DesktopLabel>
+                              <MobileLabel>{t("hub.viewFull")}</MobileLabel> <ArrowUpRight size={14} />
+                            </HubInsightFooterLink>
+                          </HubInsightHeaderRow>
                           <HubInsightBody>
                             <HubInsightCardInner>
                               <HubInsightRangeList>
@@ -8241,10 +7587,10 @@ export default function AccountPage() {
                                     <HubInsightRangeRow key={item.key}>
                                       <HubInsightRangeMeta>
                                         <span>{labelize(item.key)}</span>
-                                        <span>
+                                        <HubInsightRangeValue>
                                           {formatCurrency(item.min, item.currency, "MMK 0", language)} -{" "}
                                           {formatCurrency(item.max, item.currency, "MMK 0", language)}
-                                        </span>
+                                        </HubInsightRangeValue>
                                       </HubInsightRangeMeta>
                                       <HubInsightRangeTrack>
                                         <HubInsightRangeFill
@@ -8262,15 +7608,18 @@ export default function AccountPage() {
                         </HubInsightCard>
 
                         <HubInsightCard>
-                          <HubInsightCardTop>
-                            <HubInsightCardTitle>
-                              <Clock />
-                              {t("hub.appointmentsByType")}
-                            </HubInsightCardTitle>
-                          </HubInsightCardTop>
-                          <HubInsightFooterLink href="/hub?section=analytics">
-                            {t("hub.viewFullAnalytics")} <ArrowUpRight size={14} />
-                          </HubInsightFooterLink>
+                          <HubInsightHeaderRow>
+                            <HubInsightCardTop>
+                              <HubInsightCardTitle>
+                                <Clock />
+                                {t("hub.appointmentsByType")}
+                              </HubInsightCardTitle>
+                            </HubInsightCardTop>
+                            <HubInsightFooterLink href="/hub?section=analytics">
+                              <DesktopLabel>{t("hub.viewFullAnalytics")}</DesktopLabel>
+                              <MobileLabel>{t("hub.viewFull")}</MobileLabel> <ArrowUpRight size={14} />
+                            </HubInsightFooterLink>
+                          </HubInsightHeaderRow>
                           <HubInsightBody>
                             <HubInsightCardInner>
                               <HubInsightHero>
@@ -8303,8 +7652,7 @@ export default function AccountPage() {
                 )}
               </HubFeatureCard>
             </VendorCardFill>
-            </VendorColumn>
-          </VendorGrid>
+            </HubPage>
           {workspaceMenuOpen && workspaceOptions.length > 0 ? (
             <ModalOverlay onClick={() => setWorkspaceMenuOpen(false)}>
               <ModalCard onClick={(event) => event.stopPropagation()}>
@@ -8967,399 +8315,62 @@ export default function AccountPage() {
           </ModalCard>
         </ModalOverlay>
       )}
-      {(selectedAppointment || appointmentComposerMode === "create") && (
-        <ModalOverlay onClick={closeAppointmentEditor}>
-          <AppointmentModalCard onClick={(event) => event.stopPropagation()} style={{ zIndex: 1000 }}>
-            <ModalHeader>
-              <div style={{ display: "grid", gap: 6 }}>
-                <strong>
-                  {appointmentComposerMode === "create"
-                    ? t("hub.createAppointment")
-                    : selectedAppointment?.property_title || t("hub.appointment")}
-                </strong>
-                <Muted>
-                  {appointmentComposerMode === "create"
-                    ? t("hub.createAppointmentCopy")
-                    : selectedAppointment?.source === "viewing_request"
-                      ? t("listing.viewingRequest")
-                      : t("hub.scheduledAppointment")}
-                </Muted>
-              </div>
-              <GhostButton type="button" onClick={closeAppointmentEditor} aria-label={t("hub.closeAppointmentEditor")}>
-                <X size={16} />
-              </GhostButton>
-            </ModalHeader>
-            <AppointmentEditorMeta>
-              {appointmentComposerMode === "edit" && selectedAppointment ? (
-                <>
-                  <AppointmentEditorRow>
-                    <MapPin size={16} />
-                    <span>{selectedAppointment.property_location || t("hub.unspecified")}</span>
-                  </AppointmentEditorRow>
-                  <AppointmentEditorRow>
-                    <Clock size={16} />
-                    <span>
-                      {selectedAppointment.start_at
-                        ? new Date(selectedAppointment.start_at).toLocaleString(locale, {
-                            month: "short",
-                            day: "numeric",
-                            hour: "numeric",
-                            minute: "2-digit",
-                          })
-                        : t("hub.timePending")}
-                    </span>
-                  </AppointmentEditorRow>
-                  <AppointmentEditorRow>
-                    <Users2 size={16} />
-                    <span>{selectedAppointment.client_name || t("hub.buyer")}</span>
-                  </AppointmentEditorRow>
-                </>
-              ) : null}
-            </AppointmentEditorMeta>
-            <CardDivider />
-            <AppointmentEditorSections>
-              <AppointmentEditorSection>
-                <AppointmentEditorSectionHeader>
-                  <AppointmentEditorSectionTitle>{t("hub.appointmentDetails")}</AppointmentEditorSectionTitle>
-                  <AppointmentEditorSectionCopy>{t("hub.appointmentDetailsCopy")}</AppointmentEditorSectionCopy>
-                </AppointmentEditorSectionHeader>
-                <AppointmentEditorGrid>
-                  <AppointmentEditorField>
-                    <AppointmentEditorLabel>{t("vendor.viewing.property")}</AppointmentEditorLabel>
-                    <CustomSelect
-                      id="appointment-property"
-                      name="appointment-property"
-                      label={t("vendor.viewing.property")}
-                      hideLabel
-                      value={appointmentEditorPropertyId}
-                      onChange={setAppointmentEditorPropertyId}
-                      disabled={appointmentComposerMode === "edit" || appointmentComposerPropertyLocked}
-                    >
-                      <option value="">
-                        {t("hub.selectProperty")}
-                      </option>
-                      {vendorPropertyOptions.map((property) => (
-                        <option key={property.id} value={property.id}>
-                          {property.title || t("vendor.properties.untitled")}
-                        </option>
-                      ))}
-                    </CustomSelect>
-                  </AppointmentEditorField>
-                  <AppointmentEditorField>
-                    <AppointmentEditorLabel>{t("vendor.inquiries.status")}</AppointmentEditorLabel>
-                    <CustomSelect
-                      id="appointment-status"
-                      name="appointment-status"
-                      label={t("vendor.inquiries.status")}
-                      hideLabel
-                      value={appointmentEditorStatus}
-                      onChange={setAppointmentEditorStatus}
-                    >
-                      {((appointmentComposerMode === "edit" && selectedAppointment?.source === "viewing_request")
-                        ? [
-                            { value: "new", label: t("hub.status.new") },
-                            { value: "assigned", label: t("hub.status.assigned") },
-                            { value: "contacted", label: t("hub.status.contacted") },
-                            { value: "qualified", label: t("hub.status.qualified") },
-                            { value: "appointment_scheduled", label: t("hub.status.appointmentScheduled") },
-                            { value: "viewed", label: t("hub.status.viewed") },
-                            { value: "negotiation", label: t("hub.status.negotiation") },
-                            { value: "closed_won", label: t("hub.status.closedWon") },
-                            { value: "closed_lost", label: t("hub.status.closedLost") },
-                            { value: "unresponsive", label: t("hub.status.unresponsive") },
-                            { value: "spam", label: t("hub.status.spam") },
-                          ]
-                        : [
-                            { value: "requested", label: t("hub.status.requested") },
-                            { value: "confirmed", label: t("hub.status.confirmed") },
-                            { value: "completed", label: t("hub.status.completed") },
-                            { value: "cancelled", label: t("hub.status.cancelled") },
-                            { value: "no_show", label: t("hub.status.noShow") },
-                          ]
-                      ).map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </CustomSelect>
-                  </AppointmentEditorField>
-                  <AppointmentEditorField>
-                    <AppointmentEditorLabel>{t("hub.title")}</AppointmentEditorLabel>
-                    <AppointmentEditorInput
-                      id="appointment-title"
-                      name="appointment-title"
-                      placeholder={t("hub.propertyViewing")}
-                      value={appointmentEditorTitle}
-                      onChange={(event) => setAppointmentEditorTitle(event.target.value)}
-                      disabled={appointmentComposerMode === "edit" && selectedAppointment?.source === "viewing_request"}
-                    />
-                  </AppointmentEditorField>
-                  <AppointmentEditorField>
-                    <AppointmentEditorLabel>{t("hub.date")}</AppointmentEditorLabel>
-                    <AppointmentDatePicker
-                      name="appointment-date"
-                      value={getDatePart(appointmentEditorStartAt)}
-                      onChange={(date) =>
-                        setAppointmentEditorStartAt(combineDateAndTime(date, getTimePart(appointmentEditorStartAt)))
-                      }
-                      locale={locale}
-                      disabled={appointmentComposerMode === "edit" && selectedAppointment?.source === "viewing_request"}
-                    />
-                  </AppointmentEditorField>
-                  <AppointmentEditorField>
-                    <AppointmentEditorLabel>{t("hub.time")}</AppointmentEditorLabel>
-                    <CustomSelect
-                      id="appointment-time"
-                      name="appointment-time"
-                      label={t("hub.time")}
-                      hideLabel
-                      value={getTimePart(appointmentEditorStartAt)}
-                      onChange={(time) =>
-                        setAppointmentEditorStartAt(combineDateAndTime(getDatePart(appointmentEditorStartAt), time))
-                      }
-                      disabled={appointmentComposerMode === "edit" && selectedAppointment?.source === "viewing_request"}
-                    >
-                      {[
-                        "09:00",
-                        "09:30",
-                        "10:00",
-                        "10:30",
-                        "11:00",
-                        "11:30",
-                        "12:00",
-                        "12:30",
-                        "13:00",
-                        "13:30",
-                        "14:00",
-                        "14:30",
-                        "15:00",
-                        "15:30",
-                        "16:00",
-                        "16:30",
-                        "17:00",
-                        "17:30",
-                        "18:00",
-                      ].map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </CustomSelect>
-                  </AppointmentEditorField>
-                </AppointmentEditorGrid>
-              </AppointmentEditorSection>
-
-              <AppointmentEditorSection>
-                <AppointmentEditorSectionHeader>
-                  <AppointmentEditorSectionTitle>{t("hub.buyerDetails")}</AppointmentEditorSectionTitle>
-                  <AppointmentEditorSectionCopy>{t("hub.buyerDetailsCopy")}</AppointmentEditorSectionCopy>
-                </AppointmentEditorSectionHeader>
-                <AppointmentEditorGrid>
-                  <AppointmentEditorField>
-                    <AppointmentEditorLabel>{t("hub.clientName")}</AppointmentEditorLabel>
-                    <AppointmentEditorInput
-                      id="appointment-client-name"
-                      name="appointment-client-name"
-                      placeholder={t("hub.fullName")}
-                      value={appointmentEditorClientName}
-                      onChange={(event) => setAppointmentEditorClientName(event.target.value)}
-                      disabled={appointmentComposerMode === "edit" && selectedAppointment?.source === "viewing_request"}
-                    />
-                  </AppointmentEditorField>
-                  <AppointmentEditorField>
-                    <AppointmentEditorLabel>{t("hub.clientPhone")}</AppointmentEditorLabel>
-                    <AppointmentEditorInput
-                      id="appointment-client-phone"
-                      name="appointment-client-phone"
-                      placeholder="09..."
-                      value={appointmentEditorClientPhone}
-                      onChange={(event) => setAppointmentEditorClientPhone(event.target.value)}
-                      disabled={appointmentComposerMode === "edit" && selectedAppointment?.source === "viewing_request"}
-                    />
-                  </AppointmentEditorField>
-                </AppointmentEditorGrid>
-              </AppointmentEditorSection>
-
-              <AppointmentEditorSection>
-                <AppointmentEditorSectionHeader>
-                  <AppointmentEditorSectionTitle>{t("hub.assignment")}</AppointmentEditorSectionTitle>
-                  <AppointmentEditorSectionCopy>{t("hub.assignmentSectionCopy")}</AppointmentEditorSectionCopy>
-                </AppointmentEditorSectionHeader>
-                <AppointmentEditorField>
-                  <AppointmentEditorLabel>{t("hub.assignedStaff")}</AppointmentEditorLabel>
-                  <CustomSelect
-                    id="appointment-assignee"
-                    name="appointment-assignee"
-                    label={t("hub.assignedStaff")}
-                    hideLabel
-                    value={appointmentEditorAssignee}
-                    onChange={setAppointmentEditorAssignee}
-                  >
-                    <option value="">{t("hub.unassigned")}</option>
-                    {appointmentAssignments.map((staff) => (
-                      <option key={staff.id} value={staff.id}>
-                        {staff.name}
-                      </option>
-                    ))}
-                  </CustomSelect>
-                </AppointmentEditorField>
-              </AppointmentEditorSection>
-
-              <AppointmentEditorSection>
-                <AppointmentEditorSectionHeader>
-                  <AppointmentEditorSectionTitle>{t("hub.notes")}</AppointmentEditorSectionTitle>
-                  <AppointmentEditorSectionCopy>{t("hub.notesCopy")}</AppointmentEditorSectionCopy>
-                </AppointmentEditorSectionHeader>
-                <AppointmentEditorField>
-                  <AppointmentTextArea
-                    value={appointmentEditorNotes}
-                    onChange={(event) => setAppointmentEditorNotes(event.target.value)}
-                    disabled={appointmentComposerMode === "edit" && selectedAppointment?.source === "viewing_request"}
-                    placeholder={t("hub.optionalNotes")}
-                  />
-                </AppointmentEditorField>
-              </AppointmentEditorSection>
-            </AppointmentEditorSections>
-            {appointmentEditorError ? <Muted style={{ color: "var(--color-primary)" }}>{appointmentEditorError}</Muted> : null}
-            <ModalActions style={{ justifyContent: "space-between" }}>
-              {appointmentComposerMode === "edit" ? (
-                <DangerButton type="button" onClick={() => void handleAppointmentDelete()} disabled={appointmentEditorSaving}>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-                    <Trash2 size={16} />
-                    {t("hub.delete")}
-                  </span>
-                </DangerButton>
-              ) : (
-                <div />
-              )}
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                <GhostButton type="button" onClick={closeAppointmentEditor} disabled={appointmentEditorSaving}>
-                  {t("listing.cancel")}
-                </GhostButton>
-                <CTAButton type="button" onClick={() => void handleAppointmentSave()} disabled={appointmentEditorSaving}>
-                  {appointmentEditorSaving
-                    ? appointmentComposerMode === "create"
-                      ? t("hub.creating")
-                      : t("hub.saving")
-                    : appointmentComposerMode === "create"
-                      ? t("hub.createAppointment")
-                      : t("common.saveChanges")}
-                </CTAButton>
-              </div>
-            </ModalActions>
-          </AppointmentModalCard>
-        </ModalOverlay>
-      )} 
-      {selectedStaffAssignment && (
-        <ModalOverlay
-          onClick={() => {
-            setSelectedAppointmentStaffId(null);
-            setShowPastStaffAppointments(false);
-          }}
-        >
-          <StaffAppointmentsModalCard onClick={(event) => event.stopPropagation()} style={{ zIndex: 1000 }}>
-            <ModalHeader>
-              <div style={{ display: "grid", gap: 6 }}>
-                <strong>{selectedStaffAssignment.name}</strong>
-                <Muted>
-                  {labelize(selectedStaffAssignment.role)} • {selectedStaffAssignment.assigned_count > 1
-                    ? t("hub.assignedAppointmentsPlural", { count: selectedStaffAssignment.assigned_count })
-                    : t("hub.assignedAppointmentsSingular", { count: selectedStaffAssignment.assigned_count })}
-                </Muted>
-              </div>
-              <GhostButton
-                type="button"
-                onClick={() => {
-                  setSelectedAppointmentStaffId(null);
-                  setShowPastStaffAppointments(false);
-                }}
-                aria-label={t("hub.closeStaffAppointments")}
-              >
-                <X size={16} />
-              </GhostButton>
-            </ModalHeader>
-            <StaffAppointmentsModalBody>
-              <StaffAppointmentsPanel>
-                <StaffAppointmentsPanelHeader>
-                  <StaffAppointmentsPanelTitle>{t("hub.appointmentsByStaff")}</StaffAppointmentsPanelTitle>
-                  <StaffAppointmentsToggle
-                    type="button"
-                    $active={showPastStaffAppointments}
-                    onClick={() => setShowPastStaffAppointments((value) => !value)}
-                  >
-                    {showPastStaffAppointments ? t("hub.hidePreviousTasks") : t("hub.showPreviousTasks")}
-                  </StaffAppointmentsToggle>
-                </StaffAppointmentsPanelHeader>
-                <StaffAppointmentsList>
-                  {selectedStaffAppointments.length ? (
-                    selectedStaffAppointments.map((appointment) => (
-                      <StaffAppointmentsRow
-                        key={appointment.id}
-                        as="button"
-                        type="button"
-                        onClick={() => {
-                          setSelectedAppointmentStaffId(null);
-                          setShowPastStaffAppointments(false);
-                          openAppointmentEditor(appointment.id);
-                        }}
-                      >
-                        <StaffAppointmentsRowTop>
-                          <div style={{ display: "grid", gap: 4 }}>
-                            <StaffAppointmentsRowTitle>{appointment.property_title || appointment.title || t("hub.untitledAppointment")}</StaffAppointmentsRowTitle>
-                            <StaffAppointmentsRowMeta>
-                              <span>{appointment.start_at ? new Date(appointment.start_at).toLocaleString(locale, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : t("hub.timePending")}</span>
-                              <span>•</span>
-                              <span>{appointment.client_name || t("hub.buyer")}</span>
-                            </StaffAppointmentsRowMeta>
-                          </div>
-                          <AppointmentPill $tone={appointment.status === "completed" || appointment.status === "closed_won" ? "success" : appointment.status === "cancelled" || appointment.status === "closed_lost" || appointment.status === "no_show" || appointment.status === "spam" ? "danger" : "warning"}>
-                            {labelize(appointment.status)}
-                          </AppointmentPill>
-                        </StaffAppointmentsRowTop>
-                        <StaffAppointmentsRowMeta>
-                          <MapPin size={14} />
-                          <span>{appointment.property_location || t("hub.unspecified")}</span>
-                        </StaffAppointmentsRowMeta>
-                      </StaffAppointmentsRow>
-                    ))
-                  ) : (
-                    <HubFeatureCopy>
-                      {showPastStaffAppointments
-                        ? t("hub.noStaffAppointments")
-                        : t("hub.noUpcomingStaffAppointments")}
-                    </HubFeatureCopy>
-                  )}
-                </StaffAppointmentsList>
-              </StaffAppointmentsPanel>
-              <StaffAppointmentsAside>
-                <StaffAppointmentsPanelTitle>{t("hub.assignmentSummary")}</StaffAppointmentsPanelTitle>
-                <StaffAppointmentsSummary>
-                  <StaffAppointmentsSummaryRow>
-                    <StaffAppointmentsSummaryLabel>{t("hub.assignedNow")}</StaffAppointmentsSummaryLabel>
-                    <StaffAppointmentsSummaryValue>
-                      {selectedStaffAssignment.assigned_count > 1
-                        ? t("hub.assignedAppointmentsPlural", { count: selectedStaffAssignment.assigned_count })
-                        : t("hub.assignedAppointmentsSingular", { count: selectedStaffAssignment.assigned_count })}
-                    </StaffAppointmentsSummaryValue>
-                  </StaffAppointmentsSummaryRow>
-                  <StaffAppointmentsSummaryRow>
-                    <StaffAppointmentsSummaryLabel>{t("hub.visibleInView")}</StaffAppointmentsSummaryLabel>
-                    <StaffAppointmentsSummaryValue>
-                      {t("hub.itemsCount", { count: selectedStaffAppointments.length })}
-                    </StaffAppointmentsSummaryValue>
-                  </StaffAppointmentsSummaryRow>
-                  <StaffAppointmentsSummaryRow>
-                    <StaffAppointmentsSummaryLabel>{t("hub.scope")}</StaffAppointmentsSummaryLabel>
-                    <StaffAppointmentsSummaryValue>
-                      {showPastStaffAppointments ? t("hub.allTasks") : t("hub.upcomingOnly")}
-                    </StaffAppointmentsSummaryValue>
-                  </StaffAppointmentsSummaryRow>
-                </StaffAppointmentsSummary>
-              </StaffAppointmentsAside>
-            </StaffAppointmentsModalBody>
-          </StaffAppointmentsModalCard>
-        </ModalOverlay>
-      )}
+      {appointmentComposerMode ? (
+        <HubAppointmentEditorModal
+          open={Boolean(selectedAppointment || appointmentComposerMode === "create")}
+          t={t}
+          locale={locale}
+          mode={appointmentComposerMode}
+          isReadOnlyLead={appointmentComposerMode === "edit" && selectedAppointment?.source === "viewing_request"}
+          isPropertyLocked={appointmentComposerPropertyLocked}
+          selectedAppointmentMeta={appointmentComposerMode === "edit" ? appointmentEditorMeta : null}
+          propertyOptions={vendorPropertyOptions}
+          statusOptions={appointmentEditorStatusOptions}
+          timeOptions={appointmentEditorTimeOptions}
+          appointmentAssignments={appointmentAssignments}
+          propertyId={appointmentEditorPropertyId}
+          status={appointmentEditorStatus}
+          title={appointmentEditorTitle}
+          startAt={appointmentEditorStartAt}
+          clientName={appointmentEditorClientName}
+          clientPhone={appointmentEditorClientPhone}
+          assignee={appointmentEditorAssignee}
+          notes={appointmentEditorNotes}
+          saving={appointmentEditorSaving}
+          error={appointmentEditorError}
+          onClose={closeAppointmentEditor}
+          onSave={() => void handleAppointmentSave()}
+          onDelete={() => void handleAppointmentDelete()}
+          onChangePropertyId={setAppointmentEditorPropertyId}
+          onChangeStatus={setAppointmentEditorStatus}
+          onChangeTitle={setAppointmentEditorTitle}
+          onChangeStartAt={setAppointmentEditorStartAt}
+          onChangeClientName={setAppointmentEditorClientName}
+          onChangeClientPhone={setAppointmentEditorClientPhone}
+          onChangeAssignee={setAppointmentEditorAssignee}
+          onChangeNotes={setAppointmentEditorNotes}
+        />
+      ) : null}
+      <HubStaffAppointmentsModal
+        open={Boolean(selectedStaffAssignment)}
+        t={t}
+        locale={locale}
+        assignment={selectedStaffAssignment}
+        appointments={selectedStaffAppointments}
+        showPast={showPastStaffAppointments}
+        onClose={() => {
+          setSelectedAppointmentStaffId(null);
+          setShowPastStaffAppointments(false);
+        }}
+        onTogglePast={() => setShowPastStaffAppointments((value) => !value)}
+        onOpenAppointment={(appointmentId) => {
+          setSelectedAppointmentStaffId(null);
+          setShowPastStaffAppointments(false);
+          openAppointmentEditor(appointmentId);
+        }}
+        formatRoleLabel={labelize}
+        formatStatusLabel={labelize}
+      />
       {activeSale && (
         <ModalOverlay onClick={closeDetails}>
           <ModalCard onClick={(event) => event.stopPropagation()}>

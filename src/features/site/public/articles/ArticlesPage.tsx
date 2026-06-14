@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { ArticlesIndexView } from "@/app/living-site/articles/ArticlesIndexView";
+import { ArticlesIndexView } from "@/features/site/public/articles/ArticlesIndexView";
 import { getArticleCollection, getArticleCategories } from "@/lib/articles";
 
 export const metadata: Metadata = {

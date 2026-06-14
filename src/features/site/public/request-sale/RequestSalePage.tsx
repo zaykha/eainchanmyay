@@ -21,22 +21,22 @@ import {
   UserRound,
   Warehouse,
 } from "lucide-react";
-import { MarketplaceHeader } from "@/app/living-site/components/MarketplaceHeader";
-import { SectionTitle, Panel } from "@/app/living-site/components/PageSection";
-import { useAppState } from "@/app/living-site/lib/app-state";
-import { useI18n } from "@/app/living-site/lib/i18n";
-import { getDistricts, getStates, getTownships } from "@/app/living-site/lib/myanmar-geo";
-import { CustomInput } from "@/app/living-site/components/form-controls/CustomInput";
-import { CustomSelect } from "@/app/living-site/components/form-controls/CustomSelect";
-import { CustomTextarea } from "@/app/living-site/components/form-controls/CustomTextarea";
-import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
-import { readActiveVendorWorkspace, withActiveVendorHeaders } from "@/app/living-site/lib/active-context";
+import { MarketplaceHeader } from "@/features/site/shared/components/MarketplaceHeader";
+import { SectionTitle, Panel } from "@/features/site/shared/components/PageSection";
+import { useAppState } from "@/features/site/shared/lib/app-state";
+import { useI18n } from "@/features/site/shared/lib/i18n";
+import { getDistricts, getStates, getTownships } from "@/features/site/shared/lib/myanmar-geo";
+import { CustomInput } from "@/features/site/shared/components/form-controls/CustomInput";
+import { CustomSelect } from "@/features/site/shared/components/form-controls/CustomSelect";
+import { CustomTextarea } from "@/features/site/shared/components/form-controls/CustomTextarea";
+import { LoadingOverlay } from "@/features/site/shared/components/LoadingOverlay";
+import { readActiveVendorWorkspace, withActiveVendorHeaders } from "@/features/site/vendor/lib/active-context";
 import {
   getOwnedPropertiesForUser,
   getOwnedPropertyById,
   getSalesRequestsForUser,
   updateOwnedProperty,
-} from "@/app/living-site/lib/data";
+} from "@/features/site/shared/lib/data";
 import { getVendorPlan } from "@/lib/vendor-plans";
 import {
   formatPropertyTypeValue,

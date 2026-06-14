@@ -1,4 +1,4 @@
-import { VendorTeamView } from "@/app/living-site/components/vendor/VendorTeamView";
+import { VendorTeamView } from "@/features/site/vendor/components/VendorTeamView";
 
 export default function VendorTeamPage() {
   return <VendorTeamView />;

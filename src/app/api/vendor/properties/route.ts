@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getVendorRequestContext } from "@/app/api/vendor/_lib/context";
-import { resolveListingImage } from "@/app/living-site/lib/images";
+import { resolveListingImage } from "@/features/site/shared/lib/images";
 import { normalizeListingStatus } from "@/lib/lifecycle";
 
 type PropertyRow = {

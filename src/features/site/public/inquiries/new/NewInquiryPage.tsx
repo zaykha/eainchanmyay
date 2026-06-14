@@ -19,15 +19,15 @@ import {
   Wallet,
   Waves,
 } from "lucide-react";
-import { MarketplaceHeader } from "@/app/living-site/components/MarketplaceHeader";
-import { SectionTitle, Panel } from "@/app/living-site/components/PageSection";
-import { CustomSelect } from "@/app/living-site/components/form-controls/CustomSelect";
-import { CustomInput } from "@/app/living-site/components/form-controls/CustomInput";
-import { getDistricts, getStates, getTownships } from "@/app/living-site/lib/myanmar-geo";
-import { useAppState } from "@/app/living-site/lib/app-state";
-import { getInquiryById, updateInquiry } from "@/app/living-site/lib/data";
-import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
-import { useI18n } from "@/app/living-site/lib/i18n";
+import { MarketplaceHeader } from "@/features/site/shared/components/MarketplaceHeader";
+import { SectionTitle, Panel } from "@/features/site/shared/components/PageSection";
+import { CustomSelect } from "@/features/site/shared/components/form-controls/CustomSelect";
+import { CustomInput } from "@/features/site/shared/components/form-controls/CustomInput";
+import { getDistricts, getStates, getTownships } from "@/features/site/shared/lib/myanmar-geo";
+import { useAppState } from "@/features/site/shared/lib/app-state";
+import { getInquiryById, updateInquiry } from "@/features/site/shared/lib/data";
+import { LoadingOverlay } from "@/features/site/shared/components/LoadingOverlay";
+import { useI18n } from "@/features/site/shared/lib/i18n";
 import {
   formatPropertyTypeValue,
   isBedBathPropertyType,

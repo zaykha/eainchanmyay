@@ -4,11 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import styled from "styled-components";
 import { usePathname, useRouter } from "next/navigation";
 import { ImageIcon, Upload } from "lucide-react";
-import { useAppState } from "@/app/living-site/lib/app-state";
-import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
-import { MarketplaceHeader } from "@/app/living-site/components/MarketplaceHeader";
+import { useAppState } from "@/features/site/shared/lib/app-state";
+import { LoadingOverlay } from "@/features/site/shared/components/LoadingOverlay";
+import { MarketplaceHeader } from "@/features/site/shared/components/MarketplaceHeader";
 import { slugifyVendorSlug } from "@/lib/vendor-storefront";
-import { useI18n } from "@/app/living-site/lib/i18n";
+import { useI18n } from "@/features/site/shared/lib/i18n";
 
 const Shell = styled.div`
   min-height: 100vh;

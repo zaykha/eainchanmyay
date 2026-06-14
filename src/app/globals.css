@@ -686,7 +686,9 @@ button, input, select, textarea {
 }
 
 .input:focus {
-  outline: 2px solid rgba(60, 110, 113, 0.3);
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(235, 35, 64, 0.15);
 }
 
 .ghost-link {

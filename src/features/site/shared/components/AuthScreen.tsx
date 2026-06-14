@@ -2,20 +2,28 @@
 
 import { useState } from "react";
 import styled from "styled-components";
-import { useAppState } from "@/app/living-site/lib/app-state";
-import { supabase, isSupabaseConfigured } from "@/app/living-site/lib/supabaseClient";
-import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
-import { useI18n } from "@/app/living-site/lib/i18n";
-import type { ProfileRole } from "@/app/living-site/lib/data";
+import { useAppState } from "@/features/site/shared/lib/app-state";
+import { supabase, isSupabaseConfigured } from "@/features/site/shared/lib/supabaseClient";
+import { LoadingOverlay } from "@/features/site/shared/components/LoadingOverlay";
+import { useI18n } from "@/features/site/shared/lib/i18n";
+import type { ProfileRole } from "@/features/site/shared/lib/data";
 
 const Wrapper = styled.div`
   display: grid;
   gap: 18px;
+
+  @media (max-width: 720px) {
+    gap: 14px;
+  }
 `;
 
 const Header = styled.div`
   display: grid;
   gap: 10px;
+
+  @media (max-width: 720px) {
+    gap: 8px;
+  }
 `;
 
 const TopBar = styled.div`
@@ -33,6 +41,11 @@ const SwitchRoleButton = styled.button`
   color: var(--color-text);
   font-weight: 600;
   cursor: pointer;
+
+  @media (max-width: 720px) {
+    padding: 7px 11px;
+    font-size: 0.82rem;
+  }
 `;
 
 const RoleBadge = styled.span`
@@ -48,6 +61,11 @@ const RoleBadge = styled.span`
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+
+  @media (max-width: 720px) {
+    padding: 6px 10px;
+    font-size: 0.7rem;
+  }
 `;
 
 const Title = styled.h2`
@@ -55,8 +73,14 @@ const Title = styled.h2`
   font-size: 2rem;
   line-height: 0.95;
 
+  @media (min-width: 721px) {
+    margin-bottom: 8px;
+  }
+
   @media (max-width: 720px) {
-    font-size: 1.55rem;
+    font-size: 1.32rem;
+    line-height: 1.02;
+    margin-bottom: 6px;
   }
 `;
 
@@ -65,6 +89,11 @@ const Subtitle = styled.p`
   color: var(--color-muted);
   font-size: 0.95rem;
   line-height: 1.55;
+
+  @media (max-width: 720px) {
+    font-size: 0.88rem;
+    line-height: 1.45;
+  }
 `;
 
 const Tabs = styled.div`
@@ -74,6 +103,10 @@ const Tabs = styled.div`
   border-radius: 16px;
   background: color-mix(in srgb, var(--color-surface-2) 88%, transparent);
   overflow: hidden;
+
+  @media (max-width: 720px) {
+    border-radius: 14px;
+  }
 `;
 
 const TabButton = styled.button<{ $active: boolean }>`
@@ -83,11 +116,20 @@ const TabButton = styled.button<{ $active: boolean }>`
   padding: 13px 14px;
   cursor: pointer;
   font-weight: 700;
+
+  @media (max-width: 720px) {
+    padding: 11px 10px;
+    font-size: 0.9rem;
+  }
 `;
 
 const Form = styled.form`
   display: grid;
   gap: 12px;
+
+  @media (max-width: 720px) {
+    gap: 10px;
+  }
 `;
 
 const TwoCol = styled.div`
@@ -122,6 +164,11 @@ const FloatingLabel = styled.span`
   padding: 0 4px;
   transition: transform 0.15s ease, color 0.15s ease;
   transform-origin: left center;
+
+  @media (max-width: 720px) {
+    top: 9px;
+    font-size: 0.72rem;
+  }
 `;
 
 const Input = styled.input`
@@ -131,6 +178,11 @@ const Input = styled.input`
   background: #fff;
   color: var(--color-text);
   min-height: 52px;
+
+  @media (max-width: 720px) {
+    min-height: 48px;
+    padding: 15px 12px 9px;
+  }
 `;
 
 const PrimaryButton = styled.button`
@@ -142,6 +194,10 @@ const PrimaryButton = styled.button`
   font-weight: 700;
   cursor: pointer;
   box-shadow: 0 18px 30px rgba(235, 35, 64, 0.2);
+
+  @media (max-width: 720px) {
+    padding: 13px 16px;
+  }
 `;
 
 const SecondaryButton = styled.button`
@@ -152,6 +208,10 @@ const SecondaryButton = styled.button`
   color: var(--color-text);
   cursor: pointer;
   font-weight: 600;
+
+  @media (max-width: 720px) {
+    padding: 12px 14px;
+  }
 `;
 
 const InlineHelp = styled.p`
@@ -159,6 +219,10 @@ const InlineHelp = styled.p`
   color: var(--color-muted);
   font-size: 0.88rem;
   text-align: center;
+
+  @media (max-width: 720px) {
+    font-size: 0.82rem;
+  }
 `;
 
 const Message = styled.p`
@@ -266,7 +330,7 @@ async function precheckPortalRole(email: string) {
     | null;
 
   if (!response.ok) {
-    throw new Error(payload?.error || "Unable to verify account type.");
+    throw new Error(payload?.error || "AUTH_VERIFY_ROLE");
   }
 
   return {
@@ -298,25 +362,25 @@ export function AuthScreen({ role, onSuccess, onChangeRole }: AuthScreenProps) {
   ];
   const passwordStrong = passwordChecks.every((check) => check.ok);
 
-  const roleBadge = role === "agent" ? "Agent access" : "Customer account";
+  const roleBadge = role === "agent" ? t("auth.roleBadge.agent") : t("auth.roleBadge.customer");
   const title =
     role === "agent"
       ? mode === "login"
-        ? "Agent sign in"
-        : "Create agent account"
+        ? t("auth.title.agentLogin")
+        : t("auth.title.agentRegister")
       : mode === "login"
-        ? "Welcome back"
-        : "Create your account";
+        ? t("auth.title.customerLogin")
+        : t("auth.title.customerRegister");
   const subtitle =
     role === "agent"
-      ? "Access listing submissions, manage leads, and continue into the agent tools."
-      : "Save listings, track inquiries, and reach out to trusted agents faster.";
+      ? t("auth.subtitle.agent")
+      : t("auth.subtitle.customer");
   const submitLabel =
     mode === "login"
       ? t("auth.signInButton")
       : role === "agent"
-        ? "Create Agent Account"
-        : "Create Account";
+        ? t("auth.submitCreateAgent")
+        : t("auth.submitCreateAccount");
   const targetProfileRole: ProfileRole = role === "agent" ? "vendor_user" : "user";
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -359,7 +423,7 @@ export function AuthScreen({ role, onSuccess, onChangeRole }: AuthScreenProps) {
         const wrongForCustomer = selectedCustomerPortal && roleCheck.found && roleCheck.role === "vendor_user";
 
         if (wrongForCustomer) {
-          const portalMessage = "This account is registered as an agency account. Use agency sign in instead.";
+          const portalMessage = t("auth.popup.accountRegisteredAsAgency");
           setLoadingMessage(null);
           setMessage(portalMessage);
           setPopupMessage(portalMessage);
@@ -367,7 +431,7 @@ export function AuthScreen({ role, onSuccess, onChangeRole }: AuthScreenProps) {
         }
       } catch (error) {
         setLoadingMessage(null);
-        setMessage(error instanceof Error ? error.message : "Unable to verify account type.");
+        setMessage(error instanceof Error ? (error.message === "AUTH_VERIFY_ROLE" ? t("auth.verifyRoleError") : error.message) : t("auth.verifyRoleError"));
         return;
       }
     }
@@ -423,7 +487,7 @@ export function AuthScreen({ role, onSuccess, onChangeRole }: AuthScreenProps) {
       }
     } catch (error) {
       setLoadingMessage(null);
-      setMessage(error instanceof Error ? error.message : "Unable to reach the authentication service.");
+      setMessage(error instanceof Error ? error.message : t("auth.unableReachService"));
     }
   };
 
@@ -434,7 +498,7 @@ export function AuthScreen({ role, onSuccess, onChangeRole }: AuthScreenProps) {
           <RoleBadge>{roleBadge}</RoleBadge>
           {onChangeRole ? (
             <SwitchRoleButton type="button" onClick={onChangeRole}>
-              Switch role
+              {t("auth.switchRole")}
             </SwitchRoleButton>
           ) : null}
         </TopBar>
@@ -449,7 +513,7 @@ export function AuthScreen({ role, onSuccess, onChangeRole }: AuthScreenProps) {
           {t("auth.login")}
         </TabButton>
         <TabButton type="button" $active={mode === "register"} onClick={() => setMode("register")}>
-          {role === "agent" ? "Create agent account" : t("auth.register")}
+          {role === "agent" ? t("auth.tabCreateAgent") : t("auth.register")}
         </TabButton>
       </Tabs>
 
@@ -468,7 +532,7 @@ export function AuthScreen({ role, onSuccess, onChangeRole }: AuthScreenProps) {
             <Field $filled={Boolean(phoneNumber)} data-filled={Boolean(phoneNumber)}>
               <FloatingLabel className="floating-label">{t("auth.phoneNumber")}</FloatingLabel>
               <Input
-                type="number"
+                type="tel"
                 inputMode="numeric"
                 value={phoneNumber}
                 onChange={(event) => setPhoneNumber(event.target.value)}
@@ -514,14 +578,14 @@ export function AuthScreen({ role, onSuccess, onChangeRole }: AuthScreenProps) {
         {role === "customer" ? (
           <>
             <InlineHelp>
-              {mode === "login" ? "New here? Create a free account." : "Prefer a faster sign in?"}
+              {mode === "login" ? t("auth.newHere") : t("auth.fasterSignIn")}
             </InlineHelp>
             <SecondaryButton type="button" onClick={handleGoogle}>
               {t("auth.continueGoogle")}
             </SecondaryButton>
           </>
         ) : (
-          <InlineHelp>Agent accounts use the same secure credentials and continue into agent tools.</InlineHelp>
+          <InlineHelp>{t("auth.agentToolsHint")}</InlineHelp>
         )}
       </Form>
 
@@ -537,11 +601,11 @@ export function AuthScreen({ role, onSuccess, onChangeRole }: AuthScreenProps) {
             aria-labelledby="auth-popup-title"
             onClick={(event) => event.stopPropagation()}
           >
-            <PopupTitle id="auth-popup-title">Sign-in issue</PopupTitle>
+            <PopupTitle id="auth-popup-title">{t("auth.popup.signInIssue")}</PopupTitle>
             <PopupText>{popupMessage}</PopupText>
             <PopupActions>
               <SecondaryButton type="button" onClick={() => setPopupMessage(null)}>
-                Close
+                {t("common.close")}
               </SecondaryButton>
             </PopupActions>
           </PopupCard>

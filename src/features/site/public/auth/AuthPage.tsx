@@ -4,18 +4,18 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import styled from "styled-components";
 import { ArrowLeft } from "lucide-react";
-import { isSupabaseConfigured } from "@/app/living-site/lib/supabaseClient";
-import { useAppState } from "@/app/living-site/lib/app-state";
+import { isSupabaseConfigured } from "@/features/site/shared/lib/supabaseClient";
+import { useAppState } from "@/features/site/shared/lib/app-state";
 import {
   AGENT_ONBOARDING_STORAGE_KEY,
   AGENT_REGISTERING_STORAGE_KEY,
   AuthScreen,
   type AuthRole,
   type AuthSuccessPayload,
-} from "@/app/living-site/components/AuthScreen";
+} from "@/features/site/shared/components/AuthScreen";
 import { useRouter } from "next/navigation";
-import { useI18n } from "@/app/living-site/lib/i18n";
-import type { ProfileRole } from "@/app/living-site/lib/data";
+import { useI18n } from "@/features/site/shared/lib/i18n";
+import type { ProfileRole } from "@/features/site/shared/lib/data";
 
 const Page = styled.main<{ $stageLocked?: boolean }>`
   min-height: 100vh;
@@ -380,8 +380,12 @@ const VisualPanel = styled.div`
     #fff8f8;
 
   @media (max-width: 960px) {
-    min-height: 360px;
-    padding: 24px;
+    min-height: 236px;
+    padding: 14px 14px 88px;
+  }
+
+  @media (max-width: 720px) {
+    display: none;
   }
 `;
 
@@ -394,8 +398,9 @@ const VisualHeading = styled.div`
   margin-top: 72px;
 
   @media (max-width: 960px) {
-    margin-top: 24px;
-    max-width: 420px;
+    margin-top: 34px;
+    max-width: 100%;
+    gap: 6px;
   }
 `;
 
@@ -410,12 +415,27 @@ const VisualKicker = styled.span`
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+
+  @media (max-width: 960px) {
+    padding: 7px 10px;
+    font-size: 0.7rem;
+  }
 `;
 
 const VisualTitle = styled.h1`
   margin: 0;
   font-size: clamp(2.4rem, 4vw, 4.2rem);
   line-height: 0.92;
+
+  @media (max-width: 960px) {
+    font-size: 1.72rem;
+    line-height: 0.98;
+    max-width: 100%;
+  }
+
+  @media (max-width: 720px) {
+    display: none;
+  }
 `;
 
 const VisualSubtitle = styled.p`
@@ -423,6 +443,16 @@ const VisualSubtitle = styled.p`
   color: var(--color-muted);
   line-height: 1.65;
   max-width: 360px;
+
+  @media (max-width: 960px) {
+    font-size: 0.92rem;
+    line-height: 1.45;
+    max-width: 100%;
+  }
+
+  @media (max-width: 720px) {
+    display: none;
+  }
 `;
 
 const VisualIllustration = styled.img`
@@ -436,9 +466,13 @@ const VisualIllustration = styled.img`
   object-position: center bottom;
 
   @media (max-width: 960px) {
-    width: min(100%, 420px);
-    max-height: 56%;
-    bottom: 0;
+    width: min(58%, 220px);
+    max-height: 34%;
+    bottom: 6px;
+  }
+
+  @media (max-width: 720px) {
+    display: none;
   }
 `;
 
@@ -449,7 +483,7 @@ const FormPanel = styled.div`
   align-content: center;
 
   @media (max-width: 720px) {
-    padding: 22px 18px 26px;
+    padding: 62px 16px 22px;
   }
 `;
 
@@ -497,14 +531,14 @@ const PopupActions = styled.div`
 const roleCards = [
   {
     role: "customer" as const,
-    title: "Looking for property",
-    text: "Search homes, save listings, and keep your inquiries in one account.",
+    titleKey: "auth.role.customerTitle",
+    textKey: "auth.role.customerText",
     image: "/assets/auth/createaccount.svg",
   },
   {
     role: "agent" as const,
-    title: "I'm an agent",
-    text: "Continue into listing submissions, lead follow-up, and agent-facing tools.",
+    titleKey: "auth.role.agentTitle",
+    textKey: "auth.role.agentText",
     image: "/assets/auth/createagentaccount.svg",
   },
 ];
@@ -574,8 +608,8 @@ export default function AuthPage() {
       mismatchHandledRef.current = true;
 
       const mismatchMessage = selectedAgentButWrongRole
-        ? "This account is not registered as an agency account. Use customer sign in instead."
-        : "This account is registered as an agency account. Use agency sign in instead.";
+        ? t("auth.popup.accountNotAgency")
+        : t("auth.popup.accountRegisteredAsAgency");
 
       setRedirecting(false);
       setAuthResolvedRole(null);
@@ -665,7 +699,7 @@ export default function AuthPage() {
             }}
           >
             <ArrowLeft size={16} />
-            {role ? "Back to account types" : t("auth.back")}
+            {role ? t("auth.backToAccountTypes") : t("auth.back")}
           </BackButton>
           <Brand href="/">
             <BrandMark>
@@ -687,9 +721,9 @@ export default function AuthPage() {
               <StageBrandName>EainChanMyay.com</StageBrandName>
             </StageBrand>
             <StageHeader>
-              <StageTitle>Choose your account</StageTitle>
+              <StageTitle>{t("auth.chooseAccount")}</StageTitle>
               <StageSubtitle>
-                Start with the right access path. Customers browse and save listings, while agents continue into listing and lead tools.
+                {t("auth.chooseAccountSubtitle")}
               </StageSubtitle>
             </StageHeader>
             <RoleGrid>
@@ -703,8 +737,8 @@ export default function AuthPage() {
                   <RoleIllustration src={item.image} alt="" aria-hidden="true" />
                 </RoleVisual>
                   <RoleBody>
-                    <RoleTitle>{item.title}</RoleTitle>
-                    <RoleText>{item.text}</RoleText>
+                    <RoleTitle>{t(item.titleKey)}</RoleTitle>
+                    <RoleText>{t(item.textKey)}</RoleText>
                   </RoleBody>
                 </RoleCard>
               ))}
@@ -718,14 +752,14 @@ export default function AuthPage() {
                 <span>EainChanMyay.com</span>
               </VisualLogo>
               <VisualHeading>
-                <VisualKicker>{role === "agent" ? "Agent account" : "Customer access"}</VisualKicker>
+                {role === "agent" ? null : <VisualKicker>{t("auth.visual.customerKicker")}</VisualKicker>}
                 <VisualTitle>
-                  {role === "agent" ? "Join the agent workspace" : "Sign in to continue your search"}
+                  {role === "agent" ? t("auth.visual.agentTitle") : t("auth.visual.customerTitle")}
                 </VisualTitle>
                 <VisualSubtitle>
                   {role === "agent"
-                    ? "Use one account for listings, lead handling, and your vendor workspace. We can route new agent users into the vendor dashboard after sign up."
-                    : "Save homes, return to your inquiries, and keep your property search moving without losing context."}
+                    ? t("auth.visual.agentSubtitle")
+                    : t("auth.visual.customerSubtitle")}
                 </VisualSubtitle>
               </VisualHeading>
               <VisualIllustration
@@ -774,11 +808,11 @@ export default function AuthPage() {
             aria-labelledby="auth-page-popup-title"
             onClick={(event) => event.stopPropagation()}
           >
-            <PopupTitle id="auth-page-popup-title">Sign-in issue</PopupTitle>
+            <PopupTitle id="auth-page-popup-title">{t("auth.popup.signInIssue")}</PopupTitle>
             <PopupText>{popupMessage}</PopupText>
             <PopupActions>
               <BackButton type="button" onClick={() => setPopupMessage(null)}>
-                Close
+                {t("common.close")}
               </BackButton>
             </PopupActions>
           </PopupCard>

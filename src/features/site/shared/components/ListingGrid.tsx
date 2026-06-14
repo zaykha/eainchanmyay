@@ -1,10 +1,10 @@
 "use client";
 
 import styled from "styled-components";
-import type { Listing } from "@/app/living-site/lib/data";
-import { ListingCard } from "@/app/living-site/components/ListingCard";
-import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
-import { useI18n } from "@/app/living-site/lib/i18n";
+import type { Listing } from "@/features/site/shared/lib/data";
+import { ListingCard } from "@/features/site/shared/components/ListingCard";
+import { LoadingOverlay } from "@/features/site/shared/components/LoadingOverlay";
+import { useI18n } from "@/features/site/shared/lib/i18n";
 
 const Grid = styled.div`
   display: grid;

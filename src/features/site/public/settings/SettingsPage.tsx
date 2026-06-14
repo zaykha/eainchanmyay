@@ -3,10 +3,10 @@
 import styled from "styled-components";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { MarketplaceHeader } from "@/app/living-site/components/MarketplaceHeader";
-import { useI18n } from "@/app/living-site/lib/i18n";
-import { useLanguage } from "@/app/living-site/components/Providers";
-import { useAppState } from "@/app/living-site/lib/app-state";
+import { MarketplaceHeader } from "@/features/site/shared/components/MarketplaceHeader";
+import { useI18n } from "@/features/site/shared/lib/i18n";
+import { useLanguage } from "@/features/site/shared/components/Providers";
+import { useAppState } from "@/features/site/shared/lib/app-state";
 
 const PageShell = styled.div`
   max-width: 1140px;

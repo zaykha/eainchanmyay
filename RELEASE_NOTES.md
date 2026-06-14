@@ -3,7 +3,7 @@ Changelog
 ## [1.0.0] - 2025-03-08
 
 ### Highlights
-- Added localization across the living-site UI (Burmese default, English, Chinese, Thai).
+- Added localization across the site UI (Burmese default, English, Chinese, Thai).
 - Refined activities, listing cards, filters, and mobile UI behaviors.
 - Added caching, rate limiting, and improved API responses.
 

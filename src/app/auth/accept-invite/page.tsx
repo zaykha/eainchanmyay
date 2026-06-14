@@ -3,10 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import styled from "styled-components";
-import { supabase, isSupabaseConfigured } from "@/app/living-site/lib/supabaseClient";
-import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
-import { AGENT_ONBOARDING_STORAGE_KEY } from "@/app/living-site/components/AuthScreen";
-import { writeActiveContext, writeActiveVendorWorkspace } from "@/app/living-site/lib/active-context";
+import { supabase, isSupabaseConfigured } from "@/features/site/shared/lib/supabaseClient";
+import { LoadingOverlay } from "@/features/site/shared/components/LoadingOverlay";
+import { AGENT_ONBOARDING_STORAGE_KEY } from "@/features/site/shared/components/AuthScreen";
+import { writeActiveContext, writeActiveVendorWorkspace } from "@/features/site/vendor/lib/active-context";
 
 const Page = styled.main`
   min-height: 100vh;

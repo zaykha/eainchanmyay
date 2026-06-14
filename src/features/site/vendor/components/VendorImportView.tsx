@@ -12,8 +12,8 @@ import {
   ImageIcon,
   Upload,
 } from "lucide-react";
-import { useAppState } from "@/app/living-site/lib/app-state";
-import { withActiveVendorHeaders } from "@/app/living-site/lib/active-context";
+import { useAppState } from "@/features/site/shared/lib/app-state";
+import { withActiveVendorHeaders } from "@/features/site/vendor/lib/active-context";
 
 const Page = styled.div<{ $embedded?: boolean }>`
   display: grid;

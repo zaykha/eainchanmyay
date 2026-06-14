@@ -4,10 +4,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
 import { BadgeCheck, Calendar, ChevronDown, ChevronLeft, ChevronRight, Pencil, Search, ShieldCheck, Sparkles, Upload } from "lucide-react";
-import { useAppState } from "@/app/living-site/lib/app-state";
-import { CustomSelect } from "@/app/living-site/components/form-controls/CustomSelect";
-import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
-import { useI18n } from "@/app/living-site/lib/i18n";
+import { useAppState } from "@/features/site/shared/lib/app-state";
+import { CustomSelect } from "@/features/site/shared/components/form-controls/CustomSelect";
+import { LoadingOverlay } from "@/features/site/shared/components/LoadingOverlay";
+import { useI18n } from "@/features/site/shared/lib/i18n";
 
 const Page = styled.div`
   display: grid;

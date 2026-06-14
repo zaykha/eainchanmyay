@@ -4,8 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
 import { Building2, ArrowRight, Image as ImageIcon, Mail, Phone, FileText, Upload } from "lucide-react";
-import { useAppState } from "@/app/living-site/lib/app-state";
-import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
+import { useAppState } from "@/features/site/shared/lib/app-state";
+import { LoadingOverlay } from "@/features/site/shared/components/LoadingOverlay";
 import { isVendorStorefrontSetupComplete, slugifyVendorSlug } from "@/lib/vendor-storefront";
 
 const Page = styled.main`

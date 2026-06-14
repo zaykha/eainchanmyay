@@ -1,1 +1,1 @@
-export { default } from "../living-site/terms/page";
+export { default } from "@/features/site/public/terms/TermsPage";

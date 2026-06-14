@@ -19,14 +19,14 @@ import {
   Sparkles,
   Users2,
 } from "lucide-react";
-import { MarketplaceHeader } from "@/app/living-site/components/MarketplaceHeader";
-import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
-import { readActiveVendorWorkspace, withActiveVendorHeaders } from "@/app/living-site/lib/active-context";
-import { useAppState } from "@/app/living-site/lib/app-state";
-import { CustomSelect } from "@/app/living-site/components/form-controls/CustomSelect";
-import { useI18n, type Translate } from "@/app/living-site/lib/i18n";
-import type { Language } from "@/app/living-site/lib/i18n-config";
-import { translateLocationName } from "@/app/living-site/lib/myanmar-geo";
+import { MarketplaceHeader } from "@/features/site/shared/components/MarketplaceHeader";
+import { LoadingOverlay } from "@/features/site/shared/components/LoadingOverlay";
+import { readActiveVendorWorkspace, withActiveVendorHeaders } from "@/features/site/vendor/lib/active-context";
+import { useAppState } from "@/features/site/shared/lib/app-state";
+import { CustomSelect } from "@/features/site/shared/components/form-controls/CustomSelect";
+import { useI18n, type Translate } from "@/features/site/shared/lib/i18n";
+import type { Language } from "@/features/site/shared/lib/i18n-config";
+import { translateLocationName } from "@/features/site/shared/lib/myanmar-geo";
 
 type WorkspacePayload = {
   vendor?: {

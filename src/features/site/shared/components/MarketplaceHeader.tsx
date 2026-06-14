@@ -5,17 +5,17 @@ import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ChevronDown, Menu, X } from "lucide-react";
 import styled from "styled-components";
-import { useLanguage } from "@/app/living-site/components/Providers";
-import { useAppState } from "@/app/living-site/lib/app-state";
-import { resolveHeaderAccountPresentation } from "@/app/living-site/lib/header-account";
-import { useI18n } from "@/app/living-site/lib/i18n";
+import { useLanguage } from "@/features/site/shared/components/Providers";
+import { useAppState } from "@/features/site/shared/lib/app-state";
+import { resolveHeaderAccountPresentation } from "@/features/site/shared/lib/header-account";
+import { useI18n } from "@/features/site/shared/lib/i18n";
 import {
   deriveActiveContextFromPath,
   readActiveContext,
   readActiveVendorWorkspace,
   writeActiveContext,
   writeActiveVendorWorkspace,
-} from "@/app/living-site/lib/active-context";
+} from "@/features/site/vendor/lib/active-context";
 
 const Header = styled.header`
   padding: 14px 20px 0;
@@ -310,7 +310,7 @@ const LanguageTrigger = styled.button`
   }
 `;
 
-const MobileMenuOverlay = styled.div`
+const MobileMenuOverlay = styled.div<{ $open?: boolean }>`
   position: fixed;
   inset: 0;
   background: rgba(8, 12, 22, 0.5);
@@ -320,10 +320,13 @@ const MobileMenuOverlay = styled.div`
   @media (max-width: 720px) {
     display: grid;
     align-items: start;
+    opacity: ${(props) => (props.$open ? 1 : 0)};
+    pointer-events: ${(props) => (props.$open ? "auto" : "none")};
+    transition: opacity 180ms ease;
   }
 `;
 
-const MobileMenuDrawer = styled.div`
+const MobileMenuDrawer = styled.div<{ $open?: boolean }>`
   width: 100%;
   max-height: min(72vh, 480px);
   background: #fff;
@@ -334,6 +337,12 @@ const MobileMenuDrawer = styled.div`
   gap: 18px;
   border-radius: 0 0 24px 24px;
   overflow-y: auto;
+  transform-origin: top center;
+  transform: ${(props) => (props.$open ? "translateY(0) scaleY(1)" : "translateY(-12px) scaleY(0.94)")};
+  opacity: ${(props) => (props.$open ? 1 : 0)};
+  transition:
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 180ms ease;
 `;
 
 const MobileMenuHeader = styled.div`
@@ -656,9 +665,8 @@ export function MarketplaceHeader({
         </HeaderInner>
       </Header>
 
-      {mobileMenuOpen ? (
-        <MobileMenuOverlay onClick={() => setMobileMenuOpen(false)}>
-          <MobileMenuDrawer onClick={(event) => event.stopPropagation()}>
+      <MobileMenuOverlay $open={mobileMenuOpen} onClick={() => setMobileMenuOpen(false)}>
+        <MobileMenuDrawer $open={mobileMenuOpen} onClick={(event) => event.stopPropagation()}>
             <MobileMenuHeader>
               <MobileMenuTitle>{t("header.menu")}</MobileMenuTitle>
               <GhostButton type="button" onClick={() => setMobileMenuOpen(false)}>
@@ -716,9 +724,8 @@ export function MarketplaceHeader({
                 {accountLabel}
               </Link>
             </MobileMenuLinks>
-          </MobileMenuDrawer>
-        </MobileMenuOverlay>
-      ) : null}
+        </MobileMenuDrawer>
+      </MobileMenuOverlay>
 
       {languageOpen ? (
         <LanguageOverlay onClick={() => setLanguageOpen(false)}>

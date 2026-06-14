@@ -3,9 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import styled from "styled-components";
 import { ShieldPlus, UserPlus } from "lucide-react";
-import { useAppState } from "@/app/living-site/lib/app-state";
-import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
-import { useI18n } from "@/app/living-site/lib/i18n";
+import { useAppState } from "@/features/site/shared/lib/app-state";
+import { LoadingOverlay } from "@/features/site/shared/components/LoadingOverlay";
+import { useI18n } from "@/features/site/shared/lib/i18n";
 
 const Page = styled.div`
   display: grid;

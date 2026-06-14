@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
-import { useAppState } from "@/app/living-site/lib/app-state";
-import { VendorPlanSelection } from "@/app/living-site/components/vendor/VendorPlanSelection";
-import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
-import { useI18n } from "@/app/living-site/lib/i18n";
+import { useAppState } from "@/features/site/shared/lib/app-state";
+import { VendorPlanSelection } from "@/features/site/vendor/components/VendorPlanSelection";
+import { LoadingOverlay } from "@/features/site/shared/components/LoadingOverlay";
+import { useI18n } from "@/features/site/shared/lib/i18n";
 import { isVendorStorefrontSetupComplete } from "@/lib/vendor-storefront";
 import type { VendorPlanKey } from "@/lib/vendor-plans";
 

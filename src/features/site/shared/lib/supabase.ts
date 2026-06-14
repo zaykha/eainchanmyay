@@ -1,1 +1,1 @@
-export { supabase, isSupabaseConfigured } from "@/app/living-site/lib/supabaseClient";
+export { supabase, isSupabaseConfigured } from "@/features/site/shared/lib/supabaseClient";

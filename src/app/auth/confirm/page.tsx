@@ -4,9 +4,9 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import styled from "styled-components";
-import { supabase, isSupabaseConfigured } from "@/app/living-site/lib/supabaseClient";
-import { LoadingOverlay } from "@/app/living-site/components/LoadingOverlay";
-import { AGENT_ONBOARDING_STORAGE_KEY } from "@/app/living-site/components/AuthScreen";
+import { supabase, isSupabaseConfigured } from "@/features/site/shared/lib/supabaseClient";
+import { LoadingOverlay } from "@/features/site/shared/components/LoadingOverlay";
+import { AGENT_ONBOARDING_STORAGE_KEY } from "@/features/site/shared/components/AuthScreen";
 
 const Page = styled.main`
   min-height: 100vh;

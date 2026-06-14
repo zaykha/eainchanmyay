@@ -1,7 +1,7 @@
 "use client";
 
 import styled from "styled-components";
-import { useI18n } from "@/app/living-site/lib/i18n";
+import { useI18n } from "@/features/site/shared/lib/i18n";
 import { VENDOR_PLANS, type VendorPlanKey } from "@/lib/vendor-plans";
 
 const Shell = styled.div`

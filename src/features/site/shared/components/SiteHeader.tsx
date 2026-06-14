@@ -3,11 +3,11 @@
 import Link from "next/link";
 import styled from "styled-components";
 import { MoonStar, Settings, SunMedium } from "lucide-react";
-import { useAppState } from "@/app/living-site/lib/app-state";
-import { useLanguage, useThemeMode } from "@/app/living-site/components/Providers";
-import { useI18n } from "@/app/living-site/lib/i18n";
+import { useAppState } from "@/features/site/shared/lib/app-state";
+import { useLanguage, useThemeMode } from "@/features/site/shared/components/Providers";
+import { useI18n } from "@/features/site/shared/lib/i18n";
 import { useState } from "react";
-import { CustomSelect } from "@/app/living-site/components/form-controls/CustomSelect";
+import { CustomSelect } from "@/features/site/shared/components/form-controls/CustomSelect";
 
 const Header = styled.header`
   position: sticky;

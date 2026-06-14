@@ -26,27 +26,34 @@ import {
   Star,
   X,
 } from "lucide-react";
-import { useAppState } from "@/app/living-site/lib/app-state";
-import { withActiveVendorHeaders } from "@/app/living-site/lib/active-context";
-import { CustomSelect } from "@/app/living-site/components/form-controls/CustomSelect";
-import { formatCurrency } from "@/app/living-site/lib/format";
+import { useAppState } from "@/features/site/shared/lib/app-state";
+import { withActiveVendorHeaders } from "@/features/site/vendor/lib/active-context";
+import { CustomSelect } from "@/features/site/shared/components/form-controls/CustomSelect";
+import { formatCurrency } from "@/features/site/shared/lib/format";
 import { formatPropertyTypeValue } from "@/lib/property-types";
 import { promotionProducts, type PromotionType } from "@/lib/vendor-promotions";
-import { useI18n } from "@/app/living-site/lib/i18n";
+import { useI18n } from "@/features/site/shared/lib/i18n";
 
 const shimmer = keyframes`
   0% {
     background-position: 200% 0;
   }
+
   100% {
     background-position: -200% 0;
   }
 `;
 
-const Page = styled.div<{ $embedded?: boolean }>`
+const Page = styled.div < { $embedded?: boolean } > `
   display: grid;
   gap: 18px;
   padding: ${(props) => (props.$embedded ? "0" : "20px")};
+  min-width: 0;
+
+  @media (max-width: 640px) {
+    gap: 14px;
+    padding: ${(props) => (props.$embedded ? "0" : "12px")};
+  }
 `;
 
 const Shell = styled.div`
@@ -57,6 +64,16 @@ const Shell = styled.div`
   background: linear-gradient(180deg, #f8f9fc 0%, #f2f5fa 100%);
   border: 1px solid rgba(148, 163, 184, 0.24);
   box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+  min-width: 0;
+
+  @media (max-width: 640px) {
+    gap: 14px;
+    padding: 0px;
+    border-radius: 0px;
+    border: none;
+    background: none;
+    box-shadow: none;
+  }
 `;
 
 const Header = styled.div`
@@ -65,17 +82,29 @@ const Header = styled.div`
   align-items: flex-start;
   gap: 16px;
   flex-wrap: wrap;
+  min-width: 0;
+
+  @media (max-width: 640px) {
+    gap: 10px;
+  }
 `;
 
 const Heading = styled.div`
   display: grid;
   gap: 6px;
+  min-width: 0;
 `;
 
 const Title = styled.h1`
   margin: 0;
-  font-size: clamp(1.35rem, 2vw, 1.9rem);
+  font-size: clamp(1.25rem, 2vw, 1.9rem);
   color: var(--color-text);
+  line-height: 1.25;
+
+  @media (max-width: 640px) {
+    font-size: 1.18rem;
+    line-height: 1.35;
+  }
 `;
 
 const Subtitle = styled.p`
@@ -83,34 +112,47 @@ const Subtitle = styled.p`
   color: var(--color-muted);
   line-height: 1.6;
   max-width: 760px;
+
+  @media (max-width: 640px) {
+    font-size: 0.86rem;
+    line-height: 1.55;
+  }
 `;
 
 const SummaryRow = styled.div`
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+  min-width: 0;
+
+  @media (max-width: 640px) {
+    gap: 8px;
+  }
 `;
 
-const Pill = styled.span<{ $tone?: "neutral" | "accent" | "warning" | "success" | "danger" }>`
+const Pill = styled.span < { $tone?: "neutral" | "accent" | "warning" | "success" | "danger" } > `
   min-height: 31px;
   padding: 0 11px;
   border-radius: 999px;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 7px;
   font-size: 0.78rem;
   font-weight: 800;
+  line-height: 1.25;
+  white-space: nowrap;
   border: 1px solid
     ${(props) =>
-      props.$tone === "accent"
-        ? "rgba(233, 61, 93, 0.18)"
-        : props.$tone === "warning"
-          ? "rgba(245, 158, 11, 0.2)"
-          : props.$tone === "success"
-            ? "rgba(34, 197, 94, 0.18)"
-            : props.$tone === "danger"
-              ? "rgba(244, 63, 94, 0.18)"
-              : "rgba(148, 163, 184, 0.22)"};
+    props.$tone === "accent"
+      ? "rgba(233, 61, 93, 0.18)"
+      : props.$tone === "warning"
+        ? "rgba(245, 158, 11, 0.2)"
+        : props.$tone === "success"
+          ? "rgba(34, 197, 94, 0.18)"
+          : props.$tone === "danger"
+            ? "rgba(244, 63, 94, 0.18)"
+            : "rgba(148, 163, 184, 0.22)"};
   background: ${(props) =>
     props.$tone === "accent"
       ? "#fff1f3"
@@ -131,6 +173,18 @@ const Pill = styled.span<{ $tone?: "neutral" | "accent" | "warning" | "success" 
           : props.$tone === "danger"
             ? "#be123c"
             : "var(--color-muted)"};
+
+  svg {
+    flex: 0 0 auto;
+  }
+
+  @media (max-width: 640px) {
+    min-height: 28px;
+    padding: 0 9px;
+    font-size: 0.7rem;
+    white-space: normal;
+    text-align: center;
+  }
 `;
 
 const Card = styled.section`
@@ -141,6 +195,17 @@ const Card = styled.section`
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
   display: grid;
   gap: 14px;
+  min-width: 0;
+  overflow: visible;
+
+  @media (max-width: 640px) {
+    border-radius: 22px;
+    padding: 0px;
+    gap: 12px;
+    border: none;
+    background: none;
+    box-shadow:none;
+  }
 `;
 
 const CardHeader = styled.div`
@@ -149,31 +214,41 @@ const CardHeader = styled.div`
   align-items: flex-start;
   gap: 12px;
   flex-wrap: wrap;
+  min-width: 0;
 `;
 
 const CardTitle = styled.h2`
   margin: 0;
   font-size: 1rem;
   color: var(--color-text);
+  line-height: 1.35;
+
+  @media (max-width: 640px) {
+    font-size: 0.96rem;
+  }
 `;
 
 const CardCopy = styled.p`
   margin: 4px 0 0;
   color: var(--color-muted);
   line-height: 1.55;
+
+  @media (max-width: 640px) {
+    font-size: 0.84rem;
+  }
 `;
 
-const Notice = styled.div<{ $tone?: "warning" | "success" | "danger" }>`
+const Notice = styled.div < { $tone?: "warning" | "success" | "danger" } > `
   border-radius: 18px;
   padding: 14px 16px;
   line-height: 1.55;
   border: 1px solid
     ${(props) =>
-      props.$tone === "danger"
-        ? "rgba(244, 63, 94, 0.18)"
-        : props.$tone === "success"
-          ? "rgba(34, 197, 94, 0.18)"
-          : "rgba(251, 191, 36, 0.24)"};
+    props.$tone === "danger"
+      ? "rgba(244, 63, 94, 0.18)"
+      : props.$tone === "success"
+        ? "rgba(34, 197, 94, 0.18)"
+        : "rgba(251, 191, 36, 0.24)"};
   background: ${(props) =>
     props.$tone === "danger"
       ? "#fff1f2"
@@ -186,12 +261,19 @@ const Notice = styled.div<{ $tone?: "warning" | "success" | "danger" }>`
       : props.$tone === "success"
         ? "#15803d"
         : "#92400e"};
+
+  @media (max-width: 640px) {
+    border-radius: 16px;
+    padding: 12px 14px;
+    font-size: 0.84rem;
+  }
 `;
 
 const FormGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
+  min-width: 0;
 
   @media (max-width: 760px) {
     grid-template-columns: 1fr;
@@ -206,11 +288,13 @@ const Input = styled.input`
   color: var(--color-text);
   padding: 0 14px;
   width: 100%;
+  min-width: 0;
 `;
 
 const SearchableField = styled.div`
   position: relative;
   display: grid;
+  min-width: 0;
 `;
 
 const SearchableTrigger = styled.input`
@@ -221,6 +305,7 @@ const SearchableTrigger = styled.input`
   color: var(--color-text);
   padding: 0 42px 0 14px;
   width: 100%;
+  min-width: 0;
 
   &:focus {
     outline: none;
@@ -253,9 +338,16 @@ const SearchableMenu = styled.div`
   gap: 6px;
   max-height: 320px;
   overflow-y: auto;
+
+  @media (max-width: 640px) {
+    position: fixed;
+    inset: auto 12px 16px 12px;
+    max-height: min(360px, 70dvh);
+    z-index: 2200;
+  }
 `;
 
-const SearchableOption = styled.button<{ $active?: boolean }>`
+const SearchableOption = styled.button < { $active?: boolean } > `
   border: 0;
   background: ${(props) => (props.$active ? "rgba(235, 35, 64, 0.1)" : "transparent")};
   color: ${(props) => (props.$active ? "var(--color-primary)" : "var(--color-text)")};
@@ -275,11 +367,13 @@ const SearchableOption = styled.button<{ $active?: boolean }>`
 const SearchableOptionTitle = styled.span`
   font-size: 0.92rem;
   font-weight: 800;
+  line-height: 1.35;
 `;
 
 const SearchableOptionMeta = styled.span`
   font-size: 0.76rem;
   color: var(--color-muted);
+  line-height: 1.4;
 `;
 
 const SearchableEmpty = styled.div`
@@ -288,6 +382,7 @@ const SearchableEmpty = styled.div`
   color: var(--color-muted);
   font-size: 0.82rem;
   background: #f8fafc;
+  line-height: 1.45;
 `;
 
 const Textarea = styled.textarea`
@@ -298,25 +393,37 @@ const Textarea = styled.textarea`
   color: var(--color-text);
   padding: 12px 14px;
   width: 100%;
+  min-width: 0;
   resize: vertical;
 `;
 
 const FullWidth = styled.div`
   grid-column: 1 / -1;
+  min-width: 0;
 `;
 
 const ButtonRow = styled.div`
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+  min-width: 0;
+
+  @media (max-width: 640px) {
+    width: 100%;
+
+    > * {
+      flex: 1 1 100%;
+    }
+  }
 `;
 
-const Button = styled.button<{ $primary?: boolean }>`
+const Button = styled.button < { $primary?: boolean } > `
   min-height: 44px;
   padding: 0 16px;
   border-radius: 999px;
   border: 1px solid ${(props) => (props.$primary ? "transparent" : "rgba(148, 163, 184, 0.28)")};
-  background: ${(props) => (props.$primary ? "linear-gradient(135deg, #ff4b6b 0%, #df274c 100%)" : "#fff")};
+  background: ${(props) =>
+    props.$primary ? "linear-gradient(135deg, #ff4b6b 0%, #df274c 100%)" : "#fff"};
   color: ${(props) => (props.$primary ? "#fff" : "var(--color-text)")};
   font-weight: 800;
   display: inline-flex;
@@ -324,10 +431,16 @@ const Button = styled.button<{ $primary?: boolean }>`
   justify-content: center;
   gap: 8px;
   cursor: pointer;
+  line-height: 1.25;
 
   &:disabled {
     opacity: 0.55;
     cursor: not-allowed;
+  }
+
+  @media (max-width: 640px) {
+    min-height: 46px;
+    width: 100%;
   }
 `;
 
@@ -343,6 +456,12 @@ const ActionLink = styled.a`
   align-items: center;
   justify-content: center;
   gap: 8px;
+  line-height: 1.25;
+
+  @media (max-width: 640px) {
+    min-height: 46px;
+    width: 100%;
+  }
 `;
 
 const PrimaryActionLink = styled(ActionLink)`
@@ -355,6 +474,19 @@ const TopBar = styled.div`
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+  min-width: 0;
+
+  @media (max-width: 640px) {
+    align-items: stretch;
+
+    > ${SummaryRow} {
+      width: 100%;
+    }
+
+    > button {
+      width: 100%;
+    }
+  }
 `;
 
 const SearchRow = styled.div`
@@ -362,9 +494,14 @@ const SearchRow = styled.div`
   grid-template-columns: minmax(0, 1fr) 220px;
   gap: 12px;
   align-items: center;
+  min-width: 0;
 
   @media (max-width: 820px) {
     grid-template-columns: 1fr;
+  }
+
+  @media (max-width: 640px) {
+    gap: 10px;
   }
 `;
 
@@ -378,6 +515,16 @@ const SearchField = styled.label`
   align-items: center;
   gap: 10px;
   color: var(--color-muted);
+  min-width: 0;
+
+  svg {
+    flex: 0 0 auto;
+  }
+
+  @media (max-width: 640px) {
+    min-height: 44px;
+    border-radius: 14px;
+  }
 `;
 
 const SearchInput = styled.input`
@@ -388,15 +535,20 @@ const SearchInput = styled.input`
   min-width: 0;
   color: var(--color-text);
   font-size: 0.95rem;
+
+  @media (max-width: 640px) {
+    font-size: 0.86rem;
+  }
 `;
 
 const FloatingField = styled.div`
   position: relative;
   display: grid;
   gap: 6px;
+  min-width: 0;
 `;
 
-const FloatingLabel = styled.label<{ $filled?: boolean }>`
+const FloatingLabel = styled.label < { $filled?: boolean } > `
   position: absolute;
   left: 12px;
   top: ${(props) => (props.$filled ? "-8px" : "14px")};
@@ -407,11 +559,13 @@ const FloatingLabel = styled.label<{ $filled?: boolean }>`
   transition: all 0.2s ease;
   pointer-events: none;
   z-index: 1;
+  line-height: 1.25;
 `;
 
 const FloatingInput = styled.input`
   width: 100%;
-  padding: 14px 12px 14px;
+  min-width: 0;
+  padding: 14px 12px;
   border-radius: 12px;
   border: 1px solid var(--color-outline);
   background: #f8fafc;
@@ -428,7 +582,8 @@ const FloatingInput = styled.input`
 
 const FloatingTextarea = styled.textarea`
   width: 100%;
-  padding: 14px 12px 14px;
+  min-width: 0;
+  padding: 14px 12px;
   border-radius: 12px;
   border: 1px solid var(--color-outline);
   background: #f8fafc;
@@ -451,18 +606,37 @@ const TabRow = styled.div`
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+  min-width: 0;
+
+  @media (max-width: 640px) {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    margin-inline: -2px;
+    padding-inline: 2px;
+    scrollbar-width: thin;
+  }
 `;
 
-const FilterTab = styled.button<{ $active?: boolean }>`
+const FilterTab = styled.button < { $active?: boolean } > `
   height: 34px;
   padding: 0 14px;
   border-radius: 12px;
-  border: 1px solid ${(props) => (props.$active ? "rgba(233, 61, 93, 0.26)" : "rgba(148, 163, 184, 0.22)")};
+  border: 1px solid
+    ${(props) => (props.$active ? "rgba(233, 61, 93, 0.26)" : "rgba(148, 163, 184, 0.22)")};
   background: ${(props) => (props.$active ? "#fff1f4" : "#fff")};
   color: ${(props) => (props.$active ? "#e11d48" : "var(--color-text)")};
   font-size: 0.82rem;
   font-weight: 800;
   cursor: pointer;
+  white-space: nowrap;
+
+  @media (max-width: 640px) {
+    flex: 0 0 auto;
+    height: 32px;
+    padding: 0 12px;
+    font-size: 0.76rem;
+  }
 `;
 
 const PrimaryButton = styled(Button)`
@@ -478,6 +652,12 @@ const ModalOverlay = styled.div`
   display: grid;
   place-items: center;
   padding: 16px;
+
+  @media (max-width: 640px) {
+    padding: 0;
+    align-items: end;
+    place-items: end stretch;
+  }
 `;
 
 const ModalShell = styled.div`
@@ -492,6 +672,15 @@ const ModalShell = styled.div`
   display: grid;
   grid-template-rows: auto 1fr auto;
   overflow: hidden;
+  min-width: 0;
+
+  @media (max-width: 640px) {
+    width: 100%;
+    height: calc(100dvh - 12px);
+    max-height: none;
+    border-radius: 24px 24px 0 0;
+    border-bottom: 0;
+  }
 `;
 
 const ModalHeader = styled.div`
@@ -502,6 +691,12 @@ const ModalHeader = styled.div`
   gap: 14px;
   align-items: flex-start;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.4));
+  min-width: 0;
+
+  @media (max-width: 640px) {
+    padding: 16px 16px 12px;
+    gap: 10px;
+  }
 `;
 
 const ModalBody = styled.div`
@@ -509,6 +704,12 @@ const ModalBody = styled.div`
   overflow-y: auto;
   display: grid;
   gap: 18px;
+  min-width: 0;
+
+  @media (max-width: 640px) {
+    padding: 14px 14px 18px;
+    gap: 14px;
+  }
 `;
 
 const ModalClose = styled.button`
@@ -522,20 +723,38 @@ const ModalClose = styled.button`
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  flex: 0 0 auto;
+
+  @media (max-width: 640px) {
+    width: 36px;
+    height: 36px;
+  }
 `;
 
 const TypeTabs = styled.div`
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+  min-width: 0;
+
+  @media (max-width: 640px) {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+  }
 `;
 
-const TypeTab = styled.button<{ $active?: boolean }>`
+const TypeTab = styled.button < { $active?: boolean } > `
   height: 40px;
   padding: 0 16px;
   border-radius: 14px;
-  border: 1px solid ${(props) => (props.$active ? "rgba(233, 61, 93, 0.26)" : "rgba(148, 163, 184, 0.22)")};
-  background: ${(props) => (props.$active ? "linear-gradient(180deg, #fff0f5 0%, #ffe5ef 100%)" : "rgba(255,255,255,0.88)")};
+  border: 1px solid
+    ${(props) => (props.$active ? "rgba(233, 61, 93, 0.26)" : "rgba(148, 163, 184, 0.22)")};
+  background: ${(props) =>
+    props.$active
+      ? "linear-gradient(180deg, #fff0f5 0%, #ffe5ef 100%)"
+      : "rgba(255,255,255,0.88)"};
   color: ${(props) => (props.$active ? "#e11d48" : "var(--color-text)")};
   font-size: 0.82rem;
   font-weight: 800;
@@ -544,12 +763,20 @@ const TypeTab = styled.button<{ $active?: boolean }>`
   gap: 8px;
   cursor: pointer;
   flex: 0 0 auto;
+  white-space: nowrap;
+
+  @media (max-width: 640px) {
+    height: 38px;
+    padding: 0 13px;
+    font-size: 0.76rem;
+  }
 `;
 
 const PlanGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
+  min-width: 0;
 
   @media (max-width: 980px) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -560,28 +787,44 @@ const PlanGrid = styled.div`
   }
 `;
 
-const PlanCard = styled.button<{ $active?: boolean }>`
+const PlanCard = styled.button < { $active?: boolean } > `
   border-radius: 18px;
-  border: 1px solid ${(props) => (props.$active ? "rgba(233, 61, 93, 0.28)" : "rgba(148, 163, 184, 0.22)")};
-  background: ${(props) => (props.$active ? "linear-gradient(180deg, #fff4f8 0%, #ffeaf2 100%)" : "linear-gradient(180deg, #ffffff 0%, #fbfcff 100%)")};
+  border: 1px solid
+    ${(props) => (props.$active ? "rgba(233, 61, 93, 0.28)" : "rgba(148, 163, 184, 0.22)")};
+  background: ${(props) =>
+    props.$active
+      ? "linear-gradient(180deg, #fff4f8 0%, #ffeaf2 100%)"
+      : "linear-gradient(180deg, #ffffff 0%, #fbfcff 100%)"};
   padding: 14px;
   text-align: left;
   display: grid;
   gap: 8px;
-  box-shadow: ${(props) => (props.$active ? "0 14px 28px rgba(225, 29, 72, 0.08)" : "0 8px 18px rgba(15, 23, 42, 0.04)")};
+  box-shadow: ${(props) =>
+    props.$active ? "0 14px 28px rgba(225, 29, 72, 0.08)" : "0 8px 18px rgba(15, 23, 42, 0.04)"};
   cursor: pointer;
   position: relative;
+  min-width: 0;
+
+  @media (max-width: 640px) {
+    border-radius: 16px;
+    padding: 12px;
+  }
 `;
 
 const PlanTitle = styled.strong`
   color: var(--color-text);
   display: block;
+  line-height: 1.35;
 `;
 
 const PlanMeta = styled.span`
   color: var(--color-muted);
   font-size: 0.84rem;
   line-height: 1.45;
+
+  @media (max-width: 640px) {
+    font-size: 0.78rem;
+  }
 `;
 
 const PlanTop = styled.div`
@@ -589,9 +832,10 @@ const PlanTop = styled.div`
   justify-content: space-between;
   gap: 10px;
   align-items: flex-start;
+  min-width: 0;
 `;
 
-const PlanIconWrap = styled.div<{ $active?: boolean }>`
+const PlanIconWrap = styled.div < { $active?: boolean } > `
   width: 36px;
   height: 36px;
   border-radius: 12px;
@@ -599,9 +843,10 @@ const PlanIconWrap = styled.div<{ $active?: boolean }>`
   place-items: center;
   background: ${(props) => (props.$active ? "#ffe3ec" : "#f2f5fb")};
   color: ${(props) => (props.$active ? "#e11d48" : "#64748b")};
+  flex: 0 0 auto;
 `;
 
-const PlanBadge = styled.span<{ $tone?: "accent" | "success" | "warning" }>`
+const PlanBadge = styled.span < { $tone?: "accent" | "success" | "warning" } > `
   min-height: 22px;
   padding: 0 8px;
   border-radius: 999px;
@@ -610,13 +855,14 @@ const PlanBadge = styled.span<{ $tone?: "accent" | "success" | "warning" }>`
   gap: 5px;
   font-size: 0.68rem;
   font-weight: 800;
+  line-height: 1.2;
   border: 1px solid
     ${(props) =>
-      props.$tone === "accent"
-        ? "rgba(233, 61, 93, 0.18)"
-        : props.$tone === "success"
-          ? "rgba(34, 197, 94, 0.18)"
-          : "rgba(245, 158, 11, 0.22)"};
+    props.$tone === "accent"
+      ? "rgba(233, 61, 93, 0.18)"
+      : props.$tone === "success"
+        ? "rgba(34, 197, 94, 0.18)"
+        : "rgba(245, 158, 11, 0.22)"};
   background: ${(props) =>
     props.$tone === "accent" ? "#fff1f4" : props.$tone === "success" ? "#ecfdf3" : "#fff7ed"};
   color: ${(props) =>
@@ -630,18 +876,21 @@ const PlanSaving = styled.div`
   color: #0f766e;
   font-size: 0.78rem;
   font-weight: 700;
+  line-height: 1.3;
 `;
 
 const WordCounter = styled.div`
   color: var(--color-muted);
   font-size: 0.74rem;
   justify-self: end;
+  line-height: 1.35;
 `;
 
 const HeroFieldsGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
+  min-width: 0;
 
   @media (max-width: 760px) {
     grid-template-columns: 1fr;
@@ -652,6 +901,10 @@ const CalendarHeader = styled.div`
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 6px;
+
+  @media (max-width: 640px) {
+    gap: 4px;
+  }
 `;
 
 const CalendarHeaderCell = styled.div`
@@ -659,27 +912,36 @@ const CalendarHeaderCell = styled.div`
   font-size: 0.68rem;
   font-weight: 700;
   text-align: center;
+  line-height: 1.2;
+
+  @media (max-width: 640px) {
+    font-size: 0.6rem;
+  }
 `;
 
 const CalendarGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 6px;
+
+  @media (max-width: 640px) {
+    gap: 4px;
+  }
 `;
 
-const CalendarDay = styled.button<{
+const CalendarDay = styled.button < {
   $state: "free" | "blocked" | "selected" | "range";
   $inMonth: boolean;
   $past: boolean;
   $today: boolean;
-}>`
+} > `
   min-height: 40px;
   border-radius: 10px;
   border: 1px solid
     ${(props) =>
-      props.$past
-        ? "rgba(148, 163, 184, 0.14)"
-        : props.$state === "blocked"
+    props.$past
+      ? "rgba(148, 163, 184, 0.14)"
+      : props.$state === "blocked"
         ? "rgba(148, 163, 184, 0.16)"
         : props.$state === "selected"
           ? "rgba(233, 61, 93, 0.26)"
@@ -692,32 +954,38 @@ const CalendarDay = styled.button<{
     props.$past
       ? "#f1f5f9"
       : props.$state === "blocked"
-      ? "#eef2f7"
-      : props.$state === "selected"
-        ? "#ffe1eb"
-        : props.$state === "range"
-          ? "#fff1f6"
-          : props.$inMonth
-            ? "#fff"
-            : "#f8fafc"};
+        ? "#eef2f7"
+        : props.$state === "selected"
+          ? "#ffe1eb"
+          : props.$state === "range"
+            ? "#fff1f6"
+            : props.$inMonth
+              ? "#fff"
+              : "#f8fafc"};
   color: ${(props) =>
     props.$past
       ? "#b8c2d6"
       : props.$state === "blocked"
-      ? "#94a3b8"
-      : props.$state === "selected"
-        ? "#be123c"
-        : props.$state === "range"
-          ? "#be185d"
-          : props.$inMonth
-            ? "var(--color-text)"
-            : "#b6c0d4"};
+        ? "#94a3b8"
+        : props.$state === "selected"
+          ? "#be123c"
+          : props.$state === "range"
+            ? "#be185d"
+            : props.$inMonth
+              ? "var(--color-text)"
+              : "#b6c0d4"};
   font-size: 0.72rem;
   font-weight: 800;
   display: grid;
   place-items: center;
   cursor: ${(props) => (props.$state === "blocked" || props.$past ? "not-allowed" : "pointer")};
   opacity: ${(props) => (props.$state === "blocked" || props.$past ? 0.72 : 1)};
+
+  @media (max-width: 640px) {
+    min-height: 34px;
+    border-radius: 9px;
+    font-size: 0.64rem;
+  }
 `;
 
 const CalendarDayInner = styled.div`
@@ -732,6 +1000,10 @@ const CalendarTodayTag = styled.span`
   font-weight: 800;
   letter-spacing: 0.02em;
   text-transform: uppercase;
+
+  @media (max-width: 640px) {
+    font-size: 0.48rem;
+  }
 `;
 
 const PickerCardHeader = styled.div`
@@ -739,6 +1011,11 @@ const PickerCardHeader = styled.div`
   justify-content: space-between;
   align-items: center;
   gap: 10px;
+  min-width: 0;
+
+  @media (max-width: 640px) {
+    align-items: flex-start;
+  }
 `;
 
 const PickerNav = styled.button`
@@ -756,14 +1033,21 @@ const SlotLegend = styled.div`
   flex-wrap: wrap;
   color: var(--color-muted);
   font-size: 0.74rem;
+  line-height: 1.35;
+
+  @media (max-width: 640px) {
+    gap: 8px;
+    font-size: 0.68rem;
+  }
 `;
 
-const SlotLegendDot = styled.span<{ $tone: "free" | "blocked" | "selected" }>`
+const SlotLegendDot = styled.span < { $tone: "free" | "blocked" | "selected" } > `
   width: 10px;
   height: 10px;
   border-radius: 999px;
   display: inline-block;
-  background: ${(props) => (props.$tone === "free" ? "#ffffff" : props.$tone === "blocked" ? "#cbd5e1" : "#fb7185")};
+  background: ${(props) =>
+    props.$tone === "free" ? "#ffffff" : props.$tone === "blocked" ? "#cbd5e1" : "#fb7185"};
   border: 1px solid rgba(148, 163, 184, 0.24);
 `;
 
@@ -774,6 +1058,13 @@ const ModalFooter = styled.div`
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
+  background: rgba(255, 255, 255, 0.76);
+
+  @media (max-width: 640px) {
+    padding: 12px 14px 16px;
+    display: grid;
+    grid-template-columns: 1fr;
+  }
 `;
 
 const PaymentWallOverlay = styled(ModalOverlay)`
@@ -784,6 +1075,11 @@ const PaymentWallShell = styled(ModalShell)`
   max-width: 680px;
   min-height: auto;
   background: linear-gradient(180deg, #fff7fb 0%, #ffffff 100%);
+
+  @media (max-width: 640px) {
+    height: auto;
+    max-height: calc(100dvh - 12px);
+  }
 `;
 
 const PaymentPlanCard = styled.div`
@@ -793,6 +1089,11 @@ const PaymentPlanCard = styled.div`
   background: linear-gradient(180deg, #fff1f5 0%, #ffffff 100%);
   display: grid;
   gap: 8px;
+  min-width: 0;
+
+  @media (max-width: 640px) {
+    padding: 14px;
+  }
 `;
 
 const PaymentMeta = styled.div`
@@ -801,6 +1102,11 @@ const PaymentMeta = styled.div`
   flex-wrap: wrap;
   color: var(--color-muted);
   font-size: 0.84rem;
+  line-height: 1.45;
+
+  @media (max-width: 640px) {
+    font-size: 0.76rem;
+  }
 `;
 
 const PaymentNotice = styled.div`
@@ -810,6 +1116,10 @@ const PaymentNotice = styled.div`
   color: var(--color-muted);
   font-size: 0.84rem;
   line-height: 1.55;
+
+  @media (max-width: 640px) {
+    font-size: 0.78rem;
+  }
 `;
 
 const ListingSelectCard = styled.div`
@@ -819,6 +1129,7 @@ const ListingSelectCard = styled.div`
   background: #f8fafc;
   display: grid;
   gap: 10px;
+  min-width: 0;
 `;
 
 const ListingMini = styled.div`
@@ -826,40 +1137,63 @@ const ListingMini = styled.div`
   grid-template-columns: 82px minmax(0, 1fr);
   gap: 12px;
   align-items: center;
+  min-width: 0;
+
+  @media (max-width: 640px) {
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  @media (max-width: 360px) {
+    grid-template-columns: 1fr;
+  }
 `;
 
-const ListingMiniImage = styled.div<{ $image?: string }>`
+const ListingMiniImage = styled.div < { $image?: string } > `
   height: 70px;
   border-radius: 16px;
-  background:
-    ${(props) => (props.$image ? `linear-gradient(180deg, rgba(15, 23, 42, 0.04), rgba(15, 23, 42, 0.16)), url("${props.$image}") center/cover no-repeat` : "#eef2f7")};
+  background: ${(props) =>
+    props.$image
+      ? `linear-gradient(180deg, rgba(15, 23, 42, 0.04), rgba(15, 23, 42, 0.16)), url("${props.$image}") center/cover no-repeat`
+      : "#eef2f7"};
   display: grid;
   place-items: center;
   color: #64748b;
+
+  @media (max-width: 640px) {
+    height: 62px;
+    border-radius: 14px;
+  }
 `;
 
 const ListingMiniTitle = styled.strong`
   color: var(--color-text);
   display: block;
+  line-height: 1.35;
 `;
 
 const ListingMiniMeta = styled.div`
   color: var(--color-muted);
   font-size: 0.88rem;
   line-height: 1.5;
+
+  @media (max-width: 640px) {
+    font-size: 0.78rem;
+  }
 `;
 
 const HeroTargetGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
+  min-width: 0;
 
   @media (max-width: 760px) {
     grid-template-columns: 1fr;
   }
 `;
 
-const HeroTargetCard = styled.button<{ $active?: boolean }>`
+const HeroTargetCard = styled.button < { $active?: boolean } > `
   border-radius: 20px;
   border: 1px solid
     ${(props) => (props.$active ? "rgba(233, 61, 93, 0.24)" : "rgba(148, 163, 184, 0.18)")};
@@ -872,6 +1206,13 @@ const HeroTargetCard = styled.button<{ $active?: boolean }>`
   gap: 10px;
   text-align: left;
   box-shadow: ${(props) => (props.$active ? "0 18px 34px rgba(233, 61, 93, 0.08)" : "none")};
+  min-width: 0;
+  cursor: pointer;
+
+  @media (max-width: 640px) {
+    border-radius: 18px;
+    padding: 14px;
+  }
 `;
 
 const HeroTargetTop = styled.div`
@@ -879,9 +1220,15 @@ const HeroTargetTop = styled.div`
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  min-width: 0;
+
+  @media (max-width: 640px) {
+    align-items: flex-start;
+    justify-content: flex-start;
+  }
 `;
 
-const HeroTargetIcon = styled.div<{ $active?: boolean }>`
+const HeroTargetIcon = styled.div < { $active?: boolean } > `
   width: 44px;
   height: 44px;
   border-radius: 14px;
@@ -889,17 +1236,28 @@ const HeroTargetIcon = styled.div<{ $active?: boolean }>`
   place-items: center;
   color: ${(props) => (props.$active ? "var(--color-primary)" : "#64748b")};
   background: ${(props) => (props.$active ? "rgba(233, 61, 93, 0.12)" : "#f1f5f9")};
+  flex: 0 0 auto;
+
+  @media (max-width: 640px) {
+    width: 40px;
+    height: 40px;
+  }
 `;
 
 const HeroTargetTitle = styled.strong`
   color: var(--color-text);
   font-size: 0.98rem;
+  line-height: 1.35;
 `;
 
 const HeroTargetCopy = styled.div`
   color: var(--color-muted);
   font-size: 0.88rem;
   line-height: 1.55;
+
+  @media (max-width: 640px) {
+    font-size: 0.8rem;
+  }
 `;
 
 const HeroAgencyPreview = styled.div`
@@ -909,12 +1267,19 @@ const HeroAgencyPreview = styled.div`
   background: linear-gradient(145deg, #fff6f8 0%, #fffafc 100%);
   display: grid;
   gap: 12px;
+  min-width: 0;
+
+  @media (max-width: 640px) {
+    border-radius: 18px;
+    padding: 14px;
+  }
 `;
 
 const HeroAgencyPreviewTop = styled.div`
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
 `;
 
 const HeroAgencyPreviewLogo = styled.div`
@@ -928,12 +1293,19 @@ const HeroAgencyPreviewLogo = styled.div`
   font-size: 1.2rem;
   font-weight: 800;
   letter-spacing: 0.04em;
+  flex: 0 0 auto;
+
+  @media (max-width: 640px) {
+    width: 48px;
+    height: 48px;
+  }
 `;
 
 const HeroAgencyPreviewName = styled.strong`
   color: var(--color-text);
   display: block;
   font-size: 1rem;
+  line-height: 1.35;
 `;
 
 const HeroAgencyPreviewMeta = styled.div`
@@ -944,17 +1316,27 @@ const HeroAgencyPreviewMeta = styled.div`
   font-size: 0.84rem;
   font-weight: 700;
   margin-top: 4px;
+  line-height: 1.3;
 `;
 
 const HeroAgencyPreviewCopy = styled.div`
   color: var(--color-muted);
   font-size: 0.9rem;
   line-height: 1.6;
+
+  @media (max-width: 640px) {
+    font-size: 0.82rem;
+  }
 `;
 
 const PromotionList = styled.div`
   display: grid;
   gap: 12px;
+  min-width: 0;
+
+  @media (max-width: 640px) {
+    gap: 10px;
+  }
 `;
 
 const PromotionRow = styled.div`
@@ -964,6 +1346,12 @@ const PromotionRow = styled.div`
   border: 1px solid rgba(148, 163, 184, 0.2);
   display: grid;
   gap: 10px;
+  min-width: 0;
+
+  @media (max-width: 640px) {
+    border-radius: 18px;
+    padding: 12px;
+  }
 `;
 
 const PromotionRowMain = styled.div`
@@ -971,27 +1359,38 @@ const PromotionRowMain = styled.div`
   grid-template-columns: 88px minmax(0, 1fr);
   gap: 12px;
   align-items: center;
+  min-width: 0;
 
   @media (max-width: 640px) {
     grid-template-columns: 72px minmax(0, 1fr);
     gap: 10px;
+    align-items: start;
+  }
+
+  @media (max-width: 380px) {
+    grid-template-columns: 1fr;
   }
 `;
 
-const PromotionThumb = styled.div<{ $image?: string }>`
+const PromotionThumb = styled.div < { $image?: string } > `
   height: 72px;
   border-radius: 14px;
-  background:
-    ${(props) =>
-      props.$image
-        ? `linear-gradient(180deg, rgba(15, 23, 42, 0.04), rgba(15, 23, 42, 0.16)), url("${props.$image}") center/cover no-repeat`
-        : "#eef2f7"};
+  background: ${(props) =>
+    props.$image
+      ? `linear-gradient(180deg, rgba(15, 23, 42, 0.04), rgba(15, 23, 42, 0.16)), url("${props.$image}") center/cover no-repeat`
+      : "#eef2f7"};
   display: grid;
   place-items: center;
   color: #64748b;
+  overflow: hidden;
 
   @media (max-width: 640px) {
     height: 62px;
+    border-radius: 13px;
+  }
+
+  @media (max-width: 380px) {
+    height: 150px;
   }
 `;
 
@@ -1001,6 +1400,13 @@ const PromotionTop = styled.div`
   gap: 10px;
   align-items: flex-start;
   flex-wrap: wrap;
+  min-width: 0;
+
+  @media (max-width: 640px) {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
 `;
 
 const PromotionTopRight = styled.div`
@@ -1009,11 +1415,21 @@ const PromotionTopRight = styled.div`
   gap: 8px;
   flex-wrap: wrap;
   justify-content: flex-end;
+
+  @media (max-width: 640px) {
+    justify-content: flex-start;
+  }
 `;
 
 const PromotionTitle = styled.strong`
   color: var(--color-text);
   display: block;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+
+  @media (max-width: 640px) {
+    font-size: 0.92rem;
+  }
 `;
 
 const PromotionMeta = styled.div`
@@ -1022,6 +1438,17 @@ const PromotionMeta = styled.div`
   flex-wrap: wrap;
   color: var(--color-muted);
   font-size: 0.86rem;
+  line-height: 1.45;
+  min-width: 0;
+
+  svg {
+    flex: 0 0 auto;
+  }
+
+  @media (max-width: 640px) {
+    gap: 6px;
+    font-size: 0.76rem;
+  }
 `;
 
 const PromotionActionButton = styled.button`
@@ -1038,6 +1465,14 @@ const PromotionActionButton = styled.button`
   justify-content: center;
   gap: 6px;
   cursor: pointer;
+  white-space: nowrap;
+
+  @media (max-width: 640px) {
+    min-height: 32px;
+    height: auto;
+    padding: 7px 10px;
+    font-size: 0.72rem;
+  }
 `;
 
 const Empty = styled.div`
@@ -1047,18 +1482,18 @@ const Empty = styled.div`
   border: 1px dashed rgba(148, 163, 184, 0.28);
   color: var(--color-muted);
   line-height: 1.55;
+
+  @media (max-width: 640px) {
+    padding: 14px;
+    font-size: 0.84rem;
+  }
 `;
 
-const SkeletonBlock = styled.div<{ $height?: number; $radius?: number }>`
+const SkeletonBlock = styled.div < { $height?: number; $radius?: number } > `
   width: 100%;
   height: ${(props) => `${props.$height ?? 16}px`};
   border-radius: ${(props) => `${props.$radius ?? 14}px`};
-  background: linear-gradient(
-    90deg,
-    #edf2f7 0%,
-    #dfe7f1 50%,
-    #edf2f7 100%
-  );
+  background: linear-gradient(90deg, #edf2f7 0%, #dfe7f1 50%, #edf2f7 100%);
   background-size: 200% 100%;
   animation: ${shimmer} 1.35s linear infinite;
 `;
@@ -1074,12 +1509,24 @@ const LockShell = styled.div`
   display: grid;
   gap: 14px;
   align-content: start;
+  min-width: 0;
+
+  @media (max-width: 640px) {
+    border-radius: 24px;
+    padding: 18px;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+  }
 `;
 
 const LockStateWrap = styled.div`
   min-height: min(640px, calc(100vh - 220px));
   display: grid;
   align-items: center;
+
+  @media (max-width: 640px) {
+    min-height: auto;
+    align-items: start;
+  }
 `;
 
 const LockHero = styled.div`
@@ -1090,15 +1537,24 @@ const LockHero = styled.div`
   color: #e11d48;
   display: grid;
   place-items: center;
+  flex: 0 0 auto;
+
+  @media (max-width: 640px) {
+    width: 48px;
+    height: 48px;
+    border-radius: 16px;
+  }
 `;
 
 const LockHeaderRow = styled.div`
   display: flex;
   align-items: center;
   gap: 16px;
+  min-width: 0;
 
   @media (max-width: 640px) {
     align-items: flex-start;
+    gap: 12px;
   }
 `;
 
@@ -1378,7 +1834,7 @@ function HeroInlineCalendar({
   locale: string;
 }) {
   const selectedDate = value ? parseDateOnly(value) : null;
-  const [currentMonth, setCurrentMonth] = useState<Date>(selectedDate ?? new Date());
+  const [currentMonth, setCurrentMonth] = useState < Date > (selectedDate ?? new Date());
   const days = useMemo(() => getCalendarDays(currentMonth), [currentMonth]);
   const todayKey = formatDateKey(startOfDay(new Date()));
   const monthLabel = currentMonth.toLocaleDateString(locale, {
@@ -1487,20 +1943,20 @@ export function VendorPromotionsView({
   const { authToken } = useAppState();
   const { t, language } = useI18n();
   const locale = language === "mm" ? "my-MM" : language === "zh" ? "zh-CN" : language === "th" ? "th-TH" : "en-US";
-  const [data, setData] = useState<PromotionsPayload | null>(null);
+  const [data, setData] = useState < PromotionsPayload | null > (null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [error, setError] = useState < string | null > (null);
+  const [success, setSuccess] = useState < string | null > (null);
   const [creatorOpen, setCreatorOpen] = useState(false);
   const [paymentWallOpen, setPaymentWallOpen] = useState(false);
-  const [createdPromotion, setCreatedPromotion] = useState<CreatedPromotionItem | null>(null);
+  const [createdPromotion, setCreatedPromotion] = useState < CreatedPromotionItem | null > (null);
   const [listQuery, setListQuery] = useState("");
-  const [typeFilter, setTypeFilter] = useState<"all" | PromotionType>("all");
-  const [statusScope, setStatusScope] = useState<(typeof promotionStatusScopes)[number]["value"]>("all");
-  const [selectedType, setSelectedType] = useState<PromotionType>("hero_ad");
-  const [heroTargetType, setHeroTargetType] = useState<"agency_profile" | "listing">("agency_profile");
+  const [typeFilter, setTypeFilter] = useState < "all" | PromotionType > ("all");
+  const [statusScope, setStatusScope] = useState < (typeof promotionStatusScopes)[number]["value"] > ("all");
+  const [selectedType, setSelectedType] = useState < PromotionType > ("hero_ad");
+  const [heroTargetType, setHeroTargetType] = useState < "agency_profile" | "listing" > ("agency_profile");
   const [listingId, setListingId] = useState("");
   const [listingSearch, setListingSearch] = useState("");
   const [listingPickerOpen, setListingPickerOpen] = useState(false);
@@ -1509,8 +1965,8 @@ export function VendorPromotionsView({
   const [selectedPlanKey, setSelectedPlanKey] = useState("");
   const [startsAt, setStartsAt] = useState(() => formatDateTimeInput(new Date(Date.now() + 60 * 60 * 1000)));
   const [initialPrefillConsumed, setInitialPrefillConsumed] = useState(false);
-  const [selectedHeroSlot, setSelectedHeroSlot] = useState<string>("Slot 1");
-  const [selectedHeroStartKey, setSelectedHeroStartKey] = useState<string | null>(null);
+  const [selectedHeroSlot, setSelectedHeroSlot] = useState < string > ("Slot 1");
+  const [selectedHeroStartKey, setSelectedHeroStartKey] = useState < string | null > (null);
   const canManagePromotions = data?.workspace?.membershipRole === "owner";
   const selectedPlan =
     promotionPlanPresets[selectedType].find((plan) => plan.key === selectedPlanKey) ?? promotionPlanPresets[selectedType][0];
@@ -1583,18 +2039,18 @@ export function VendorPromotionsView({
   const listingOptions = useMemo(() => {
     const source = normalizedListingSearch
       ? eligibleListings.filter((item) => {
-          const haystack = [
-            item.title,
-            item.township,
-            item.city,
-            item.property_type ? formatPropertyTypeValue(item.property_type) : "",
-            item.deal_type,
-          ]
-            .filter(Boolean)
-            .join(" ")
-            .toLowerCase();
-          return haystack.includes(normalizedListingSearch);
-        })
+        const haystack = [
+          item.title,
+          item.township,
+          item.city,
+          item.property_type ? formatPropertyTypeValue(item.property_type) : "",
+          item.deal_type,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        return haystack.includes(normalizedListingSearch);
+      })
       : eligibleListings;
     return source.slice(0, normalizedListingSearch ? 16 : 12);
   }, [eligibleListings, normalizedListingSearch]);
@@ -1990,74 +2446,74 @@ export function VendorPromotionsView({
           <PromotionList>
             {loading
               ? Array.from({ length: 4 }, (_, index) => (
-                  <PromotionRow key={`promotion-skeleton-${index}`}>
-                    <div style={{ display: "grid", gap: 10 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                        <div style={{ display: "grid", gap: 8, flex: 1 }}>
-                          <SkeletonBlock $height={18} style={{ width: "42%" }} />
-                          <SkeletonBlock $height={14} style={{ width: "64%" }} />
-                        </div>
-                        <SkeletonBlock $height={28} $radius={999} style={{ width: 88 }} />
+                <PromotionRow key={`promotion-skeleton-${index}`}>
+                  <div style={{ display: "grid", gap: 10 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                      <div style={{ display: "grid", gap: 8, flex: 1 }}>
+                        <SkeletonBlock $height={18} style={{ width: "42%" }} />
+                        <SkeletonBlock $height={14} style={{ width: "64%" }} />
                       </div>
-                      <SkeletonBlock $height={14} style={{ width: "58%" }} />
+                      <SkeletonBlock $height={28} $radius={999} style={{ width: 88 }} />
                     </div>
-                  </PromotionRow>
-                ))
+                    <SkeletonBlock $height={14} style={{ width: "58%" }} />
+                  </div>
+                </PromotionRow>
+              ))
               : null}
             {!loading && !filteredPromotions.length ? <Empty>{t("vendor.promotions.noMatch")}</Empty> : null}
             {!loading
               ? filteredPromotions.map((item) => {
-                  const effectiveStatus = getEffectivePromotionStatus(item);
-                  const linkedListing = item.listing_id ? eligibleListings.find((listing) => listing.id === item.listing_id) : null;
-                  return (
-                    <PromotionRow key={item.id}>
-                      <PromotionRowMain>
-                        <PromotionThumb $image={linkedListing?.cover_image_url || undefined}>
-                          {!linkedListing?.cover_image_url ? <ImageIcon size={18} /> : null}
-                        </PromotionThumb>
-                        <div style={{ display: "grid", gap: 10, minWidth: 0 }}>
-                          <PromotionTop>
-                            <div>
-                              <PromotionTitle>{item.title || linkedListing?.title || t("vendor.promotions.untitled")}</PromotionTitle>
-                              <PromotionMeta>
-                                <span>
-                                  {(item.promotion_type ? getPromotionTypeLabel(item.promotion_type as PromotionType, t) : null) ||
-                                    item.promotion_type ||
-                                    t("vendor.promotions.productFallback")}
-                                </span>
-                                {linkedListing?.title ? (
-                                  <>
-                                    <span>•</span>
-                                    <span>{linkedListing.title}</span>
-                                  </>
-                                ) : null}
-                              </PromotionMeta>
-                            </div>
-                            <PromotionTopRight>
-                              <Pill $tone={statusTone(effectiveStatus)}>{getPromotionStatusLabel(effectiveStatus, t)}</Pill>
-                              {canManagePromotions && (isPayablePromotionStatus(effectiveStatus) || effectiveStatus === "expired") ? (
-                                <PromotionActionButton type="button" onClick={() => openPaymentWallForItem(item)}>
-                                  <Megaphone size={14} />
-                                  <span>{effectiveStatus === "expired" ? t("vendor.promotions.refreshBoost") : t("vendor.promotions.payNow")}</span>
-                                </PromotionActionButton>
+                const effectiveStatus = getEffectivePromotionStatus(item);
+                const linkedListing = item.listing_id ? eligibleListings.find((listing) => listing.id === item.listing_id) : null;
+                return (
+                  <PromotionRow key={item.id}>
+                    <PromotionRowMain>
+                      <PromotionThumb $image={linkedListing?.cover_image_url || undefined}>
+                        {!linkedListing?.cover_image_url ? <ImageIcon size={18} /> : null}
+                      </PromotionThumb>
+                      <div style={{ display: "grid", gap: 10, minWidth: 0 }}>
+                        <PromotionTop>
+                          <div>
+                            <PromotionTitle>{item.title || linkedListing?.title || t("vendor.promotions.untitled")}</PromotionTitle>
+                            <PromotionMeta>
+                              <span>
+                                {(item.promotion_type ? getPromotionTypeLabel(item.promotion_type as PromotionType, t) : null) ||
+                                  item.promotion_type ||
+                                  t("vendor.promotions.productFallback")}
+                              </span>
+                              {linkedListing?.title ? (
+                                <>
+                                  <span>•</span>
+                                  <span>{linkedListing.title}</span>
+                                </>
                               ) : null}
-                            </PromotionTopRight>
-                          </PromotionTop>
-                          <PromotionMeta>
-                            <span>
-                              <CalendarClock size={14} style={{ verticalAlign: "text-bottom", marginRight: 6 }} />
-                              {formatDateTime(item.starts_at, locale, t("vendor.promotions.notAvailable"))}
-                            </span>
-                            <span>•</span>
-                            <span>{t("vendor.promotions.per24h", { amount: formatCurrency(item.price_per_24h ?? undefined, "MMK", t("vendor.promotions.notAvailable"), language) })}</span>
-                            <span>•</span>
-                            <span>{item.duration_hours ? t("vendor.promotions.hours", { count: item.duration_hours }) : t("vendor.promotions.notAvailable")}</span>
-                          </PromotionMeta>
-                        </div>
-                      </PromotionRowMain>
-                    </PromotionRow>
-                  );
-                })
+                            </PromotionMeta>
+                          </div>
+                          <PromotionTopRight>
+                            <Pill $tone={statusTone(effectiveStatus)}>{getPromotionStatusLabel(effectiveStatus, t)}</Pill>
+                            {canManagePromotions && (isPayablePromotionStatus(effectiveStatus) || effectiveStatus === "expired") ? (
+                              <PromotionActionButton type="button" onClick={() => openPaymentWallForItem(item)}>
+                                <Megaphone size={14} />
+                                <span>{effectiveStatus === "expired" ? t("vendor.promotions.refreshBoost") : t("vendor.promotions.payNow")}</span>
+                              </PromotionActionButton>
+                            ) : null}
+                          </PromotionTopRight>
+                        </PromotionTop>
+                        <PromotionMeta>
+                          <span>
+                            <CalendarClock size={14} style={{ verticalAlign: "text-bottom", marginRight: 6 }} />
+                            {formatDateTime(item.starts_at, locale, t("vendor.promotions.notAvailable"))}
+                          </span>
+                          <span>•</span>
+                          <span>{t("vendor.promotions.per24h", { amount: formatCurrency(item.price_per_24h ?? undefined, "MMK", t("vendor.promotions.notAvailable"), language) })}</span>
+                          <span>•</span>
+                          <span>{item.duration_hours ? t("vendor.promotions.hours", { count: item.duration_hours }) : t("vendor.promotions.notAvailable")}</span>
+                        </PromotionMeta>
+                      </div>
+                    </PromotionRowMain>
+                  </PromotionRow>
+                );
+              })
               : null}
           </PromotionList>
         </Card>
@@ -2170,64 +2626,64 @@ export function VendorPromotionsView({
                         noEligibleListings ? (
                           <Empty>{t("vendor.promotions.needActiveListingHero")}</Empty>
                         ) : (
-                        <SearchableField
-                          onBlur={() => {
-                            setTimeout(() => {
-                              setListingPickerOpen(false);
-                              if (selectedListing) {
-                                setListingSearch(selectedListing.title || t("vendor.promotions.untitledProperty"));
-                              } else if (!normalizedListingSearch) {
-                                setListingSearch("");
-                              }
-                            }, 120);
-                          }}
-                        >
-                          <FloatingField data-filled={Boolean(listingSearch)}>
-                            <FloatingLabel htmlFor="promotion-listing-search" $filled>
-                              {t("listing.property")}
-                            </FloatingLabel>
-                            <SearchableTrigger
-                              id="promotion-listing-search"
-                              value={listingSearch}
-                              placeholder={t("vendor.promotions.searchOrChooseListing")}
-                              onFocus={() => setListingPickerOpen(true)}
-                              onChange={(event) => {
-                                setListingSearch(event.target.value);
-                                setListingId("");
-                                setListingPickerOpen(true);
-                              }}
-                              disabled={noEligibleListings}
-                            />
-                            <SearchableFieldIcon size={16} />
-                          </FloatingField>
-                          {listingPickerOpen && !noEligibleListings ? (
-                            <SearchableMenu>
-                              {listingOptions.length ? (
-                                listingOptions.map((item) => (
-                                  <SearchableOption
-                                    key={item.id}
-                                    type="button"
-                                    $active={item.id === listingId}
-                                    onMouseDown={(event) => {
-                                      event.preventDefault();
-                                      setListingId(item.id);
-                                      setListingSearch(item.title || t("vendor.promotions.untitledProperty"));
-                                      setListingPickerOpen(false);
-                                    }}
-                                  >
-                                    <SearchableOptionTitle>{item.title || t("vendor.promotions.untitledProperty")}</SearchableOptionTitle>
-                                    <SearchableOptionMeta>
-                                      {formatPropertyTypeValue(item.property_type, t)} • {item.deal_type || t("vendor.promotions.notAvailable")} •{" "}
-                                      {item.township || item.city || t("vendor.promotions.notAvailable")}
-                                    </SearchableOptionMeta>
-                                  </SearchableOption>
-                                ))
-                              ) : (
-                                <SearchableEmpty>{t("vendor.promotions.noMatchingListings")}</SearchableEmpty>
-                              )}
-                            </SearchableMenu>
-                          ) : null}
-                        </SearchableField>
+                          <SearchableField
+                            onBlur={() => {
+                              setTimeout(() => {
+                                setListingPickerOpen(false);
+                                if (selectedListing) {
+                                  setListingSearch(selectedListing.title || t("vendor.promotions.untitledProperty"));
+                                } else if (!normalizedListingSearch) {
+                                  setListingSearch("");
+                                }
+                              }, 120);
+                            }}
+                          >
+                            <FloatingField data-filled={Boolean(listingSearch)}>
+                              <FloatingLabel htmlFor="promotion-listing-search" $filled>
+                                {t("listing.property")}
+                              </FloatingLabel>
+                              <SearchableTrigger
+                                id="promotion-listing-search"
+                                value={listingSearch}
+                                placeholder={t("vendor.promotions.searchOrChooseListing")}
+                                onFocus={() => setListingPickerOpen(true)}
+                                onChange={(event) => {
+                                  setListingSearch(event.target.value);
+                                  setListingId("");
+                                  setListingPickerOpen(true);
+                                }}
+                                disabled={noEligibleListings}
+                              />
+                              <SearchableFieldIcon size={16} />
+                            </FloatingField>
+                            {listingPickerOpen && !noEligibleListings ? (
+                              <SearchableMenu>
+                                {listingOptions.length ? (
+                                  listingOptions.map((item) => (
+                                    <SearchableOption
+                                      key={item.id}
+                                      type="button"
+                                      $active={item.id === listingId}
+                                      onMouseDown={(event) => {
+                                        event.preventDefault();
+                                        setListingId(item.id);
+                                        setListingSearch(item.title || t("vendor.promotions.untitledProperty"));
+                                        setListingPickerOpen(false);
+                                      }}
+                                    >
+                                      <SearchableOptionTitle>{item.title || t("vendor.promotions.untitledProperty")}</SearchableOptionTitle>
+                                      <SearchableOptionMeta>
+                                        {formatPropertyTypeValue(item.property_type, t)} • {item.deal_type || t("vendor.promotions.notAvailable")} •{" "}
+                                        {item.township || item.city || t("vendor.promotions.notAvailable")}
+                                      </SearchableOptionMeta>
+                                    </SearchableOption>
+                                  ))
+                                ) : (
+                                  <SearchableEmpty>{t("vendor.promotions.noMatchingListings")}</SearchableEmpty>
+                                )}
+                              </SearchableMenu>
+                            ) : null}
+                          </SearchableField>
                         )
                       )}
                     </div>
@@ -2236,64 +2692,64 @@ export function VendorPromotionsView({
                   noEligibleListings ? (
                     <Empty>{t("vendor.promotions.needActiveListing")}</Empty>
                   ) : (
-                  <SearchableField
-                    onBlur={() => {
-                      setTimeout(() => {
-                        setListingPickerOpen(false);
-                        if (selectedListing) {
-                          setListingSearch(selectedListing.title || t("vendor.promotions.untitledProperty"));
-                        } else if (!normalizedListingSearch) {
-                          setListingSearch("");
-                        }
-                      }, 120);
-                    }}
-                  >
-                    <FloatingField data-filled={Boolean(listingSearch)}>
-                      <FloatingLabel htmlFor="promotion-listing-search" $filled>
-                        {t("listing.property")}
-                      </FloatingLabel>
-                      <SearchableTrigger
-                        id="promotion-listing-search"
-                        value={listingSearch}
-                        placeholder={t("vendor.promotions.searchOrChooseListing")}
-                        onFocus={() => setListingPickerOpen(true)}
-                        onChange={(event) => {
-                          setListingSearch(event.target.value);
-                          setListingId("");
-                          setListingPickerOpen(true);
-                        }}
-                        disabled={noEligibleListings}
-                      />
-                      <SearchableFieldIcon size={16} />
-                    </FloatingField>
-                    {listingPickerOpen && !noEligibleListings ? (
-                      <SearchableMenu>
-                        {listingOptions.length ? (
-                          listingOptions.map((item) => (
-                            <SearchableOption
-                              key={item.id}
-                              type="button"
-                              $active={item.id === listingId}
-                              onMouseDown={(event) => {
-                                event.preventDefault();
-                                setListingId(item.id);
-                                setListingSearch(item.title || t("vendor.promotions.untitledProperty"));
-                                setListingPickerOpen(false);
-                              }}
-                            >
-                              <SearchableOptionTitle>{item.title || t("vendor.promotions.untitledProperty")}</SearchableOptionTitle>
-                              <SearchableOptionMeta>
-                                {formatPropertyTypeValue(item.property_type, t)} • {item.deal_type || t("vendor.promotions.notAvailable")} •{" "}
-                                {item.township || item.city || t("vendor.promotions.notAvailable")}
-                              </SearchableOptionMeta>
-                            </SearchableOption>
-                          ))
-                        ) : (
-                          <SearchableEmpty>{t("vendor.promotions.noMatchingListings")}</SearchableEmpty>
-                        )}
-                      </SearchableMenu>
-                    ) : null}
-                  </SearchableField>
+                    <SearchableField
+                      onBlur={() => {
+                        setTimeout(() => {
+                          setListingPickerOpen(false);
+                          if (selectedListing) {
+                            setListingSearch(selectedListing.title || t("vendor.promotions.untitledProperty"));
+                          } else if (!normalizedListingSearch) {
+                            setListingSearch("");
+                          }
+                        }, 120);
+                      }}
+                    >
+                      <FloatingField data-filled={Boolean(listingSearch)}>
+                        <FloatingLabel htmlFor="promotion-listing-search" $filled>
+                          {t("listing.property")}
+                        </FloatingLabel>
+                        <SearchableTrigger
+                          id="promotion-listing-search"
+                          value={listingSearch}
+                          placeholder={t("vendor.promotions.searchOrChooseListing")}
+                          onFocus={() => setListingPickerOpen(true)}
+                          onChange={(event) => {
+                            setListingSearch(event.target.value);
+                            setListingId("");
+                            setListingPickerOpen(true);
+                          }}
+                          disabled={noEligibleListings}
+                        />
+                        <SearchableFieldIcon size={16} />
+                      </FloatingField>
+                      {listingPickerOpen && !noEligibleListings ? (
+                        <SearchableMenu>
+                          {listingOptions.length ? (
+                            listingOptions.map((item) => (
+                              <SearchableOption
+                                key={item.id}
+                                type="button"
+                                $active={item.id === listingId}
+                                onMouseDown={(event) => {
+                                  event.preventDefault();
+                                  setListingId(item.id);
+                                  setListingSearch(item.title || t("vendor.promotions.untitledProperty"));
+                                  setListingPickerOpen(false);
+                                }}
+                              >
+                                <SearchableOptionTitle>{item.title || t("vendor.promotions.untitledProperty")}</SearchableOptionTitle>
+                                <SearchableOptionMeta>
+                                  {formatPropertyTypeValue(item.property_type, t)} • {item.deal_type || t("vendor.promotions.notAvailable")} •{" "}
+                                  {item.township || item.city || t("vendor.promotions.notAvailable")}
+                                </SearchableOptionMeta>
+                              </SearchableOption>
+                            ))
+                          ) : (
+                            <SearchableEmpty>{t("vendor.promotions.noMatchingListings")}</SearchableEmpty>
+                          )}
+                        </SearchableMenu>
+                      ) : null}
+                    </SearchableField>
                   )
                 )}
 

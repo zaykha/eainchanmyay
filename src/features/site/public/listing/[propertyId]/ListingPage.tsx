@@ -16,9 +16,9 @@ import {
   Tag,
 } from "lucide-react";
 import styled, { keyframes } from "styled-components";
-import { MarketplaceHeader } from "@/app/living-site/components/MarketplaceHeader";
-import { SectionTitle } from "@/app/living-site/components/PageSection";
-import { useListingDetail } from "@/app/living-site/hooks/useListingDetail";
+import { MarketplaceHeader } from "@/features/site/shared/components/MarketplaceHeader";
+import { SectionTitle } from "@/features/site/shared/components/PageSection";
+import { useListingDetail } from "@/features/site/shared/hooks/useListingDetail";
 import {
   createViewingRequest,
   getCustomerProfile,
@@ -26,16 +26,16 @@ import {
   isPropertySaved,
   updateViewingRequest,
   toggleSavedProperty,
-} from "@/app/living-site/lib/data";
-import { resolvePhotoUrl } from "@/app/living-site/lib/images";
-import { formatCurrency } from "@/app/living-site/lib/format";
-import { EAIN_CONTACT_PHONE } from "@/app/living-site/lib/constants";
-import { useAppState } from "@/app/living-site/lib/app-state";
-import { CustomInput } from "@/app/living-site/components/form-controls/CustomInput";
-import { CustomSelect } from "@/app/living-site/components/form-controls/CustomSelect";
-import { CustomTextarea } from "@/app/living-site/components/form-controls/CustomTextarea";
-import { useI18n } from "@/app/living-site/lib/i18n";
-import { translateLocationName } from "@/app/living-site/lib/myanmar-geo";
+} from "@/features/site/shared/lib/data";
+import { resolvePhotoUrl } from "@/features/site/shared/lib/images";
+import { formatCurrency } from "@/features/site/shared/lib/format";
+import { EAIN_CONTACT_PHONE } from "@/features/site/shared/lib/constants";
+import { useAppState } from "@/features/site/shared/lib/app-state";
+import { CustomInput } from "@/features/site/shared/components/form-controls/CustomInput";
+import { CustomSelect } from "@/features/site/shared/components/form-controls/CustomSelect";
+import { CustomTextarea } from "@/features/site/shared/components/form-controls/CustomTextarea";
+import { useI18n } from "@/features/site/shared/lib/i18n";
+import { translateLocationName } from "@/features/site/shared/lib/myanmar-geo";
 import { formatPropertyTypeValue, isBedBathPropertyType } from "@/lib/property-types";
 
 const PageShell = styled.div`

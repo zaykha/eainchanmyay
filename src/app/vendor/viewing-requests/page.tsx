@@ -1,4 +1,4 @@
-import { VendorViewingRequestsView } from "@/app/living-site/components/vendor/VendorViewingRequestsView";
+import { VendorViewingRequestsView } from "@/features/site/vendor/components/VendorViewingRequestsView";
 
 export default function VendorViewingRequestsPage() {
   return <VendorViewingRequestsView />;

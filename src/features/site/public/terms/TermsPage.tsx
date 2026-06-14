@@ -1,9 +1,9 @@
 "use client";
 
 import styled from "styled-components";
-import { MarketplaceHeader } from "@/app/living-site/components/MarketplaceHeader";
-import { PageSection, SectionTitle, Panel } from "@/app/living-site/components/PageSection";
-import { useI18n } from "@/app/living-site/lib/i18n";
+import { MarketplaceHeader } from "@/features/site/shared/components/MarketplaceHeader";
+import { PageSection, SectionTitle, Panel } from "@/features/site/shared/components/PageSection";
+import { useI18n } from "@/features/site/shared/lib/i18n";
 
 const PageShell = styled(PageSection)`
   gap: 16px;

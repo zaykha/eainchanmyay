@@ -1,1 +1,1 @@
-export { default } from "../../living-site/booking/[propertyId]/page";
+export { default } from "@/features/site/public/booking/[propertyId]/BookingPage";
