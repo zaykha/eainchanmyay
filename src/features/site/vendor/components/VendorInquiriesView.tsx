@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import styled from "styled-components";
-import { MapPinned, Plus, SearchCheck, Trash2, UserRound, X } from "lucide-react";
+import { Filter, MapPinned, Plus, Search, SearchCheck, Trash2, UserRound, X } from "lucide-react";
 import { useAppState } from "@/features/site/shared/lib/app-state";
 import { LoadingOverlay } from "@/features/site/shared/components/LoadingOverlay";
 import { CustomSelect } from "@/features/site/shared/components/form-controls/CustomSelect";
@@ -72,6 +72,203 @@ const SearchBar = styled.div`
   @media (max-width: 980px) {
     grid-template-columns: 1fr;
   }
+
+  @media (max-width: 640px) {
+    display: none;
+  }
+`;
+
+const MobileFilterBar = styled.div`
+  display: none;
+
+  @media (max-width: 640px) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+  }
+`;
+
+const MobileSearchField = styled.label`
+  min-height: 44px;
+  border-radius: 14px;
+  border: 1px solid var(--color-outline);
+  background: var(--color-surface);
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--color-muted);
+  min-width: 0;
+
+  svg {
+    flex: 0 0 auto;
+  }
+`;
+
+const MobileSearchInput = styled.input`
+  border: 0;
+  outline: none;
+  background: transparent;
+  width: 100%;
+  min-width: 0;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.86rem;
+`;
+
+const MobileFilterLauncher = styled.button`
+  display: none;
+
+  @media (max-width: 640px) {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border-radius: 14px;
+    border: 1px solid var(--color-outline);
+    background: var(--color-surface);
+    color: var(--color-text);
+    display: inline-grid;
+    place-items: center;
+    cursor: pointer;
+    position: relative;
+  }
+`;
+
+const MobileFilterCount = styled.span`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-primary) 14%, white);
+  color: var(--color-primary);
+  font-size: 0.72rem;
+  font-weight: 800;
+
+  @media (max-width: 640px) {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    box-shadow: 0 0 0 3px var(--color-surface);
+  }
+`;
+
+const MobileFilterSummary = styled.div`
+  display: none;
+
+  @media (max-width: 640px) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: -2px;
+  }
+`;
+
+const MobileFilterPill = styled.span`
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 9px;
+  border-radius: 999px;
+  border: 1px solid var(--color-outline);
+  background: color-mix(in srgb, var(--color-surface-2) 84%, white);
+  color: var(--color-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+`;
+
+const FilterSheetOverlay = styled.button<{ $open?: boolean }>`
+  display: none;
+
+  @media (max-width: 640px) {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 120;
+    border: none;
+    background: rgba(15, 23, 42, 0.42);
+    opacity: ${(props) => (props.$open ? 1 : 0)};
+    pointer-events: ${(props) => (props.$open ? "auto" : "none")};
+    transition: opacity 180ms ease;
+  }
+`;
+
+const FilterSheet = styled.div<{ $open?: boolean }>`
+  display: none;
+
+  @media (max-width: 640px) {
+    display: grid;
+    gap: 14px;
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    z-index: 130;
+    padding: 16px;
+    border-radius: 24px;
+    border: 1px solid var(--color-outline);
+    background: var(--color-surface);
+    box-shadow: 0 24px 64px rgba(15, 23, 42, 0.18);
+    transform: translateY(${(props) => (props.$open ? "0" : "24px")});
+    opacity: ${(props) => (props.$open ? 1 : 0)};
+    pointer-events: ${(props) => (props.$open ? "auto" : "none")};
+    transition:
+      transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 180ms ease;
+  }
+`;
+
+const FilterSheetHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+`;
+
+const FilterSheetTitle = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text);
+  font-size: 0.94rem;
+  font-weight: 800;
+`;
+
+const FilterSheetClose = styled.button`
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  border: 1px solid var(--color-outline);
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+`;
+
+const FilterSheetBody = styled.div`
+  display: grid;
+  gap: 12px;
+`;
+
+const FilterSheetActions = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+`;
+
+const FilterSheetButton = styled.button<{ $primary?: boolean }>`
+  min-height: 42px;
+  border-radius: 14px;
+  border: 1px solid ${(props) => (props.$primary ? "transparent" : "var(--color-outline)")};
+  background: ${(props) => (props.$primary ? "var(--gradient)" : "var(--color-surface-2)")};
+  color: ${(props) => (props.$primary ? "#fff" : "var(--color-text)")};
+  font-size: 0.88rem;
+  font-weight: 800;
+  cursor: pointer;
 `;
 
 const Input = styled.input`
@@ -703,6 +900,7 @@ export function VendorInquiriesView({
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [assigneeFilter, setAssigneeFilter] = useState("all");
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [noteModalOpen, setNoteModalOpen] = useState(false);
@@ -826,6 +1024,17 @@ export function VendorInquiriesView({
     () => filteredItems.find((item) => item.lead_id === selectedLeadId) ?? null,
     [filteredItems, selectedLeadId]
   );
+  const activeFilterCount = Number(statusFilter !== "all") + Number(assigneeFilter !== "all");
+  const mobileFilterPills = [
+    statusFilter !== "all" ? t(statusOptions.find((option) => option.value === statusFilter)?.labelKey ?? "vendor.inquiries.allStatuses") : null,
+    assigneeFilter === "unassigned"
+      ? t("vendor.inquiries.unassigned")
+      : assigneeFilter !== "all"
+        ? assignees.find((assignee) => assignee.user_id === assigneeFilter)?.full_name ||
+          assignees.find((assignee) => assignee.user_id === assigneeFilter)?.email ||
+          assigneeFilter
+        : null,
+  ].filter(Boolean) as string[];
 
   useEffect(() => {
     if (!authToken || !selectedLead?.lead_id || !selectedLead.is_unread) return;
@@ -1169,6 +1378,26 @@ export function VendorInquiriesView({
                     ))}
                   </TabRow>
                 </UtilityRow>
+                <MobileFilterBar>
+                  <MobileSearchField>
+                    <Search size={16} />
+                    <MobileSearchInput
+                      value={searchQuery}
+                      onChange={(event) => setSearchQuery(event.target.value)}
+                      placeholder={t("vendor.inquiries.searchPlaceholder")}
+                      aria-label={t("vendor.inquiries.searchPlaceholder")}
+                    />
+                  </MobileSearchField>
+                  <MobileFilterLauncher type="button" aria-label={t("home.filters")} onClick={() => setMobileFiltersOpen(true)}>
+                    <Filter size={16} />
+                    {activeFilterCount > 0 ? <MobileFilterCount>{activeFilterCount}</MobileFilterCount> : null}
+                  </MobileFilterLauncher>
+                </MobileFilterBar>
+                <MobileFilterSummary>
+                  {mobileFilterPills.map((pill) => (
+                    <MobileFilterPill key={pill}>{pill}</MobileFilterPill>
+                  ))}
+                </MobileFilterSummary>
                 <SearchBar>
                   <Input
                     value={searchQuery}
@@ -1211,6 +1440,64 @@ export function VendorInquiriesView({
                     </CustomSelect>
                   </SelectField>
                 </SearchBar>
+                <FilterSheetOverlay type="button" $open={mobileFiltersOpen} aria-label={t("home.filters")} onClick={() => setMobileFiltersOpen(false)} />
+                <FilterSheet $open={mobileFiltersOpen}>
+                  <FilterSheetHeader>
+                    <FilterSheetTitle>
+                      <Filter size={16} />
+                      <span>{t("home.filters")}</span>
+                    </FilterSheetTitle>
+                    <FilterSheetClose type="button" aria-label={t("vendorShell.closeMenu")} onClick={() => setMobileFiltersOpen(false)}>
+                      <X size={16} />
+                    </FilterSheetClose>
+                  </FilterSheetHeader>
+                  <FilterSheetBody>
+                    <CustomSelect
+                      id="lead-inbox-status-filter-mobile"
+                      name="lead-inbox-status-filter-mobile"
+                      label={t("vendor.inquiries.status")}
+                      value={statusFilter}
+                      onChange={setStatusFilter}
+                    >
+                      <option value="all">{t("vendor.inquiries.allStatuses")}</option>
+                      {statusOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {t(option.labelKey)}
+                        </option>
+                      ))}
+                    </CustomSelect>
+                    <CustomSelect
+                      id="lead-inbox-assignee-filter-mobile"
+                      name="lead-inbox-assignee-filter-mobile"
+                      label={t("vendor.inquiries.assignee")}
+                      value={assigneeFilter}
+                      onChange={setAssigneeFilter}
+                    >
+                      <option value="all">{t("vendor.inquiries.allAssignees")}</option>
+                      <option value="unassigned">{t("vendor.inquiries.unassigned")}</option>
+                      {assignees.map((assignee) => (
+                        <option key={assignee.user_id} value={assignee.user_id}>
+                          {assignee.full_name || assignee.email || assignee.user_id}
+                        </option>
+                      ))}
+                    </CustomSelect>
+                  </FilterSheetBody>
+                  <FilterSheetActions>
+                    <FilterSheetButton
+                      type="button"
+                      onClick={() => {
+                        setStatusFilter("all");
+                        setAssigneeFilter("all");
+                        setMobileFiltersOpen(false);
+                      }}
+                    >
+                      {t("filter.clearFilters")}
+                    </FilterSheetButton>
+                    <FilterSheetButton type="button" $primary onClick={() => setMobileFiltersOpen(false)}>
+                      {t("filter.apply")}
+                    </FilterSheetButton>
+                  </FilterSheetActions>
+                </FilterSheet>
               </Toolbar>
 
               <Shell>

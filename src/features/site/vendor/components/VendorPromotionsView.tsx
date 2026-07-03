@@ -19,6 +19,7 @@ import {
   Lock,
   Megaphone,
   Percent,
+  Filter,
   Plus,
   Search,
   ShieldCheck,
@@ -33,6 +34,7 @@ import { formatCurrency } from "@/features/site/shared/lib/format";
 import { formatPropertyTypeValue } from "@/lib/property-types";
 import { promotionProducts, type PromotionType } from "@/lib/vendor-promotions";
 import { useI18n } from "@/features/site/shared/lib/i18n";
+import { DesktopOnly } from "../../public/HomePageClient";
 
 const shimmer = keyframes`
   0% {
@@ -93,6 +95,11 @@ const Heading = styled.div`
   display: grid;
   gap: 6px;
   min-width: 0;
+  @media (max-width: 640px) {
+    display:flex;
+    width: 100%;
+    justify-content: space-between;
+  }
 `;
 
 const Title = styled.h1`
@@ -114,8 +121,7 @@ const Subtitle = styled.p`
   max-width: 760px;
 
   @media (max-width: 640px) {
-    font-size: 0.86rem;
-    line-height: 1.55;
+    display: none;
   }
 `;
 
@@ -199,12 +205,10 @@ const Card = styled.section`
   overflow: visible;
 
   @media (max-width: 640px) {
-    border-radius: 22px;
-    padding: 0px;
-    gap: 12px;
-    border: none;
-    background: none;
-    box-shadow:none;
+    border-radius: 16px;
+    padding: 10px;
+    gap: 8px;
+    box-shadow: none;
   }
 `;
 
@@ -235,6 +239,10 @@ const CardCopy = styled.p`
 
   @media (max-width: 640px) {
     font-size: 0.84rem;
+
+    &.mobile-hide {
+      display: none;
+    }
   }
 `;
 
@@ -410,14 +418,16 @@ const ButtonRow = styled.div`
 
   @media (max-width: 640px) {
     width: 100%;
+    gap: 8px;
 
     > * {
-      flex: 1 1 100%;
+      flex: 1 1 0;
+      min-width: 0;
     }
   }
 `;
 
-const Button = styled.button < { $primary?: boolean } > `
+const Button = styled.button<{ $primary?: boolean }>`
   min-height: 44px;
   padding: 0 16px;
   border-radius: 999px;
@@ -439,8 +449,9 @@ const Button = styled.button < { $primary?: boolean } > `
   }
 
   @media (max-width: 640px) {
-    min-height: 46px;
-    width: 100%;
+    min-height: 38px;
+    padding: 0 12px;
+    font-size: 0.78rem;
   }
 `;
 
@@ -501,8 +512,173 @@ const SearchRow = styled.div`
   }
 
   @media (max-width: 640px) {
-    gap: 10px;
+    display: none;
   }
+`;
+
+const MobileFilterBar = styled.div`
+  display: none;
+
+  @media (max-width: 640px) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+  }
+`;
+
+const MobileFilterLauncher = styled.button`
+  display: none;
+
+  @media (max-width: 640px) {
+    width: 46px;
+    height: 46px;
+    padding: 0;
+    border-radius: 14px;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    background: #fff;
+    color: var(--color-text);
+    display: inline-grid;
+    place-items: center;
+    cursor: pointer;
+    position: relative;
+  }
+`;
+
+const MobileFilterCount = styled.span`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-primary) 14%, white);
+  color: var(--color-primary);
+  font-size: 0.72rem;
+  font-weight: 800;
+
+  @media (max-width: 640px) {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    box-shadow: 0 0 0 3px #fff;
+  }
+`;
+
+const MobileFilterSummary = styled.div`
+  display: none;
+
+  @media (max-width: 640px) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: -4px;
+  }
+`;
+
+const MobileFilterPill = styled.span`
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: #fff;
+  color: var(--color-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+`;
+
+const FilterSheetOverlay = styled.button<{ $open?: boolean }>`
+  display: none;
+
+  @media (max-width: 640px) {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 120;
+    border: none;
+    background: rgba(15, 23, 42, 0.42);
+    opacity: ${(props) => (props.$open ? 1 : 0)};
+    pointer-events: ${(props) => (props.$open ? "auto" : "none")};
+    transition: opacity 180ms ease;
+  }
+`;
+
+const FilterSheet = styled.div<{ $open?: boolean }>`
+  display: none;
+
+  @media (max-width: 640px) {
+    display: grid;
+    gap: 14px;
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    z-index: 130;
+    padding: 16px;
+    border-radius: 24px;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    background: #fff;
+    box-shadow: 0 24px 64px rgba(15, 23, 42, 0.18);
+    transform: translateY(${(props) => (props.$open ? "0" : "24px")});
+    opacity: ${(props) => (props.$open ? 1 : 0)};
+    pointer-events: ${(props) => (props.$open ? "auto" : "none")};
+    transition:
+      transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 180ms ease;
+  }
+`;
+
+const FilterSheetHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+`;
+
+const FilterSheetTitle = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text);
+  font-size: 0.94rem;
+  font-weight: 800;
+`;
+
+const FilterSheetClose = styled.button`
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: #f8fafc;
+  color: var(--color-text);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+`;
+
+const FilterSheetBody = styled.div`
+  display: grid;
+  gap: 12px;
+`;
+
+const FilterSheetActions = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+`;
+
+const FilterSheetButton = styled.button<{ $primary?: boolean }>`
+  min-height: 42px;
+  border-radius: 14px;
+  border: 1px solid ${(props) => (props.$primary ? "transparent" : "rgba(148, 163, 184, 0.22)")};
+  background: ${(props) => (props.$primary ? "var(--gradient)" : "#f8fafc")};
+  color: ${(props) => (props.$primary ? "#fff" : "var(--color-text)")};
+  font-size: 0.88rem;
+  font-weight: 800;
+  cursor: pointer;
 `;
 
 const SearchField = styled.label`
@@ -578,6 +754,12 @@ const FloatingInput = styled.input`
     border-color: var(--color-primary);
     box-shadow: 0 0 0 2px rgba(235, 35, 64, 0.15);
   }
+
+  @media (max-width: 640px) {
+    padding: 11px 10px;
+    border-radius: 10px;
+    font-size: 13px;
+  }
 `;
 
 const FloatingTextarea = styled.textarea`
@@ -600,6 +782,15 @@ const FloatingTextarea = styled.textarea`
     border-color: var(--color-primary);
     box-shadow: 0 0 0 2px rgba(235, 35, 64, 0.15);
   }
+
+  @media (max-width: 640px) {
+    min-height: 72px;
+    max-height: 72px;
+    padding: 11px 10px;
+    border-radius: 10px;
+    font-size: 13px;
+    line-height: 1.35;
+  }
 `;
 
 const TabRow = styled.div`
@@ -609,12 +800,7 @@ const TabRow = styled.div`
   min-width: 0;
 
   @media (max-width: 640px) {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    padding-bottom: 4px;
-    margin-inline: -2px;
-    padding-inline: 2px;
-    scrollbar-width: thin;
+    display: none;
   }
 `;
 
@@ -641,6 +827,32 @@ const FilterTab = styled.button < { $active?: boolean } > `
 
 const PrimaryButton = styled(Button)`
   box-shadow: 0 10px 22px rgba(223, 39, 76, 0.14);
+  @media (max-width: 640px) {
+    display: none;
+  }
+`;
+
+const PrimaryMobileButton = styled(Button)`
+  display:none;
+
+  @media (max-width: 640px) {
+    width: min-content;
+    min-height: 32px;
+    height: auto;
+    padding: 7px 10px;
+    font-size: 0.72rem;
+    border-radius: 10px;
+    border: 1px solid rgba(233, 61, 93, 0.2);
+    background: linear-gradient(135deg, #ffedf3 0%, #ffe1ea 100%);
+    color: #e11d48;
+    font-weight: 800;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
 `;
 
 const ModalOverlay = styled.div`
@@ -676,9 +888,9 @@ const ModalShell = styled.div`
 
   @media (max-width: 640px) {
     width: 100%;
-    height: calc(100dvh - 12px);
+    height: calc(100dvh - 8px);
     max-height: none;
-    border-radius: 24px 24px 0 0;
+    border-radius: 20px 20px 0 0;
     border-bottom: 0;
   }
 `;
@@ -694,8 +906,17 @@ const ModalHeader = styled.div`
   min-width: 0;
 
   @media (max-width: 640px) {
-    padding: 16px 16px 12px;
+    padding: 12px 14px 10px;
     gap: 10px;
+
+    ${Title} {
+      font-size: 1.05rem !important;
+      line-height: 1.25;
+    }
+
+    ${Subtitle} {
+      display: none;
+    }
   }
 `;
 
@@ -707,8 +928,8 @@ const ModalBody = styled.div`
   min-width: 0;
 
   @media (max-width: 640px) {
-    padding: 14px 14px 18px;
-    gap: 14px;
+    padding: 12px 12px 14px;
+    gap: 10px;
   }
 `;
 
@@ -782,12 +1003,13 @@ const PlanGrid = styled.div`
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  @media (max-width: 580px) {
-    grid-template-columns: 1fr;
+  @media (max-width: 640px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
   }
 `;
 
-const PlanCard = styled.button < { $active?: boolean } > `
+const PlanCard = styled.button<{ $active?: boolean }>`
   border-radius: 18px;
   border: 1px solid
     ${(props) => (props.$active ? "rgba(233, 61, 93, 0.28)" : "rgba(148, 163, 184, 0.22)")};
@@ -806,8 +1028,9 @@ const PlanCard = styled.button < { $active?: boolean } > `
   min-width: 0;
 
   @media (max-width: 640px) {
-    border-radius: 16px;
-    padding: 12px;
+    border-radius: 14px;
+    padding: 9px;
+    gap: 5px;
   }
 `;
 
@@ -815,6 +1038,11 @@ const PlanTitle = styled.strong`
   color: var(--color-text);
   display: block;
   line-height: 1.35;
+
+  @media (max-width: 640px) {
+    font-size: 0.78rem;
+    line-height: 1.2;
+  }
 `;
 
 const PlanMeta = styled.span`
@@ -823,7 +1051,8 @@ const PlanMeta = styled.span`
   line-height: 1.45;
 
   @media (max-width: 640px) {
-    font-size: 0.78rem;
+    font-size: 0.66rem;
+    line-height: 1.25;
   }
 `;
 
@@ -835,7 +1064,7 @@ const PlanTop = styled.div`
   min-width: 0;
 `;
 
-const PlanIconWrap = styled.div < { $active?: boolean } > `
+const PlanIconWrap = styled.div<{ $active?: boolean }>`
   width: 36px;
   height: 36px;
   border-radius: 12px;
@@ -844,9 +1073,20 @@ const PlanIconWrap = styled.div < { $active?: boolean } > `
   background: ${(props) => (props.$active ? "#ffe3ec" : "#f2f5fb")};
   color: ${(props) => (props.$active ? "#e11d48" : "#64748b")};
   flex: 0 0 auto;
+
+  @media (max-width: 640px) {
+    width: 28px;
+    height: 28px;
+    border-radius: 9px;
+
+    svg {
+      width: 14px;
+      height: 14px;
+    }
+  }
 `;
 
-const PlanBadge = styled.span < { $tone?: "accent" | "success" | "warning" } > `
+const PlanBadge = styled.span<{ $tone?: "accent" | "success" | "warning" }>`
   min-height: 22px;
   padding: 0 8px;
   border-radius: 999px;
@@ -858,15 +1098,26 @@ const PlanBadge = styled.span < { $tone?: "accent" | "success" | "warning" } > `
   line-height: 1.2;
   border: 1px solid
     ${(props) =>
-    props.$tone === "accent"
-      ? "rgba(233, 61, 93, 0.18)"
-      : props.$tone === "success"
-        ? "rgba(34, 197, 94, 0.18)"
-        : "rgba(245, 158, 11, 0.22)"};
+      props.$tone === "accent"
+        ? "rgba(233, 61, 93, 0.18)"
+        : props.$tone === "success"
+          ? "rgba(34, 197, 94, 0.18)"
+          : "rgba(245, 158, 11, 0.22)"};
   background: ${(props) =>
     props.$tone === "accent" ? "#fff1f4" : props.$tone === "success" ? "#ecfdf3" : "#fff7ed"};
   color: ${(props) =>
     props.$tone === "accent" ? "#e11d48" : props.$tone === "success" ? "#15803d" : "#b45309"};
+
+  @media (max-width: 640px) {
+    min-height: 18px;
+    padding: 0 6px;
+    font-size: 0.56rem;
+
+    svg {
+      width: 9px;
+      height: 9px;
+    }
+  }
 `;
 
 const PlanSaving = styled.div`
@@ -877,6 +1128,16 @@ const PlanSaving = styled.div`
   font-size: 0.78rem;
   font-weight: 700;
   line-height: 1.3;
+
+  @media (max-width: 640px) {
+    font-size: 0.62rem;
+    gap: 4px;
+
+    svg {
+      width: 10px;
+      height: 10px;
+    }
+  }
 `;
 
 const WordCounter = styled.div`
@@ -884,6 +1145,11 @@ const WordCounter = styled.div`
   font-size: 0.74rem;
   justify-self: end;
   line-height: 1.35;
+
+  @media (max-width: 640px) {
+    font-size: 0.66rem;
+    margin-top: -3px;
+  }
 `;
 
 const HeroFieldsGrid = styled.div`
@@ -894,6 +1160,10 @@ const HeroFieldsGrid = styled.div`
 
   @media (max-width: 760px) {
     grid-template-columns: 1fr;
+  }
+
+  @media (max-width: 640px) {
+    gap: 8px;
   }
 `;
 
@@ -929,27 +1199,27 @@ const CalendarGrid = styled.div`
   }
 `;
 
-const CalendarDay = styled.button < {
+const CalendarDay = styled.button<{
   $state: "free" | "blocked" | "selected" | "range";
   $inMonth: boolean;
   $past: boolean;
   $today: boolean;
-} > `
+}>`
   min-height: 40px;
   border-radius: 10px;
   border: 1px solid
     ${(props) =>
-    props.$past
-      ? "rgba(148, 163, 184, 0.14)"
-      : props.$state === "blocked"
-        ? "rgba(148, 163, 184, 0.16)"
-        : props.$state === "selected"
-          ? "rgba(233, 61, 93, 0.26)"
-          : props.$state === "range"
-            ? "rgba(244, 114, 182, 0.2)"
-            : props.$today
-              ? "rgba(233, 61, 93, 0.28)"
-              : "rgba(148, 163, 184, 0.16)"};
+      props.$past
+        ? "rgba(148, 163, 184, 0.14)"
+        : props.$state === "blocked"
+          ? "rgba(148, 163, 184, 0.16)"
+          : props.$state === "selected"
+            ? "rgba(233, 61, 93, 0.26)"
+            : props.$state === "range"
+              ? "rgba(244, 114, 182, 0.2)"
+              : props.$today
+                ? "rgba(233, 61, 93, 0.28)"
+                : "rgba(148, 163, 184, 0.16)"};
   background: ${(props) =>
     props.$past
       ? "#f1f5f9"
@@ -982,9 +1252,9 @@ const CalendarDay = styled.button < {
   opacity: ${(props) => (props.$state === "blocked" || props.$past ? 0.72 : 1)};
 
   @media (max-width: 640px) {
-    min-height: 34px;
-    border-radius: 9px;
-    font-size: 0.64rem;
+    min-height: 30px;
+    border-radius: 8px;
+    font-size: 0.6rem;
   }
 `;
 
@@ -1061,12 +1331,17 @@ const ModalFooter = styled.div`
   background: rgba(255, 255, 255, 0.76);
 
   @media (max-width: 640px) {
-    padding: 12px 14px 16px;
+    padding: 10px 12px 12px;
     display: grid;
     grid-template-columns: 1fr;
+    gap: 8px;
   }
 `;
-
+const MobileHidden = styled.div`
+  @media (max-width: 640px) {
+    display: none;
+  }
+`;
 const PaymentWallOverlay = styled(ModalOverlay)`
   z-index: 2120;
 `;
@@ -1188,12 +1463,13 @@ const HeroTargetGrid = styled.div`
   gap: 12px;
   min-width: 0;
 
-  @media (max-width: 760px) {
-    grid-template-columns: 1fr;
+  @media (max-width: 640px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
   }
 `;
 
-const HeroTargetCard = styled.button < { $active?: boolean } > `
+const HeroTargetCard = styled.button<{ $active?: boolean }>`
   border-radius: 20px;
   border: 1px solid
     ${(props) => (props.$active ? "rgba(233, 61, 93, 0.24)" : "rgba(148, 163, 184, 0.18)")};
@@ -1210,8 +1486,9 @@ const HeroTargetCard = styled.button < { $active?: boolean } > `
   cursor: pointer;
 
   @media (max-width: 640px) {
-    border-radius: 18px;
-    padding: 14px;
+    border-radius: 15px;
+    padding: 9px;
+    gap: 6px;
   }
 `;
 
@@ -1223,12 +1500,13 @@ const HeroTargetTop = styled.div`
   min-width: 0;
 
   @media (max-width: 640px) {
-    align-items: flex-start;
+    align-items: center;
     justify-content: flex-start;
+    gap: 7px;
   }
 `;
 
-const HeroTargetIcon = styled.div < { $active?: boolean } > `
+const HeroTargetIcon = styled.div<{ $active?: boolean }>`
   width: 44px;
   height: 44px;
   border-radius: 14px;
@@ -1239,8 +1517,14 @@ const HeroTargetIcon = styled.div < { $active?: boolean } > `
   flex: 0 0 auto;
 
   @media (max-width: 640px) {
-    width: 40px;
-    height: 40px;
+    width: 30px;
+    height: 30px;
+    border-radius: 10px;
+
+    svg {
+      width: 15px;
+      height: 15px;
+    }
   }
 `;
 
@@ -1248,6 +1532,11 @@ const HeroTargetTitle = styled.strong`
   color: var(--color-text);
   font-size: 0.98rem;
   line-height: 1.35;
+
+  @media (max-width: 640px) {
+    font-size: 0.76rem;
+    line-height: 1.2;
+  }
 `;
 
 const HeroTargetCopy = styled.div`
@@ -1256,7 +1545,7 @@ const HeroTargetCopy = styled.div`
   line-height: 1.55;
 
   @media (max-width: 640px) {
-    font-size: 0.8rem;
+    display: none;
   }
 `;
 
@@ -1270,8 +1559,9 @@ const HeroAgencyPreview = styled.div`
   min-width: 0;
 
   @media (max-width: 640px) {
-    border-radius: 18px;
-    padding: 14px;
+    border-radius: 15px;
+    padding: 10px;
+    gap: 7px;
   }
 `;
 
@@ -1296,8 +1586,10 @@ const HeroAgencyPreviewLogo = styled.div`
   flex: 0 0 auto;
 
   @media (max-width: 640px) {
-    width: 48px;
-    height: 48px;
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    font-size: 0.88rem;
   }
 `;
 
@@ -1306,6 +1598,11 @@ const HeroAgencyPreviewName = styled.strong`
   display: block;
   font-size: 1rem;
   line-height: 1.35;
+
+  @media (max-width: 640px) {
+    font-size: 0.86rem;
+    line-height: 1.25;
+  }
 `;
 
 const HeroAgencyPreviewMeta = styled.div`
@@ -1317,6 +1614,17 @@ const HeroAgencyPreviewMeta = styled.div`
   font-weight: 700;
   margin-top: 4px;
   line-height: 1.3;
+
+  @media (max-width: 640px) {
+    font-size: 0.72rem;
+    margin-top: 2px;
+    gap: 4px;
+
+    svg {
+      width: 12px;
+      height: 12px;
+    }
+  }
 `;
 
 const HeroAgencyPreviewCopy = styled.div`
@@ -1325,7 +1633,7 @@ const HeroAgencyPreviewCopy = styled.div`
   line-height: 1.6;
 
   @media (max-width: 640px) {
-    font-size: 0.82rem;
+    display: none;
   }
 `;
 
@@ -1955,6 +2263,7 @@ export function VendorPromotionsView({
   const [listQuery, setListQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState < "all" | PromotionType > ("all");
   const [statusScope, setStatusScope] = useState < (typeof promotionStatusScopes)[number]["value"] > ("all");
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [selectedType, setSelectedType] = useState < PromotionType > ("hero_ad");
   const [heroTargetType, setHeroTargetType] = useState < "agency_profile" | "listing" > ("agency_profile");
   const [listingId, setListingId] = useState("");
@@ -2161,6 +2470,11 @@ export function VendorPromotionsView({
       return haystack.includes(query);
     });
   }, [data, eligibleListings, listQuery, statusScope, typeFilter]);
+  const activeFilterCount = Number(statusScope !== "all") + Number(typeFilter !== "all");
+  const mobileFilterPills = [
+    statusScope !== "all" ? t(promotionStatusScopes.find((option) => option.value === statusScope)?.labelKey ?? "") : null,
+    typeFilter !== "all" ? t(promotionTypeTabs.find((tab) => tab.value === typeFilter)?.labelKey ?? "") : null,
+  ].filter(Boolean) as string[];
 
   const openCreator = (prefillListingId?: string | null) => {
     setCreatedPromotion(null);
@@ -2380,6 +2694,12 @@ export function VendorPromotionsView({
           <Heading>
             <Title>{t("vendor.promotions.title")}</Title>
             <Subtitle>{t("vendor.promotions.subtitle")}</Subtitle>
+            {canManagePromotions ? (
+              <PrimaryMobileButton type="button" $primary onClick={() => openCreator()}>
+                <Plus size={16} />
+                <span>promotion</span>
+              </PrimaryMobileButton>
+            ) : null}
           </Heading>
         </Header>
 
@@ -2410,6 +2730,27 @@ export function VendorPromotionsView({
             ) : null}
           </TopBar>
 
+          <MobileFilterBar>
+            <SearchField>
+              <Search size={16} />
+              <SearchInput
+                value={listQuery}
+                onChange={(event) => setListQuery(event.target.value)}
+                placeholder={t("vendor.promotions.searchPlaceholder")}
+                aria-label={t("vendor.promotions.searchPlaceholder")}
+              />
+            </SearchField>
+            <MobileFilterLauncher type="button" aria-label={t("home.filters")} onClick={() => setMobileFiltersOpen(true)}>
+              <Filter size={16} />
+              {activeFilterCount > 0 ? <MobileFilterCount>{activeFilterCount}</MobileFilterCount> : null}
+            </MobileFilterLauncher>
+          </MobileFilterBar>
+          <MobileFilterSummary>
+            {mobileFilterPills.map((pill) => (
+              <MobileFilterPill key={pill}>{pill}</MobileFilterPill>
+            ))}
+          </MobileFilterSummary>
+
           <SearchRow>
             <SearchField>
               <Search size={16} />
@@ -2419,20 +2760,22 @@ export function VendorPromotionsView({
                 placeholder={t("vendor.promotions.searchPlaceholder")}
               />
             </SearchField>
-            <CustomSelect
-              id="promotion-status-scope"
-              name="promotion-status-scope"
-              label={t("vendor.promotions.statusScope")}
-              hideLabel
-              value={statusScope}
-              onChange={(value) => setStatusScope(value as (typeof promotionStatusScopes)[number]["value"])}
-            >
-              {promotionStatusScopes.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {t(option.labelKey)}
-                </option>
-              ))}
-            </CustomSelect>
+            <DesktopOnly>
+              <CustomSelect
+                id="promotion-status-scope"
+                name="promotion-status-scope"
+                label={t("vendor.promotions.statusScope")}
+                hideLabel
+                value={statusScope}
+                onChange={(value) => setStatusScope(value as (typeof promotionStatusScopes)[number]["value"])}
+              >
+                {promotionStatusScopes.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {t(option.labelKey)}
+                  </option>
+                ))}
+              </CustomSelect>
+            </DesktopOnly>
           </SearchRow>
 
           <TabRow>
@@ -2442,6 +2785,61 @@ export function VendorPromotionsView({
               </FilterTab>
             ))}
           </TabRow>
+          <FilterSheetOverlay type="button" $open={mobileFiltersOpen} aria-label={t("home.filters")} onClick={() => setMobileFiltersOpen(false)} />
+          <FilterSheet $open={mobileFiltersOpen}>
+            <FilterSheetHeader>
+              <FilterSheetTitle>
+                <Filter size={16} />
+                <span>{t("home.filters")}</span>
+              </FilterSheetTitle>
+              <FilterSheetClose type="button" aria-label={t("vendorShell.closeMenu")} onClick={() => setMobileFiltersOpen(false)}>
+                <X size={16} />
+              </FilterSheetClose>
+            </FilterSheetHeader>
+            <FilterSheetBody>
+              <CustomSelect
+                id="promotion-status-scope-mobile"
+                name="promotion-status-scope-mobile"
+                label={t("vendor.promotions.statusScope")}
+                value={statusScope}
+                onChange={(value) => setStatusScope(value as (typeof promotionStatusScopes)[number]["value"])}
+              >
+                {promotionStatusScopes.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {t(option.labelKey)}
+                  </option>
+                ))}
+              </CustomSelect>
+              <CustomSelect
+                id="promotion-type-filter-mobile"
+                name="promotion-type-filter-mobile"
+                label={t("vendor.properties.type")}
+                value={typeFilter}
+                onChange={(value) => setTypeFilter(value as "all" | PromotionType)}
+              >
+                {promotionTypeTabs.map((tab) => (
+                  <option key={tab.value} value={tab.value}>
+                    {t(tab.labelKey)}
+                  </option>
+                ))}
+              </CustomSelect>
+            </FilterSheetBody>
+            <FilterSheetActions>
+              <FilterSheetButton
+                type="button"
+                onClick={() => {
+                  setStatusScope("all");
+                  setTypeFilter("all");
+                  setMobileFiltersOpen(false);
+                }}
+              >
+                {t("filter.clearFilters")}
+              </FilterSheetButton>
+              <FilterSheetButton type="button" $primary onClick={() => setMobileFiltersOpen(false)}>
+                {t("filter.apply")}
+              </FilterSheetButton>
+            </FilterSheetActions>
+          </FilterSheet>
 
           <PromotionList>
             {loading
@@ -2560,12 +2958,12 @@ export function VendorPromotionsView({
                 {selectedType === "hero_ad" ? (
                   <FullWidth>
                     <div style={{ display: "grid", gap: 14 }}>
-                      <div>
+                      <MobileHidden>
                         <CardTitle>{t("vendor.promotions.whatToPromote")}</CardTitle>
                         <CardCopy style={{ marginTop: 6 }}>
                           {t("vendor.promotions.whatToPromoteCopy")}
                         </CardCopy>
-                      </div>
+                      </MobileHidden>
                       <HeroTargetGrid>
                         <HeroTargetCard
                           type="button"
@@ -2801,7 +3199,9 @@ export function VendorPromotionsView({
 
               <div>
                 <CardTitle>{t("vendor.promotions.selectPlan")}</CardTitle>
-                <CardCopy style={{ marginTop: 6 }}>{t("vendor.promotions.selectPlanCopy")}</CardCopy>
+                <CardCopy className="mobile-hide" style={{ marginTop: 6 }}>
+                  {t("vendor.promotions.selectPlanCopy")}
+                </CardCopy>
               </div>
               <PlanGrid>
                 {promotionPlanPresets[selectedType].map((plan, index, allPlans) => {
@@ -2923,7 +3323,7 @@ export function VendorPromotionsView({
                 <Button type="button" onClick={closeCreator}>
                   <span>{t("vendor.promotions.cancel")}</span>
                 </Button>
-                <PrimaryButton
+                <Button
                   type="button"
                   $primary
                   onClick={() => void handleSubmit()}
@@ -2931,7 +3331,7 @@ export function VendorPromotionsView({
                 >
                   <Megaphone size={16} />
                   <span>{saving ? t("vendor.promotions.saving") : t("vendor.promotions.create")}</span>
-                </PrimaryButton>
+                </Button>
               </ButtonRow>
             </ModalFooter>
           </ModalShell>

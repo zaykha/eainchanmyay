@@ -21,7 +21,15 @@ const PageFrame = styled.div`
   display: flex;
   flex-direction: column;
 `;
-
+export const DesktopOnly = styled.div`
+  @media (max-width: 680px) {
+    display: none;}
+`;
+export const MobileOnly = styled.div`
+    display:none;
+  @media (max-width: 680px) {
+    display: block;}
+`;
 const Page = styled.div`
   flex: 1;
   padding: 14px 20px 0;

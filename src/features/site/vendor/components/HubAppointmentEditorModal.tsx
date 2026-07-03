@@ -478,6 +478,10 @@ const Overlay = styled.div`
   place-items: center;
   padding: 16px;
   z-index: 1000;
+
+  @media (max-width: 720px) {
+   align-items: flex-start;
+  }
 `;
 
 const Card = styled(Panel)`
@@ -495,11 +499,11 @@ const Card = styled(Panel)`
   }
 
   @media (max-width: 720px) {
-    width: 100vw;
+    width: 90vw;
     max-width: 100vw;
-    height: 100dvh;
+    height: 90dvh;
     max-height: 100dvh;
-    border-radius: 0;
+    border-radius: 10px;
     gap: 8px;
     padding-top: max(12px, env(safe-area-inset-top));
     padding-bottom: max(16px, env(safe-area-inset-bottom));
