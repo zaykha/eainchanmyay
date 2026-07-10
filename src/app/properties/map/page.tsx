@@ -1,5 +1,10 @@
+import { Suspense } from "react";
 import PropertyMapView from "./PropertyMapView";
 
 export default function PropertyMapPage() {
-  return <PropertyMapView />;
+  return (
+    <Suspense fallback={null}>
+      <PropertyMapView />
+    </Suspense>
+  );
 }
