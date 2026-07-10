@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import styled from "styled-components";
-import { MoonStar, Settings, SunMedium } from "lucide-react";
+import { Settings } from "lucide-react";
 import { useAppState } from "@/features/site/shared/lib/app-state";
-import { useLanguage, useThemeMode } from "@/features/site/shared/components/Providers";
+import { useLanguage } from "@/features/site/shared/components/Providers";
 import { useI18n } from "@/features/site/shared/lib/i18n";
 import { useState } from "react";
 import { CustomSelect } from "@/features/site/shared/components/form-controls/CustomSelect";
@@ -226,7 +226,6 @@ const PrimaryButton = styled(ActionButton)`
 
 export function SiteHeader() {
   const { user } = useAppState();
-  const { mode, toggle } = useThemeMode();
   const { t } = useI18n();
   const { language, setLanguage } = useLanguage();
   const [languageOpen, setLanguageOpen] = useState(false);
@@ -268,9 +267,6 @@ export function SiteHeader() {
             aria-label={t("settings.language")}
           >
             {languageFlag(language)}
-          </IconButton>
-          <IconButton type="button" onClick={toggle} aria-label={t("nav.toggleTheme")}>
-            {mode === "dark" ? <SunMedium strokeWidth={1.6} /> : <MoonStar strokeWidth={1.6} />}
           </IconButton>
           <IconLink href={user ? "/settings" : "/auth"} aria-label={t("nav.settings")}>
             <Settings strokeWidth={1.6} />

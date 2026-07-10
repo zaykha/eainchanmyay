@@ -1,6 +1,7 @@
 @import "leaflet/dist/leaflet.css";
 
 :root {
+  color-scheme: light;
   --font-primary: "Space Grotesk";
   --color-primary: #EB2340;
   --color-primary-dark: #C81933;
