@@ -6,8 +6,7 @@ import styled from "styled-components";
 import { Panel } from "@/features/site/shared/components/PageSection";
 import { CustomSelect } from "@/features/site/shared/components/form-controls/CustomSelect";
 import { CustomTextarea } from "@/features/site/shared/components/form-controls/CustomTextarea";
-
-type Translate = (key: string, vars?: Record<string, unknown>) => string;
+import type { Translate } from "@/features/site/shared/lib/i18n";
 
 type PropertyOption = {
   id: string;

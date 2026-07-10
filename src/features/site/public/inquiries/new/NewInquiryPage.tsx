@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState, type ReactElement } from "react";
 import styled from "styled-components";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -427,7 +427,7 @@ const englishInquiryCopy = {
   "inquiry.timeline.browsing": "Just browsing",
 } as const;
 
-const propertyTypeIconMap: Record<string, JSX.Element> = {
+const propertyTypeIconMap: Record<string, ReactElement> = {
   house: <House size={18} />,
   apartment: <Building2 size={18} />,
   mini_condo: <Building2 size={18} />,
@@ -446,12 +446,12 @@ function NewInquiryPageContent() {
   const searchParams = useSearchParams();
   const { user, authToken } = useAppState();
   const { t } = useI18n();
-  const tr = (key: keyof typeof englishInquiryCopy | string, fallback?: string) => {
+  const tr = useCallback((key: keyof typeof englishInquiryCopy | string, fallback?: string) => {
     const translated = t(key);
     if (translated !== key) return translated;
     if (fallback) return fallback;
     return (englishInquiryCopy as Record<string, string>)[key] ?? key;
-  };
+  }, [t]);
   const editId = searchParams.get("editId");
   const isEdit = Boolean(editId);
   const agencyId = searchParams.get("agencyId")?.trim() || "";
@@ -514,7 +514,7 @@ function NewInquiryPageContent() {
     return () => {
       active = false;
     };
-  }, [editId, user?.id, t]);
+  }, [editId, tr, user?.id]);
 
   const showBedBathFields = useMemo(
     () => isBedBathPropertyType(propertyType),

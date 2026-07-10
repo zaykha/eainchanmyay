@@ -1,0 +1,21 @@
+
+> eaichanmyay@1.0.0 check /Users/thihanaing/eainchanmyay
+> npm run lint && npm run typecheck
+
+
+> eaichanmyay@1.0.0 lint
+> eslint .
+
+
+/Users/thihanaing/eainchanmyay/src/features/site/public/account/AccountPage.tsx
+  4261:9  warning  'showToast' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/thihanaing/eainchanmyay/src/features/site/public/inquiries/new/NewInquiryPage.tsx
+  517:6  warning  React Hook useEffect has a missing dependency: 'tr'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+✖ 2 problems (0 errors, 2 warnings)
+
+
+> eaichanmyay@1.0.0 typecheck
+> tsc --noEmit
+

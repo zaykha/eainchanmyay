@@ -634,7 +634,7 @@ export default function AuthPage() {
     }
 
     redirectToTarget(resumePath && resumePath !== "/" ? resumePath : "/account");
-  }, [authResolvedRole, profileReady, profileRole, resumePath, router, user]);
+  }, [authResolvedRole, profileReady, profileRole, resumePath, router, t, user]);
 
   const handleAuthSuccess = ({ role: resolvedRole, mode }: AuthSuccessPayload) => {
     mismatchHandledRef.current = false;

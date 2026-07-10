@@ -118,7 +118,7 @@ function buildDataValidationXml(headerMap: Map<string, { columnLetter: string; l
 async function buildValidatedWorkbookBuffer() {
   const workbook = XLSX.utils.book_new();
 
-  const propertyRows = toTemplateRows();
+  const propertyRows = toTemplateRows().map((row) => [...row]);
   const propertySheet = XLSX.utils.aoa_to_sheet(propertyRows);
   propertySheet["!cols"] = getColumnWidths(propertyRows[0] as readonly string[]);
   propertySheet["!autofilter"] = { ref: `A1:${XLSX.utils.encode_col(propertyRows[0].length - 1)}1` };

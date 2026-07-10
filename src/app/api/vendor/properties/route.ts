@@ -25,11 +25,6 @@ type PropertyImageRow = {
   sort_order: number | null;
 };
 
-function isOwnerOrAdmin(role: string) {
-  const normalized = String(role ?? "").trim().toLowerCase();
-  return normalized === "owner" || normalized === "admin";
-}
-
 // Intentionally no POST mutation on this collection endpoint.
 
 export async function GET(request: Request) {

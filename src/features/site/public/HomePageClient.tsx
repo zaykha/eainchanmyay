@@ -999,24 +999,6 @@ const HeroAgencyVerified = styled.div`
   }
 `;
 
-const HeroAgencySummary = styled.div`
-  color: rgba(246, 242, 255, 0.88);
-  font-size: 0.96rem;
-  line-height: 1.6;
-  max-width: 380px;
-  min-height: 3.1em;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-
-  @media (max-width: 720px) {
-    font-size: 0.82rem;
-    line-height: 1.45;
-    min-height: auto;
-  }
-`;
-
 const HeroAgencyStats = styled.div`
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1800,7 +1782,12 @@ const footerLinks = [
   { labelKey: "header.contactUs", href: "/privacy" },
 ];
 
-const propertyCards = [
+const propertyCards: Array<{
+  key: string;
+  labelKey: string;
+  imageUrl?: string;
+  fallback: string;
+}> = [
   {
     key: "apartment",
     labelKey: "property.apartment",
@@ -1836,7 +1823,7 @@ const propertyCards = [
       "https://images.pexels.com/photos/10059365/pexels-photo-10059365.jpeg?cs=srgb&dl=pexels-vladimir-sladek-127740023-10059365.jpg&fm=jpg",
     fallback: "linear-gradient(135deg, #7d9662, #465831 58%, #c5d1a3)",
   },
-] as const;
+];
 
 type HeroShowcaseListing = {
   title: string;
@@ -2018,7 +2005,6 @@ export function HomePageClient() {
   const activeLanguage =
     languageOptions.find((option) => option.value === language) ?? languageOptions[0];
 
-  const locationSummary = [stateRegion, district, township].filter(Boolean).join(" / ");
   const localizedLocationSummary = [stateRegion, district, township]
     .map((v) => (v ? translateLocationName(v, language) : v))
     .filter(Boolean)

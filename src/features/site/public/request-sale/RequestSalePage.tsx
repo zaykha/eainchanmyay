@@ -34,7 +34,6 @@ import { readActiveVendorWorkspace, withActiveVendorHeaders } from "@/features/s
 import {
   getOwnedPropertiesForUser,
   getOwnedPropertyById,
-  getSalesRequestsForUser,
   updateOwnedProperty,
 } from "@/features/site/shared/lib/data";
 import { getVendorPlan } from "@/lib/vendor-plans";
@@ -460,8 +459,8 @@ const REQUEST_SALE_ENGLISH: Record<string, string> = {
   "property.industrial": "Industrial",
   "property.project": "Project",
 };
+void REQUEST_SALE_ENGLISH;
 
-const requestSaleText = (key: string) => REQUEST_SALE_ENGLISH[key] ?? key;
 const isUsableMapCoordinate = (lat: number, lng: number) =>
   Number.isFinite(lat) &&
   Number.isFinite(lng) &&
@@ -580,65 +579,6 @@ const HelpList = styled.ul`
 
 const LatLngButton = styled(MapButton)`
   width: fit-content;
-`;
-
-const ToggleContainer = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
-  background: var(--color-surface-2);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-outline);
-`;
-
-const ToggleLabel = styled.label`
-  font-weight: 600;
-  color: var(--color-text);
-  font-size: 0.9rem;
-`;
-
-const Toggle = styled.button<{ $checked: boolean }>`
-  position: relative;
-  width: 44px;
-  height: 24px;
-  border-radius: 12px;
-  background: var(--color-outline);
-  border: none;
-  cursor: pointer;
-  flex-shrink: 0;
-
-  ${({ $checked }) => $checked && css`
-    background: var(--color-primary);
-  `}
-
-  &:hover {
-    background: color-mix(in srgb, var(--color-primary) 8%, var(--color-outline));
-  }
-
-  &:focus-visible {
-    outline: 2px solid var(--color-primary);
-    outline-offset: 2px;
-  }
-`;
-
-const ToggleTrack = styled.div`
-  position: absolute;
-  inset: 2px;
-  border-radius: 10px;
-  background: var(--color-surface);
-`;
-
-const ToggleThumb = styled.div<{ $checked: boolean }>`
-  position: absolute;
-  top: 2px;
-  left: ${({ $checked }) => ($checked ? "calc(100% - 20px)" : "2px")};
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: var(--color-paper);
-  box-shadow: var(--frame-shadow);
-  transition: left 0.2s ease;
 `;
 
 type RequestSalePageContentProps = {
@@ -1151,12 +1091,12 @@ export function RequestSalePageContent({
   const [latLngOpen, setLatLngOpen] = useState(false);
   const [limitPopup, setLimitPopup] = useState<string | null>(null);
   const [moderationPopup, setModerationPopup] = useState<string | null>(null);
-  const [locateAttempted, setLocateAttempted] = useState(false);
+  const [, setLocateAttempted] = useState(false);
   const [mapPosition, setMapPosition] = useState<[number, number] | null>(null);
   const [mapCenter, setMapCenter] = useState<[number, number]>(MYANMAR_CENTER);
   const [mapZoom, setMapZoom] = useState(DEFAULT_ZOOM);
   const [showPrivateOwner, setShowPrivateOwner] = useState(false);
-  const [useAgencyContact, setUseAgencyContact] = useState(false);
+  const [useAgencyContact] = useState(false);
   const [attention, setAttention] = useState(false);
   const [stepAttempted, setStepAttempted] = useState<Record<number, boolean>>({});
   const stepItems = useMemo(
@@ -1255,7 +1195,7 @@ export function RequestSalePageContent({
     return () => {
       cancelled = true;
     };
-  }, [authToken, isVendorProfile, user?.id]);
+  }, [activeVendorId, authToken, isVendorProfile, user?.id]);
 
   useEffect(() => {
     if (!editId || !user?.id) return;
@@ -2497,6 +2437,7 @@ export function RequestSalePageContent({
         />
         <CustomInput
           id={`${fieldId}-listing-contact-phone`}
+          name="listing_contact_phone"
           label={t("requestSale.listingContactPrimaryPhone")}
           type="tel"
           value={form.listing_contact_phone}
@@ -2505,6 +2446,7 @@ export function RequestSalePageContent({
         />
         <CustomInput
           id={`${fieldId}-listing-contact-phone-secondary`}
+          name="listing_contact_phone_secondary"
           label={t("requestSale.listingContactSecondaryPhone")}
           type="tel"
           value={form.listing_contact_phone_secondary}
@@ -2536,6 +2478,7 @@ export function RequestSalePageContent({
             <CollapsibleBody>
               <CustomInput
                 id={`${fieldId}-owner-name`}
+                name="owner_name"
                 label={t("requestSale.ownerName")}
                 value={form.owner_name}
                 onChange={(e) => setField("owner_name", e.target.value)}
@@ -2558,6 +2501,7 @@ export function RequestSalePageContent({
               />
               <CustomTextarea
                 id={`${fieldId}-owner-note`}
+                name="owner_note"
                 label={t("requestSale.ownerNote")}
                 value={form.owner_note}
                 onChange={(e) => setField("owner_note", e.target.value)}

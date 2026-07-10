@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { ChevronDown, Menu, X } from "lucide-react";
+import { ChevronDown, Menu } from "lucide-react";
 import styled from "styled-components";
 import { useLanguage } from "@/features/site/shared/components/Providers";
 import { useAppState } from "@/features/site/shared/lib/app-state";

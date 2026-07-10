@@ -52,10 +52,14 @@ export const promotionProducts: Array<{
 
 export type PromotionRecordLike = {
   id: string;
+  vendor_id?: string | null;
   listing_id?: string | null;
   promotion_type: string | null;
   target_type?: string | null;
   status: string | null;
+  title?: string | null;
+  description?: string | null;
+  target_url?: string | null;
   price_per_24h?: number | null;
   starts_at?: string | null;
   ends_at?: string | null;

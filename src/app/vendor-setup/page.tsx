@@ -186,7 +186,7 @@ export default function VendorSetupPage() {
     return () => {
       cancelled = true;
     };
-  }, [authToken, onboardingPending, profileReady, profileRole, router, user]);
+  }, [authToken, onboardingPending, profileReady, profileRole, router, t, user]);
 
   const handleCreateFreeWorkspace = async () => {
     if (!authToken) return;

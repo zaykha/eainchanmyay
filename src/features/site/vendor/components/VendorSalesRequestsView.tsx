@@ -110,7 +110,7 @@ function labelize(value: string | null | undefined) {
 
 export function VendorSalesRequestsView() {
   const { authToken } = useAppState();
-  const { t, language } = useI18n();
+  const { language } = useI18n();
   const [items, setItems] = useState<SalesRequestItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

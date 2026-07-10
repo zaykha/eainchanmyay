@@ -404,7 +404,7 @@ export function ArticlesIndexView({
   disclaimer,
 }: ArticlesIndexViewProps) {
   const [query, setQuery] = useState("");
-  const [activeCategory, setActiveCategory] = useState(UI.allCategories);
+  const [activeCategory, setActiveCategory] = useState<string>(UI.allCategories);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const deferredQuery = useDeferredValue(query);
   const categoryOptions = [UI.allCategories, ...categories];

@@ -8,6 +8,7 @@ import {
   BriefcaseBusiness,
   Building2,
   Calendar,
+  ChevronRight,
   Filter,
   Home,
   Hotel,
@@ -493,13 +494,6 @@ const Meta = styled.div`
   flex-wrap: wrap;
 `;
 
-const EmbeddedPrice = styled.div`
-  color: var(--color-text);
-  font-size: 1rem;
-  font-weight: 800;
-  line-height: 1.2;
-`;
-
 const Pill = styled.span<{ $embedded?: boolean; $compact?: boolean; $tone?: "neutral" | "deal" | "price" | "status-success" | "status-warning" | "status-danger" | "status-muted" }>`
   min-height: 28px;
   padding: 0 10px;
@@ -550,16 +544,6 @@ const TypePill = styled(Pill)`
   }
 `;
 
-const IconPill = styled(Pill)`
-  gap: 6px;
-
-  svg {
-    width: 13px;
-    height: 13px;
-    flex: 0 0 13px;
-  }
-`;
-
 const Row = styled.div<{ $embedded?: boolean }>`
   display: flex;
   align-items: center;
@@ -578,6 +562,16 @@ const Footer = styled.div`
   align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
+`;
+
+const OpenLink = styled(Link)`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-primary);
+  font-weight: 700;
+  font-size: 0.84rem;
+  text-decoration: none;
 `;
 
 const EmbeddedFooterMeta = styled.div`
@@ -821,7 +815,7 @@ export function VendorPropertiesView({
         .toLowerCase();
       return haystack.includes(normalizedQuery);
     });
-  }, [dealType, items, propertyType, query, status]);
+  }, [dealType, items, propertyType, query, status, t]);
 
   useEffect(() => {
     if (!authToken) return;
@@ -876,7 +870,7 @@ export function VendorPropertiesView({
     return () => {
       cancelled = true;
     };
-  }, [authToken, vendorId]);
+  }, [authToken, t, vendorId]);
 
   function applySearch() {
     setQuery(searchInput.trim());

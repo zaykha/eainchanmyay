@@ -892,6 +892,7 @@ const LISTING_COPY: Record<string, string> = {
   "listing.viewingRequest": "Viewing request",
   "listing.viewingRequested": "Viewing requested",
 };
+void LISTING_COPY;
 
 
 type DateTimePickerProps = {
@@ -1228,7 +1229,7 @@ export default function ListingDetailPage() {
     } catch {
       // Ignore localStorage write failures.
     }
-  }, [viewingName, viewingOpen, viewingPhone]);
+  }, [user?.id, viewingName, viewingOpen, viewingPhone]);
 
   const galleryUrls = useMemo(() => {
     const images = detail?.images ?? [];
@@ -1335,7 +1336,6 @@ export default function ListingDetailPage() {
     property.district,
     property.state_region,
   ].filter((part): part is string => typeof part === "string" && part.trim().length > 0);
-  const locationParts = locationPartValues.join(", ");
   const localizedLocationParts = locationPartValues
     .map((part) => translateLocationName(part, language))
     .join(", ");

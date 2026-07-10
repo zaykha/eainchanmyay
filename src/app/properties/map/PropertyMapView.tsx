@@ -751,26 +751,6 @@ const MobileSearchButton = styled(ActionButton)`
   padding: 0 12px;
 `;
 
-const FloatingListButton = styled.button`
-  position: absolute;
-  left: 50%;
-  bottom: 22px;
-  transform: translateX(-50%);
-  z-index: 430;
-  min-height: 52px;
-  padding: 0 20px;
-  border-radius: 999px;
-  border: 1px solid rgba(225, 29, 72, 0.9);
-  background: linear-gradient(135deg, #ff4d73, #e11d48);
-  color: #fff;
-  font-weight: 800;
-  box-shadow: 0 22px 44px rgba(225, 29, 72, 0.24);
-
-  @media (max-width: 920px) {
-    display: none;
-  }
-`;
-
 const MobileListSheet = styled.div`
   position: fixed;
   inset: auto 0 0 0;
@@ -1156,7 +1136,7 @@ export default function PropertyMapView() {
           setLoading(false);
         }
       });
-  }, [appliedBounds, boundsKey, filterKey, filters]);
+  }, [appliedBounds, boundsKey, filterKey, filters, t]);
 
   useEffect(() => {
     const nextParams = new URLSearchParams();

@@ -206,7 +206,7 @@ export default function HubUpgradePage() {
     return () => {
       cancelled = true;
     };
-  }, [authToken, profileReady, profileRole, router, user]);
+  }, [authToken, profileReady, profileRole, router, t, user]);
 
   const handleStartPaidCheckout = async (planKey: VendorPlanKey) => {
     if (!authToken || !user || planKey === "free") return;

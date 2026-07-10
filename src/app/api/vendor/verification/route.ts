@@ -1,8 +1,16 @@
 import { NextResponse } from "next/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { getVendorRequestContext } from "@/app/api/vendor/_lib/context";
 import { canSubmitVerification, isAdminOrOwner } from "@/lib/vendor-permissions";
 
 import { getVendorPlan } from "@/lib/vendor-plans";
+
+type VendorLike = Record<string, unknown> & {
+  id: string;
+  name: string;
+  plan: string | null;
+  verified_status?: string | null;
+};
 
 type VerificationDocumentInput = {
   document_type?: string;
@@ -100,8 +108,8 @@ function normalizeDocuments(value: unknown) {
 // Supabase query builder typing collapses to `never` due to context inference.
 // Keep runtime behavior while avoiding TS `never` cascades.
 async function loadVerificationPayload(
-  supabase: any,
-  vendor: any,
+  supabase: SupabaseClient,
+  vendor: VendorLike,
   currentPlan: ReturnType<typeof getVendorPlan>
 ) {
 
@@ -196,8 +204,7 @@ async function loadVerificationPayload(
             checklist_json: (latestRequest.checklist_json as Record<string, unknown> | null) ?? {},
           }
         : null,
-      documents: (documentsResult.data ?? []).map((item: any) => ({
-
+      documents: (documentsResult.data ?? []).map((item) => ({
         id: String(item.id ?? ""),
         document_type: String(item.document_type ?? ""),
         document_name: String(item.document_name ?? ""),
@@ -216,8 +223,7 @@ async function loadVerificationPayload(
         created_at: (item.created_at as string | null) ?? null,
       })),
       properties: [],
-      events: (eventsResult.data ?? []).map((item: any) => {
-
+      events: (eventsResult.data ?? []).map((item) => {
         const actorRaw = Array.isArray(item.actor) ? item.actor[0] : item.actor;
         return {
           id: String(item.id ?? ""),

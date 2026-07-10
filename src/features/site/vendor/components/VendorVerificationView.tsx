@@ -869,7 +869,7 @@ export function VendorVerificationView() {
     return () => {
       cancelled = true;
     };
-  }, [authToken]);
+  }, [authToken, t]);
 
   const updateDocument = (index: number, key: keyof DocumentDraft, value: string | boolean) => {
     setDocuments((current) =>

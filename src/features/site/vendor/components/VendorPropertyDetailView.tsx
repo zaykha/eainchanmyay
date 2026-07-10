@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import styled from "styled-components";
-import { ArrowUpRight, Pencil, MapPinned, Images, CalendarClock } from "lucide-react";
+import { ArrowUpRight, Pencil, Images, CalendarClock } from "lucide-react";
 import { useAppState } from "@/features/site/shared/lib/app-state";
 import { formatCurrency } from "@/features/site/shared/lib/format";
 import { useI18n } from "@/features/site/shared/lib/i18n";
@@ -238,7 +238,7 @@ function formatDate(value: string | null | undefined) {
 
 export function VendorPropertyDetailView({ propertyId }: { propertyId: string }) {
   const { authToken } = useAppState();
-  const { t, language } = useI18n();
+  const { language } = useI18n();
   const [property, setProperty] = useState<PropertyDetail | null>(null);
   const [images, setImages] = useState<PropertyImage[]>([]);
   const [loading, setLoading] = useState(true);

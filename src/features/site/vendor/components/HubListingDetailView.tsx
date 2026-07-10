@@ -1,14 +1,46 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { Bath, BedDouble, Building2, Calendar, ChevronLeft, Home, MapPin, Megaphone, Pencil, Ruler, ShieldCheck, Trash2 } from "lucide-react";
 import styled from "styled-components";
 import { formatCurrency } from "@/features/site/shared/lib/format";
+import type { Translate } from "@/features/site/shared/lib/i18n";
 import { formatPropertyTypeValue } from "@/lib/property-types";
 
-type Translate = (key: string, vars?: Record<string, unknown>) => string;
+type HubListingProperty = {
+  id?: string;
+  title?: string | null;
+  status?: string | null;
+  property_type?: string | null;
+  deal_type?: string | null;
+  cover_image_url?: string | null;
+  price?: number | null;
+  currency?: string | null;
+  area_sqft?: number | null;
+  township?: string | null;
+  district?: string | null;
+  city?: string | null;
+  state_region?: string | null;
+  bedrooms?: number | null;
+  bathrooms?: number | null;
+  room_count?: number | null;
+  floor_count?: number | null;
+  has_parking?: boolean | null;
+  has_lift?: boolean | null;
+  appointments_count?: number | null;
+};
+
+type FactCard = {
+  key: string;
+  label: string;
+  icon: ReactNode;
+  wide?: boolean;
+  value?: string;
+  render?: ReactNode;
+};
 
 type PropertyDetail = {
-  property: Record<string, any>;
+  property: HubListingProperty;
   unassigned_count?: number;
 };
 
@@ -31,7 +63,6 @@ type HubListingDetailViewProps = {
   t: Translate;
   locale: string;
   language: string;
-  selectedHubPropertyId: string;
   detail: PropertyDetail | null;
   loading: boolean;
   error: string | null;
@@ -52,10 +83,10 @@ type HubListingDetailViewProps = {
   onOpenDeleteModal: () => void;
   onPromoteListing: () => void;
   onOpenAppointmentEditor: (appointmentId: string) => void;
-  getListingStatusTone: (value: unknown) => "status-success" | "status-warning" | "status-neutral";
-  getListingStatusLabel: (value: unknown, t: Translate) => string;
-  getDealTypeLabel: (value: unknown) => string;
-  getCompactDealTypeLabel: (value: unknown) => string;
+  getListingStatusTone: (value: string | null | undefined) => "status-success" | "status-warning" | "status-danger" | "status-muted" | "neutral";
+  getListingStatusLabel: (value: string | null | undefined, t: Translate) => string;
+  getDealTypeLabel: (value: string | null | undefined) => string;
+  getCompactDealTypeLabel: (value: string | null | undefined) => string;
   translateLocationName: (value: string, language: string) => string;
   formatArea: (value: unknown, locale: string, unitLabel: string) => string;
 };
@@ -201,7 +232,7 @@ const Hero = styled.div`
   }
 `;
 
-const Image = styled.div<{ $image?: string }>`
+const HeroImage = styled.div<{ $image?: string }>`
   min-height: 220px;
   border-radius: 20px;
   border: 1px solid var(--color-outline);
@@ -481,14 +512,14 @@ const MobileLabel = styled.span`
 
 export function HubListingDetailView(props: HubListingDetailViewProps) {
   const {
-    t, locale, language, selectedHubPropertyId, detail, loading, error, canCreateAppointments,
+    t, locale, language, detail, loading, error, canCreateAppointments,
     canManageListingOperations, canShowPromoteAction, deleting, statusSaving, statusError, statusNotice,
     hasStatusOptions, appointments, staff, onBack, onScheduleAppointment, onOpenStatusModal, onEditListing,
     onOpenDeleteModal, onPromoteListing, onOpenAppointmentEditor, getListingStatusTone,
     getListingStatusLabel, getDealTypeLabel, getCompactDealTypeLabel, translateLocationName, formatArea,
   } = props;
 
-  const property = detail?.property;
+  const property = detail?.property ?? null;
   const statusTone =
     property && getListingStatusTone(property.status) === "status-success"
       ? "success"
@@ -521,9 +552,9 @@ export function HubListingDetailView(props: HubListingDetailViewProps) {
       typeof property.bathrooms === "number" ? { key: "bathrooms", label: t("filter.bathrooms"), icon: <Bath size={14} />, value: String(property.bathrooms) } : null,
       typeof property.room_count === "number" ? { key: "rooms", label: t("hub.rooms"), icon: <Home size={14} />, value: String(property.room_count) } : null,
       typeof property.floor_count === "number" ? { key: "floors", label: t("hub.floors"), icon: <Building2 size={14} />, value: String(property.floor_count) } : null,
-      property.appointments_count > 0 ? { key: "appointments", label: t("hub.appointmentsCount"), icon: <Calendar size={14} />, value: t("hub.scheduledCount", { count: property.appointments_count }) } : null,
+      (property.appointments_count ?? 0) > 0 ? { key: "appointments", label: t("hub.appointmentsCount"), icon: <Calendar size={14} />, value: t("hub.scheduledCount", { count: property.appointments_count ?? 0 }) } : null,
       featureValue ? { key: "features", label: t("hub.features"), icon: <ShieldCheck size={14} />, value: featureValue } : null,
-    ].filter(Boolean) as Array<any>;
+    ].filter(Boolean) as FactCard[];
     return (
       <MetaGrid>
         {factCards.map((card) => (
@@ -576,11 +607,13 @@ export function HubListingDetailView(props: HubListingDetailViewProps) {
                 </MetaGrid>
               </Info>
             </>
-          ) : error || !detail ? (
+          ) : error || !property ? (
             <Copy>{error ?? t("hub.unableLoadListingDetail")}</Copy>
           ) : (
             <>
-              <Image $image={property.cover_image_url || undefined}>{!property.cover_image_url ? <Building2 size={24} /> : null}</Image>
+              <HeroImage $image={property.cover_image_url || undefined}>
+                {!property.cover_image_url ? <Building2 size={24} /> : null}
+              </HeroImage>
               <Info>
                 <PillRow>
                   <Pills>
@@ -592,7 +625,7 @@ export function HubListingDetailView(props: HubListingDetailViewProps) {
                       <Pill>{getListingStatusLabel(property.status, t)}</Pill>
                     )}
                     <Pill $tone="warning"><DesktopLabel>{getDealTypeLabel(property.deal_type)}</DesktopLabel><MobileLabel>{getCompactDealTypeLabel(property.deal_type)}</MobileLabel></Pill>
-                    <Pill>{formatPropertyTypeValue(property.property_type, t as any)}</Pill>
+                    <Pill>{formatPropertyTypeValue(property.property_type ?? null, t)}</Pill>
                     {canManageListingOperations ? (
                       <>
                         <IconAction type="button" aria-label={t("hub.editListing")} onClick={onEditListing} disabled={deleting}><Pencil size={14} /></IconAction>

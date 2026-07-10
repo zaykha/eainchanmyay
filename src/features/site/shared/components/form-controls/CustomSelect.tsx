@@ -34,8 +34,8 @@ type SelectGroupOption = {
 type SelectMenuItem = SelectLeafOption | SelectGroupOption;
 
 function collectOptions(children: React.ReactNode): SelectMenuItem[] {
-  return React.Children.toArray(children).flatMap((child, childIndex) => {
-    if (!child || typeof child !== "object" || !("props" in child)) return [];
+  return React.Children.toArray(children).reduce<SelectMenuItem[]>((items, child, childIndex) => {
+    if (!child || typeof child !== "object" || !("props" in child)) return items;
     const element = child as React.ReactElement<{ value?: string; label?: React.ReactNode; children?: React.ReactNode }>;
 
     if (element.type === "optgroup") {
@@ -53,27 +53,25 @@ function collectOptions(children: React.ReactNode): SelectMenuItem[] {
         })
         .filter(Boolean) as SelectLeafOption[];
 
-      return options.length
-        ? [
-            {
-              kind: "group" as const,
-              key: `group-${childIndex}-${String(groupLabel)}`,
-              label: groupLabel,
-              options,
-            },
-          ]
-        : [];
+      if (options.length) {
+        items.push({
+          kind: "group" as const,
+          key: `group-${childIndex}-${String(groupLabel)}`,
+          label: groupLabel,
+          options,
+        });
+      }
+      return items;
     }
 
-    return [
-      {
-        kind: "option" as const,
-        key: String(element.props.value ?? `option-${childIndex}`),
-        value: element.props.value ?? "",
-        label: element.props.children,
-      },
-    ];
-  });
+    items.push({
+      kind: "option" as const,
+      key: String(element.props.value ?? `option-${childIndex}`),
+      value: element.props.value ?? "",
+      label: element.props.children,
+    });
+    return items;
+  }, []);
 }
 
 export function CustomSelect({

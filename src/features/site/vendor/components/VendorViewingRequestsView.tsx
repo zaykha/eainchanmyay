@@ -206,7 +206,7 @@ export function VendorViewingRequestsView() {
     return () => {
       cancelled = true;
     };
-  }, [authToken]);
+  }, [authToken, t]);
 
   const handleStatusChange = async (requestId: string, leadStatus: string) => {
     if (!authToken) return;

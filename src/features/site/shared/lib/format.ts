@@ -1,4 +1,5 @@
 import { translate } from "@/features/site/shared/lib/i18n";
+import type { Language } from "@/features/site/shared/lib/i18n-config";
 
 export function formatCurrency(
   value?: number,
@@ -35,7 +36,8 @@ export function formatMmk(value: number, language = "en", currencyCode = "MMK") 
       minimumFractionDigits: 0,
       maximumFractionDigits: decimals,
     });
-    const lakhLabel = translate(language as any, "currency.lakh") || "Lakh";
+    const normalizedLanguage: Language = language === "mm" || language === "zh" || language === "th" ? language : "en";
+    const lakhLabel = translate(normalizedLanguage, "currency.lakh") || "Lakh";
     if (language === "mm") {
       return `${currencyCode} ${lakhLabel} ${lakhFormatter.format(lakhs)}`;
     }

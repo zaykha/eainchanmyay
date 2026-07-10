@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import styled from "styled-components";
 import {
   Building2,
@@ -422,7 +422,7 @@ export function VendorShell({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [authToken, profileReady, router, user, pathname]);
+  }, [authToken, pathname, profileReady, router, t, user]);
 
   if (!profileReady) {
     return <LoadingOverlay message={t("vendorShell.loading")} />;

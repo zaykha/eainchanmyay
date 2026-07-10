@@ -258,7 +258,7 @@ export async function GET(request: Request) {
     if (boostedResult.error) {
       console.warn("Failed to load boosted listings", boostedResult.error);
     } else {
-      boostedProperties = (boostedResult.data ?? []) as Record<string, unknown>[];
+      boostedProperties = (boostedResult.data ?? []) as unknown as Record<string, unknown>[];
       boostedProperties.sort((left, right) => {
         const leftRank = boostedPriorityMap.get(String(left.id ?? "")) ?? Number.MAX_SAFE_INTEGER;
         const rightRank = boostedPriorityMap.get(String(right.id ?? "")) ?? Number.MAX_SAFE_INTEGER;
@@ -298,7 +298,7 @@ export async function GET(request: Request) {
     });
   }
 
-  normalProperties = (normalResult.data ?? []) as Record<string, unknown>[];
+  normalProperties = (normalResult.data ?? []) as unknown as Record<string, unknown>[];
   normalTotal = normalResult.count ?? normalProperties.length;
   const properties = [...boostedSlice, ...normalProperties];
 

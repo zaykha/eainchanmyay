@@ -288,17 +288,6 @@ const FormGrid = styled.div`
   }
 `;
 
-const Input = styled.input`
-  min-height: 46px;
-  border-radius: 14px;
-  border: 1px solid rgba(148, 163, 184, 0.24);
-  background: #fff;
-  color: var(--color-text);
-  padding: 0 14px;
-  width: 100%;
-  min-width: 0;
-`;
-
 const SearchableField = styled.div`
   position: relative;
   display: grid;
@@ -391,18 +380,6 @@ const SearchableEmpty = styled.div`
   font-size: 0.82rem;
   background: #f8fafc;
   line-height: 1.45;
-`;
-
-const Textarea = styled.textarea`
-  min-height: 108px;
-  border-radius: 16px;
-  border: 1px solid rgba(148, 163, 184, 0.24);
-  background: #fff;
-  color: var(--color-text);
-  padding: 12px 14px;
-  width: 100%;
-  min-width: 0;
-  resize: vertical;
 `;
 
 const FullWidth = styled.div`
@@ -2340,9 +2317,9 @@ export function VendorPromotionsView({
     return () => {
       active = false;
     };
-  }, [authToken, vendorId, verified]);
+  }, [authToken, t, vendorId, verified]);
 
-  const eligibleListings = data?.eligibleListings ?? [];
+  const eligibleListings = useMemo(() => data?.eligibleListings ?? [], [data]);
   const selectedListing = eligibleListings.find((item) => item.id === listingId) ?? null;
   const normalizedListingSearch = listingSearch.trim().toLowerCase();
   const listingOptions = useMemo(() => {
@@ -2370,7 +2347,7 @@ export function VendorPromotionsView({
       return;
     }
     setListingSearch(selectedListing.title || t("vendor.promotions.untitledProperty"));
-  }, [listingPickerOpen, selectedListing]);
+  }, [listingPickerOpen, selectedListing, t]);
 
   useEffect(() => {
     if (!canManagePromotions || !initialListingId || !eligibleListings.length || initialPrefillConsumed) return;
@@ -2387,7 +2364,7 @@ export function VendorPromotionsView({
   useEffect(() => {
     if (!selectedPlan) return;
     setSelectedPlanKey(selectedPlan.key);
-  }, [selectedType]);
+  }, [selectedPlan, selectedType]);
 
   useEffect(() => {
     if (selectedType !== "hero_ad") {

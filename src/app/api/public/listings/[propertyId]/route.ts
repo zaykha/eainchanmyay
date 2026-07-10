@@ -89,7 +89,9 @@ export async function GET(_request: Request, context: RouteContext) {
   }
 
   // Normalize agency shape regardless of whether Supabase returns the joined vendor as an array or a single object.
-  const agencyData = agencyResult.data as any;
+  const agencyData = agencyResult.data as
+    | (Record<string, unknown> & { vendor?: Record<string, unknown> | Array<Record<string, unknown>> | null })
+    | null;
   const agencySource = vendorId ? agencyData : Array.isArray(agencyData?.vendor) ? agencyData?.vendor?.[0] : agencyData?.vendor;
 
 

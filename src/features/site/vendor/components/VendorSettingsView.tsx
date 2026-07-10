@@ -36,6 +36,12 @@ const HeroCard = styled.div`
   padding: 24px;
   display: grid;
   gap: 12px;
+
+  @media (max-width: 640px) {
+    padding: 18px;
+    gap: 8px;
+    border-radius: 22px;
+  }
 `;
 
 const Title = styled.h1`
@@ -49,6 +55,11 @@ const Copy = styled.p`
   color: var(--color-muted);
   line-height: 1.6;
   max-width: 760px;
+
+  @media (max-width: 640px) {
+    font-size: 0.9rem;
+    line-height: 1.45;
+  }
 `;
 
 const FormGrid = styled.div`
@@ -68,6 +79,12 @@ const Card = styled.div`
   padding: 20px;
   display: grid;
   gap: 12px;
+
+  @media (max-width: 640px) {
+    padding: 14px;
+    gap: 10px;
+    border-radius: 20px;
+  }
 `;
 
 const SectionBlock = styled.div`
@@ -77,6 +94,12 @@ const SectionBlock = styled.div`
   border-radius: 20px;
   border: 1px solid var(--color-outline);
   background: color-mix(in srgb, var(--color-surface-2) 58%, white);
+
+  @media (max-width: 640px) {
+    gap: 10px;
+    padding: 14px;
+    border-radius: 18px;
+  }
 `;
 
 const SectionHeader = styled.div`
@@ -95,6 +118,25 @@ const SectionCopy = styled.p`
   color: var(--color-muted);
   line-height: 1.5;
   font-size: 0.92rem;
+
+  @media (max-width: 640px) {
+    font-size: 0.84rem;
+    line-height: 1.4;
+  }
+`;
+
+const DesktopOnly = styled.span`
+  @media (max-width: 640px) {
+    display: none;
+  }
+`;
+
+const MobileOnly = styled.span`
+  display: none;
+
+  @media (max-width: 640px) {
+    display: inline;
+  }
 `;
 
 const HiddenFileInput = styled.input`
@@ -108,6 +150,10 @@ const BrandAssetGrid = styled.div`
 
   @media (max-width: 820px) {
     grid-template-columns: 1fr;
+  }
+
+  @media (max-width: 640px) {
+    gap: 12px;
   }
 `;
 
@@ -130,6 +176,11 @@ const AssetUploadButton = styled.button<{ $wide?: boolean }>`
   &:hover {
     border-color: color-mix(in srgb, var(--color-primary) 24%, var(--color-outline));
     box-shadow: var(--shadow-soft);
+  }
+
+  @media (max-width: 640px) {
+    padding: 10px;
+    gap: 8px;
   }
 `;
 
@@ -167,17 +218,20 @@ const AssetUploadHint = styled.div`
   color: var(--color-muted);
   font-size: 0.88rem;
   line-height: 1.45;
+
+  @media (max-width: 640px) {
+    font-size: 0.8rem;
+    line-height: 1.3;
+  }
 `;
 
 const Label = styled.div`
   color: var(--color-muted);
   font-size: 0.9rem;
-`;
 
-const Value = styled.div`
-  color: var(--color-text);
-  font-weight: 700;
-  line-height: 1.45;
+  @media (max-width: 640px) {
+    font-size: 0.82rem;
+  }
 `;
 
 const FormField = styled.label`
@@ -197,6 +251,10 @@ const Input = styled.input`
   &:focus {
     border-color: color-mix(in srgb, var(--color-primary) 30%, var(--color-outline));
   }
+
+  @media (max-width: 640px) {
+    min-height: 42px;
+  }
 `;
 
 const Textarea = styled.textarea`
@@ -211,6 +269,10 @@ const Textarea = styled.textarea`
 
   &:focus {
     border-color: color-mix(in srgb, var(--color-primary) 30%, var(--color-outline));
+  }
+
+  @media (max-width: 640px) {
+    min-height: 104px;
   }
 `;
 
@@ -265,6 +327,13 @@ const Notice = styled.div<{ $danger?: boolean }>`
   padding: 16px 18px;
   color: ${(props) => (props.$danger ? "#b42318" : "#9a6700")};
   line-height: 1.6;
+
+  @media (max-width: 640px) {
+    padding: 12px 14px;
+    border-radius: 16px;
+    line-height: 1.45;
+    font-size: 0.88rem;
+  }
 `;
 
 type WorkspaceSummary = {
@@ -403,7 +472,7 @@ export function VendorSettingsView() {
     return () => {
       cancelled = true;
     };
-  }, [authToken]);
+  }, [authToken, t]);
 
   const isHubSettings = pathname === "/hub/settings";
 
@@ -566,7 +635,10 @@ export function VendorSettingsView() {
     <Page>
       <HeroCard>
         <Title>{t("vendor.settings.title")}</Title>
-        <Copy>{t("vendor.settings.subtitle")}</Copy>
+        <Copy>
+          <DesktopOnly>{t("vendor.settings.subtitle")}</DesktopOnly>
+          <MobileOnly>Edit your agency page.</MobileOnly>
+        </Copy>
       </HeroCard>
 
       {error ? <Copy>{error}</Copy> : null}
@@ -575,7 +647,10 @@ export function VendorSettingsView() {
         <Card>
           <SectionHeader>
             <SectionTitle>{t("vendor.settings.storefront")}</SectionTitle>
-            <SectionCopy>{t("vendor.settings.storefrontCopy")}</SectionCopy>
+            <SectionCopy>
+              <DesktopOnly>{t("vendor.settings.storefrontCopy")}</DesktopOnly>
+              <MobileOnly>Edit your public storefront.</MobileOnly>
+            </SectionCopy>
           </SectionHeader>
           {identityLocked ? (
             <Notice>{t("vendor.settings.identityLocked")}</Notice>
@@ -589,7 +664,10 @@ export function VendorSettingsView() {
           <SectionBlock>
             <SectionHeader>
               <SectionTitle>{t("vendor.settings.identity")}</SectionTitle>
-              <SectionCopy>{t("vendor.settings.identityCopy")}</SectionCopy>
+              <SectionCopy>
+                <DesktopOnly>{t("vendor.settings.identityCopy")}</DesktopOnly>
+                <MobileOnly>Brand, slug, and intro.</MobileOnly>
+              </SectionCopy>
             </SectionHeader>
             <HiddenFileInput
               ref={logoInputRef}
@@ -624,9 +702,10 @@ export function VendorSettingsView() {
                   </AssetThumb>
                   <AssetUploadRow>
                     <AssetUploadText>
-                      <AssetUploadTitle>{uploadingLogo ? "Uploading logo..." : "Upload logo image"}</AssetUploadTitle>
+                      <AssetUploadTitle>{uploadingLogo ? "Uploading..." : "Logo"}</AssetUploadTitle>
                       <AssetUploadHint>
-                        {storefront.logo_url ? "Click image to replace." : "PNG, JPG, or WebP"}
+                        <DesktopOnly>{storefront.logo_url ? "Click image to replace." : "PNG, JPG, or WebP"}</DesktopOnly>
+                        <MobileOnly>{storefront.logo_url ? "Tap to replace" : "PNG, JPG, WebP"}</MobileOnly>
                       </AssetUploadHint>
                     </AssetUploadText>
                     <Upload size={18} />
@@ -647,9 +726,10 @@ export function VendorSettingsView() {
                   </AssetThumb>
                   <AssetUploadRow>
                     <AssetUploadText>
-                      <AssetUploadTitle>{uploadingCover ? "Uploading cover..." : "Upload cover image"}</AssetUploadTitle>
+                      <AssetUploadTitle>{uploadingCover ? "Uploading..." : "Cover"}</AssetUploadTitle>
                       <AssetUploadHint>
-                        {storefront.cover_image_url ? "Click image to replace." : "Wide image recommended"}
+                        <DesktopOnly>{storefront.cover_image_url ? "Click image to replace." : "Wide image recommended"}</DesktopOnly>
+                        <MobileOnly>{storefront.cover_image_url ? "Tap to replace" : "Use a wide image"}</MobileOnly>
                       </AssetUploadHint>
                     </AssetUploadText>
                     <Upload size={18} />
@@ -672,7 +752,7 @@ export function VendorSettingsView() {
                 <Input
                   value={storefront.tagline}
                   onChange={(event) => handleStorefrontChange("tagline", event.target.value)}
-                  placeholder="Trusted Yangon residential specialists"
+                  placeholder="Trusted Yangon specialists"
                   disabled={!canEditStorefrontPublicCopy || saving}
                 />
               </FormField>
@@ -681,7 +761,7 @@ export function VendorSettingsView() {
                 <Textarea
                   value={storefront.description}
                   onChange={(event) => handleStorefrontChange("description", event.target.value)}
-                  placeholder="What makes your agency strong, trusted, and useful for buyers."
+                  placeholder="Why buyers should trust your agency."
                   disabled={!canEditStorefrontPublicCopy || saving}
                 />
               </FormField>
@@ -700,7 +780,10 @@ export function VendorSettingsView() {
           <SectionBlock>
             <SectionHeader>
               <SectionTitle>Contact and channels</SectionTitle>
-              <SectionCopy>Add at least one strong buyer contact path. Facebook and Viber are especially useful for Myanmar users.</SectionCopy>
+              <SectionCopy>
+                <DesktopOnly>Add at least one strong buyer contact path. Facebook and Viber are especially useful for Myanmar users.</DesktopOnly>
+                <MobileOnly>Add your main contact links.</MobileOnly>
+              </SectionCopy>
             </SectionHeader>
             <FormGrid>
               <FormField>
@@ -772,7 +855,10 @@ export function VendorSettingsView() {
           <SectionBlock>
             <SectionHeader>
               <SectionTitle>Visibility</SectionTitle>
-              <SectionCopy>Control whether this storefront is publicly visible and jump to your live page when ready.</SectionCopy>
+              <SectionCopy>
+                <DesktopOnly>Control whether this storefront is publicly visible and jump to your live page when ready.</DesktopOnly>
+                <MobileOnly>Show or hide your public page.</MobileOnly>
+              </SectionCopy>
             </SectionHeader>
 
             <Toggle>
@@ -789,7 +875,7 @@ export function VendorSettingsView() {
           <InlineActions>
             {canEditStorefront ? (
               <Button type="button" onClick={() => void handleSaveStorefront()} disabled={saving}>
-                {saving ? "Saving..." : "Save storefront"}
+                {saving ? "Saving..." : "Save"}
               </Button>
             ) : null}
           </InlineActions>

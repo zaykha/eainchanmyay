@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import styled from "styled-components";
-import { Filter, MapPinned, Plus, Search, SearchCheck, Trash2, UserRound, X } from "lucide-react";
+import { ArrowLeft, Filter, MapPinned, Plus, Search, SearchCheck, Trash2, UserRound, X } from "lucide-react";
 import { useAppState } from "@/features/site/shared/lib/app-state";
 import { LoadingOverlay } from "@/features/site/shared/components/LoadingOverlay";
 import { CustomSelect } from "@/features/site/shared/components/form-controls/CustomSelect";
@@ -57,11 +57,13 @@ const UtilityRow = styled.div`
   flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
+  min-width: 0;
 `;
 
 const Toolbar = styled.div`
   display: grid;
   gap: 12px;
+  min-width: 0;
 `;
 
 const SearchBar = styled.div`
@@ -86,6 +88,7 @@ const MobileFilterBar = styled.div`
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 10px;
     align-items: center;
+    min-width: 0;
   }
 `;
 
@@ -156,30 +159,6 @@ const MobileFilterCount = styled.span`
   }
 `;
 
-const MobileFilterSummary = styled.div`
-  display: none;
-
-  @media (max-width: 640px) {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-top: -2px;
-  }
-`;
-
-const MobileFilterPill = styled.span`
-  display: inline-flex;
-  align-items: center;
-  min-height: 24px;
-  padding: 0 9px;
-  border-radius: 999px;
-  border: 1px solid var(--color-outline);
-  background: color-mix(in srgb, var(--color-surface-2) 84%, white);
-  color: var(--color-muted);
-  font-size: 0.72rem;
-  font-weight: 700;
-`;
-
 const FilterSheetOverlay = styled.button<{ $open?: boolean }>`
   display: none;
 
@@ -218,6 +197,9 @@ const FilterSheet = styled.div<{ $open?: boolean }>`
     transition:
       transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
       opacity 180ms ease;
+    max-height: 80dvh;
+    overflow-y: auto;
+    align-content: start;
   }
 `;
 
@@ -284,20 +266,29 @@ const Input = styled.input`
 const SelectField = styled.div`
   min-width: 180px;
   flex: 1 1 180px;
+
+  @media (max-width: 640px) {
+    min-width: 0;
+  }
 `;
 
 const TabRow = styled.div`
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
-`;
+  min-width: 0;
 
-const UtilityActions = styled.div`
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
+  @media (max-width: 640px) {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    width: 100%;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
 `;
 
 const Tab = styled.button<{ $active?: boolean }>`
@@ -311,6 +302,11 @@ const Tab = styled.button<{ $active?: boolean }>`
   color: ${(props) => (props.$active ? "var(--color-primary)" : "var(--color-text)")};
   font-weight: 700;
   cursor: pointer;
+
+  @media (max-width: 640px) {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
 `;
 
 const Shell = styled.div`
@@ -320,6 +316,7 @@ const Shell = styled.div`
   align-items: start;
   min-height: 0;
   height: 100%;
+  min-width: 0;
 
   @media (max-width: 1100px) {
     grid-template-columns: 1fr;
@@ -335,6 +332,7 @@ const Panel = styled.div`
   display: grid;
   gap: 14px;
   min-height: 0;
+  min-width: 0;
 `;
 
 const ScrollPanel = styled(Panel)`
@@ -343,6 +341,11 @@ const ScrollPanel = styled(Panel)`
   min-height: 0;
   overflow: hidden;
   grid-template-rows: auto minmax(0, 1fr);
+
+  @media (max-width: 640px) {
+    height: auto;
+    max-height: none;
+  }
 `;
 
 const PanelScrollBody = styled.div`
@@ -352,6 +355,11 @@ const PanelScrollBody = styled.div`
   display: grid;
   gap: 14px;
   align-content: start;
+
+  @media (max-width: 640px) {
+    overflow-y: visible;
+    padding-right: 0;
+  }
 `;
 
 const PanelHeader = styled.div`
@@ -365,12 +373,15 @@ const PanelHeader = styled.div`
 const PanelTitleWrap = styled.div`
   display: grid;
   gap: 4px;
+  min-width: 0;
 `;
 
 const PanelTitle = styled.h2`
   margin: 0;
   color: var(--color-text);
   font-size: 1rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
 `;
 
 const PanelCopy = styled.p`
@@ -386,6 +397,7 @@ const LeadList = styled.div`
   min-height: 0;
   overflow-y: auto;
   padding-right: 4px;
+  min-width: 0;
 `;
 
 const LeadRow = styled.button<{ $active?: boolean }>`
@@ -406,6 +418,11 @@ const LeadRow = styled.button<{ $active?: boolean }>`
     box-shadow: var(--shadow-soft);
     border-color: color-mix(in srgb, var(--color-primary) 20%, var(--color-outline));
   }
+
+  @media (max-width: 640px) {
+    padding: 12px;
+    gap: 8px;
+  }
 `;
 
 const LeadTop = styled.div`
@@ -425,6 +442,10 @@ const LeadTitle = styled.strong`
   color: var(--color-text);
   font-size: 0.95rem;
   line-height: 1.35;
+
+  @media (max-width: 640px) {
+    font-size: 0.9rem;
+  }
 `;
 
 const LeadMeta = styled.div`
@@ -434,6 +455,7 @@ const LeadMeta = styled.div`
   flex-wrap: wrap;
   color: var(--color-muted);
   font-size: 0.8rem;
+  min-width: 0;
 `;
 
 const LeadUnreadDot = styled.span`
@@ -446,10 +468,17 @@ const LeadUnreadDot = styled.span`
 `;
 
 const LeadSummary = styled.div`
-  display: grid;
-  gap: 6px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
   color: var(--color-muted);
   font-size: 0.82rem;
+  min-width: 0;
+
+  @media (max-width: 640px) {
+    gap: 4px;
+    font-size: 0.76rem;
+  }
 `;
 
 const StatusPill = styled.span<{ $status: string }>`
@@ -480,6 +509,13 @@ const StatusPill = styled.span<{ $status: string }>`
           : props.$status === "contacted" || props.$status === "assigned" || props.$status === "negotiation"
             ? "#b45309"
             : "var(--color-text)"};
+
+  @media (max-width: 640px) {
+    align-self: flex-start;
+    flex: 0 0 auto;
+    font-size: 0.72rem;
+    min-height: 26px;
+  }
 `;
 
 const InlineGrid = styled.div`
@@ -519,6 +555,17 @@ const Chips = styled.div`
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+
+  @media (max-width: 640px) {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
 `;
 
 const Chip = styled.span`
@@ -539,6 +586,91 @@ const Controls = styled.div`
   gap: 10px;
   flex-wrap: wrap;
   align-items: center;
+
+  @media (max-width: 640px) {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+`;
+
+const MobileDetailBack = styled.button`
+  display: none;
+
+  @media (max-width: 640px) {
+    min-height: 34px;
+    padding: 0 12px;
+    border-radius: 999px;
+    border: 1px solid var(--color-outline);
+    background: var(--color-surface);
+    color: var(--color-text);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+`;
+
+const MobileLeadOverlay = styled.button<{ $open?: boolean }>`
+  display: none;
+
+  @media (max-width: 640px) {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 110;
+    border: none;
+    background: rgba(15, 23, 42, 0.42);
+    opacity: ${(props) => (props.$open ? 1 : 0)};
+    pointer-events: ${(props) => (props.$open ? "auto" : "none")};
+    transition: opacity 180ms ease;
+  }
+`;
+
+const MobileLeadCard = styled.div<{ $open?: boolean }>`
+  display: none;
+
+  @media (max-width: 640px) {
+    display: grid;
+    gap: 14px;
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    z-index: 111;
+    padding: 16px;
+    border-radius: 24px;
+    border: 1px solid var(--color-outline);
+    background: color-mix(in srgb, var(--color-surface-2) 90%, white);
+    box-shadow: 0 24px 64px rgba(15, 23, 42, 0.2);
+    transform: translateY(${(props) => (props.$open ? "0" : "24px")});
+    opacity: ${(props) => (props.$open ? 1 : 0)};
+    pointer-events: ${(props) => (props.$open ? "auto" : "none")};
+    transition:
+      transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 180ms ease;
+    max-height: 86dvh;
+    overflow-y: auto;
+    align-content: start;
+  }
+`;
+
+const MobileLeadHeader = styled.div`
+  display: grid;
+  gap: 10px;
+`;
+
+const MobileLeadTop = styled.div`
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+`;
+
+const MobileLeadMetaGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
 `;
 
 const Textarea = styled.textarea`
@@ -858,13 +990,9 @@ function formatStatus(value: string | null | undefined, t: (key: string) => stri
   return t(statusOptions.find((option) => option.value === value)?.labelKey ?? "hub.status.new");
 }
 
-function formatPipelineStage(value: string | null | undefined, t: (key: string) => string) {
-  return t(pipelineStageOptions.find((option) => option.value === value)?.labelKey ?? "hub.status.new");
-}
-
 function formatLocation(item: InquiryItem, language: "en" | "mm" | "zh" | "th", fallback: string) {
   return [item.township, item.district, item.state_region]
-    .filter(Boolean)
+    .filter((part): part is string => Boolean(part))
     .map((part) => translateLocationName(part, language))
     .join(" / ") || fallback;
 }
@@ -905,6 +1033,19 @@ export function VendorInquiriesView({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [noteModalOpen, setNoteModalOpen] = useState(false);
   const [refreshVersion, setRefreshVersion] = useState(0);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
+  const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 640px)");
+    const syncViewport = (event?: MediaQueryList | MediaQueryListEvent) => {
+      setIsMobileViewport(event ? event.matches : mediaQuery.matches);
+    };
+
+    syncViewport();
+    mediaQuery.addEventListener("change", syncViewport);
+    return () => mediaQuery.removeEventListener("change", syncViewport);
+  }, []);
 
   useEffect(() => {
     if (!authToken) return;
@@ -949,7 +1090,7 @@ export function VendorInquiriesView({
     return () => {
       cancelled = true;
     };
-  }, [authToken, refreshVersion, vendorId]);
+  }, [authToken, refreshVersion, t, vendorId]);
 
   useEffect(() => {
     if (!authToken || !user?.id) return;
@@ -1013,10 +1154,12 @@ export function VendorInquiriesView({
   useEffect(() => {
     if (!filteredItems.length) {
       setSelectedLeadId(null);
+      setMobileDetailOpen(false);
       return;
     }
     if (!selectedLeadId || !filteredItems.some((item) => item.lead_id === selectedLeadId)) {
       setSelectedLeadId(filteredItems[0].lead_id);
+      setMobileDetailOpen(false);
     }
   }, [filteredItems, selectedLeadId]);
 
@@ -1025,17 +1168,6 @@ export function VendorInquiriesView({
     [filteredItems, selectedLeadId]
   );
   const activeFilterCount = Number(statusFilter !== "all") + Number(assigneeFilter !== "all");
-  const mobileFilterPills = [
-    statusFilter !== "all" ? t(statusOptions.find((option) => option.value === statusFilter)?.labelKey ?? "vendor.inquiries.allStatuses") : null,
-    assigneeFilter === "unassigned"
-      ? t("vendor.inquiries.unassigned")
-      : assigneeFilter !== "all"
-        ? assignees.find((assignee) => assignee.user_id === assigneeFilter)?.full_name ||
-          assignees.find((assignee) => assignee.user_id === assigneeFilter)?.email ||
-          assigneeFilter
-        : null,
-  ].filter(Boolean) as string[];
-
   useEffect(() => {
     if (!authToken || !selectedLead?.lead_id || !selectedLead.is_unread) return;
 
@@ -1393,11 +1525,6 @@ export function VendorInquiriesView({
                     {activeFilterCount > 0 ? <MobileFilterCount>{activeFilterCount}</MobileFilterCount> : null}
                   </MobileFilterLauncher>
                 </MobileFilterBar>
-                <MobileFilterSummary>
-                  {mobileFilterPills.map((pill) => (
-                    <MobileFilterPill key={pill}>{pill}</MobileFilterPill>
-                  ))}
-                </MobileFilterSummary>
                 <SearchBar>
                   <Input
                     value={searchQuery}
@@ -1501,6 +1628,7 @@ export function VendorInquiriesView({
               </Toolbar>
 
               <Shell>
+                {(!isMobileViewport || !mobileDetailOpen) ? (
                 <ScrollPanel>
                   <PanelHeader>
                     <PanelTitleWrap>
@@ -1515,7 +1643,10 @@ export function VendorInquiriesView({
                             key={item.lead_id}
                             type="button"
                             $active={item.lead_id === selectedLeadId}
-                            onClick={() => setSelectedLeadId(item.lead_id)}
+                            onClick={() => {
+                              setSelectedLeadId(item.lead_id);
+                              if (isMobileViewport) setMobileDetailOpen(true);
+                            }}
                           >
                             <LeadTop>
                               <LeadMain>
@@ -1533,7 +1664,6 @@ export function VendorInquiriesView({
                               <StatusPill $status={item.status}>{formatStatus(item.status, t)}</StatusPill>
                             </LeadTop>
                             <LeadSummary>
-                              <span>{t("vendor.inquiries.budget")}: {item.budget_range || t("vendor.inquiries.notSpecified")}</span>
                               <span>{t("vendor.inquiries.assigned")}: {item.assigned_member_name || t("vendor.inquiries.unassigned")}</span>
                               <span>{t("vendor.inquiries.sla")}: {formatDateTime(item.sla_due_at, locale, t("vendor.inquiries.notSet"))}</span>
                             </LeadSummary>
@@ -1551,12 +1681,19 @@ export function VendorInquiriesView({
                     )}
                   </PanelScrollBody>
                 </ScrollPanel>
-
+                ) : null}
+                {!isMobileViewport ? (
                 <ScrollPanel>
                   {selectedLead ? (
                     <PanelScrollBody>
                       <PanelHeader>
                         <PanelTitleWrap>
+                          {isMobileViewport ? (
+                            <MobileDetailBack type="button" onClick={() => setMobileDetailOpen(false)}>
+                              <ArrowLeft size={14} />
+                              {t("common.back")}
+                            </MobileDetailBack>
+                          ) : null}
                           <PanelTitle>
                             {formatDealType(selectedLead.deal_type, t)} {formatPropertyTypeValue(selectedLead.property_type, t) || labelize(selectedLead.property_type) || t("vendor.inquiries.unknown")}
                           </PanelTitle>
@@ -1718,7 +1855,157 @@ export function VendorInquiriesView({
                     </PanelScrollBody>
                   )}
                 </ScrollPanel>
+                ) : null}
               </Shell>
+              {isMobileViewport && selectedLead ? (
+                <>
+                  <MobileLeadOverlay type="button" $open={mobileDetailOpen} aria-label={t("common.close")} onClick={() => setMobileDetailOpen(false)} />
+                  <MobileLeadCard $open={mobileDetailOpen} onClick={(event) => event.stopPropagation()}>
+                    <MobileLeadHeader>
+                      <MobileLeadTop>
+                        <PanelTitleWrap>
+                          <MobileDetailBack type="button" onClick={() => setMobileDetailOpen(false)}>
+                            <ArrowLeft size={14} />
+                            {t("common.back")}
+                          </MobileDetailBack>
+                          <PanelTitle>
+                            {formatDealType(selectedLead.deal_type, t)} {formatPropertyTypeValue(selectedLead.property_type, t) || labelize(selectedLead.property_type) || t("vendor.inquiries.unknown")}
+                          </PanelTitle>
+                          <PanelCopy>{formatLocation(selectedLead, language, t("map.locationPending"))}</PanelCopy>
+                        </PanelTitleWrap>
+                        <StatusPill $status={selectedLead.status}>{formatStatus(selectedLead.status, t)}</StatusPill>
+                      </MobileLeadTop>
+                      <MobileLeadMetaGrid>
+                        <SummaryCard>
+                          <SummaryLabel>{t("vendor.inquiries.assigned")}</SummaryLabel>
+                          <SummaryValue>{selectedLead.assigned_member_name || t("vendor.inquiries.unassigned")}</SummaryValue>
+                        </SummaryCard>
+                        <SummaryCard>
+                          <SummaryLabel>{t("vendor.inquiries.slaDue")}</SummaryLabel>
+                          <SummaryValue>{formatDateTime(selectedLead.sla_due_at, locale, t("vendor.inquiries.notSet"))}</SummaryValue>
+                        </SummaryCard>
+                        <SummaryCard>
+                          <SummaryLabel>{t("vendor.inquiries.budget")}</SummaryLabel>
+                          <SummaryValue>{selectedLead.budget_range || t("vendor.inquiries.notSpecified")}</SummaryValue>
+                        </SummaryCard>
+                        <SummaryCard>
+                          <SummaryLabel>{t("vendor.inquiries.contactNumber")}</SummaryLabel>
+                          <SummaryValue>{selectedLead.contact_number || t("vendor.inquiries.notProvided")}</SummaryValue>
+                        </SummaryCard>
+                      </MobileLeadMetaGrid>
+                    </MobileLeadHeader>
+
+                    <Section>
+                      <SectionTitle>{t("vendor.inquiries.leadControls")}</SectionTitle>
+                      <Controls>
+                        <SelectField>
+                          <CustomSelect
+                            id={`lead-status-mobile-sheet-${selectedLead.lead_id}`}
+                            name={`lead-status-mobile-sheet-${selectedLead.lead_id}`}
+                            label={t("vendor.inquiries.status")}
+                            hideLabel
+                            value={selectedLead.status}
+                            onChange={(value) => void handleUpdateLead(selectedLead.lead_id, { status: value })}
+                            disabled={savingLeadId === selectedLead.lead_id}
+                          >
+                            {statusOptions.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {t(option.labelKey)}
+                              </option>
+                            ))}
+                          </CustomSelect>
+                        </SelectField>
+                        <SelectField>
+                          <CustomSelect
+                            id={`lead-stage-mobile-sheet-${selectedLead.lead_id}`}
+                            name={`lead-stage-mobile-sheet-${selectedLead.lead_id}`}
+                            label={t("vendor.inquiries.stage")}
+                            hideLabel
+                            value={selectedLead.pipeline_stage}
+                            onChange={(value) => void handleUpdateLead(selectedLead.lead_id, { pipeline_stage: value })}
+                            disabled={savingLeadId === selectedLead.lead_id}
+                          >
+                            {pipelineStageOptions.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {t(option.labelKey)}
+                              </option>
+                            ))}
+                          </CustomSelect>
+                        </SelectField>
+                        {membershipRole === "owner" || membershipRole === "admin" ? (
+                          <SelectField>
+                            <CustomSelect
+                              id={`lead-assignee-mobile-sheet-${selectedLead.lead_id}`}
+                              name={`lead-assignee-mobile-sheet-${selectedLead.lead_id}`}
+                              label={t("vendor.inquiries.assignee")}
+                              hideLabel
+                              value={selectedLead.assigned_member_user_id ?? ""}
+                              onChange={(value) =>
+                                void handleUpdateLead(selectedLead.lead_id, {
+                                  assigned_member_user_id: value || null,
+                                })
+                              }
+                              disabled={savingLeadId === selectedLead.lead_id}
+                            >
+                              <option value="">{t("vendor.inquiries.unassigned")}</option>
+                              {assignees.map((assignee) => (
+                                <option key={assignee.user_id} value={assignee.user_id}>
+                                  {assignee.full_name || assignee.email || assignee.user_id}
+                                </option>
+                              ))}
+                            </CustomSelect>
+                          </SelectField>
+                        ) : null}
+                      </Controls>
+                    </Section>
+
+                    {buildRequirementChips(selectedLead, t).length ? (
+                      <Section>
+                        <SectionTitle>{t("vendor.inquiries.requirements")}</SectionTitle>
+                        <Chips>
+                          {buildRequirementChips(selectedLead, t).map((requirement) => (
+                            <Chip key={requirement}>{requirement}</Chip>
+                          ))}
+                        </Chips>
+                      </Section>
+                    ) : null}
+
+                    <Section>
+                      <SectionHeader>
+                        <SectionTitle>{t("vendor.inquiries.internalNotes")}</SectionTitle>
+                        <Button type="button" onClick={() => setNoteModalOpen(true)}>
+                          <Plus size={15} style={{ marginRight: 6, verticalAlign: "text-bottom" }} />
+                          {t("vendor.inquiries.addNote")}
+                        </Button>
+                      </SectionHeader>
+                      {selectedLead.notes.length ? (
+                        <NoteList>
+                          {selectedLead.notes.map((note) => (
+                            <NoteItem key={note.id}>
+                              <NoteTop>
+                                <SmallText>
+                                  {(note.author_name || t("vendor.inquiries.teamMember")) + " • " + formatDateTime(note.created_at, locale, t("vendor.inquiries.notSet"))}
+                                </SmallText>
+                                <IconButton
+                                  type="button"
+                                  onClick={() => void handleDeleteNote(selectedLead.lead_id, note.id)}
+                                  disabled={savingLeadId === selectedLead.lead_id}
+                                  aria-label={t("vendor.inquiries.deleteNote")}
+                                >
+                                  <Trash2 size={15} />
+                                </IconButton>
+                              </NoteTop>
+                              <div style={{ color: "var(--color-text)", lineHeight: 1.6 }}>{note.body}</div>
+                            </NoteItem>
+                          ))}
+                        </NoteList>
+                      ) : (
+                        <SmallText>{t("vendor.inquiries.noNotes")}</SmallText>
+                      )}
+                    </Section>
+                  </MobileLeadCard>
+                </>
+              ) : null}
             </>
           )}
         </>

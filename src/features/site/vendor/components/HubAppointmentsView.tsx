@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, type RefObject } from "react";
+import { useEffect, useState, type RefObject } from "react";
 import { Calendar, ChevronLeft, ChevronRight, Clock, Users2 } from "lucide-react";
 import styled from "styled-components";
+import type { Translate } from "@/features/site/shared/lib/i18n";
 
-type Translate = (key: string, vars?: Record<string, unknown>) => string;
-
-type WeekDay = { day: string; date: string; count: number; active?: boolean };
+type WeekDay = { day: string; date: string | number; count: number; active?: boolean };
 type MonthDetail = { id: string; property: string; time: string; assignee: string };
 type MonthCell = { key: string; muted?: boolean; active?: boolean; day: string | number; count: number; details: MonthDetail[] };
 type Assignment = { id: string; name: string; role: string; assigned_count: number };
@@ -308,16 +307,7 @@ const ToggleRow = styled.div<{ $view?: "week" | "month" }>`
   }
 
   @media (max-width: 640px) {
-    width: 148px;
-    height: 30px;
-    padding: 3px;
-
-    &::before {
-      top: 3px;
-      left: 3px;
-      width: calc((100% - 6px) / 2);
-      height: calc(100% - 6px);
-    }
+    display: none;
   }
 `;
 
@@ -633,13 +623,6 @@ const MonthCellEl = styled.div<{ $muted?: boolean; $active?: boolean; $today?: b
     padding: 6px;
     gap: 4px;
   }
-`;
-
-const Dot = styled.span<{ $active?: boolean }>`
-  width: 6px;
-  height: 6px;
-  border-radius: 999px;
-  background: ${(p) => (p.$active ? "var(--color-primary)" : "var(--color-muted)")};
 `;
 
 const Popup = styled.div`
@@ -1117,6 +1100,20 @@ export function HubAppointmentsView(props: HubAppointmentsViewProps) {
     onCreateAppointment, onOpenAppointmentEditor, onResetAssignmentHistory,
   } = props;
   const [mobileAssignmentsOpen, setMobileAssignmentsOpen] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 640px)");
+    const syncViewport = (event?: MediaQueryList | MediaQueryListEvent) => {
+      setIsMobileViewport(event ? event.matches : mediaQuery.matches);
+    };
+
+    syncViewport();
+    mediaQuery.addEventListener("change", syncViewport);
+    return () => mediaQuery.removeEventListener("change", syncViewport);
+  }, []);
+
+  const effectiveCalendarView = isMobileViewport ? "month" : appointmentCalendarView;
 
   const todayKey = new Date().toLocaleDateString("en-CA");
   const assignmentContent = (
@@ -1152,10 +1149,10 @@ export function HubAppointmentsView(props: HubAppointmentsViewProps) {
               <Header>
                 <TitleWrap>
                   <Title><Calendar size={16} style={{ marginRight: 8, verticalAlign: "text-bottom" }} />{t("hub.calendar")}</Title>
-                  <ToggleRow $view={appointmentCalendarView}>
+                  <ToggleRow $view={effectiveCalendarView}>
                     <ToggleButton
                       type="button"
-                      $active={appointmentCalendarView === "week"}
+                      $active={effectiveCalendarView === "week"}
                       onClick={() => {
                         onSetAppointmentPopupDay(null);
                         onSetAppointmentCalendarView("week");
@@ -1166,7 +1163,7 @@ export function HubAppointmentsView(props: HubAppointmentsViewProps) {
 
                     <ToggleButton
                       type="button"
-                      $active={appointmentCalendarView === "month"}
+                      $active={effectiveCalendarView === "month"}
                       onClick={() => {
                         onSetAppointmentPopupDay(null);
                         onSetAppointmentCalendarView("month");
@@ -1191,7 +1188,7 @@ export function HubAppointmentsView(props: HubAppointmentsViewProps) {
                     </Stat>
                   </Stats>
                 <HeaderActions>
-                  {appointmentCalendarView === "month" ? (
+                  {effectiveCalendarView === "month" ? (
                     <MonthNav>
                       <MonthButton type="button" aria-label={t("hub.previousMonth")} onClick={() => { onSetAppointmentPopupDay(null); onSetAppointmentMonthOffset(-1); }}><ChevronLeft size={16} /></MonthButton>
                       <MonthLabel>{appointmentMonthLabel}</MonthLabel>
@@ -1211,7 +1208,7 @@ export function HubAppointmentsView(props: HubAppointmentsViewProps) {
                   )}
                 </HeaderActions>
               </Header>
-              {appointmentCalendarView === "week" ? (
+              {effectiveCalendarView === "week" ? (
                 <>
                   <WeekScroller>
                     <WeekRow>

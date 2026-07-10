@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { getAdminRequestContext } from "@/app/api/admin/_lib/context";
 
 function toOptionalString(value: unknown) {
@@ -25,16 +26,8 @@ function toOptionalIsoDate(value: unknown) {
   return parsed.toISOString();
 }
 
-// Avoid type-level indexing that collapses to `never` in TS.
-// Runtime behavior is unchanged; this simply keeps the query builder typed as `any`.
-type AdminSupabase = any;
-
-
 async function loadAdminVerificationItems(
-  // Supabase query builder types are not inferred reliably here; this keeps runtime behavior while avoiding `never` collapse.
-  supabase: any,
-
-
+  supabase: SupabaseClient,
   statusFilter: string | null
 ) {
   let query = supabase
@@ -53,7 +46,7 @@ async function loadAdminVerificationItems(
     return { error: error.message } as const;
   }
 
-  const requestIds = (requests ?? []).map((item: any) => String(item.id ?? "")).filter(Boolean);
+  const requestIds = (requests ?? []).map((item) => String(item.id ?? "")).filter(Boolean);
 
   const [documentsResult, eventsResult] = await Promise.all([
     requestIds.length
@@ -102,8 +95,7 @@ async function loadAdminVerificationItems(
   }
 
   return {
-    items: (requests ?? []).map((item: any) => {
-
+    items: (requests ?? []).map((item) => {
       const vendorRaw = Array.isArray(item.vendor) ? item.vendor[0] : item.vendor;
       const requesterRaw = Array.isArray(item.requester) ? item.requester[0] : item.requester;
       const reviewerRaw = Array.isArray(item.reviewer) ? item.reviewer[0] : item.reviewer;

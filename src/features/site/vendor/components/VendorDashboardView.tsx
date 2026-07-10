@@ -330,7 +330,7 @@ function labelize(value: string | null | undefined) {
 
 export function VendorDashboardView() {
   const { authToken } = useAppState();
-  const { t, language } = useI18n();
+  const { language } = useI18n();
   const [data, setData] = useState<OverviewPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

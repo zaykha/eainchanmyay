@@ -3,8 +3,7 @@
 import { MapPin, X } from "lucide-react";
 import styled from "styled-components";
 import { Panel } from "@/features/site/shared/components/PageSection";
-
-type Translate = (key: string, vars?: Record<string, unknown>) => string;
+import type { Translate } from "@/features/site/shared/lib/i18n";
 
 type Assignment = {
   id: string;

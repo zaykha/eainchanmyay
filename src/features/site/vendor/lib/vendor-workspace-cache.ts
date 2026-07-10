@@ -14,7 +14,7 @@ function getWorkspaceCacheKey(userId: string, variant: string, vendorId?: string
 export function readWorkspaceCache<T>(userId: string, variant: string, vendorId?: string | null): T | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = window.localStorage.getItem(getWorkspaceCacheKey(userId, variant));
+    const raw = window.localStorage.getItem(getWorkspaceCacheKey(userId, variant, vendorId));
     if (!raw) return null;
     const parsed = JSON.parse(raw) as WorkspaceCacheValue<T>;
     if (typeof parsed?.cachedAt !== "number") return null;
@@ -29,7 +29,7 @@ export function writeWorkspaceCache<T>(userId: string, variant: string, data: T,
   if (typeof window === "undefined") return;
   try {
     window.localStorage.setItem(
-      getWorkspaceCacheKey(userId, variant),
+      getWorkspaceCacheKey(userId, variant, vendorId),
       JSON.stringify({ cachedAt: Date.now(), data } satisfies WorkspaceCacheValue<T>)
     );
   } catch {

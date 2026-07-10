@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import styled, { keyframes } from "styled-components";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -12,8 +12,6 @@ import {
   BedDouble,
   Building2,
   Calendar,
-  ChevronLeft,
-  ChevronRight,
   Clock,
   CheckCircle2,
   Circle,
@@ -30,7 +28,6 @@ import {
   MoreVertical,
   Megaphone,
   MessageSquareText,
-  Pencil,
   Phone,
   Plus,
   Ruler,
@@ -38,9 +35,7 @@ import {
   ShieldCheck,
   Sparkles,
   Tag as TagIcon,
-  Trash2,
   Upload,
-  UserCog,
   Users2,
   X,
 } from "lucide-react";
@@ -236,109 +231,9 @@ const HUB_SUMMARY_TEMPLATE = {
   nextAppointmentAt: HUB_SNAPSHOT_TEMPLATE.nextAppointment?.start_at ?? null,
 };
 
-const HUB_APPOINTMENT_CALENDAR_DAYS = [
-  { day: "Mon", date: 5, active: false, count: 0 },
-  { day: "Tue", date: 6, active: false, count: 1 },
-  { day: "Wed", date: 7, active: false, count: 0 },
-  { day: "Thu", date: 8, active: true, count: 3 },
-  { day: "Fri", date: 9, active: false, count: 4 },
-  { day: "Sat", date: 10, active: false, count: 2 },
-  { day: "Sun", date: 11, active: false, count: 0 },
-];
+type InsightSummaryItem = { key: string; count: number; label?: string };
 
-const HUB_APPOINTMENT_MONTH_COUNTS: Record<number, number> = {
-  2: 1,
-  6: 1,
-  8: 3,
-  9: 4,
-  10: 2,
-  14: 1,
-  16: 2,
-  21: 1,
-  23: 2,
-  28: 1,
-};
-
-const HUB_APPOINTMENT_MONTH_DETAILS: Record<
-  number,
-  Array<{
-    property: string;
-    assignee: string;
-    time: string;
-  }>
-> = {
-  2: [{ property: "Condo viewing with buyer", assignee: "Mya Mya", time: "10:30 AM" }],
-  6: [{ property: "Owner follow-up call", assignee: "Ei Ei", time: "2:00 PM" }],
-  8: [
-    { property: "Condo viewing with buyer", assignee: "Mya Mya", time: "10:30 AM" },
-    { property: "Land site walk-through", assignee: "Ei Ei", time: "3:30 PM" },
-    { property: "Evening buyer callback", assignee: "Ko Ko", time: "6:15 PM" },
-  ],
-  9: [
-    { property: "House follow-up inspection", assignee: "Ko Ko", time: "1:00 PM" },
-    { property: "Owner document review", assignee: "Ei Ei", time: "2:30 PM" },
-    { property: "Broker handoff", assignee: "Mya Mya", time: "4:00 PM" },
-    { property: "Late buyer check-in", assignee: "Ko Ko", time: "7:00 PM" },
-  ],
-  10: [
-    { property: "Shop office key handover", assignee: "Ko Ko", time: "11:00 AM" },
-    { property: "Route planning", assignee: "Ei Ei", time: "4:45 PM" },
-  ],
-  14: [{ property: "Warehouse site visit", assignee: "Ko Ko", time: "9:00 AM" }],
-  16: [
-    { property: "Team check-in", assignee: "Ei Ei", time: "10:00 AM" },
-    { property: "Seller briefing", assignee: "Mya Mya", time: "1:30 PM" },
-  ],
-  21: [{ property: "Buyer reconfirmation", assignee: "Ei Ei", time: "12:00 PM" }],
-  23: [
-    { property: "Condo viewing", assignee: "Mya Mya", time: "11:30 AM" },
-    { property: "House negotiation", assignee: "Ko Ko", time: "4:30 PM" },
-  ],
-  28: [{ property: "Land plot revisit", assignee: "Ei Ei", time: "3:00 PM" }],
-};
-
-const HUB_APPOINTMENT_QUEUE = [
-  {
-    time: "10:30 AM",
-    property: "Condo viewing with buyer",
-    location: "Tamwe",
-    client: "Ko Aung",
-    owner: "Mya Mya",
-    status: "Confirmed",
-  },
-  {
-    time: "1:00 PM",
-    property: "House follow-up inspection",
-    location: "Mayangone",
-    client: "Daw Ei",
-    owner: "Ko Ko",
-    status: "Awaiting staff",
-  },
-  {
-    time: "3:30 PM",
-    property: "Land site walk-through",
-    location: "Bago",
-    client: "U Min",
-    owner: "Ei Ei",
-    status: "Confirmed",
-  },
-  {
-    time: "5:15 PM",
-    property: "Shop office key handover",
-    location: "Lanmadaw",
-    client: "Moe Zay",
-    owner: "Ko Ko",
-    status: "Needs owner note",
-  },
-];
-
-const HUB_APPOINTMENT_ASSIGNMENT_PREVIEW = [
-  { name: "Mya Mya", assignedCount: 3, unassignedShare: 1 },
-  { name: "Ko Ko", assignedCount: 2, unassignedShare: 0 },
-  { name: "Ei Ei", assignedCount: 1, unassignedShare: 0 },
-];
-
-function withOthers<T extends { count: number }>(items: T[], limit = 4): Array<T | (Omit<T, "count"> & { key?: string; count: number; label?: string })> {
+function withOthers<T extends InsightSummaryItem>(items: T[], limit = 4): InsightSummaryItem[] {
   const top = items.slice(0, limit);
   if (items.length <= limit) return top;
   const othersCount = items.slice(limit).reduce((sum, item) => sum + item.count, 0);
@@ -518,83 +413,6 @@ const HeaderActions = styled.div`
 
   @media (max-width: 720px) {
     justify-self: end;
-  }
-`;
-
-const HeaderWorkspaceMenu = styled.div`
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-`;
-
-const HeaderWorkspaceTrigger = styled.button`
-  min-height: 64px;
-  max-width: min(460px, 76vw);
-  padding: 12px 16px 12px 12px;
-  border-radius: 20px;
-  border: 1px solid var(--color-outline);
-  background: rgba(255, 255, 255, 0.96);
-  color: var(--color-text);
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-  cursor: pointer;
-  box-shadow: var(--shadow-soft);
-  text-align: left;
-
-  svg {
-    width: 16px;
-    height: 16px;
-  }
-
-  @media (max-width: 720px) {
-    max-width: min(340px, 86vw);
-    min-height: 58px;
-  }
-`;
-
-const HeaderWorkspaceTriggerAvatar = styled.div<{ $image?: string }>`
-  width: 42px;
-  height: 42px;
-  border-radius: 999px;
-  flex: 0 0 auto;
-  display: grid;
-  place-items: center;
-  color: var(--color-primary);
-  background:
-    ${(props) =>
-      props.$image
-        ? `center / cover no-repeat url("${props.$image}")`
-        : "color-mix(in srgb, var(--color-primary) 10%, white)"};
-  overflow: hidden;
-
-  svg {
-    width: 18px;
-    height: 18px;
-  }
-`;
-
-const HeaderWorkspaceTriggerBody = styled.div`
-  min-width: 0;
-  display: grid;
-  gap: 2px;
-  flex: 1 1 auto;
-
-  strong {
-    font-size: 1.04rem;
-    line-height: 1.2;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  span {
-    font-size: 0.82rem;
-    line-height: 1.2;
-    color: var(--color-muted);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
 `;
 
@@ -808,6 +626,10 @@ const PageShell = styled.div`
   padding: 16px;
   display: grid;
   gap: 16px;
+  @media (max-width: 729px) {
+  gap: 10px;
+  padding: 10px;
+  }
 `;
 
 const List = styled.div`
@@ -1236,30 +1058,6 @@ const VendorSkeletonActions = styled.div`
   }
 `;
 
-const HubSkeletonSection = styled.div`
-  display: grid;
-  gap: 14px;
-`;
-
-const HubSkeletonCard = styled.div`
-  border: 1px solid var(--color-outline);
-  border-radius: 22px;
-  background: color-mix(in srgb, var(--color-surface-2) 78%, white);
-  padding: 16px;
-  display: grid;
-  gap: 12px;
-`;
-
-const HubSkeletonGrid = styled.div`
-  display: grid;
-  gap: 12px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-
-  @media (max-width: 760px) {
-    grid-template-columns: 1fr;
-  }
-`;
-
 const VendorCard = styled(Panel)`
   display: grid;
   gap: 14px;
@@ -1294,44 +1092,6 @@ const VendorTitle = styled.h2`
   @media (max-width: 640px) {
     font-size: 1.18rem;
     line-height: 1.18;
-  }
-`;
-
-const VendorMeta = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-`;
-
-const VendorPill = styled.span<{ $tone?: "success" | "warning" | "neutral" }>`
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  border-radius: 999px;
-  border: 1px solid
-    ${(props) =>
-      props.$tone === "success"
-        ? "rgba(16, 185, 129, 0.28)"
-        : props.$tone === "warning"
-        ? "rgba(245, 158, 11, 0.28)"
-        : "var(--color-outline)"};
-  background: ${(props) =>
-    props.$tone === "success"
-      ? "rgba(16, 185, 129, 0.12)"
-      : props.$tone === "warning"
-      ? "rgba(245, 158, 11, 0.12)"
-      : "var(--color-surface-2)"};
-  color: ${(props) =>
-    props.$tone === "success" ? "#0f766e" : props.$tone === "warning" ? "#b45309" : "var(--color-text)"};
-  font-size: 0.82rem;
-  font-weight: 700;
-
-  @media (max-width: 640px) {
-    gap: 5px;
-    padding: 5px 9px;
-    font-size: 0.76rem;
   }
 `;
 
@@ -1375,28 +1135,6 @@ const VendorActionGrid = styled.div`
   @media (max-width: 640px) {
     grid-template-columns: 1fr;
   }
-`;
-
-const VendorAction = styled(Link)`
-  border: 1px solid var(--color-outline);
-  border-radius: 16px;
-  background: var(--color-surface);
-  padding: 14px 16px;
-  display: grid;
-  gap: 6px;
-  color: inherit;
-  text-decoration: none;
-  box-shadow: var(--shadow-soft);
-`;
-
-const VendorActionTitle = styled.strong`
-  color: var(--color-text);
-`;
-
-const VendorActionCopy = styled.span`
-  color: var(--color-muted);
-  line-height: 1.55;
-  font-size: 0.92rem;
 `;
 
 const VendorSectionTitle = styled.h3`
@@ -1541,65 +1279,6 @@ const HubSectionScroller = styled.div`
   gap: 16px;
 `;
 
-const AppointmentLayout = styled.div`
-  display: grid;
-  gap: 14px;
-`;
-
-const AppointmentTopGrid = styled.div`
-  display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
-  gap: 14px;
-  align-items: start;
-
-  @media (max-width: 1100px) {
-    grid-template-columns: 1fr;
-  }
-`;
-
-const AppointmentCard = styled.div`
-  border: 1px solid var(--color-outline);
-  border-radius: 24px;
-  background: color-mix(in srgb, var(--color-surface-2) 72%, white);
-  padding: 16px;
-  display: grid;
-  gap: 12px;
-  align-content: start;
-`;
-
-const AppointmentCardHeader = styled.div`
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-`;
-
-const AppointmentCardTitleWrap = styled.div`
-  display: grid;
-  gap: 4px;
-`;
-
-const AppointmentCardTitle = styled.h3`
-  margin: 0;
-  font-size: 0.94rem;
-  color: var(--color-text);
-`;
-
-const AppointmentCardCopy = styled.p`
-  margin: 0;
-  color: var(--color-muted);
-  font-size: 0.8rem;
-  line-height: 1.4;
-`;
-
-const AppointmentCardHeaderRight = styled.div`
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-`;
-
 const AppointmentPill = styled.span<{ $tone?: "neutral" | "warning" | "success" }>`
   min-height: 28px;
   padding: 0 10px;
@@ -1629,395 +1308,11 @@ const AppointmentPill = styled.span<{ $tone?: "neutral" | "warning" | "success" 
   font-size: 0.76rem;
   font-weight: 700;
   white-space: nowrap;
-`;
 
-const AppointmentStats = styled.div`
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-
-  @media (max-width: 720px) {
-    grid-template-columns: 1fr;
-  }
-`;
-
-const AppointmentCalendarSplit = styled.div`
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(180px, 1fr);
-  gap: 14px;
-  align-items: start;
-
-  @media (max-width: 900px) {
-    grid-template-columns: 1fr;
-  }
-`;
-
-const AppointmentStatsColumn = styled.div`
-  display: grid;
-  gap: 10px;
-`;
-
-const AppointmentStat = styled.div`
-  border: 1px solid var(--color-outline);
-  border-radius: 18px;
-  background: var(--color-surface);
-  padding: 10px 12px;
-  display: grid;
-  gap: 4px;
-`;
-
-const AppointmentStatLabel = styled.span`
-  color: var(--color-muted);
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-`;
-
-const AppointmentStatValue = styled.strong`
-  color: var(--color-text);
-  font-size: 0.92rem;
-`;
-
-const AppointmentToggleRow = styled.div`
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px;
-  border: 1px solid var(--color-outline);
-  border-radius: 999px;
-  background: var(--color-surface);
-`;
-
-const AppointmentToggleButton = styled.button<{ $active?: boolean }>`
-  min-height: 32px;
-  padding: 0 12px;
-  border-radius: 999px;
-  border: 0;
-  background: ${(props) => (props.$active ? "var(--gradient)" : "transparent")};
-  color: ${(props) => (props.$active ? "#fff" : "var(--color-text)")};
-  font-size: 0.78rem;
-  font-weight: 700;
-  cursor: pointer;
-`;
-
-const AppointmentMonthNav = styled.div`
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-`;
-
-const AppointmentMonthButton = styled.button`
-  width: 32px;
-  height: 32px;
-  border-radius: 999px;
-  border: 1px solid var(--color-outline);
-  background: var(--color-surface);
-  color: var(--color-text);
-  display: grid;
-  place-items: center;
-  cursor: pointer;
-`;
-
-const AppointmentMonthLabel = styled.strong`
-  color: var(--color-text);
-  font-size: 0.84rem;
-`;
-
-const AppointmentWeekScroller = styled.div`
-  overflow-x: auto;
-  padding-bottom: 4px;
-`;
-
-const AppointmentWeekRow = styled.div`
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 10px;
-  min-width: 720px;
-`;
-
-const AppointmentMonthGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 6px;
-`;
-
-const AppointmentMonthWeekdays = styled.div`
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 6px;
-`;
-
-const AppointmentMonthWeekday = styled.div`
-  padding: 0 4px;
-  color: var(--color-muted);
-  font-size: 0.7rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  text-align: center;
-`;
-
-const AppointmentMonthCell = styled.div<{ $muted?: boolean; $active?: boolean }>`
-  min-height: 48px;
-  border: 1px solid
-    ${(props) =>
-      props.$active ? "color-mix(in srgb, var(--color-primary) 18%, var(--color-outline))" : "var(--color-outline)"};
-  border-radius: 18px;
-  background: ${(props) => (props.$active ? "#fff7f8" : "var(--color-surface)")};
-  padding: 7px 8px;
-  display: grid;
-  align-content: start;
-  justify-items: start;
-  gap: 6px;
-  opacity: ${(props) => (props.$muted ? 0.45 : 1)};
-  cursor: ${(props) => (props.$active ? "pointer" : "default")};
-  position: relative;
-`;
-
-const AppointmentDayCell = styled.div<{ $active?: boolean }>`
-  border: 1px solid
-    ${(props) =>
-      props.$active ? "color-mix(in srgb, var(--color-primary) 18%, var(--color-outline))" : "var(--color-outline)"};
-  border-radius: 18px;
-  background: ${(props) => (props.$active ? "#fff7f8" : "var(--color-surface)")};
-  padding: 12px;
-  display: grid;
-  gap: 8px;
-`;
-
-const AppointmentDayName = styled.span`
-  color: var(--color-muted);
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-transform: uppercase;
-`;
-
-const AppointmentDayDate = styled.strong`
-  color: var(--color-text);
-  font-size: 0.86rem;
-`;
-
-const AppointmentCount = styled.span<{ $active?: boolean }>`
-  color: ${(props) => (props.$active ? "var(--color-primary)" : "var(--color-muted)")};
-  font-size: 0.78rem;
-  font-weight: 700;
-`;
-
-const AppointmentMonthCount = styled.span<{ $active?: boolean }>`
-  color: ${(props) => (props.$active ? "var(--color-primary)" : "var(--color-muted)")};
-  font-size: 0.76rem;
-  font-weight: 700;
-`;
-
-const AppointmentDot = styled.span<{ $active?: boolean }>`
-  width: 6px;
-  height: 6px;
-  border-radius: 999px;
-  background: ${(props) => (props.$active ? "var(--color-primary)" : "var(--color-muted)")};
-`;
-
-const AppointmentMonthPopup = styled.div`
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 0;
-  z-index: 5;
-  min-width: 220px;
-  max-width: 260px;
-  border: 1px solid var(--color-outline);
-  border-radius: 18px;
-  background: #fff;
-  box-shadow: var(--frame-shadow);
-  padding: 12px;
-  display: grid;
-  gap: 8px;
-`;
-
-const AppointmentMonthPopupTitle = styled.strong`
-  color: var(--color-text);
-  font-size: 0.84rem;
-`;
-
-const AppointmentMonthPopupList = styled.div`
-  display: grid;
-  gap: 6px;
-`;
-
-const AppointmentMonthPopupItem = styled.div`
-  text-align: left;
-  width: 100%;
-  cursor: pointer;
-  appearance: none;
-  -webkit-appearance: none;
-  border: 1px solid var(--color-outline);
-  border-radius: 14px;
-  background: var(--color-surface);
-  padding: 8px 10px;
-  display: grid;
-  gap: 3px;
-`;
-
-const AppointmentMonthPopupProperty = styled.strong`
-  color: var(--color-text);
-  font-size: 0.8rem;
-  line-height: 1.35;
-`;
-
-const AppointmentMonthPopupMeta = styled.div`
-  color: var(--color-muted);
-  font-size: 0.76rem;
-  line-height: 1.35;
-`;
-
-const AppointmentAssignmentList = styled.div`
-  display: grid;
-  gap: 10px;
-  max-height: 206px;
-  overflow-y: auto;
-  padding-right: 4px;
-  align-content: start;
-`;
-
-const AppointmentAssignmentRow = styled.button`
-  border: 1px solid var(--color-outline);
-  border-radius: 14px;
-  background: var(--color-surface);
-  padding: 10px 12px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  width: 100%;
-  text-align: left;
-  cursor: pointer;
-  transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
-
-  &:hover {
-    transform: translateY(-1px);
-    border-color: color-mix(in srgb, var(--color-primary) 24%, var(--color-outline));
-    box-shadow: var(--shadow-soft);
-    background: color-mix(in srgb, var(--color-surface) 88%, white);
-  }
-`;
-
-const AppointmentAssignmentTop = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-`;
-
-const AppointmentAssignmentName = styled.strong`
-  color: var(--color-text);
-  font-size: 0.86rem;
-`;
-
-const AppointmentAssignmentMeta = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--color-muted);
-  font-size: 0.74rem;
-  flex-wrap: wrap;
-`;
-
-const AppointmentQueueList = styled.div`
-  display: grid;
-  gap: 10px;
-  max-height: 372px;
-  overflow-y: auto;
-  padding-right: 4px;
-  align-content: start;
-`;
-
-const AppointmentQueueRow = styled.div`
-  border: 1px solid var(--color-outline);
-  border-radius: 18px;
-  background: var(--color-surface);
-  padding: 14px 16px;
-  width: 100%;
-  text-align: left;
-  cursor: pointer;
-  display: grid;
-  grid-template-columns: 92px minmax(0, 1.4fr) minmax(0, 0.8fr) auto;
-  gap: 14px;
-  align-items: center;
-
-  @media (max-width: 980px) {
-    grid-template-columns: 1fr;
-  }
-`;
-
-const AppointmentQueueTime = styled.div`
-  display: grid;
-  gap: 4px;
-`;
-
-const AppointmentQueueTimeValue = styled.strong`
-  color: var(--color-text);
-  font-size: 0.96rem;
-`;
-
-const AppointmentQueueTimeLabel = styled.span`
-  color: var(--color-muted);
-  font-size: 0.68rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-`;
-
-const AppointmentQueueMain = styled.div`
-  display: grid;
-  gap: 6px;
-`;
-
-const AppointmentQueueTitle = styled.strong`
-  color: var(--color-text);
-  font-size: 0.94rem;
-  line-height: 1.3;
-`;
-
-const AppointmentQueueMeta = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: var(--color-muted);
-  font-size: 0.8rem;
-  flex-wrap: wrap;
-`;
-
-const AppointmentQueueSide = styled.div`
-  display: grid;
-  gap: 4px;
-`;
-
-const AppointmentQueueSideLabel = styled.span`
-  color: var(--color-muted);
-  font-size: 0.68rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-`;
-
-const AppointmentQueueSideValue = styled.strong`
-  color: var(--color-text);
-  font-size: 0.84rem;
-`;
-
-const ListingDetailViewport = styled(HubSectionViewport)`
   @media (max-width: 640px) {
-    min-height: auto;
-    max-height: none;
-    height: auto;
-    overflow: visible;
-  }
-`;
-
-const ListingDetailScroller = styled(HubSectionScroller)`
-  @media (max-width: 640px) {
-    min-height: auto;
-    height: auto;
-    overflow: visible;
-    padding-right: 0;
+    min-height: 24px;
+    padding: 0 8px;
+    font-size: 0.72rem;
   }
 `;
 
@@ -2062,16 +1357,6 @@ const WorkspaceSectionCopy = styled.p`
   line-height: 1.55;
 `;
 
-const WorkspaceGrid = styled.div`
-  display: grid;
-  gap: 14px;
-  grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
-
-  @media (max-width: 1100px) {
-    grid-template-columns: 1fr;
-  }
-`;
-
 const WorkspacePanel = styled.div`
   border: 1px solid var(--color-outline);
   border-radius: 22px;
@@ -2079,6 +1364,12 @@ const WorkspacePanel = styled.div`
   padding: 16px;
   display: grid;
   gap: 14px;
+
+  @media (max-width: 640px) {
+    padding: 12px;
+    gap: 10px;
+    border-radius: 18px;
+  }
 `;
 
 const WorkspacePanelTitle = styled.strong`
@@ -2090,34 +1381,19 @@ const WorkspacePanelCopy = styled.span`
   color: var(--color-muted);
   font-size: 0.88rem;
   line-height: 1.5;
+
+  @media (max-width: 640px) {
+    font-size: 0.8rem;
+    line-height: 1.35;
+  }
 `;
 
-const WorkspaceSummaryList = styled.div`
-  display: grid;
-  gap: 10px;
-`;
+const MobileCompactCopy = styled.span`
+  display: none;
 
-const WorkspaceSummaryRow = styled.div`
-  border: 1px solid var(--color-outline);
-  border-radius: 16px;
-  background: var(--color-surface);
-  padding: 12px 14px;
-  display: grid;
-  gap: 4px;
-`;
-
-const WorkspaceSummaryLabel = styled.span`
-  color: var(--color-muted);
-  font-size: 0.78rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-`;
-
-const WorkspaceSummaryValue = styled.strong`
-  color: var(--color-text);
-  font-size: 0.98rem;
-  line-height: 1.4;
+  @media (max-width: 640px) {
+    display: inline;
+  }
 `;
 
 const WorkspaceSummaryHint = styled.span`
@@ -2134,6 +1410,10 @@ const TeamInviteGrid = styled.div`
   @media (max-width: 980px) {
     grid-template-columns: 1fr;
   }
+
+  @media (max-width: 640px) {
+    gap: 8px;
+  }
 `;
 
 const TeamSectionStack = styled.div`
@@ -2141,11 +1421,71 @@ const TeamSectionStack = styled.div`
   gap: 14px;
 `;
 
+const DesktopOnlyBlock = styled.div`
+  @media (max-width: 640px) {
+    display: none;
+  }
+`;
+
 const TeamSummaryBar = styled.div`
   display: flex;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+
+  @media (max-width: 640px) {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+`;
+
+const TeamMobileActions = styled.div`
+  display: none;
+
+  @media (max-width: 640px) {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: -4px;
+  }
+`;
+
+const TeamMobileIconButton = styled.button`
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  border: 1px solid var(--color-outline);
+  background: var(--color-surface);
+  color: var(--color-text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  flex: 0 0 38px;
+`;
+
+const TeamMobileCount = styled.span`
+  position: absolute;
+  top: -4px;
+  right: -2px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: white;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  font-weight: 700;
 `;
 
 const TeamSummaryItem = styled.div`
@@ -2157,6 +1497,13 @@ const TeamSummaryItem = styled.div`
   display: inline-flex;
   align-items: center;
   gap: 8px;
+
+  @media (max-width: 640px) {
+    min-height: 34px;
+    padding: 0 10px;
+    gap: 6px;
+    flex: 0 0 auto;
+  }
 `;
 
 const TeamSummaryItemLabel = styled.span`
@@ -2165,263 +1512,20 @@ const TeamSummaryItemLabel = styled.span`
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+
+  @media (max-width: 640px) {
+    font-size: 0.66rem;
+    letter-spacing: 0.04em;
+  }
 `;
 
 const TeamSummaryItemValue = styled.strong`
   color: var(--color-text);
   font-size: 0.92rem;
-`;
 
-const RolePolicyGrid = styled.div`
-  display: grid;
-  gap: 12px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-
-  @media (max-width: 980px) {
-    grid-template-columns: 1fr;
+  @media (max-width: 640px) {
+    font-size: 0.82rem;
   }
-`;
-
-const RolePolicyCard = styled.div`
-  border: 1px solid var(--color-outline);
-  border-radius: 18px;
-  background: var(--color-surface);
-  padding: 14px;
-  display: grid;
-  gap: 10px;
-`;
-
-const RolePolicyHeader = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  flex-wrap: wrap;
-`;
-
-const RolePolicyTitle = styled.strong`
-  color: var(--color-text);
-  font-size: 0.94rem;
-`;
-
-const RolePolicyList = styled.div`
-  display: grid;
-  gap: 7px;
-`;
-
-const RolePolicyItem = styled.div`
-  color: var(--color-muted);
-  font-size: 0.84rem;
-  line-height: 1.45;
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-`;
-
-const OrgSettingsLayout = styled.div`
-  display: grid;
-  gap: 14px;
-  grid-template-columns: minmax(0, 1.15fr) minmax(340px, 0.85fr);
-
-  @media (max-width: 1100px) {
-    grid-template-columns: 1fr;
-  }
-`;
-
-const OrgIdentityCard = styled.div`
-  border: 1px solid var(--color-outline);
-  border-radius: 24px;
-  background: color-mix(in srgb, var(--color-surface-2) 82%, white);
-  padding: 18px;
-  display: grid;
-  gap: 16px;
-`;
-
-const OrgIdentityTop = styled.div`
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 14px;
-  flex-wrap: wrap;
-`;
-
-const OrgIdentityMain = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  min-width: 0;
-`;
-
-const OrgIdentityLogo = styled.div<{ $image?: string }>`
-  width: 68px;
-  height: 68px;
-  border-radius: 20px;
-  border: 1px solid var(--color-outline);
-  background: ${(props) =>
-    props.$image ? `center / cover no-repeat url("${props.$image}")` : "color-mix(in srgb, var(--color-surface) 88%, white)"};
-  color: var(--color-text);
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  flex: 0 0 auto;
-`;
-
-const OrgIdentityText = styled.div`
-  display: grid;
-  gap: 5px;
-  min-width: 0;
-`;
-
-const OrgIdentityName = styled.h4`
-  margin: 0;
-  color: var(--color-text);
-  font-size: 1.36rem;
-  line-height: 1.1;
-`;
-
-const OrgIdentitySlug = styled.div`
-  color: var(--color-muted);
-  font-size: 0.9rem;
-  line-height: 1.4;
-  word-break: break-word;
-`;
-
-const OrgIdentityMeta = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-`;
-
-const OrgActionRow = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-`;
-
-const OrgSnapshotGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-
-  @media (max-width: 760px) {
-    grid-template-columns: 1fr;
-  }
-`;
-
-const OrgSnapshotCard = styled.div`
-  border: 1px solid var(--color-outline);
-  border-radius: 18px;
-  background: var(--color-surface);
-  padding: 14px;
-  display: grid;
-  gap: 8px;
-`;
-
-const OrgSnapshotLabel = styled.span`
-  color: var(--color-muted);
-  font-size: 0.76rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-`;
-
-const OrgSnapshotValue = styled.strong`
-  color: var(--color-text);
-  font-size: 0.98rem;
-  line-height: 1.4;
-`;
-
-const OrgSnapshotHint = styled.span`
-  color: var(--color-muted);
-  font-size: 0.82rem;
-  line-height: 1.45;
-`;
-
-const OrgChannelTags = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-`;
-
-const OrgChannelTag = styled.span`
-  min-height: 32px;
-  padding: 0 12px;
-  border-radius: 999px;
-  border: 1px solid var(--color-outline);
-  background: color-mix(in srgb, var(--color-surface-2) 80%, white);
-  color: var(--color-text);
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.8rem;
-  font-weight: 700;
-`;
-
-const OrgRoleColumn = styled.div`
-  display: grid;
-  gap: 12px;
-`;
-
-const OrgRoleHeader = styled.div`
-  display: grid;
-  gap: 4px;
-`;
-
-const OrgRoleTitle = styled.h4`
-  margin: 0;
-  color: var(--color-text);
-  font-size: 1.18rem;
-`;
-
-const OrgRoleCopy = styled.p`
-  margin: 0;
-  color: var(--color-muted);
-  font-size: 0.9rem;
-  line-height: 1.5;
-`;
-
-const OrgRoleStack = styled.div`
-  display: grid;
-  gap: 10px;
-`;
-
-const OrgRoleCard = styled.div`
-  border: 1px solid var(--color-outline);
-  border-radius: 18px;
-  background: var(--color-surface);
-  padding: 14px;
-  display: grid;
-  gap: 10px;
-`;
-
-const OrgRoleCardHeader = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  flex-wrap: wrap;
-`;
-
-const OrgRoleCardTitle = styled.strong`
-  color: var(--color-text);
-  font-size: 0.95rem;
-`;
-
-const OrgRoleBulletList = styled.div`
-  display: grid;
-  gap: 7px;
-`;
-
-const OrgRoleBullet = styled.div`
-  color: var(--color-muted);
-  font-size: 0.83rem;
-  line-height: 1.45;
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
 `;
 
 const SettingsIndexGrid = styled.div`
@@ -2539,6 +1643,13 @@ const CompactTextInput = styled.input`
     border-color: color-mix(in srgb, var(--color-primary) 24%, var(--color-outline));
     box-shadow: 0 0 0 3px rgba(235, 35, 64, 0.08);
   }
+
+  @media (max-width: 640px) {
+    min-height: 42px;
+    border-radius: 14px;
+    padding: 0 14px;
+    font-size: 0.88rem;
+  }
 `;
 
 const CompactSelectWrap = styled.div`
@@ -2548,6 +1659,14 @@ const CompactSelectWrap = styled.div`
     padding-bottom: 0;
     border-radius: 16px;
     font-size: 0.96rem;
+  }
+
+  @media (max-width: 640px) {
+    .Control {
+      min-height: 42px;
+      border-radius: 14px;
+      font-size: 0.88rem;
+    }
   }
 `;
 
@@ -2588,6 +1707,13 @@ const CompactCTAButton = styled(CTAButton)`
   padding: 0 18px;
   border-radius: 16px;
   font-size: 0.94rem;
+
+  @media (max-width: 640px) {
+    min-height: 42px;
+    width: 100%;
+    border-radius: 14px;
+    font-size: 0.88rem;
+  }
 `;
 
 const TeamMembersList = styled.div`
@@ -2596,17 +1722,29 @@ const TeamMembersList = styled.div`
   max-height: 420px;
   overflow-y: auto;
   padding-right: 4px;
+
+  @media (max-width: 640px) {
+    max-height: none;
+    overflow-y: visible;
+    padding-right: 0;
+    gap: 8px;
+  }
 `;
 
 const TeamMemberCard = styled.div`
   border: 1px solid var(--color-outline);
   border-radius: 18px;
   background: var(--color-surface);
-  padding: 12px 14px;
   display: grid;
   gap: 10px;
   position: relative;
   padding: 16px 14px;
+
+  @media (max-width: 640px) {
+    padding: 12px;
+    gap: 8px;
+    border-radius: 16px;
+  }
 `;
 
 const MemberActionsButton = styled.button`
@@ -2628,48 +1766,93 @@ const MemberActionsButton = styled.button`
   }
 `;
 
-const ActionMenuItem = styled.button<{ $danger?: boolean }>`
-  width: 100%;
-  min-height: 52px;
-  padding: 0 16px;
-  border-radius: 14px;
-  border: 1px solid var(--color-outline);
-  background: var(--color-surface);
-  color: ${(props) => (props.$danger ? "var(--color-danger)" : "var(--color-text)")};
-  font-weight: 700;
-  font-size: 0.96rem;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  cursor: pointer;
-
-  &:hover {
-    background: var(--color-surface-2);
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-`;
-
 const TeamMemberTop = styled.div`
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
+
+  @media (max-width: 640px) {
+    gap: 8px;
+  }
 `;
 
 const TeamMemberName = styled.strong`
   color: var(--color-text);
   font-size: 0.96rem;
+
+  @media (max-width: 640px) {
+    font-size: 0.9rem;
+  }
 `;
 
 const TeamMemberMeta = styled.div`
   color: var(--color-muted);
   font-size: 0.82rem;
   line-height: 1.45;
+
+  @media (max-width: 640px) {
+    font-size: 0.76rem;
+    line-height: 1.3;
+  }
+`;
+
+const TeamMemberPills = styled.div`
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+
+  @media (max-width: 640px) {
+    gap: 6px;
+  }
+`;
+
+const TeamMobileModalCard = styled(Panel)`
+  max-width: 720px;
+  width: min(720px, 94vw);
+  display: grid;
+  gap: 14px;
+
+  @media (max-width: 640px) {
+    width: 100%;
+    max-width: none;
+    min-height: auto;
+    max-height: 80dvh;
+    overflow-y: auto;
+    border-radius: 24px 24px 0 0;
+    align-self: end;
+    padding: 16px;
+    gap: 12px;
+  }
+`;
+
+const TeamMobileModalHeader = styled.div`
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+
+  @media (max-width: 640px) {
+    position: sticky;
+    top: 0;
+    background: inherit;
+    z-index: 1;
+  }
+`;
+
+const ModalCloseIconButton = styled.button`
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 1px solid var(--color-outline);
+  background: var(--color-surface);
+  color: var(--color-text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex: 0 0 36px;
 `;
 
 const ToastMessage = styled.div<{ $type?: 'success' | 'error' }>`
@@ -2700,245 +1883,6 @@ const PrimaryAction = styled(CTAButton)<{ $danger?: boolean }>`
   `}
 `;
 
-const ListingDetailHeader = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-
-  @media (max-width: 640px) {
-    align-items: flex-start;
-  }
-`;
-
-const ListingDetailBack = styled.button`
-  min-height: 34px;
-  padding: 0 12px;
-  border-radius: 999px;
-  border: 1px solid var(--color-outline);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-size: 0.82rem;
-  font-weight: 700;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-
-  @media (max-width: 640px) {
-    min-height: 32px;
-    min-width: 32px;
-    padding: 0;
-    justify-content: center;
-    flex: 0 0 32px;
-  }
-`;
-
-const ListingDetailTitleWrap = styled.div`
-  display: grid;
-  gap: 4px;
-`;
-
-const ListingDetailTitleRow = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-`;
-
-const ListingDetailTitle = styled.h3`
-  margin: 0;
-  font-size: 1.05rem;
-  color: var(--color-text);
-`;
-
-const ListingDetailCopy = styled.p`
-  margin: 0;
-  color: var(--color-muted);
-  line-height: 1.45;
-
-  @media (max-width: 640px) {
-    display: none;
-  }
-`;
-
-const ListingDetailBackLabel = styled.span`
-  @media (max-width: 640px) {
-    display: none;
-  }
-`;
-
-const ListingDetailHeaderCTA = styled(CTAButton)`
-  min-height: 32px;
-  padding: 0 10px;
-  border-radius: 999px;
-  font-size: 0.78rem;
-  line-height: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-
-  @media (max-width: 640px) {
-    min-height: 28px;
-    padding: 0 9px;
-    font-size: 0.72rem;
-  }
-`;
-
-const ListingDetailHero = styled.div`
-  display: grid;
-  grid-template-columns: minmax(228px, 0.88fr) minmax(0, 1.12fr);
-  gap: 12px;
-
-  @media (max-width: 980px) {
-    grid-template-columns: 1fr;
-  }
-`;
-
-const ListingDetailImage = styled.div<{ $image?: string }>`
-  min-height: 220px;
-  border-radius: 20px;
-  border: 1px solid var(--color-outline);
-  background: ${(props) =>
-    props.$image ? `center / cover no-repeat url(${props.$image})` : "color-mix(in srgb, var(--color-surface) 92%, white)"};
-  display: grid;
-  place-items: center;
-  color: var(--color-muted);
-  overflow: hidden;
-`;
-
-const ListingDetailInfo = styled.div`
-  display: grid;
-  gap: 10px;
-  border: 1px solid var(--color-outline);
-  border-radius: 20px;
-  background: color-mix(in srgb, var(--color-surface-2) 72%, white);
-  padding: 14px;
-`;
-
-const ListingDetailPrice = styled.div`
-  color: var(--color-text);
-  font-size: 1.2rem;
-  font-weight: 800;
-  line-height: 1.1;
-`;
-
-const ListingDetailMetaGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-
-  @media (max-width: 980px) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  @media (max-width: 640px) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-`;
-
-const ListingDetailMetaCard = styled.div<{ $wide?: boolean }>`
-  border: 1px solid var(--color-outline);
-  border-radius: 16px;
-  background: var(--color-surface);
-  padding: 10px 12px;
-  display: grid;
-  gap: 4px;
-  align-content: start;
-  min-height: 76px;
-  ${(props) => (props.$wide ? "grid-column: span 2;" : "")}
-
-  @media (max-width: 640px) {
-    min-height: 68px;
-  }
-`;
-
-const ListingDetailMetaLabel = styled.span`
-  color: var(--color-muted);
-  font-size: 0.72rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-`;
-
-const ListingDetailMetaValue = styled.strong`
-  color: var(--color-text);
-  font-size: 0.8rem;
-  line-height: 1.3;
-`;
-
-const ListingDetailLocationValue = styled.div`
-  display: grid;
-  gap: 4px;
-`;
-
-const ListingDetailLocationPrimary = styled.strong`
-  color: var(--color-text);
-  font-size: 0.86rem;
-  line-height: 1.25;
-`;
-
-const ListingDetailLocationSecondary = styled.span`
-  color: var(--color-muted);
-  font-size: 0.74rem;
-  line-height: 1.25;
-`;
-
-const ListingDetailPillRow = styled.div`
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  flex-wrap: wrap;
-  align-items: center;
-`;
-
-const ListingDetailPills = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-`;
-
-const ListingStatusPillButton = styled.button<{ $tone?: "neutral" | "warning" | "success" }>`
-  min-height: 28px;
-  padding: 0 10px;
-  border-radius: 999px;
-  border: 1px solid
-    ${(props) =>
-      props.$tone === "warning"
-        ? "rgba(235, 35, 64, 0.14)"
-        : props.$tone === "success"
-          ? "rgba(16, 185, 129, 0.14)"
-          : "var(--color-outline)"};
-  background: ${(props) =>
-    props.$tone === "warning"
-      ? "#fff1f3"
-      : props.$tone === "success"
-        ? "#ecfdf5"
-        : "var(--color-surface)"};
-  color: ${(props) =>
-    props.$tone === "warning"
-      ? "#b4233a"
-      : props.$tone === "success"
-        ? "#0f766e"
-        : "var(--color-text)"};
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.76rem;
-  font-weight: 700;
-  white-space: nowrap;
-  cursor: pointer;
-  box-shadow: 0 8px 16px rgba(15, 23, 42, 0.08);
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    box-shadow: none;
-  }
-`;
-
 const ListingStatusSelectWrap = styled.div`
   min-width: 220px;
   max-width: 280px;
@@ -2948,149 +1892,6 @@ const ListingStatusMessage = styled.div<{ $tone?: "danger" | "success" }>`
   color: ${(props) => (props.$tone === "danger" ? "var(--color-danger)" : "#0f766e")};
   font-size: 0.82rem;
   font-weight: 600;
-`;
-
-const ListingPromoteAction = styled.button`
-  min-height: 24px;
-  padding: 0 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(236, 72, 153, 0.18);
-  background: linear-gradient(135deg, #fff1f7 0%, #ffe4ef 100%);
-  color: #be185d;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.72rem;
-  font-weight: 700;
-  cursor: pointer;
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-`;
-
-const ListingDetailActions = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-`;
-
-const ListingDetailIconAction = styled.button<{ $tone?: "danger" }>`
-  width: 28px;
-  height: 28px;
-  border-radius: 999px;
-  border: 1px solid
-    ${(props) =>
-      props.$tone === "danger" ? "rgba(225, 29, 72, 0.18)" : "color-mix(in srgb, var(--color-primary) 18%, var(--color-outline))"};
-  background: ${(props) => (props.$tone === "danger" ? "#fff1f2" : "#fff1f3")};
-  color: ${(props) => (props.$tone === "danger" ? "#be123c" : "var(--color-primary)")};
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  box-shadow: 0 10px 18px rgba(15, 23, 42, 0.08);
-
-  &:disabled {
-    opacity: 0.55;
-    cursor: not-allowed;
-    box-shadow: none;
-  }
-`;
-
-const ListingDetailLower = styled.div`
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.8fr);
-  gap: 16px;
-
-  @media (max-width: 1100px) {
-    grid-template-columns: 1fr;
-  }
-`;
-
-const ListingDetailCard = styled.div`
-  border: 1px solid var(--color-outline);
-  border-radius: 24px;
-  background: color-mix(in srgb, var(--color-surface-2) 72%, white);
-  padding: 18px;
-  display: grid;
-  gap: 14px;
-`;
-
-const ListingDetailSectionTitle = styled.h4`
-  margin: 0;
-  color: var(--color-text);
-  font-size: 0.98rem;
-`;
-
-const ListingAppointmentList = styled.div`
-  display: grid;
-  gap: 10px;
-`;
-
-const ListingAppointmentRow = styled.div`
-  border: 1px solid var(--color-outline);
-  border-radius: 18px;
-  background: var(--color-surface);
-  padding: 12px 14px;
-  width: 100%;
-  text-align: left;
-  cursor: pointer;
-  display: grid;
-  grid-template-columns: 88px minmax(0, 1fr) auto;
-  gap: 12px;
-  align-items: center;
-
-  @media (max-width: 720px) {
-    grid-template-columns: 1fr;
-  }
-`;
-
-const ListingAppointmentTime = styled.strong`
-  color: var(--color-text);
-  font-size: 0.9rem;
-`;
-
-const ListingAppointmentMain = styled.div`
-  display: grid;
-  gap: 4px;
-`;
-
-const ListingAppointmentTitle = styled.strong`
-  color: var(--color-text);
-  font-size: 0.88rem;
-`;
-
-const ListingAppointmentMeta = styled.div`
-  color: var(--color-muted);
-  font-size: 0.78rem;
-  line-height: 1.4;
-`;
-
-const ListingStaffList = styled.div`
-  display: grid;
-  gap: 10px;
-`;
-
-const ListingStaffRow = styled.div`
-  border: 1px solid var(--color-outline);
-  border-radius: 18px;
-  background: var(--color-surface);
-  padding: 12px 14px;
-  display: grid;
-  gap: 5px;
-`;
-
-const ListingStaffName = styled.strong`
-  color: var(--color-text);
-  font-size: 0.88rem;
-`;
-
-const ListingStaffMeta = styled.div`
-  color: var(--color-muted);
-  font-size: 0.78rem;
-  line-height: 1.4;
 `;
 
 const HubFeatureHeader = styled.div`
@@ -3369,26 +2170,6 @@ const HubInsightCardValueCentered = styled(HubInsightCardValue)`
   text-align: center;
 `;
 
-const HubInsightCardCopy = styled.div`
-  font-size: 0.92rem;
-  line-height: 1.5;
-  color: var(--color-muted);
-`;
-
-const HubInsightMiniList = styled.div`
-  display: grid;
-  gap: 8px;
-`;
-
-const HubInsightMiniRow = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  font-size: 0.9rem;
-  color: var(--color-text);
-`;
-
 const HubInsightMiniCount = styled.span`
   display: inline-flex;
   align-items: center;
@@ -3401,33 +2182,6 @@ const HubInsightMiniCount = styled.span`
   color: var(--color-text);
   font-size: 0.82rem;
   font-weight: 700;
-`;
-
-const HubInsightBlurBadge = styled.div`
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 18px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.46));
-  pointer-events: none;
-`;
-
-const HubInsightBlurText = styled.span`
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 38px;
-  padding: 0 14px;
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--color-primary) 22%, var(--color-outline));
-  background: rgba(255, 255, 255, 0.86);
-  color: var(--color-primary);
-  font-size: 0.88rem;
-  font-weight: 700;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
-  text-align: center;
 `;
 
 const HUB_INSIGHT_COLORS = ["#f43f5e", "#fb7185", "#f97316", "#22c55e", "#3b82f6", "#8b5cf6"];
@@ -3501,21 +2255,6 @@ const HubInsightStack = styled.div`
   gap: 8px;
 `;
 
-const HubInsightStackTrack = styled.div`
-  display: flex;
-  height: 14px;
-  border-radius: 999px;
-  overflow: hidden;
-  background: color-mix(in srgb, var(--color-surface) 92%, white);
-  border: 1px solid var(--color-outline);
-`;
-
-const HubInsightStackSegment = styled.div<{ $width: number; $color: string }>`
-  width: ${(props) => props.$width}%;
-  background: ${(props) => props.$color};
-  min-width: ${(props) => (props.$width > 0 ? "6px" : "0")};
-`;
-
 const HubInsightLegend = styled.div`
   position: absolute;
   top: calc(100% + 10px);
@@ -3564,15 +2303,6 @@ const HubInsightBarList = styled.div`
 const HubInsightBarRow = styled.div`
   display: grid;
   gap: 0;
-`;
-
-const HubInsightBarMeta = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  font-size: 0.88rem;
-  color: var(--color-text);
 `;
 
 const HubInsightBarTrack = styled.div`
@@ -3742,30 +2472,6 @@ const HubFeatureLock = styled.div`
   color: var(--color-primary);
 `;
 
-const StarterActionIcon = styled.div`
-  width: 36px;
-  height: 36px;
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
-  color: var(--color-primary);
-  display: grid;
-  place-items: center;
-
-  svg {
-    width: 18px;
-    height: 18px;
-  }
-`;
-
-const StarterActionLabel = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  font-weight: 700;
-  color: var(--color-text);
-`;
-
 const HubNavList = styled.div`
   display: grid;
   grid-auto-rows: 64px;
@@ -3922,15 +2628,6 @@ const HubNavIconBadge = styled.span`
   border: 2px solid var(--color-surface);
 `;
 
-const AppointmentUnreadDot = styled.span`
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: var(--color-primary);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-primary) 14%, transparent);
-  flex: 0 0 auto;
-`;
-
 const HubNavBody = styled.div<{ $expanded?: boolean }>`
   display: grid;
   gap: 0;
@@ -3991,22 +2688,6 @@ const HubNavTitle = styled.strong<{ $active?: boolean }>`
       overflow-wrap: anywhere;
     }
   }
-`;
-
-const HubNavBadge = styled.span`
-  min-width: 22px;
-  height: 22px;
-  padding: 0 7px;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--color-primary);
-  color: #fff;
-  font-size: 0.72rem;
-  font-weight: 800;
-  line-height: 1;
-  flex: 0 0 auto;
 `;
 
 const HubNavArrow = styled.div<{ $expanded?: boolean }>`
@@ -4558,18 +3239,13 @@ export default function AccountPage() {
       phone: string | null;
     }>
   >([]);
-  const [showMemberActionsMenuId, setShowMemberActionsMenuId] = useState<string | null>(null);
-  const [showChangeRoleModalId, setShowChangeRoleModalId] = useState<string | null>(null);
-  const [showRemoveMemberModalId, setShowRemoveMemberModalId] = useState<string | null>(null);
-  const [memberBeingEdited, setMemberBeingEdited] = useState<typeof teamMembers[number] | null>(null);
   const [appointmentComposerPropertyLocked, setAppointmentComposerPropertyLocked] = useState(false);
   const [vendorPropertyOptions, setVendorPropertyOptions] = useState<VendorPropertyItem[]>([]);
-  const [vendorPropertyOptionsLoading, setVendorPropertyOptionsLoading] = useState(false);
   const [selectedAppointmentStaffId, setSelectedAppointmentStaffId] = useState<string | null>(null);
   const [showPastStaffAppointments, setShowPastStaffAppointments] = useState(false);
   const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
 
-  const [toastMessage, setToastMessage] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [toastMessage] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [teamInvites, setTeamInvites] = useState<
     Array<{
       id: string;
@@ -4583,13 +3259,13 @@ export default function AccountPage() {
       accepted_at: string | null;
     }>
   >([]);
-  const [newRoleForMember, setNewRoleForMember] = useState("");
   const [teamLoading, setTeamLoading] = useState(false);
   const [teamError, setTeamError] = useState<string | null>(null);
   const [teamInviteEmail, setTeamInviteEmail] = useState("");
   const [teamInviteRole, setTeamInviteRole] = useState("agent");
   const [teamSavingInvite, setTeamSavingInvite] = useState(false);
-  const [teamSavingUserId, setTeamSavingUserId] = useState<string | null>(null);
+  const [mobileTeamInviteOpen, setMobileTeamInviteOpen] = useState(false);
+  const [mobilePendingInvitesOpen, setMobilePendingInvitesOpen] = useState(false);
   const [activeVendorId, setActiveVendorId] = useState<string | null>(null);
   const [vendorWorkspace, setVendorWorkspace] = useState<{
     vendor: {
@@ -4608,6 +3284,7 @@ export default function AccountPage() {
       website_url?: string | null;
       billing_status?: string | null;
       public_storefront_enabled?: boolean;
+      cover_image_url?: string | null;
       slug?: string | null;
       verified_status?: string | null;
     };
@@ -4637,6 +3314,9 @@ export default function AccountPage() {
       livePropertyCount?: number;
       agentCount?: number;
       agentLimit?: number;
+      suggestedUpgrade?: {
+        name?: string;
+      } | null;
     };
   } | null>(null);
   const [vendorWorkspaceError, setVendorWorkspaceError] = useState<string | null>(null);
@@ -4668,9 +3348,11 @@ export default function AccountPage() {
   const canManageTeam = isOwnerOrAdmin;
   const canAccessTeam = canManageTeam && !isFreeAgencyPlan;
   const canInviteAdminSeats = workspaceRole === "owner";
-  const canManageAdminSeats = workspaceRole === "owner";
-  const getFallbackHubSection = (): HubSection => (canAccessHubSnapshot ? "snapshot" : "manage-listings");
-  const isHubSectionAllowed = (section: HubSection) => {
+  const getFallbackHubSection = useCallback(
+    (): HubSection => (canAccessHubSnapshot ? "snapshot" : "manage-listings"),
+    [canAccessHubSnapshot]
+  );
+  const isHubSectionAllowed = useCallback((section: HubSection) => {
     if (section === "manage-listings" || section === "listing-detail") return true;
     if (section === "appointments") return canAccessAppointments;
     if (section === "lead-inbox") return canAccessLeadInbox;
@@ -4682,9 +3364,19 @@ export default function AccountPage() {
     if (section === "verification") return canAccessVerification;
     if (section === "team") return canAccessTeam;
     return false;
-  };
+  }, [
+    canAccessAnalytics,
+    canAccessAppointments,
+    canAccessBoostings,
+    canAccessBulkUpload,
+    canAccessHubSnapshot,
+    canAccessLeadInbox,
+    canAccessSettings,
+    canAccessTeam,
+    canAccessVerification,
+  ]);
 
-  const updateHubSection = (
+  const updateHubSection = useCallback((
     section: HubSection,
     options?: {
       listingId?: string | null;
@@ -4711,7 +3403,7 @@ export default function AccountPage() {
 
     const query = nextParams.toString();
     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
-  };
+  }, [getFallbackHubSection, isHubPath, isHubSectionAllowed, pathname, router, searchParams]);
 
   useEffect(() => {
     const section = searchParams.get("section");
@@ -4734,33 +3426,13 @@ export default function AccountPage() {
     } else if (!section && !canAccessHubSnapshot) {
       setHubSection("manage-listings");
     }
-  }, [
-    searchParams,
-    canAccessAnalytics,
-    canAccessBoostings,
-    canAccessBulkUpload,
-    canAccessHubSnapshot,
-    canAccessSettings,
-    canAccessVerification,
-    canManageTeam,
-    isFreeAgencyPlan,
-  ]);
+  }, [canAccessHubSnapshot, getFallbackHubSection, isHubSectionAllowed, searchParams, updateHubSection]);
 
   useEffect(() => {
     if (!isHubSectionAllowed(hubSection)) {
       updateHubSection(getFallbackHubSection());
     }
-  }, [
-    hubSection,
-    canAccessAnalytics,
-    canAccessBoostings,
-    canAccessBulkUpload,
-    canAccessHubSnapshot,
-    canAccessSettings,
-    canAccessVerification,
-    canManageTeam,
-    isFreeAgencyPlan,
-  ]);
+  }, [getFallbackHubSection, hubSection, isHubSectionAllowed, updateHubSection]);
 
   useEffect(() => {
     const pathContext = deriveActiveContextFromPath(pathname);
@@ -4780,14 +3452,14 @@ export default function AccountPage() {
     }
   }, [userId]);
 
-  const buildVendorHeaders = (contentType = true) =>
+  const buildVendorHeaders = useCallback((contentType = true) =>
     withActiveVendorHeaders(
       {
         ...(contentType ? { "Content-Type": "application/json" } : {}),
         Authorization: `Bearer ${authToken}`,
       },
       activeVendorId
-    );
+    ), [activeVendorId, authToken]);
 
   useEffect(() => {
     setViewingRequests([]);
@@ -4875,7 +3547,7 @@ export default function AccountPage() {
     return () => {
       active = false;
     };
-  }, [activeVendorId, authToken, canAccessHubSnapshot, profileRole, vendorWorkspace?.vendor.plan]);
+  }, [activeVendorId, authToken, buildVendorHeaders, canAccessHubSnapshot, profileRole, vendorWorkspace?.vendor.plan]);
 
   useEffect(() => {
     if (!authToken || profileRole !== "vendor_user" || vendorWorkspace?.vendor.plan === "free") {
@@ -4906,7 +3578,7 @@ export default function AccountPage() {
     return () => {
       active = false;
     };
-  }, [activeVendorId, authToken, leadInboxUnreadVersion, profileRole, vendorWorkspace?.vendor.plan]);
+  }, [activeVendorId, authToken, buildVendorHeaders, leadInboxUnreadVersion, profileRole, vendorWorkspace?.vendor.plan]);
 
   useEffect(() => {
     if (!authToken || profileRole !== "vendor_user" || vendorWorkspace?.vendor.plan === "free") {
@@ -4937,7 +3609,7 @@ export default function AccountPage() {
     return () => {
       active = false;
     };
-  }, [activeVendorId, appointmentUnreadVersion, authToken, profileRole, vendorWorkspace?.vendor.plan]);
+  }, [activeVendorId, appointmentUnreadVersion, authToken, buildVendorHeaders, profileRole, vendorWorkspace?.vendor.plan]);
 
   useEffect(() => {
     if (!authToken || !userId || profileRole !== "vendor_user" || vendorWorkspace?.vendor.plan === "free") return;
@@ -5038,7 +3710,7 @@ export default function AccountPage() {
     return () => {
       active = false;
     };
-  }, [activeVendorId, authToken, hubSection, selectedHubProperty?.id]);
+  }, [activeVendorId, authToken, buildVendorHeaders, hubSection, selectedHubProperty?.id]);
 
   const availableListingStatusOptions = useMemo(() => [...listingStatuses], []);
 
@@ -5181,7 +3853,7 @@ export default function AccountPage() {
     return () => {
       cancelled = true;
     };
-  }, [activeVendorId, authToken, hubSection]);
+  }, [activeVendorId, authToken, buildVendorHeaders, hubSection, t]);
 
   useEffect(() => {
     const shouldLoadAppointmentDashboard = appointmentComposerMode || hubSection === "appointments";
@@ -5229,17 +3901,23 @@ export default function AccountPage() {
     return () => {
       active = false;
     };
-  }, [activeVendorId, Boolean(appointmentComposerMode), appointmentDashboardVersion, authToken, hubSection === "appointments", vendorWorkspace?.vendor.plan]);
+  }, [
+    activeVendorId,
+    appointmentComposerMode,
+    appointmentDashboardVersion,
+    authToken,
+    buildVendorHeaders,
+    hubSection,
+    vendorWorkspace?.vendor.plan,
+  ]);
 
   useEffect(() => {
     if (!authToken || profileRole !== "vendor_user") {
       setVendorPropertyOptions([]);
-      setVendorPropertyOptionsLoading(false);
       return;
     }
 
     let active = true;
-    setVendorPropertyOptionsLoading(true);
 
     fetch("/api/vendor/properties", {
       headers: buildVendorHeaders(false),
@@ -5257,17 +3935,12 @@ export default function AccountPage() {
         if (active) {
           setVendorPropertyOptions([]);
         }
-      })
-      .finally(() => {
-        if (active) {
-          setVendorPropertyOptionsLoading(false);
-        }
       });
 
     return () => {
       active = false;
     };
-  }, [activeVendorId, authToken, profileRole]);
+  }, [activeVendorId, authToken, buildVendorHeaders, profileRole]);
 
   useEffect(() => {
     if (!profileReady || loading) return;
@@ -5570,7 +4243,7 @@ export default function AccountPage() {
     return () => {
       active = false;
     };
-  }, [activeVendorId, authToken, onboardingPending, pathname, profileRole, userId]);
+  }, [activeVendorId, authToken, buildVendorHeaders, onboardingPending, pathname, profileRole, userId]);
 
   const closeDetails = () => {
     setActiveInquiry(null);
@@ -5583,10 +4256,6 @@ export default function AccountPage() {
     setAppointmentComposerPropertyLocked(false);
     setAppointmentEditorError(null);
     setAppointmentEditorSaving(false);
-  };
-
-  const showToast = (message: string, type: 'success' | 'error') => {
-    setToastMessage({ message, type });
   };
 
   const openAppointmentEditor = (appointmentId: string) => {
@@ -5734,91 +4403,9 @@ export default function AccountPage() {
     }
   };
 
-  const handleTeamMemberUpdate = async (memberUserId: string, role: string, status: string, isRemoval: boolean = false) => {
-    if (!authToken) return;
-    setTeamSavingUserId(memberUserId);
-    setTeamError(null);
-    const actionVerb = isRemoval ? "remove" : "update";
-
-    try {
-      const response = await fetch("/api/vendor/team", {
-        method: "PATCH",
-        headers: buildVendorHeaders(),
-        body: JSON.stringify({
-          user_id: memberUserId,
-          role,
-          status,
-        }),
-      });
-      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-
-      if (!response.ok) {
-        throw new Error(
-          payload?.error || t(isRemoval ? "hub.teamMemberRemoveError" : "hub.teamMemberUpdateError")
-        );
-      }
-
-      setTeamMembers((current) =>
-        current.map((member) =>
-          member.user_id === memberUserId
-            ? {
-                ...member,
-                role,
-                status,
-              }
-            : member
-        )
-      );
-      showToast(t(isRemoval ? "hub.teamMemberRemoved" : "hub.teamMemberUpdated"), "success");
-    } catch (error) {
-      const fallbackMessage = t(isRemoval ? "hub.teamMemberRemoveError" : "hub.teamMemberUpdateError");
-      setTeamError(error instanceof Error ? error.message : fallbackMessage);
-      showToast(fallbackMessage, "error");
-    } finally {
-      setShowChangeRoleModalId(null);
-      setTeamSavingUserId(null);
-    }
-  };
-
   const currentVendorPlan = getVendorPlan(vendorWorkspace?.vendor.plan);
   const suggestedUpgrade = getUpgradePlan(vendorWorkspace?.vendor.plan);
   const storefrontReady = vendorWorkspace ? isVendorStorefrontSetupComplete(vendorWorkspace.vendor) : false;
-
-  const handleRoleChangeClick = (member: typeof teamMembers[number]) => {
-    if (!canManageTeamMember(member)) return;
-    setMemberBeingEdited(member);
-    setNewRoleForMember(member.role);
-    setShowChangeRoleModalId(member.user_id);
-    setShowMemberActionsMenuId(null);
-  };
-
-  const handleRemoveMemberClick = (member: typeof teamMembers[number]) => {
-    if (!canManageTeamMember(member)) return;
-    setMemberBeingEdited(member);
-    setShowRemoveMemberModalId(member.user_id);
-    setShowMemberActionsMenuId(null);
-  };
-
-  const handleConfirmRoleChange = async () => {
-    if (!memberBeingEdited || !newRoleForMember) return;
-    const nextRole = canManageAdminSeats ? newRoleForMember : "agent";
-    await handleTeamMemberUpdate(memberBeingEdited.user_id, nextRole, memberBeingEdited.status);
-    setShowChangeRoleModalId(null);
-    setMemberBeingEdited(null);
-    setNewRoleForMember("");
-  };
-
-  const handleConfirmRemoveMember = async () => {
-    if (!memberBeingEdited) return;
-    await handleTeamMemberUpdate(memberBeingEdited.user_id, memberBeingEdited.role, 'inactive', true); // Set status to inactive for removal
-    setShowRemoveMemberModalId(null);
-    setMemberBeingEdited(null);
-  };
-
-  const isSoleOwner = (member: typeof teamMembers[number]) => {
-    return member.role === 'owner' && ownerCount === 1;
-  };
-  const isRemovingSelfAsSoleOwner = (member: typeof teamMembers[number]) => isSoleOwner(member) && member.user_id === user?.id;
 
   const hasAgencyBio = Boolean(vendorWorkspace?.vendor.description?.trim());
   const hasAgencyLogo = Boolean(vendorWorkspace?.vendor.logo_url?.trim());
@@ -6105,7 +4692,10 @@ export default function AccountPage() {
     return new Date(base.getFullYear(), base.getMonth() + appointmentMonthOffset, 1);
   }, [appointmentMonthOffset]);
   const appointmentMonthLabel = appointmentMonthDate.toLocaleString(locale, { month: "long", year: "numeric" });
-  const appointmentDashboardAppointments = appointmentDashboard?.appointments ?? [];
+  const appointmentDashboardAppointments = useMemo(
+    () => appointmentDashboard?.appointments ?? [],
+    [appointmentDashboard]
+  );
   const appointmentStats = appointmentDashboard?.stats ?? { today: 0, unassigned: 0, upcoming: 0 };
   const appointmentWeekDays = useMemo(() => {
     const base = new Date();
@@ -6170,7 +4760,7 @@ export default function AccountPage() {
         active: isActive,
       };
     });
-  }, [appointmentDashboardAppointments, appointmentMonthDate, locale]);
+  }, [appointmentDashboardAppointments, appointmentMonthDate, locale, t]);
   const appointmentAssignments = useMemo(() => appointmentDashboard?.assignments ?? [], [appointmentDashboard]);
   const selectedStaffAssignment = useMemo(
     () => appointmentAssignments.find((staff) => staff.id === selectedAppointmentStaffId) ?? null,
@@ -6180,6 +4770,7 @@ export default function AccountPage() {
     () => appointmentDashboardAppointments.find((appointment) => appointment.id === selectedAppointmentId) ?? null,
     [appointmentDashboardAppointments, selectedAppointmentId]
   );
+  const [appointmentReferenceNow, setAppointmentReferenceNow] = useState(0);
 
   useEffect(() => {
     if (!authToken || !selectedAppointment?.id || selectedAppointment.source !== "viewing_request" || !selectedAppointment.is_unread) {
@@ -6206,37 +4797,47 @@ export default function AccountPage() {
         setAppointmentUnreadVersion((current) => current + 1);
       })
       .catch(() => undefined);
-  }, [activeVendorId, authToken, selectedAppointment?.id, selectedAppointment?.is_unread, selectedAppointment?.source]);
+  }, [authToken, buildVendorHeaders, selectedAppointment]);
+
+  useEffect(() => {
+    setAppointmentReferenceNow(Date.now());
+  }, [
+    appointmentDashboardAppointments,
+    selectedAppointmentStaffId,
+    showPastStaffAppointments,
+    appointmentMonthOffset,
+  ]);
+
   const selectedStaffAppointments = useMemo(() => {
     if (!selectedAppointmentStaffId) return [];
-    const now = Date.now();
     return appointmentDashboardAppointments
       .filter((appointment) => appointment.assigned_staff_id === selectedAppointmentStaffId)
       .filter((appointment) => {
         if (showPastStaffAppointments) return true;
         if (!appointment.start_at) return true;
-        return new Date(appointment.start_at).getTime() >= now;
+        return new Date(appointment.start_at).getTime() >= appointmentReferenceNow;
       })
       .sort((left, right) => {
         const leftTime = left.start_at ? new Date(left.start_at).getTime() : Number.MAX_SAFE_INTEGER;
         const rightTime = right.start_at ? new Date(right.start_at).getTime() : Number.MAX_SAFE_INTEGER;
         return leftTime - rightTime;
       });
-  }, [appointmentDashboardAppointments, selectedAppointmentStaffId, showPastStaffAppointments]);
+  }, [appointmentDashboardAppointments, appointmentReferenceNow, selectedAppointmentStaffId, showPastStaffAppointments]);
   const appointmentQueue = useMemo(
     () =>
       appointmentDashboardAppointments
         .filter((appointment) => {
           if (!appointment.start_at) return false;
-          return new Date(appointment.start_at).getTime() >= Date.now();
+          return new Date(appointment.start_at).getTime() >= appointmentReferenceNow;
         })
         .sort((left, right) => new Date(left.start_at ?? 0).getTime() - new Date(right.start_at ?? 0).getTime())
         .slice(0, 8)
         .map((appointment) => {
           const startAt = appointment.start_at ? new Date(appointment.start_at) : null;
+          const referenceDate = new Date(appointmentReferenceNow);
           const isToday = startAt
             ? new Date(startAt.getFullYear(), startAt.getMonth(), startAt.getDate()).getTime() ===
-              new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()).getTime()
+              new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate()).getTime()
             : false;
           return {
             id: appointment.id,
@@ -6262,7 +4863,7 @@ export default function AccountPage() {
             isUnread: Boolean(appointment.is_unread),
           };
         }),
-    [appointmentDashboardAppointments, locale]
+    [appointmentDashboardAppointments, appointmentReferenceNow, locale, t]
   );
   const selectedPropertyAppointments = useMemo(() => {
     if (!selectedHubPropertyDetail) return [];
@@ -6985,7 +5586,6 @@ export default function AccountPage() {
                         t={t}
                         locale={locale}
                         language={language}
-                        selectedHubPropertyId={selectedHubProperty.id}
                         detail={selectedHubPropertyDetail}
                         loading={selectedHubPropertyLoading}
                         error={selectedHubPropertyError}
@@ -7115,7 +5715,7 @@ export default function AccountPage() {
                                 <GhostButton type="button" onClick={() => updateHubSection("team")}>
                                   {t("vendor.team.title")}
                                 </GhostButton>
-                                {canAccessBilling && vendorWorkspace?.limits?.suggestedUpgrade ? (
+                                {canAccessBilling && suggestedUpgrade ? (
                                   <GhostButton type="button" onClick={() => router.push("/hub/upgrade")}>
                                     {t("analytics.upgradePlan")}
                                   </GhostButton>
@@ -7241,16 +5841,21 @@ export default function AccountPage() {
                     ) : hubSection === "team" && canManageTeam ? (
                       <WorkspaceSectionViewport>
                         <WorkspaceSectionScroller>
-                          <WorkspaceSectionHeader>
-                            <WorkspaceSectionTitleWrap>
-                              <WorkspaceSectionTitle>{t("vendor.team.title")}</WorkspaceSectionTitle>
-                              <WorkspaceSectionCopy>{t("hub.teamSectionCopy")}</WorkspaceSectionCopy>
-                            </WorkspaceSectionTitleWrap>
-                            <AppointmentPill>
-                              <Users2 size={14} />
-                              {t("hub.activeSeatsCount", { count: activeTeamCount, limit: agentLimit })}
-                            </AppointmentPill>
-                          </WorkspaceSectionHeader>
+                          <DesktopOnlyBlock>
+                            <WorkspaceSectionHeader>
+                              <WorkspaceSectionTitleWrap>
+                                <WorkspaceSectionTitle>{t("vendor.team.title")}</WorkspaceSectionTitle>
+                                <WorkspaceSectionCopy>
+                                  <DesktopOnly>{t("hub.teamSectionCopy")}</DesktopOnly>
+                                  <MobileCompactCopy>Manage seats and roles.</MobileCompactCopy>
+                                </WorkspaceSectionCopy>
+                              </WorkspaceSectionTitleWrap>
+                              <AppointmentPill>
+                                <Users2 size={14} />
+                                {t("hub.activeSeatsCount", { count: activeTeamCount, limit: agentLimit })}
+                              </AppointmentPill>
+                            </WorkspaceSectionHeader>
+                          </DesktopOnlyBlock>
                           {teamError ? <HubFeatureCopy>{teamError}</HubFeatureCopy> : null}
                           <TeamSectionStack>
                             <TeamSummaryBar>
@@ -7266,86 +5871,115 @@ export default function AccountPage() {
                                   {t("hub.roleMixValue", { owner: ownerCount, admin: adminCount, agent: agentCount })}
                                 </TeamSummaryItemValue>
                               </TeamSummaryItem>
-                              <TeamSummaryItem>
-                                <TeamSummaryItemLabel>{t("vendor.plan.currentPlan")}</TeamSummaryItemLabel>
-                                <TeamSummaryItemValue>{vendorWorkspace?.limits?.currentPlan?.name || currentVendorPlan.name}</TeamSummaryItemValue>
-                              </TeamSummaryItem>
+                              <DesktopOnlyBlock>
+                                <TeamSummaryItem>
+                                  <TeamSummaryItemLabel>{t("vendor.plan.currentPlan")}</TeamSummaryItemLabel>
+                                  <TeamSummaryItemValue>{vendorWorkspace?.limits?.currentPlan?.name || currentVendorPlan.name}</TeamSummaryItemValue>
+                                </TeamSummaryItem>
+                              </DesktopOnlyBlock>
                             </TeamSummaryBar>
+                            <TeamMobileActions>
+                              <TeamMobileIconButton
+                                type="button"
+                                aria-label={t("vendor.team.addMember")}
+                                onClick={() => setMobileTeamInviteOpen(true)}
+                              >
+                                <Plus size={17} />
+                              </TeamMobileIconButton>
+                              <TeamMobileIconButton
+                                type="button"
+                                aria-label={t("hub.pendingInvites")}
+                                onClick={() => setMobilePendingInvitesOpen(true)}
+                              >
+                                <Mail size={16} />
+                                {teamInvites.length ? <TeamMobileCount>{teamInvites.length}</TeamMobileCount> : null}
+                              </TeamMobileIconButton>
+                            </TeamMobileActions>
+                            <DesktopOnlyBlock>
                               <WorkspacePanel>
-                              <WorkspacePanelTitle>{t("vendor.team.addMember")}</WorkspacePanelTitle>
-                              <WorkspacePanelCopy>
-                                {canInviteAdminSeats
-                                  ? t("hub.teamInviteOwnerCopy")
-                                  : t("vendor.team.inviteCopyAdmin")}
-                              </WorkspacePanelCopy>
-                              {canManageTeam ? (
-                                <TeamInviteGrid>
-                                  <CompactTextInput
-                                    type="email"
-                                    value={teamInviteEmail}
-                                    onChange={(event) => setTeamInviteEmail(event.target.value)}
-                                    placeholder="member@example.com"
-                                  />
-                                  <CompactSelectWrap>
-                                    <CustomSelect
-                                      id="hub-team-role"
-                                      name="hub-team-role"
-                                      label={t("vendor.verification.role")}
-                                      hideLabel
-                                      value={teamInviteRole}
-                                      onChange={setTeamInviteRole}
+                                <WorkspacePanelTitle>{t("vendor.team.addMember")}</WorkspacePanelTitle>
+                                <WorkspacePanelCopy>
+                                  <DesktopOnly>
+                                    {canInviteAdminSeats
+                                      ? t("hub.teamInviteOwnerCopy")
+                                      : t("vendor.team.inviteCopyAdmin")}
+                                  </DesktopOnly>
+                                  <MobileCompactCopy>Invite a new team member.</MobileCompactCopy>
+                                </WorkspacePanelCopy>
+                                {canManageTeam ? (
+                                  <TeamInviteGrid>
+                                    <CompactTextInput
+                                      type="email"
+                                      value={teamInviteEmail}
+                                      onChange={(event) => setTeamInviteEmail(event.target.value)}
+                                      placeholder="member@example.com"
+                                    />
+                                    <CompactSelectWrap>
+                                      <CustomSelect
+                                        id="hub-team-role"
+                                        name="hub-team-role"
+                                        label={t("vendor.verification.role")}
+                                        hideLabel
+                                        value={teamInviteRole}
+                                        onChange={setTeamInviteRole}
+                                      >
+                                        <option value="agent">{t("vendor.team.agent")}</option>
+                                        {canInviteAdminSeats ? <option value="admin">{t("role.admin")}</option> : null}
+                                        {canInviteAdminSeats ? <option value="owner">{t("role.owner")}</option> : null}
+                                      </CustomSelect>
+                                    </CompactSelectWrap>
+                                    <CompactCTAButton
+                                      type="button"
+                                      onClick={() => void handleTeamInvite()}
+                                      disabled={teamSavingInvite || !teamInviteEmail.trim()}
                                     >
-                                      <option value="agent">{t("vendor.team.agent")}</option>
-                                      {canInviteAdminSeats ? <option value="admin">{t("role.admin")}</option> : null}
-                                      {canInviteAdminSeats ? <option value="owner">{t("role.owner")}</option> : null}
-                                    </CustomSelect>
-                                  </CompactSelectWrap>
-                                  <CompactCTAButton
-                                    type="button"
-                                    onClick={() => void handleTeamInvite()}
-                                    disabled={teamSavingInvite || !teamInviteEmail.trim()}
-                                  >
-                                    {teamSavingInvite ? t("vendor.team.sending") : t("vendor.team.sendInvite")}
-                                  </CompactCTAButton>
-                                </TeamInviteGrid>
-                              ) : (
-                                <WorkspaceSummaryHint>{t("hub.teamControlsLimited")}</WorkspaceSummaryHint>
-                              )}
-                            </WorkspacePanel>
-                            <WorkspacePanel>
-                              <WorkspacePanelTitle>{t("hub.pendingInvites")}</WorkspacePanelTitle>
-                              <WorkspacePanelCopy>{t("hub.pendingInvitesCopy")}</WorkspacePanelCopy>
-                              <TeamMembersList>
-                                {teamInvites.length ? (
-                                  teamInvites.map((invite) => (
-                                    <TeamMemberCard key={invite.id}>
-                                      <TeamMemberTop>
-                                        <div style={{ display: "grid", gap: 4 }}>
-                                          <TeamMemberName>{invite.email}</TeamMemberName>
-                                          <TeamMemberMeta>
-                                            {invite.has_existing_account ? t("hub.existingAccount") : t("hub.newAccountOnAcceptance")}
-                                          </TeamMemberMeta>
-                                          {invite.expires_at ? (
-                                            <TeamMemberMeta>{t("hub.expiresOn", { date: new Date(invite.expires_at).toLocaleDateString() })}</TeamMemberMeta>
-                                          ) : null}
-                                        </div>
-                                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                                          <AppointmentPill>{formatTeamRoleLabel(invite.role)}</AppointmentPill>
-                                          <AppointmentPill $tone={invite.status === "accepted" ? "success" : "warning"}>
-                                            {formatInviteStatusLabel(invite.status)}
-                                          </AppointmentPill>
-                                        </div>
-                                      </TeamMemberTop>
-                                    </TeamMemberCard>
-                                  ))
+                                      {teamSavingInvite ? t("vendor.team.sending") : t("vendor.team.sendInvite")}
+                                    </CompactCTAButton>
+                                  </TeamInviteGrid>
                                 ) : (
-                                  <HubFeatureCopy>{t("hub.noPendingInvites")}</HubFeatureCopy>
+                                  <WorkspaceSummaryHint>{t("hub.teamControlsLimited")}</WorkspaceSummaryHint>
                                 )}
-                              </TeamMembersList>
-                            </WorkspacePanel>
+                              </WorkspacePanel>
+                              <WorkspacePanel>
+                                <WorkspacePanelTitle>{t("hub.pendingInvites")}</WorkspacePanelTitle>
+                                <WorkspacePanelCopy>
+                                  <DesktopOnly>{t("hub.pendingInvitesCopy")}</DesktopOnly>
+                                  <MobileCompactCopy>Waiting for acceptance.</MobileCompactCopy>
+                                </WorkspacePanelCopy>
+                                <TeamMembersList>
+                                  {teamInvites.length ? (
+                                    teamInvites.map((invite) => (
+                                      <TeamMemberCard key={invite.id}>
+                                        <TeamMemberTop>
+                                          <div style={{ display: "grid", gap: 4 }}>
+                                            <TeamMemberName>{invite.email}</TeamMemberName>
+                                            <TeamMemberMeta>
+                                              {invite.has_existing_account ? t("hub.existingAccount") : t("hub.newAccountOnAcceptance")}
+                                            </TeamMemberMeta>
+                                            {invite.expires_at ? (
+                                              <TeamMemberMeta>{t("hub.expiresOn", { date: new Date(invite.expires_at).toLocaleDateString() })}</TeamMemberMeta>
+                                            ) : null}
+                                          </div>
+                                          <TeamMemberPills>
+                                            <AppointmentPill>{formatTeamRoleLabel(invite.role)}</AppointmentPill>
+                                            <AppointmentPill $tone={invite.status === "accepted" ? "success" : "warning"}>
+                                              {formatInviteStatusLabel(invite.status)}
+                                            </AppointmentPill>
+                                          </TeamMemberPills>
+                                        </TeamMemberTop>
+                                      </TeamMemberCard>
+                                    ))
+                                  ) : (
+                                    <HubFeatureCopy>{t("hub.noPendingInvites")}</HubFeatureCopy>
+                                  )}
+                                </TeamMembersList>
+                              </WorkspacePanel>
+                            </DesktopOnlyBlock>
                             <WorkspacePanel>
                               <WorkspacePanelTitle>{t("vendor.team.currentMembers")}</WorkspacePanelTitle>
-                              <WorkspacePanelCopy>{t("hub.currentMembersCopy")}</WorkspacePanelCopy>
+                              <WorkspacePanelCopy>
+                                <DesktopOnly>{t("hub.currentMembersCopy")}</DesktopOnly>
+                              </WorkspacePanelCopy>
                               <TeamMembersList>
                                 {toastMessage && <ToastMessage $type={toastMessage.type}>{toastMessage.message}</ToastMessage>}
                                 {teamLoading ? (
@@ -7375,18 +6009,18 @@ export default function AccountPage() {
                                           <TeamMemberMeta>{member.email || t("vendor.team.noEmail")}</TeamMemberMeta>
                                           {member.phone ? <TeamMemberMeta>{member.phone}</TeamMemberMeta> : null}
                                         </div>
+                                        <TeamMemberPills>
+                                          <AppointmentPill>{formatTeamRoleLabel(member.role)}</AppointmentPill>
+                                          <AppointmentPill $tone={member.status === "active" ? "success" : "neutral"}>
+                                            {formatTeamStatusLabel(member.status)}
+                                          </AppointmentPill>
+                                        </TeamMemberPills>
                                       </TeamMemberTop>
-                                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", position: "absolute", top: 10, right: 48 }}>
-                                        <AppointmentPill>{formatTeamRoleLabel(member.role)}</AppointmentPill>
-                                        <AppointmentPill $tone={member.status === "active" ? "success" : "neutral"}>
-                                          {formatTeamStatusLabel(member.status)}
-                                        </AppointmentPill>
-                                      </div>
                                       {canManageTeamMember(member) ? (
                                         <MemberActionsButton
                                           id={`member-actions-button-${member.user_id}`}
                                           type="button"
-                                          onClick={() => setShowMemberActionsMenuId(member.user_id)}
+                                          onClick={() => undefined}
                                           aria-label={t("hub.memberActions")}
                                         >
                                           <MoreVertical size={18} />
@@ -7499,9 +6133,9 @@ export default function AccountPage() {
                                   </HubInsightPie>
                                   <HubInsightLegend>
                                     {listingTypesSummary.map((item, index) => (
-                                      <HubInsightLegendRow key={("key" in item && item.key) || item.label || index}>
+                                      <HubInsightLegendRow key={item.key || index}>
                                         <HubInsightLegendDot $color={HUB_INSIGHT_COLORS[index % HUB_INSIGHT_COLORS.length]} />
-                                        <span>{"label" in item && item.label ? item.label : labelize("key" in item ? item.key : undefined)}</span>
+                                        <span>{labelize(item.key)}</span>
                                         <HubInsightMiniCount>{item.count}</HubInsightMiniCount>
                                       </HubInsightLegendRow>
                                     ))}
@@ -7542,7 +6176,7 @@ export default function AccountPage() {
                                   const max = Math.max(1, ...list.map((current) => current.count));
                                   const label = "label" in item && item.label ? item.label : labelize("key" in item ? item.key : undefined);
                                   return (
-                                    <HubInsightBarRow key={("key" in item && item.key) || item.label || index}>
+                                    <HubInsightBarRow key={item.key || label || index}>
                                       <HubInsightBarTrack>
                                         <HubInsightBarFill
                                           $width={(item.count / max) * 100}
@@ -7630,7 +6264,7 @@ export default function AccountPage() {
                                 {appointmentsByTypeSummary.map((item, index, list) => {
                                   const max = Math.max(1, ...list.map((current) => current.count));
                                   return (
-                                    <HubInsightColumn key={("key" in item && item.key) || item.label || index}>
+                                    <HubInsightColumn key={item.key || ("label" in item ? item.label : undefined) || index}>
                                       <HubInsightColumnBar
                                         $height={Math.max(18, (item.count / max) * 72)}
                                         $color={HUB_INSIGHT_COLORS[index % HUB_INSIGHT_COLORS.length]}
@@ -8124,6 +6758,108 @@ export default function AccountPage() {
           </>
         )}
       </PageShell>
+      {mobileTeamInviteOpen ? (
+        <ModalOverlay onClick={() => setMobileTeamInviteOpen(false)}>
+          <TeamMobileModalCard onClick={(event) => event.stopPropagation()}>
+            <TeamMobileModalHeader>
+              <div>
+                <ModalTitle>{t("vendor.team.addMember")}</ModalTitle>
+                <ModalText>
+                  {canInviteAdminSeats
+                    ? t("hub.teamInviteOwnerCopy")
+                    : t("vendor.team.inviteCopyAdmin")}
+                </ModalText>
+              </div>
+              <ModalCloseIconButton
+                type="button"
+                onClick={() => setMobileTeamInviteOpen(false)}
+                aria-label={t("account.close")}
+              >
+                <X size={16} />
+              </ModalCloseIconButton>
+            </TeamMobileModalHeader>
+            {canManageTeam ? (
+              <TeamInviteGrid>
+                <CompactTextInput
+                  type="email"
+                  value={teamInviteEmail}
+                  onChange={(event) => setTeamInviteEmail(event.target.value)}
+                  placeholder="member@example.com"
+                />
+                <CompactSelectWrap>
+                  <CustomSelect
+                    id="hub-team-role-mobile"
+                    name="hub-team-role-mobile"
+                    label={t("vendor.verification.role")}
+                    hideLabel
+                    value={teamInviteRole}
+                    onChange={setTeamInviteRole}
+                  >
+                    <option value="agent">{t("vendor.team.agent")}</option>
+                    {canInviteAdminSeats ? <option value="admin">{t("role.admin")}</option> : null}
+                    {canInviteAdminSeats ? <option value="owner">{t("role.owner")}</option> : null}
+                  </CustomSelect>
+                </CompactSelectWrap>
+                <CompactCTAButton
+                  type="button"
+                  onClick={() => void handleTeamInvite()}
+                  disabled={teamSavingInvite || !teamInviteEmail.trim()}
+                >
+                  {teamSavingInvite ? t("vendor.team.sending") : t("vendor.team.sendInvite")}
+                </CompactCTAButton>
+              </TeamInviteGrid>
+            ) : (
+              <WorkspaceSummaryHint>{t("hub.teamControlsLimited")}</WorkspaceSummaryHint>
+            )}
+          </TeamMobileModalCard>
+        </ModalOverlay>
+      ) : null}
+      {mobilePendingInvitesOpen ? (
+        <ModalOverlay onClick={() => setMobilePendingInvitesOpen(false)}>
+          <TeamMobileModalCard onClick={(event) => event.stopPropagation()}>
+            <TeamMobileModalHeader>
+              <div>
+                <ModalTitle>{t("hub.pendingInvites")}</ModalTitle>
+                <ModalText>{t("hub.pendingInvitesCopy")}</ModalText>
+              </div>
+              <ModalCloseIconButton
+                type="button"
+                onClick={() => setMobilePendingInvitesOpen(false)}
+                aria-label={t("account.close")}
+              >
+                <X size={16} />
+              </ModalCloseIconButton>
+            </TeamMobileModalHeader>
+            <TeamMembersList>
+              {teamInvites.length ? (
+                teamInvites.map((invite) => (
+                  <TeamMemberCard key={invite.id}>
+                    <TeamMemberTop>
+                      <div style={{ display: "grid", gap: 4 }}>
+                        <TeamMemberName>{invite.email}</TeamMemberName>
+                        <TeamMemberMeta>
+                          {invite.has_existing_account ? t("hub.existingAccount") : t("hub.newAccountOnAcceptance")}
+                        </TeamMemberMeta>
+                        {invite.expires_at ? (
+                          <TeamMemberMeta>{t("hub.expiresOn", { date: new Date(invite.expires_at).toLocaleDateString() })}</TeamMemberMeta>
+                        ) : null}
+                      </div>
+                      <TeamMemberPills>
+                        <AppointmentPill>{formatTeamRoleLabel(invite.role)}</AppointmentPill>
+                        <AppointmentPill $tone={invite.status === "accepted" ? "success" : "warning"}>
+                          {formatInviteStatusLabel(invite.status)}
+                        </AppointmentPill>
+                      </TeamMemberPills>
+                    </TeamMemberTop>
+                  </TeamMemberCard>
+                ))
+              ) : (
+                <HubFeatureCopy>{t("hub.noPendingInvites")}</HubFeatureCopy>
+              )}
+            </TeamMembersList>
+          </TeamMobileModalCard>
+        </ModalOverlay>
+      ) : null}
       {listingStatusModalOpen && selectedHubPropertyDetail ? (
         <ModalOverlay
           onClick={() => {

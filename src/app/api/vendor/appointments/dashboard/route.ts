@@ -141,10 +141,6 @@ export async function GET(request: Request) {
       : Promise.resolve({ data: [], error: null }),
   ]);
 
-  if (propertiesResult.error) {
-    return NextResponse.json({ error: propertiesResult.error.message }, { status: 500 });
-  }
-
   if (profilesResult.error) {
     return NextResponse.json({ error: profilesResult.error.message }, { status: 500 });
   }

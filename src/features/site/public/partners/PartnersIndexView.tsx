@@ -22,6 +22,7 @@ const UI = {
   noResultsCopy: "Try another keyword or switch the verification filter.",
   joinAgency: "Join as an agency",
   activeListings: "Active listings",
+  disclaimer: "Agency details may change. Verify current contact and listing information before making decisions.",
 } as const;
 
 type PartnersIndexViewProps = {

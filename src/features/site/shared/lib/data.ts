@@ -415,7 +415,9 @@ export async function getListingDetail(propertyId: string) {
   ]);
 
   let agency: Record<string, unknown> | null = null;
-  const membership = membershipResult.data;
+  const membership = membershipResult.data as
+    | (Record<string, unknown> & { vendor?: Array<Record<string, unknown>> | Record<string, unknown> | null })
+    | null;
   const vendorRaw = vendorId
     ? membership
     : Array.isArray(membership?.vendor)

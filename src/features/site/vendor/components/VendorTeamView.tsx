@@ -292,7 +292,7 @@ export function VendorTeamView() {
     return () => {
       cancelled = true;
     };
-  }, [authToken]);
+  }, [authToken, t]);
 
   const canInviteAdminSeats = workspaceRole === "owner";
   const canManageMember = (member: Member) =>

@@ -13,11 +13,13 @@ import {
   ChevronLeft,
   ChevronRight,
   Eye,
+  Filter,
   Heart,
   Lock,
   MapPin,
   Sparkles,
   Users2,
+  X,
 } from "lucide-react";
 import { MarketplaceHeader } from "@/features/site/shared/components/MarketplaceHeader";
 import { LoadingOverlay } from "@/features/site/shared/components/LoadingOverlay";
@@ -224,6 +226,47 @@ const FilterTop = styled.div`
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
+
+  @media (max-width: 768px) {
+    display: none;
+  }
+`;
+
+const MobileFilterLauncher = styled.button`
+  display: none;
+
+  @media (max-width: 768px) {
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+    border: 1px solid rgba(15, 23, 42, 0.1);
+    background: #fff;
+    color: var(--color-text);
+    display: inline-grid;
+    place-items: center;
+    cursor: pointer;
+    position: relative;
+    flex: 0 0 42px;
+  }
+`;
+
+const MobileFilterCount = styled.span`
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 800;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 2px rgba(248, 249, 253, 0.96);
 `;
 
 const FilterTitle = styled.div`
@@ -238,6 +281,10 @@ const PresetRow = styled.div`
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+
+  @media (max-width: 768px) {
+    display: none;
+  }
 `;
 
 const PresetButton = styled.button<{ $active?: boolean }>`
@@ -260,7 +307,93 @@ const FilterGrid = styled.div`
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  @media (max-width: 720px) {
+  @media (max-width: 768px) {
+    display: none;
+  }
+`;
+
+const MobileFilterOverlay = styled.button<{ $open?: boolean }>`
+  display: none;
+
+  @media (max-width: 768px) {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 120;
+    border: none;
+    background: rgba(15, 23, 42, 0.42);
+    opacity: ${(props) => (props.$open ? 1 : 0)};
+    pointer-events: ${(props) => (props.$open ? "auto" : "none")};
+    transition: opacity 180ms ease;
+  }
+`;
+
+const MobileFilterSheet = styled.div<{ $open?: boolean }>`
+  display: none;
+
+  @media (max-width: 768px) {
+    display: grid;
+    gap: 14px;
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    z-index: 130;
+    padding: 16px;
+    border-radius: 24px;
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    background: rgba(248, 249, 253, 0.98);
+    box-shadow: 0 24px 64px rgba(15, 23, 42, 0.18);
+    transform: translateY(${(props) => (props.$open ? "0" : "24px")});
+    opacity: ${(props) => (props.$open ? 1 : 0)};
+    pointer-events: ${(props) => (props.$open ? "auto" : "none")};
+    transition:
+      transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 180ms ease;
+    max-height: 80dvh;
+    overflow-y: auto;
+    align-content: start;
+  }
+`;
+
+const MobileFilterHeader = styled.div`
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+`;
+
+const MobileFilterTitle = styled.div`
+  display: grid;
+  gap: 4px;
+`;
+
+const MobileFilterClose = styled.button`
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  background: #fff;
+  color: var(--color-text);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex: 0 0 36px;
+`;
+
+const MobilePresetRow = styled(PresetRow)`
+  display: none;
+
+  @media (max-width: 768px) {
+    display: flex;
+  }
+`;
+
+const MobileFilterGrid = styled(FilterGrid)`
+  display: none;
+
+  @media (max-width: 768px) {
+    display: grid;
     grid-template-columns: 1fr;
   }
 `;
@@ -814,6 +947,291 @@ const MetricBox = styled.div`
   gap: 6px;
 `;
 
+const MobileTopBar = styled.div`
+  display: none;
+
+  @media (max-width: 768px) {
+    display: block;
+  }
+`;
+
+const MobilePresetScroller = styled.div`
+  display: none;
+
+  @media (max-width: 768px) {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 2px 0 2px 1px;
+    scrollbar-width: none;
+    align-items: center;
+    flex-wrap: nowrap;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+`;
+
+const MobileOverviewStack = styled.div`
+  display: none;
+
+  @media (max-width: 768px) {
+    display: grid;
+    gap: 12px;
+  }
+`;
+
+const MobilePanel = styled(Section)`
+  @media (max-width: 768px) {
+    padding: 16px;
+    gap: 14px;
+    border-radius: 22px;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+  }
+`;
+
+const MobilePanelHead = styled.div`
+  display: grid;
+  gap: 4px;
+`;
+
+const MobilePanelTitle = styled.h2`
+  margin: 0;
+  font-size: 0.98rem;
+  line-height: 1.2;
+`;
+
+const MobilePanelCopy = styled.p`
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.8rem;
+  line-height: 1.4;
+`;
+
+const MobileKpiGrid = styled.div`
+  display: none;
+
+  @media (max-width: 768px) {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+`;
+
+const MobileKpiCard = styled.div`
+  border-radius: 18px;
+  padding: 12px;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfcff 100%);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  display: grid;
+  gap: 6px;
+  min-height: 88px;
+  align-content: start;
+`;
+
+const MobileKpiLabel = styled.div`
+  color: var(--color-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+`;
+
+const MobileKpiValue = styled.div`
+  font-size: 1.35rem;
+  font-weight: 900;
+  line-height: 1;
+`;
+
+const MobileStatusGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+
+  @media (max-width: 560px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const MobileStatusCard = styled.div`
+  border-radius: 18px;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  display: grid;
+  gap: 5px;
+`;
+
+const MobileStatusTitle = styled.div`
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+`;
+
+const MobileStatusValue = styled.div`
+  font-size: 1rem;
+  font-weight: 900;
+  line-height: 1.2;
+`;
+
+const MobileStatusCopy = styled.div`
+  color: var(--color-muted);
+  font-size: 0.76rem;
+  line-height: 1.35;
+`;
+
+const MobileAccordionList = styled.div`
+  display: grid;
+  gap: 10px;
+`;
+
+const MobileAccordionCard = styled.div`
+  border-radius: 20px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(255, 255, 255, 0.92);
+  overflow: hidden;
+`;
+
+const MobileAccordionTrigger = styled.button<{ $open?: boolean }>`
+  width: 100%;
+  min-height: 52px;
+  padding: 12px 14px;
+  border: none;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  text-align: left;
+
+  svg {
+    flex: 0 0 auto;
+    transform: rotate(${(props) => (props.$open ? "180deg" : "0deg")});
+    transition: transform 180ms ease;
+  }
+`;
+
+const MobileAccordionTitleWrap = styled.div`
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+`;
+
+const MobileAccordionTitle = styled.div`
+  font-size: 0.92rem;
+  font-weight: 800;
+  line-height: 1.25;
+`;
+
+const MobileAccordionMeta = styled.div`
+  color: var(--color-muted);
+  font-size: 0.76rem;
+  line-height: 1.3;
+`;
+
+const MobileAccordionContent = styled.div<{ $open?: boolean }>`
+  display: ${(props) => (props.$open ? "grid" : "none")};
+  gap: 12px;
+  padding: 0 14px 14px;
+`;
+
+const MobileEmptyState = styled.div`
+  border-radius: 18px;
+  padding: 14px;
+  background: #fff;
+  border: 1px dashed rgba(148, 163, 184, 0.34);
+  display: grid;
+  gap: 4px;
+`;
+
+const MobileMetricGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+`;
+
+const MobileMetricCard = styled.div`
+  border-radius: 16px;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  display: grid;
+  gap: 6px;
+`;
+
+const MobileRowList = styled.div`
+  display: grid;
+  gap: 8px;
+`;
+
+const MobileRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: #fff;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+`;
+
+const MobileRowLabel = styled.div`
+  min-width: 0;
+  font-size: 0.84rem;
+  font-weight: 700;
+  line-height: 1.3;
+`;
+
+const MobileRowValue = styled.div`
+  flex: 0 0 auto;
+  font-size: 0.84rem;
+  font-weight: 900;
+  color: ${PAGE_ACCENT};
+`;
+
+const MobileIssueGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+
+  @media (max-width: 560px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const MobileIssueCard = styled.div`
+  border-radius: 16px;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  display: grid;
+  gap: 4px;
+`;
+
+const MobileIssueTitle = styled.div`
+  font-size: 0.76rem;
+  font-weight: 800;
+  color: var(--color-muted);
+  line-height: 1.3;
+`;
+
+const MobileIssueValue = styled.div`
+  font-size: 1rem;
+  font-weight: 900;
+  line-height: 1.1;
+`;
+
+const MobileIssueCopy = styled.div`
+  color: var(--color-muted);
+  font-size: 0.76rem;
+  line-height: 1.35;
+`;
+
 const EmptyState = styled(Section)`
   justify-items: start;
 `;
@@ -1099,6 +1517,34 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
   const [township, setTownship] = useState("all");
   const [analyticsStep, setAnalyticsStep] = useState<"overview" | "listing-performance">("overview");
   const [listingPage, setListingPage] = useState(1);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
+  const [mobileShowAllPipeline, setMobileShowAllPipeline] = useState(false);
+  const [mobileOpenSections, setMobileOpenSections] = useState<Record<string, boolean>>({
+    overview: true,
+    pipeline: false,
+    appointments: false,
+    promotions: false,
+    detailed: false,
+  });
+
+  const activeMobileFilterCount =
+    (preset !== "30d" ? 1 : 0) +
+    (propertyType !== "all" ? 1 : 0) +
+    (agentId !== "all" ? 1 : 0) +
+    (listingStatus !== "all" ? 1 : 0) +
+    (township !== "all" ? 1 : 0);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 768px)");
+    const syncViewport = (event?: MediaQueryList | MediaQueryListEvent) => {
+      setIsMobileViewport(event ? event.matches : mediaQuery.matches);
+    };
+
+    syncViewport();
+    mediaQuery.addEventListener("change", syncViewport);
+    return () => mediaQuery.removeEventListener("change", syncViewport);
+  }, []);
 
   useEffect(() => {
     if (!user) {
@@ -1216,7 +1662,7 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
     return () => {
       cancelled = true;
     };
-  }, [activeVendorId, authToken, profileReady, profileRole, user]);
+  }, [activeVendorId, authToken, profileReady, profileRole, t, user]);
 
   const fullView = useMemo(() => {
     if (!fullAnalytics) return null;
@@ -1427,7 +1873,7 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
       appointmentsByType,
       mostRequestedListings,
     };
-  }, [agentId, endDate, fullAnalytics, listingStatus, propertyType, startDate, township]);
+  }, [agentId, endDate, fullAnalytics, listingStatus, propertyType, startDate, t, township]);
 
   const listingOverview = useMemo(() => {
     if (!fullView) {
@@ -1457,6 +1903,117 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
       topRequested: [...fullView.listingRows].sort((left, right) => right.appointmentRequests - left.appointmentRequests)[0] ?? null,
     };
   }, [fullView]);
+
+  const mobileSummary = useMemo(() => {
+    if (!fullView) return null;
+
+    const mostlyEmpty =
+      fullView.kpis.totalListingViews === 0 &&
+      fullView.kpis.agencyInquiries === 0 &&
+      fullView.kpis.savedProperties === 0 &&
+      fullView.kpis.appointmentRequests === 0;
+
+    const pipelineEntries = [
+      ["new", fullView.pipelineCounts.new],
+      ["assigned", fullView.pipelineCounts.assigned],
+      ["contacted", fullView.pipelineCounts.contacted],
+      ["qualified", fullView.pipelineCounts.qualified],
+      ["appointment_scheduled", fullView.pipelineCounts.appointment_scheduled],
+      ["viewed", fullView.pipelineCounts.viewed],
+      ["negotiation", fullView.pipelineCounts.negotiation],
+      ["closed_won", fullView.pipelineCounts.closed_won],
+      ["closed_lost", fullView.pipelineCounts.closed_lost],
+      ["unresponsive", fullView.pipelineCounts.unresponsive],
+      ["spam", fullView.pipelineCounts.spam],
+    ] as Array<[string, number]>;
+
+    const prioritizedPipelineEntries = pipelineEntries
+      .filter(([, count]) => count > 0)
+      .sort((left, right) => right[1] - left[1]);
+
+    const lowInteractionCount = fullView.listingRows.filter((row) => row.views === 0).length;
+    const lowPerformanceCount = fullView.listingRows.filter((row) => row.views > 0 && row.appointmentRequests === 0).length;
+    const listingIssueScore = fullView.listingRows.length
+      ? Math.round(((lowInteractionCount + lowPerformanceCount) / Math.max(1, fullView.listingRows.length * 2)) * 100)
+      : 0;
+
+    return {
+      mostlyEmpty,
+      heroKpis: [
+        { key: "leads", label: t("analytics.agencyInquiries"), value: formatNumber(fullView.kpis.agencyInquiries, language, t) },
+        { key: "appointments", label: t("analytics.appointments"), value: formatNumber(fullView.appointments.length, language, t) },
+        { key: "views", label: t("analytics.views"), value: formatNumber(fullView.kpis.totalListingViews, language, t) },
+        { key: "conversion", label: t("analytics.conversion"), value: formatPercent(fullView.kpis.conversionRate, t) },
+      ],
+      statusCards: [
+        {
+          key: "active",
+          title: t("analytics.activeListings"),
+          value: formatNumber(fullView.kpis.activeListings, language, t),
+          copy: t("analytics.currentPropertyRecords"),
+        },
+        {
+          key: "views",
+          title: t("analytics.totalListingViews"),
+          value: formatNumber(fullView.kpis.totalListingViews, language, t),
+          copy: fullView.kpis.totalListingViews === 0 ? t("analytics.mobileNoActivityBody") : t("analytics.liveFromPropertyViewEvents"),
+        },
+        {
+          key: "appointments",
+          title: t("analytics.appointmentRequests"),
+          value: formatNumber(fullView.kpis.appointmentRequests, language, t),
+          copy: fullView.appointmentStats.cancelled > 0 ? t("analytics.cancelledAppointments") : t("analytics.appointmentRequestsCopy"),
+        },
+      ],
+      overviewRows: [
+        {
+          label: t("analytics.topViewedListing"),
+          value: listingOverview.topViewed ? formatNumber(listingOverview.topViewed.views, language, t) : t("analytics.notAvailable"),
+          copy: listingOverview.topViewed?.title ?? t("analytics.mobileNoDataShort"),
+        },
+        {
+          label: t("analytics.mostSavedListing"),
+          value: listingOverview.topSaved ? formatNumber(listingOverview.topSaved.saves, language, t) : t("analytics.notAvailable"),
+          copy: listingOverview.topSaved?.title ?? t("analytics.mobileNoDataShort"),
+        },
+        {
+          label: t("analytics.mostRequestedListing"),
+          value: listingOverview.topRequested ? formatNumber(listingOverview.topRequested.appointmentRequests, language, t) : t("analytics.notAvailable"),
+          copy: listingOverview.topRequested?.title ?? t("analytics.mobileNoDataShort"),
+        },
+      ],
+      issueCards: [
+        {
+          key: "interaction",
+          title: t("analytics.mobileLowListingInteraction"),
+          value: formatNumber(lowInteractionCount, language, t),
+          copy: t("analytics.mobileShortIssueCopy"),
+        },
+        {
+          key: "performance",
+          title: t("analytics.mobileLowListingPerformance"),
+          value: formatNumber(lowPerformanceCount, language, t),
+          copy: t("analytics.mobileShortIssueCopy"),
+        },
+        {
+          key: "score",
+          title: t("analytics.mobileAverageIssueScore"),
+          value: `${listingIssueScore}%`,
+          copy: t("analytics.mobileShortIssueCopy"),
+        },
+      ],
+      pipelineEntries,
+      prioritizedPipelineEntries,
+      detailRows: [
+        { label: t("analytics.savedProperties"), value: formatNumber(fullView.kpis.savedProperties, language, t) },
+        { label: t("analytics.agencyInquiries"), value: formatNumber(fullView.kpis.agencyInquiries, language, t) },
+        { label: t("analytics.appointmentRequests"), value: formatNumber(fullView.kpis.appointmentRequests, language, t) },
+        { label: t("analytics.listingCardClicks"), value: formatNumber(fullView.kpis.listingCardClicks, language, t) },
+        { label: t("analytics.contactClicks"), value: formatNumber(fullView.kpis.contactClicks, language, t) },
+        { label: t("analytics.noShows"), value: formatNumber(fullView.appointmentStats.noShows, language, t) },
+      ],
+    };
+  }, [fullView, language, listingOverview, t]);
 
   useEffect(() => {
     setListingPage(1);
@@ -1853,6 +2410,10 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
                     <Calendar size={16} />
                     {t("filter.searchFilters")}
                   </FilterTitle>
+                  <MobileFilterLauncher type="button" aria-label={t("filter.searchFilters")} onClick={() => setMobileFiltersOpen(true)}>
+                    <Filter size={18} />
+                    {activeMobileFilterCount > 0 ? <MobileFilterCount>{activeMobileFilterCount}</MobileFilterCount> : null}
+                  </MobileFilterLauncher>
                   <PresetRow>
                     {[
                       { value: "30d" as const, label: t("analytics.last30Days") },
@@ -1869,6 +2430,24 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
                     </PresetButton>
                   </PresetRow>
                 </FilterTop>
+                <MobileTopBar>
+                  <MobilePresetScroller>
+                    {[
+                      { value: "30d" as const, label: "30d" },
+                      { value: "90d" as const, label: "90d" },
+                      { value: "365d" as const, label: "12m" },
+                      { value: "all" as const, label: "all" },
+                    ].map((item) => (
+                      <PresetButton key={`mobile-${item.value}`} type="button" $active={preset === item.value} onClick={() => setPreset(item.value)}>
+                        {item.label}
+                      </PresetButton>
+                    ))}
+                    <MobileFilterLauncher type="button" aria-label={t("filter.searchFilters")} onClick={() => setMobileFiltersOpen(true)}>
+                      <Filter size={18} />
+                      {activeMobileFilterCount > 0 ? <MobileFilterCount>{activeMobileFilterCount}</MobileFilterCount> : null}
+                    </MobileFilterLauncher>
+                  </MobilePresetScroller>
+                </MobileTopBar>
                 <FilterGrid>
                   <AnalyticsDatePicker
                     id="analytics-start-date"
@@ -1934,7 +2513,335 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
                   </FilterControlWrap>
                 </FilterGrid>
               </StickyFilters>
+              <MobileFilterOverlay type="button" $open={mobileFiltersOpen} aria-label={t("filter.searchFilters")} onClick={() => setMobileFiltersOpen(false)} />
+              <MobileFilterSheet $open={mobileFiltersOpen}>
+                <MobileFilterHeader>
+                  <MobileFilterTitle>
+                    <FilterTitle>
+                      <Filter size={16} />
+                      {t("filter.searchFilters")}
+                    </FilterTitle>
+                    <SectionCopy>{t("analytics.kpiSummaryCopy")}</SectionCopy>
+                  </MobileFilterTitle>
+                  <MobileFilterClose type="button" aria-label={t("common.close")} onClick={() => setMobileFiltersOpen(false)}>
+                    <X size={18} />
+                  </MobileFilterClose>
+                </MobileFilterHeader>
+                <MobilePresetRow>
+                  {[
+                    { value: "30d" as const, label: t("analytics.last30Days") },
+                    { value: "90d" as const, label: t("analytics.last90Days") },
+                    { value: "365d" as const, label: t("analytics.last12Months") },
+                    { value: "all" as const, label: t("analytics.allTime") },
+                  ].map((item) => (
+                    <PresetButton key={item.value} type="button" $active={preset === item.value} onClick={() => setPreset(item.value)}>
+                      {item.label}
+                    </PresetButton>
+                  ))}
+                  <PresetButton type="button" $active={preset === "custom"} onClick={() => setPreset("custom")}>
+                    {t("analytics.custom")}
+                  </PresetButton>
+                </MobilePresetRow>
+                <MobileFilterGrid>
+                  <AnalyticsDatePicker
+                    id="analytics-start-date-mobile"
+                    label={t("analytics.startDate")}
+                    value={startDate}
+                    language={language}
+                    t={t}
+                    onChange={(nextValue) => {
+                      setPreset("custom");
+                      setStartDate(nextValue);
+                    }}
+                  />
+                  <AnalyticsDatePicker
+                    id="analytics-end-date-mobile"
+                    label={t("analytics.endDate")}
+                    value={endDate}
+                    language={language}
+                    t={t}
+                    onChange={(nextValue) => {
+                      setPreset("custom");
+                      setEndDate(nextValue);
+                    }}
+                  />
+                  <FilterControlWrap>
+                    <CustomSelect id="analytics-property-type-mobile" name="analytics-property-type-mobile" label={t("analytics.propertyType")} value={propertyType} onChange={setPropertyType}>
+                      <option value="all">{t("analytics.all")}</option>
+                      {fullAnalytics.filterOptions.propertyTypes.map((option) => (
+                        <option key={option} value={option}>
+                          {labelize(option, t)}
+                        </option>
+                      ))}
+                    </CustomSelect>
+                  </FilterControlWrap>
+                  <FilterControlWrap>
+                    <CustomSelect id="analytics-agent-mobile" name="analytics-agent-mobile" label={t("analytics.agent")} value={agentId} onChange={setAgentId}>
+                      <option value="all">{t("analytics.allAgents")}</option>
+                      {fullAnalytics.filterOptions.agents.map((agent) => (
+                        <option key={agent.id} value={agent.id}>
+                          {agent.name}
+                        </option>
+                      ))}
+                    </CustomSelect>
+                  </FilterControlWrap>
+                  <FilterControlWrap>
+                    <CustomSelect id="analytics-listing-status-mobile" name="analytics-listing-status-mobile" label={t("analytics.listingStatus")} value={listingStatus} onChange={setListingStatus}>
+                      <option value="all">{t("analytics.allStatuses")}</option>
+                      {fullAnalytics.filterOptions.listingStatuses.map((option) => (
+                        <option key={option} value={option}>
+                          {labelize(option, t)}
+                        </option>
+                      ))}
+                    </CustomSelect>
+                  </FilterControlWrap>
+                  <FilterControlWrap>
+                    <CustomSelect id="analytics-township-mobile" name="analytics-township-mobile" label={t("analytics.township")} value={township} onChange={setTownship}>
+                      <option value="all">{t("analytics.all")}</option>
+                      {fullAnalytics.filterOptions.townships.map((option) => (
+                        <option key={option} value={option}>
+                          {translateLocationName(option, language)}
+                        </option>
+                      ))}
+                    </CustomSelect>
+                  </FilterControlWrap>
+                </MobileFilterGrid>
+              </MobileFilterSheet>
+              {isMobileViewport && mobileSummary ? (
+                <MobileOverviewStack>
+                  <MobilePanel>
+                    <MobilePanelHead>
+                      <MobilePanelTitle>{t("analytics.kpiSummary")}</MobilePanelTitle>
+                      <MobilePanelCopy>{t("analytics.mobileCompactSummaryCopy")}</MobilePanelCopy>
+                    </MobilePanelHead>
+                    {mobileSummary.mostlyEmpty ? (
+                      <MobileEmptyState>
+                        <strong>{t("analytics.mobileNoActivityTitle")}</strong>
+                        <MobilePanelCopy>{t("analytics.mobileNoActivityBody")}</MobilePanelCopy>
+                      </MobileEmptyState>
+                    ) : (
+                      <MobileKpiGrid>
+                        {mobileSummary.heroKpis.map((item) => (
+                          <MobileKpiCard key={item.key}>
+                            <MobileKpiLabel>{item.label}</MobileKpiLabel>
+                            <MobileKpiValue>{item.value}</MobileKpiValue>
+                          </MobileKpiCard>
+                        ))}
+                      </MobileKpiGrid>
+                    )}
+                    <MobileStatusGrid>
+                      {mobileSummary.statusCards.map((item) => (
+                        <MobileStatusCard key={item.key}>
+                          <MobileStatusTitle>{item.title}</MobileStatusTitle>
+                          <MobileStatusValue>{item.value}</MobileStatusValue>
+                          <MobileStatusCopy>{item.copy}</MobileStatusCopy>
+                        </MobileStatusCard>
+                      ))}
+                    </MobileStatusGrid>
+                  </MobilePanel>
 
+                  <MobileAccordionList>
+                    <MobileAccordionCard>
+                      <MobileAccordionTrigger
+                        type="button"
+                        $open={mobileOpenSections.overview}
+                        onClick={() => setMobileOpenSections((current) => ({ ...current, overview: !current.overview }))}
+                      >
+                        <MobileAccordionTitleWrap>
+                          <MobileAccordionTitle>{t("analytics.mobileOverviewSection")}</MobileAccordionTitle>
+                          <MobileAccordionMeta>{t("analytics.listingPerformanceOverviewCopy")}</MobileAccordionMeta>
+                        </MobileAccordionTitleWrap>
+                        <ChevronDown size={18} />
+                      </MobileAccordionTrigger>
+                      <MobileAccordionContent $open={mobileOpenSections.overview}>
+                        <MobileIssueGrid>
+                          {mobileSummary.issueCards.map((item) => (
+                            <MobileIssueCard key={item.key}>
+                              <MobileIssueTitle>{item.title}</MobileIssueTitle>
+                              <MobileIssueValue>{item.value}</MobileIssueValue>
+                              <MobileIssueCopy>{item.copy}</MobileIssueCopy>
+                            </MobileIssueCard>
+                          ))}
+                        </MobileIssueGrid>
+                        <MobileRowList>
+                          {mobileSummary.overviewRows.map((item) => (
+                            <MobileRow key={item.label}>
+                              <div style={{ minWidth: 0, display: "grid", gap: 3 }}>
+                                <MobileRowLabel>{item.label}</MobileRowLabel>
+                                <MobilePanelCopy>{item.copy}</MobilePanelCopy>
+                              </div>
+                              <MobileRowValue>{item.value}</MobileRowValue>
+                            </MobileRow>
+                          ))}
+                        </MobileRowList>
+                        <InlineButton type="button" onClick={() => setAnalyticsStep("listing-performance")}>
+                          <Building2 size={16} />
+                          {t("analytics.viewListingPerformance")}
+                        </InlineButton>
+                      </MobileAccordionContent>
+                    </MobileAccordionCard>
+
+                    <MobileAccordionCard>
+                      <MobileAccordionTrigger
+                        type="button"
+                        $open={mobileOpenSections.pipeline}
+                        onClick={() => setMobileOpenSections((current) => ({ ...current, pipeline: !current.pipeline }))}
+                      >
+                        <MobileAccordionTitleWrap>
+                          <MobileAccordionTitle>{t("analytics.leadPipeline")}</MobileAccordionTitle>
+                          <MobileAccordionMeta>{t("analytics.mobileCompactPipelineCopy")}</MobileAccordionMeta>
+                        </MobileAccordionTitleWrap>
+                        <ChevronDown size={18} />
+                      </MobileAccordionTrigger>
+                      <MobileAccordionContent $open={mobileOpenSections.pipeline}>
+                        {mobileSummary.prioritizedPipelineEntries.length ? (
+                          <MobileRowList>
+                            {(mobileShowAllPipeline
+                              ? mobileSummary.pipelineEntries
+                              : mobileSummary.prioritizedPipelineEntries.slice(0, 5)
+                            ).map(([key, count]) => (
+                              <MobileRow key={key}>
+                                <MobileRowLabel>{labelize(key, t)}</MobileRowLabel>
+                                <MobileRowValue>{formatNumber(count, language, t)}</MobileRowValue>
+                              </MobileRow>
+                            ))}
+                          </MobileRowList>
+                        ) : (
+                          <MobileEmptyState>
+                            <strong>{t("analytics.leadPipeline")}</strong>
+                            <MobilePanelCopy>{t("analytics.mobileNoDataShort")}</MobilePanelCopy>
+                          </MobileEmptyState>
+                        )}
+                        {mobileSummary.prioritizedPipelineEntries.length > 5 ? (
+                          <InlineButton type="button" onClick={() => setMobileShowAllPipeline((current) => !current)}>
+                            {mobileShowAllPipeline ? t("analytics.mobileShowFewerStatuses") : t("analytics.mobileShowAllStatuses")}
+                          </InlineButton>
+                        ) : null}
+                      </MobileAccordionContent>
+                    </MobileAccordionCard>
+
+                    <MobileAccordionCard>
+                      <MobileAccordionTrigger
+                        type="button"
+                        $open={mobileOpenSections.appointments}
+                        onClick={() => setMobileOpenSections((current) => ({ ...current, appointments: !current.appointments }))}
+                      >
+                        <MobileAccordionTitleWrap>
+                          <MobileAccordionTitle>{t("analytics.appointmentAnalytics")}</MobileAccordionTitle>
+                          <MobileAccordionMeta>{t("analytics.appointmentAnalyticsCopy")}</MobileAccordionMeta>
+                        </MobileAccordionTitleWrap>
+                        <ChevronDown size={18} />
+                      </MobileAccordionTrigger>
+                      <MobileAccordionContent $open={mobileOpenSections.appointments}>
+                        <MobileMetricGrid>
+                          <MobileMetricCard>
+                            <MobileKpiLabel>{t("analytics.totalAppointmentRequests")}</MobileKpiLabel>
+                            <MobileKpiValue>{formatNumber(fullView.appointmentStats.totalRequests, language, t)}</MobileKpiValue>
+                          </MobileMetricCard>
+                          <MobileMetricCard>
+                            <MobileKpiLabel>{t("analytics.confirmedAppointments")}</MobileKpiLabel>
+                            <MobileKpiValue>{formatNumber(fullView.appointmentStats.confirmed, language, t)}</MobileKpiValue>
+                          </MobileMetricCard>
+                          <MobileMetricCard>
+                            <MobileKpiLabel>{t("analytics.completedAppointments")}</MobileKpiLabel>
+                            <MobileKpiValue>{formatNumber(fullView.appointmentStats.completed, language, t)}</MobileKpiValue>
+                          </MobileMetricCard>
+                          <MobileMetricCard>
+                            <MobileKpiLabel>{t("analytics.cancelledAppointments")}</MobileKpiLabel>
+                            <MobileKpiValue>{formatNumber(fullView.appointmentStats.cancelled, language, t)}</MobileKpiValue>
+                          </MobileMetricCard>
+                        </MobileMetricGrid>
+                        <MobileRowList>
+                          {fullView.mostRequestedListings.length ? fullView.mostRequestedListings.map((item) => (
+                            <MobileRow key={item.propertyId}>
+                              <MobileRowLabel>{item.title}</MobileRowLabel>
+                              <MobileRowValue>{formatNumber(item.count, language, t)}</MobileRowValue>
+                            </MobileRow>
+                          )) : (
+                            <MobileEmptyState>
+                              <strong>{t("analytics.mostRequestedListings")}</strong>
+                              <MobilePanelCopy>{t("analytics.mobileNoDataShort")}</MobilePanelCopy>
+                            </MobileEmptyState>
+                          )}
+                        </MobileRowList>
+                      </MobileAccordionContent>
+                    </MobileAccordionCard>
+
+                    <MobileAccordionCard>
+                      <MobileAccordionTrigger
+                        type="button"
+                        $open={mobileOpenSections.promotions}
+                        onClick={() => setMobileOpenSections((current) => ({ ...current, promotions: !current.promotions }))}
+                      >
+                        <MobileAccordionTitleWrap>
+                          <MobileAccordionTitle>{t("analytics.promotionPerformance")}</MobileAccordionTitle>
+                          <MobileAccordionMeta>{t("analytics.livePromotionRecords", { count: fullAnalytics.items.promotions.length })}</MobileAccordionMeta>
+                        </MobileAccordionTitleWrap>
+                        <ChevronDown size={18} />
+                      </MobileAccordionTrigger>
+                      <MobileAccordionContent $open={mobileOpenSections.promotions}>
+                        {fullAnalytics.items.promotions.length ? (
+                          <MobileRowList>
+                            {fullAnalytics.items.promotions.map((item) => (
+                              <MobileMetricCard key={item.id}>
+                                <MobileRowLabel>{item.title}</MobileRowLabel>
+                                <MobileRowList>
+                                  <MobileRow>
+                                    <MobileRowLabel>{t("analytics.impressions")}</MobileRowLabel>
+                                    <MobileRowValue>{t("analytics.notAvailable")}</MobileRowValue>
+                                  </MobileRow>
+                                  <MobileRow>
+                                    <MobileRowLabel>{t("analytics.clicks")}</MobileRowLabel>
+                                    <MobileRowValue>{t("analytics.notAvailable")}</MobileRowValue>
+                                  </MobileRow>
+                                  <MobileRow>
+                                    <MobileRowLabel>{t("analytics.conversion")}</MobileRowLabel>
+                                    <MobileRowValue>{t("analytics.notAvailable")}</MobileRowValue>
+                                  </MobileRow>
+                                  <MobileRow>
+                                    <MobileRowLabel>{t("analytics.status")}</MobileRowLabel>
+                                    <MobileRowValue>{labelize(item.status, t)}</MobileRowValue>
+                                  </MobileRow>
+                                </MobileRowList>
+                              </MobileMetricCard>
+                            ))}
+                          </MobileRowList>
+                        ) : (
+                          <MobileEmptyState>
+                            <strong>{t("analytics.promotionPerformance")}</strong>
+                            <MobilePanelCopy>{t("analytics.noPromotionRecords")}</MobilePanelCopy>
+                          </MobileEmptyState>
+                        )}
+                      </MobileAccordionContent>
+                    </MobileAccordionCard>
+
+                    <MobileAccordionCard>
+                      <MobileAccordionTrigger
+                        type="button"
+                        $open={mobileOpenSections.detailed}
+                        onClick={() => setMobileOpenSections((current) => ({ ...current, detailed: !current.detailed }))}
+                      >
+                        <MobileAccordionTitleWrap>
+                          <MobileAccordionTitle>{t("analytics.mobileDetailedMetrics")}</MobileAccordionTitle>
+                          <MobileAccordionMeta>{t("analytics.untrackedMetricsMarked")}</MobileAccordionMeta>
+                        </MobileAccordionTitleWrap>
+                        <ChevronDown size={18} />
+                      </MobileAccordionTrigger>
+                      <MobileAccordionContent $open={mobileOpenSections.detailed}>
+                        <MobileRowList>
+                          {mobileSummary.detailRows.map((item) => (
+                            <MobileRow key={item.label}>
+                              <MobileRowLabel>{item.label}</MobileRowLabel>
+                              <MobileRowValue>{item.value}</MobileRowValue>
+                            </MobileRow>
+                          ))}
+                        </MobileRowList>
+                      </MobileAccordionContent>
+                    </MobileAccordionCard>
+                  </MobileAccordionList>
+                </MobileOverviewStack>
+              ) : (
+                <>
               <Section>
                 <SectionHead>
                   <div>
@@ -2239,6 +3146,8 @@ export function HubAnalyticsContent({ embedded = false }: { embedded?: boolean }
                   </EmptyState>
                 )}
               </Section>
+                </>
+              )}
             </>
           )}
         </>
