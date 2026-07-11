@@ -83,13 +83,20 @@ export function estimateReadTime(parts: Array<string | null | undefined>) {
   return Math.max(2, Math.ceil(words / 180));
 }
 
-export function formatArticleDate(value: string | null) {
-  if (!value) return "Market update";
+function toArticleLocale(language?: string | null) {
+  if (language === "mm") return "my-MM";
+  if (language === "zh") return "zh-CN";
+  if (language === "th") return "th-TH";
+  return "en";
+}
+
+export function formatArticleDate(value: string | null, language?: string | null, fallback = "Market update") {
+  if (!value) return fallback;
 
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Market update";
+  if (Number.isNaN(date.getTime())) return fallback;
 
-  return new Intl.DateTimeFormat("en", {
+  return new Intl.DateTimeFormat(toArticleLocale(language), {
     month: "short",
     day: "numeric",
     year: "numeric",

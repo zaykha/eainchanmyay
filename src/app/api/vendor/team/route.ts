@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { isAdminOrOwner } from "@/lib/vendor-permissions";
+import {
+  canActorInviteSeat,
+  canActorManageSeatChange,
+  isRemovingActiveOwnerSeat,
+  normalizeTeamSeatRoleInput,
+  normalizeTeamSeatStatusInput,
+} from "@/lib/vendor-team-rules";
 
 import { getVendorRequestContext } from "@/app/api/vendor/_lib/context";
 import { getVendorPlanUsage } from "@/app/api/vendor/_lib/plan-limits";
@@ -9,15 +16,6 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 
 const isInviteConfigured = Boolean(supabaseUrl && supabaseAnonKey);
-
-function normalizeRole(input: unknown) {
-  if (input === "staff") return "agent";
-  return input === "owner" || input === "admin" || input === "agent" ? input : null;
-}
-
-function normalizeStatus(input: unknown) {
-  return input === "active" || input === "inactive" ? input : null;
-}
 
 function isFreePlan(plan: string | null | undefined) {
   return (plan ?? "").trim().toLowerCase() === "free";
@@ -127,13 +125,13 @@ export async function POST(request: Request) {
   }
 
   const email = body.email?.trim().toLowerCase();
-  const role = normalizeRole(body.role);
+  const role = normalizeTeamSeatRoleInput(body.role);
 
   if (!email || !role) {
     return NextResponse.json({ error: "Email and role are required." }, { status: 400 });
   }
 
-  if (membership.role === "admin" && role !== "agent") {
+  if (!canActorInviteSeat(membership.role, role)) {
     return NextResponse.json({ error: "Admins can only invite staff seats." }, { status: 403 });
   }
 
@@ -272,15 +270,11 @@ export async function PATCH(request: Request) {
   }
 
   const targetUserId = body.user_id?.trim();
-  const role = normalizeRole(body.role);
-  const status = normalizeStatus(body.status);
+  const role = normalizeTeamSeatRoleInput(body.role);
+  const status = normalizeTeamSeatStatusInput(body.status);
 
   if (!targetUserId || !role || !status) {
     return NextResponse.json({ error: "User, role, and status are required." }, { status: 400 });
-  }
-
-  if (targetUserId === user.id) {
-    return NextResponse.json({ error: "You cannot edit your own seat from this screen." }, { status: 400 });
   }
 
   const { data: existing, error: existingError } = await supabase
@@ -301,19 +295,24 @@ export async function PATCH(request: Request) {
   const existingRole = existing.role === "staff" ? "agent" : existing.role;
   const existingStatus = existing.status ?? "active";
 
-  if (membership.role === "admin") {
-    if (existingRole !== "agent") {
-      return NextResponse.json({ error: "Admins can only manage staff seats." }, { status: 403 });
-    }
-    if (role !== "agent") {
-      return NextResponse.json({ error: "Admins cannot promote staff to admin or owner." }, { status: 403 });
-    }
+  const seatChangePermission = canActorManageSeatChange({
+    actorRole: membership.role,
+    actorUserId: user.id,
+    targetUserId,
+    currentRole: existingRole,
+    nextRole: role,
+  });
+
+  if (!seatChangePermission.ok) {
+    return NextResponse.json({ error: seatChangePermission.error }, { status: seatChangePermission.status });
   }
 
-  const removingActiveOwner =
-    existingRole === "owner" &&
-    existingStatus === "active" &&
-    !(role === "owner" && status === "active");
+  const removingActiveOwner = isRemovingActiveOwnerSeat({
+    currentRole: existingRole,
+    currentStatus: existingStatus,
+    nextRole: role,
+    nextStatus: status,
+  });
 
   if (removingActiveOwner) {
     const { count, error: ownerCountError } = await supabase

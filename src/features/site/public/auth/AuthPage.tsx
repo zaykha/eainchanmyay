@@ -533,13 +533,13 @@ const roleCards = [
     role: "customer" as const,
     titleKey: "auth.role.customerTitle",
     textKey: "auth.role.customerText",
-    image: "/assets/auth/createaccount.svg",
+    image: "/Assets/Auth/createaccount.svg",
   },
   {
     role: "agent" as const,
     titleKey: "auth.role.agentTitle",
     textKey: "auth.role.agentText",
-    image: "/assets/auth/createagentaccount.svg",
+    image: "/Assets/Auth/createagentaccount.svg",
   },
 ];
 
@@ -763,7 +763,7 @@ export default function AuthPage() {
                 </VisualSubtitle>
               </VisualHeading>
               <VisualIllustration
-                src={role === "agent" ? "/assets/auth/createagentaccount.svg" : "/assets/auth/joinustoday.svg"}
+                src={role === "agent" ? "/Assets/Auth/createagentaccount.svg" : "/Assets/Auth/joinustoday.svg"}
                 alt=""
                 aria-hidden="true"
               />

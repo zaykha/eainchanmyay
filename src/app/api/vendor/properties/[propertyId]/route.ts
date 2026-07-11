@@ -2,12 +2,14 @@ import { NextResponse } from "next/server";
 import { getVendorRequestContext } from "@/app/api/vendor/_lib/context";
 import { deletePropertyImages } from "@/app/api/_lib/property-image-upload";
 import { resolveListingImage } from "@/features/site/shared/lib/images";
-import { normalizeListingStatus } from "@/lib/lifecycle";
+import { canMutateListings } from "@/lib/vendor-permissions";
 import {
   isLegacyPropertiesStatusConstraintError,
   isMissingPropertyLifecycleColumnError,
   stripUnsupportedPropertyLifecycleFields,
 } from "@/lib/property-lifecycle-persistence";
+import { canAccessVendorProperty, resolvePropertyStatusUpdate } from "@/lib/vendor-property-rules";
+import { normalizeListingStatus } from "@/lib/lifecycle";
 
 type PropertyRow = {
   id: string;
@@ -102,7 +104,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ prop
   }
 
   const row = property as PropertyRow | null;
-  if (!row || !row.created_by || !memberIds.includes(row.created_by)) {
+  if (!row || !canAccessVendorProperty(memberIds, row.created_by)) {
     return NextResponse.json({ error: "Property not found." }, { status: 404 });
   }
 
@@ -223,7 +225,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ pr
   const { propertyId } = await params;
   const { supabase, memberIds, membership } = result.context;
 
-  if (!["owner", "admin"].includes(membership.role)) {
+  if (!canMutateListings(membership.role)) {
     return NextResponse.json({ error: "Only owners and admins can update listings." }, { status: 403 });
   }
 
@@ -243,18 +245,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ pr
     return NextResponse.json({ error: existingError.message }, { status: 500 });
   }
 
-  const createdBy = String(existingProperty?.created_by ?? "");
-  if (!existingProperty?.id || !createdBy || !memberIds.includes(createdBy)) {
+  if (!existingProperty?.id || !canAccessVendorProperty(memberIds, existingProperty.created_by)) {
     return NextResponse.json({ error: "Property not found." }, { status: 404 });
   }
 
   const now = new Date().toISOString();
-  const currentStatus = normalizeListingStatus(existingProperty.status) ?? "draft";
-  const nextStatus = body.status ? normalizeListingStatus(body.status) : null;
-
-  if (body.status && !nextStatus) {
-    return NextResponse.json({ error: "Invalid listing status." }, { status: 400 });
-  }
 
   const updatePayload: Record<string, unknown> = { updated_at: now };
   const updatableFields: Array<keyof PropertyUpdatePayload> = [
@@ -285,18 +280,19 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ pr
     }
   }
 
-  if (nextStatus) {
-    updatePayload.status = nextStatus;
-    if (nextStatus === "active" && currentStatus !== "active") updatePayload.published_at = now;
-    if (nextStatus === "reserved" && currentStatus !== "reserved") updatePayload.reserved_at = now;
-    if ((nextStatus === "sold" || nextStatus === "rented") && currentStatus !== nextStatus) updatePayload.closed_at = now;
-    if (nextStatus === "archived" && currentStatus !== "archived") updatePayload.archived_at = now;
-    if (nextStatus === "rejected") {
-      updatePayload.rejection_reason = body.rejection_reason ?? null;
-    } else if (currentStatus === "rejected") {
-      updatePayload.rejection_reason = null;
-    }
+  const statusDecision = resolvePropertyStatusUpdate({
+    currentStatus: existingProperty.status,
+    nextStatus: "status" in body ? body.status : null,
+    rejectionReason: body.rejection_reason,
+    now,
+  });
+
+  if (!statusDecision.ok) {
+    return NextResponse.json({ error: statusDecision.error }, { status: statusDecision.status });
   }
+
+  Object.assign(updatePayload, statusDecision.payload);
+  const nextStatus = typeof statusDecision.payload.status === "string" ? statusDecision.payload.status : null;
 
   let propertyUpdate = await supabase
     .from("properties")
@@ -340,7 +336,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ p
   const { propertyId } = await params;
   const { supabase, memberIds, membership } = result.context;
 
-  if (!["owner", "admin"].includes(membership.role)) {
+  if (!canMutateListings(membership.role)) {
     return NextResponse.json({ error: "Only owners and admins can delete listings." }, { status: 403 });
   }
 
@@ -355,8 +351,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ p
     return NextResponse.json({ error: existingError.message }, { status: 500 });
   }
 
-  const createdBy = String(existingProperty?.created_by ?? "");
-  if (!existingProperty?.id || !createdBy || !memberIds.includes(createdBy)) {
+  if (!existingProperty?.id || !canAccessVendorProperty(memberIds, existingProperty.created_by)) {
     return NextResponse.json({ error: "Property not found." }, { status: 404 });
   }
 
@@ -399,4 +394,3 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ p
 
   return NextResponse.json({ ok: true });
 }
-

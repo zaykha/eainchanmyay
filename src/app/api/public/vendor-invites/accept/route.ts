@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { evaluateVendorInviteAcceptance } from "@/lib/vendor-invites";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
@@ -65,20 +66,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: inviteError.message }, { status: 500 });
   }
 
-  if (!invite?.id || !invite.vendor_id) {
-    return NextResponse.json({ error: "Invite not found." }, { status: 404 });
-  }
+  const inviteDecision = evaluateVendorInviteAcceptance({
+    invite,
+    authenticatedEmail: user.email,
+  });
 
-  if (String(invite.status ?? "pending") !== "pending") {
-    return NextResponse.json({ error: "This invite is no longer available." }, { status: 400 });
-  }
-
-  if (typeof invite.expires_at === "string" && new Date(invite.expires_at).getTime() <= Date.now()) {
-    return NextResponse.json({ error: "This invite has expired." }, { status: 400 });
-  }
-
-  if (String(invite.email ?? "").trim().toLowerCase() !== user.email.trim().toLowerCase()) {
-    return NextResponse.json({ error: "This invite was sent to a different email address." }, { status: 403 });
+  if (!inviteDecision.ok) {
+    return NextResponse.json({ error: inviteDecision.error }, { status: inviteDecision.status });
   }
 
   const { data: existingProfile, error: profileError } = await supabase
@@ -109,7 +103,7 @@ export async function POST(request: Request) {
   const { data: existingMember, error: existingMemberError } = await supabase
     .from("vendor_members")
     .select("user_id")
-    .eq("vendor_id", invite.vendor_id)
+    .eq("vendor_id", inviteDecision.vendorId)
     .eq("user_id", user.id)
     .maybeSingle();
 
@@ -121,11 +115,11 @@ export async function POST(request: Request) {
     const { error: memberUpdateError } = await supabase
       .from("vendor_members")
       .update({
-        role: String(invite.role ?? "agent"),
+        role: inviteDecision.acceptedRole,
         status: "active",
         updated_at: new Date().toISOString(),
       })
-      .eq("vendor_id", invite.vendor_id)
+      .eq("vendor_id", inviteDecision.vendorId)
       .eq("user_id", user.id);
 
     if (memberUpdateError) {
@@ -133,9 +127,9 @@ export async function POST(request: Request) {
     }
   } else {
     const { error: memberInsertError } = await supabase.from("vendor_members").insert({
-      vendor_id: invite.vendor_id,
+      vendor_id: inviteDecision.vendorId,
       user_id: user.id,
-      role: String(invite.role ?? "agent"),
+      role: inviteDecision.acceptedRole,
       status: "active",
     });
 
@@ -154,11 +148,11 @@ export async function POST(request: Request) {
       accepted_at: now,
       updated_at: now,
     })
-    .eq("id", invite.id);
+    .eq("id", inviteDecision.inviteId);
 
   if (inviteUpdateError) {
     return NextResponse.json({ error: inviteUpdateError.message }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true, role: "vendor_user", vendor_id: invite.vendor_id });
+  return NextResponse.json({ ok: true, role: "vendor_user", vendor_id: inviteDecision.vendorId });
 }

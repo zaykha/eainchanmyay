@@ -7,23 +7,8 @@ import { ArrowRight, Building2, MapPin, Search, ShieldCheck } from "lucide-react
 import { MarketplaceHeader } from "@/features/site/shared/components/MarketplaceHeader";
 import { PageSection, Panel } from "@/features/site/shared/components/PageSection";
 import { useAppState } from "@/features/site/shared/lib/app-state";
+import { useI18n } from "@/features/site/shared/lib/i18n";
 import type { PublicAgencyCardRecord } from "@/lib/public-agencies";
-
-const UI = {
-  title: "Our Partner Agencies",
-  subtitle: "Discover agencies and verified partners on Eain Chan Myay.",
-  searchLabel: "Search agencies",
-  searchPlaceholder: "Search agencies by name, description, township, district, or coverage",
-  all: "All",
-  verified: "Verified",
-  unverified: "Unverified",
-  viewProfile: "View Profile",
-  noResultsTitle: "No agencies found",
-  noResultsCopy: "Try another keyword or switch the verification filter.",
-  joinAgency: "Join as an agency",
-  activeListings: "Active listings",
-  disclaimer: "Agency details may change. Verify current contact and listing information before making decisions.",
-} as const;
 
 type PartnersIndexViewProps = {
   agencies: PublicAgencyCardRecord[];
@@ -346,6 +331,7 @@ function isVerifiedStatus(value: string | null | undefined) {
 }
 
 export function PartnersIndexView({ agencies }: PartnersIndexViewProps) {
+  const { t } = useI18n();
   const { profileRole, profileReady } = useAppState();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<"all" | "verified" | "unverified">("all");
@@ -371,8 +357,8 @@ export function PartnersIndexView({ agencies }: PartnersIndexViewProps) {
       <MarketplaceHeader />
       <Wrapper>
         <Hero as="section">
-          <HeroTitle>{UI.title}</HeroTitle>
-          <HeroCopy>{UI.subtitle}</HeroCopy>
+          <HeroTitle>{t("partners.title")}</HeroTitle>
+          <HeroCopy>{t("partners.subtitle")}</HeroCopy>
         </Hero>
 
         <SearchPanel as="section">
@@ -382,15 +368,15 @@ export function PartnersIndexView({ agencies }: PartnersIndexViewProps) {
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder={UI.searchPlaceholder}
-              aria-label={UI.searchLabel}
+              placeholder={t("partners.searchPlaceholder")}
+              aria-label={t("partners.searchLabel")}
             />
           </SearchWrap>
 
           <FilterSection>
             <FilterRow>
               <FilterChip type="button" $active={filter === "all"} onClick={() => setFilter("all")} aria-pressed={filter === "all"}>
-                {UI.all}
+                {t("partners.all")}
               </FilterChip>
               <FilterChip
                 type="button"
@@ -398,7 +384,7 @@ export function PartnersIndexView({ agencies }: PartnersIndexViewProps) {
                 onClick={() => setFilter("verified")}
                 aria-pressed={filter === "verified"}
               >
-                {UI.verified}
+                {t("partners.verified")}
               </FilterChip>
               <FilterChip
                 type="button"
@@ -406,7 +392,7 @@ export function PartnersIndexView({ agencies }: PartnersIndexViewProps) {
                 onClick={() => setFilter("unverified")}
                 aria-pressed={filter === "unverified"}
               >
-                {UI.unverified}
+                {t("partners.unverified")}
               </FilterChip>
             </FilterRow>
           </FilterSection>
@@ -414,14 +400,14 @@ export function PartnersIndexView({ agencies }: PartnersIndexViewProps) {
 
         {!filteredAgencies.length ? (
           <EmptyState as="section">
-            <EmptyTitle>{UI.noResultsTitle}</EmptyTitle>
-            <EmptyCopy>{UI.noResultsCopy}</EmptyCopy>
+            <EmptyTitle>{t("partners.noResultsTitle")}</EmptyTitle>
+            <EmptyCopy>{t("partners.noResultsCopy")}</EmptyCopy>
           </EmptyState>
         ) : (
           <Grid as="section">
             {filteredAgencies.map((agency) => {
               const verified = isVerifiedStatus(agency.verifiedStatus);
-              const description = agency.description || agency.tagline || UI.disclaimer;
+              const description = agency.description || agency.tagline || t("partners.disclaimer");
 
               return (
                 <Card key={agency.id} href={`/agency/${agency.slug}`}>
@@ -433,7 +419,7 @@ export function PartnersIndexView({ agencies }: PartnersIndexViewProps) {
                       <CardTitle>{agency.name}</CardTitle>
                       <Badge $verified={verified}>
                         <ShieldCheck size={13} />
-                        <span>{verified ? UI.verified : UI.unverified}</span>
+                        <span>{verified ? t("partners.verified") : t("partners.unverified")}</span>
                       </Badge>
                     </TitleWrap>
                   </CardTop>
@@ -450,9 +436,9 @@ export function PartnersIndexView({ agencies }: PartnersIndexViewProps) {
                   </MetaList>
 
                   <Footer>
-                    <CountPill>{`${agency.listingCount} ${UI.activeListings}`}</CountPill>
+                    <CountPill>{`${agency.listingCount} ${t("partners.activeListings")}`}</CountPill>
                     <ActionLabel>
-                      <span>{UI.viewProfile}</span>
+                      <span>{t("partners.viewProfile")}</span>
                       <ArrowRight size={15} />
                     </ActionLabel>
                   </Footer>
@@ -464,9 +450,9 @@ export function PartnersIndexView({ agencies }: PartnersIndexViewProps) {
 
         {shouldShowJoinCard ? (
           <JoinCard as="section">
-            <JoinCopy>Want your agency profile listed here? Publish your storefront and complete your public profile.</JoinCopy>
+            <JoinCopy>{t("partners.joinCopy")}</JoinCopy>
             <JoinAction href="/vendor-setup">
-              <span>{UI.joinAgency}</span>
+              <span>{t("partners.joinAgency")}</span>
               <ArrowRight size={15} />
             </JoinAction>
           </JoinCard>

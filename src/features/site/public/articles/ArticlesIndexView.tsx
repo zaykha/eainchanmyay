@@ -6,25 +6,9 @@ import styled from "styled-components";
 import { ArrowRight, Clock3, Search, SlidersHorizontal, Sparkles, X } from "lucide-react";
 import { MarketplaceHeader } from "@/features/site/shared/components/MarketplaceHeader";
 import { PageSection, Panel } from "@/features/site/shared/components/PageSection";
+import { useI18n } from "@/features/site/shared/lib/i18n";
 import type { ArticleRecord } from "@/lib/articles-shared";
 import { formatArticleDate, getArticleSearchHaystack } from "@/lib/articles-shared";
-
-const UI = {
-  title: "Articles",
-  subtitle: "Local market reporting, trend summaries, and practical takeaways for Myanmar property buyers, renters, and agencies.",
-  searchLabel: "Search articles",
-  searchPlaceholder: "Search title, summary, category, source, or tags",
-  categories: "Categories",
-  allCategories: "All",
-  featured: "Featured article",
-  latest: "Latest coverage",
-  readMore: "Read more",
-  source: "Source",
-  related: "Related articles",
-  noResultsTitle: "No articles found",
-  noResultsCopy: "Try a different keyword or remove a category filter.",
-  disclaimer: "Temporary MVP article data. Please verify before final publication.",
-} as const;
 
 const Shell = styled.div`
   min-height: 100vh;
@@ -398,22 +382,25 @@ type ArticlesIndexViewProps = {
   disclaimer: string;
 };
 
+const ALL_CATEGORIES = "__all__";
+
 export function ArticlesIndexView({
   articles,
   categories,
   disclaimer,
 }: ArticlesIndexViewProps) {
+  const { t, language } = useI18n();
   const [query, setQuery] = useState("");
-  const [activeCategory, setActiveCategory] = useState<string>(UI.allCategories);
+  const [activeCategory, setActiveCategory] = useState<string>(ALL_CATEGORIES);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const deferredQuery = useDeferredValue(query);
-  const categoryOptions = [UI.allCategories, ...categories];
+  const categoryOptions = [ALL_CATEGORIES, ...categories];
 
   const filteredArticles = useMemo(() => {
     const normalizedQuery = deferredQuery.trim().toLowerCase();
 
     return articles.filter((article) => {
-      if (activeCategory !== UI.allCategories && article.category !== activeCategory) {
+      if (activeCategory !== ALL_CATEGORIES && article.category !== activeCategory) {
         return false;
       }
 
@@ -434,10 +421,10 @@ export function ArticlesIndexView({
         <Hero as="section">
           <Eyebrow>
             <Sparkles size={14} />
-            <span>{UI.latest}</span>
+            <span>{t("articles.latest")}</span>
           </Eyebrow>
-          <HeroTitle>{UI.title}</HeroTitle>
-          <HeroCopy>{UI.subtitle}</HeroCopy>
+          <HeroTitle>{t("articles.title")}</HeroTitle>
+          <HeroCopy>{t("articles.subtitle")}</HeroCopy>
         </Hero>
 
         <SearchCard as="section">
@@ -447,20 +434,22 @@ export function ArticlesIndexView({
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder={UI.searchPlaceholder}
-              aria-label={UI.searchLabel}
+              placeholder={t("articles.searchPlaceholder")}
+              aria-label={t("articles.searchLabel")}
             />
           </SearchWrap>
 
           <MobileFilterTrigger type="button" onClick={() => setMobileFiltersOpen(true)}>
             <MobileFilterSummary>
-              {activeCategory === UI.allCategories ? UI.categories : `${UI.categories}: ${activeCategory}`}
+              {activeCategory === ALL_CATEGORIES
+                ? t("articles.categories")
+                : `${t("articles.categories")}: ${activeCategory}`}
             </MobileFilterSummary>
             <SlidersHorizontal size={16} />
           </MobileFilterTrigger>
 
           <ChipSection>
-            <ChipLabel>{UI.categories}</ChipLabel>
+            <ChipLabel>{t("articles.categories")}</ChipLabel>
             <ChipRow>
               {categoryOptions.map((category) => (
                 <Chip
@@ -470,7 +459,7 @@ export function ArticlesIndexView({
                   onClick={() => setActiveCategory(category)}
                   aria-pressed={category === activeCategory}
                 >
-                  {category}
+                  {category === ALL_CATEGORIES ? t("articles.allCategories") : category}
                 </Chip>
               ))}
             </ChipRow>
@@ -480,21 +469,21 @@ export function ArticlesIndexView({
         {featuredArticle ? (
           <FeaturedLink href={`/articles/${featuredArticle.slug}`}>
             <FeaturedMeta>
-              <Badge>{UI.featured}</Badge>
+              <Badge>{t("articles.featured")}</Badge>
               <Badge>{featuredArticle.category}</Badge>
               <Badge>
                 <Clock3 size={13} />
-                <span>{`${featuredArticle.readTimeMinutes} min read`}</span>
+                <span>{`${featuredArticle.readTimeMinutes} ${t("articles.readTime")}`}</span>
               </Badge>
-              <Badge>{formatArticleDate(featuredArticle.publishedDate)}</Badge>
-              {featuredArticle.sourceName ? <Badge>{`${UI.source}: ${featuredArticle.sourceName}`}</Badge> : null}
+              <Badge>{formatArticleDate(featuredArticle.publishedDate, language, t("articles.marketUpdate"))}</Badge>
+              {featuredArticle.sourceName ? <Badge>{`${t("articles.source")}: ${featuredArticle.sourceName}`}</Badge> : null}
             </FeaturedMeta>
             <FeaturedTitle>{featuredArticle.title}</FeaturedTitle>
             <FeaturedSummary>{featuredArticle.summary}</FeaturedSummary>
             <FeaturedFooter>
               <FeaturedTakeaway>{featuredArticle.marketTakeaway || featuredArticle.summary}</FeaturedTakeaway>
               <ActionLabel>
-                <span>{UI.readMore}</span>
+                <span>{t("articles.readMore")}</span>
                 <ArrowRight size={16} />
               </ActionLabel>
             </FeaturedFooter>
@@ -503,8 +492,8 @@ export function ArticlesIndexView({
 
         {!filteredArticles.length ? (
           <EmptyState as="section">
-            <EmptyTitle>{UI.noResultsTitle}</EmptyTitle>
-            <EmptyCopy>{UI.noResultsCopy}</EmptyCopy>
+            <EmptyTitle>{t("articles.noResultsTitle")}</EmptyTitle>
+            <EmptyCopy>{t("articles.noResultsCopy")}</EmptyCopy>
           </EmptyState>
         ) : null}
 
@@ -514,17 +503,17 @@ export function ArticlesIndexView({
               <Card key={article.slug} href={`/articles/${article.slug}`}>
                 <MetaRow>
                   <Badge>{article.category}</Badge>
-                  <Badge>{formatArticleDate(article.publishedDate)}</Badge>
+                  <Badge>{formatArticleDate(article.publishedDate, language, t("articles.marketUpdate"))}</Badge>
                 </MetaRow>
                 <CardTitle>{article.title}</CardTitle>
                 <CardSummary>{article.summary}</CardSummary>
                 <MetaRow>
-                  <MetaText>{`${article.readTimeMinutes} min read`}</MetaText>
-                  {article.sourceName ? <MetaText>{`${UI.source}: ${article.sourceName}`}</MetaText> : null}
+                  <MetaText>{`${article.readTimeMinutes} ${t("articles.readTime")}`}</MetaText>
+                  {article.sourceName ? <MetaText>{`${t("articles.source")}: ${article.sourceName}`}</MetaText> : null}
                   {article.tags.length ? <MetaText>{article.tags.slice(0, 3).join(" • ")}</MetaText> : null}
                 </MetaRow>
                 <ActionLabel>
-                  <span>{UI.readMore}</span>
+                  <span>{t("articles.readMore")}</span>
                   <ArrowRight size={15} />
                 </ActionLabel>
               </Card>
@@ -532,15 +521,19 @@ export function ArticlesIndexView({
           </Grid>
         )}
 
-        <Disclaimer>{disclaimer || UI.disclaimer}</Disclaimer>
+        <Disclaimer>{disclaimer || t("articles.disclaimerDefault")}</Disclaimer>
       </Wrapper>
 
       {mobileFiltersOpen ? (
         <FilterOverlay onClick={() => setMobileFiltersOpen(false)}>
           <FilterDialog onClick={(event) => event.stopPropagation()}>
             <FilterHeader>
-              <FilterTitle>{UI.categories}</FilterTitle>
-              <FilterClose type="button" onClick={() => setMobileFiltersOpen(false)} aria-label="Close filters">
+              <FilterTitle>{t("articles.categories")}</FilterTitle>
+              <FilterClose
+                type="button"
+                onClick={() => setMobileFiltersOpen(false)}
+                aria-label={t("articles.closeFilters")}
+              >
                 <X size={16} />
               </FilterClose>
             </FilterHeader>
@@ -556,7 +549,7 @@ export function ArticlesIndexView({
                   }}
                   aria-pressed={category === activeCategory}
                 >
-                  {category}
+                  {category === ALL_CATEGORIES ? t("articles.allCategories") : category}
                 </Chip>
               ))}
             </FilterBody>

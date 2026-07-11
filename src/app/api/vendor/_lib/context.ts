@@ -1,24 +1,16 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import {
+  evaluateVendorBillingAccess,
+  getBearerTokenFromHeaders,
+  getRequestedVendorIdFromRequest,
+  resolveRequestedVendorMembership,
+} from "@/lib/vendor-context-rules";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
 
 const isConfigured = Boolean(supabaseUrl && supabaseServiceRoleKey);
-
-function getBearerToken(request: Request) {
-  const authHeader = request.headers.get("authorization") ?? request.headers.get("Authorization") ?? "";
-  if (!authHeader.startsWith("Bearer ")) return null;
-  return authHeader.slice("Bearer ".length).trim() || null;
-}
-
-function getRequestedVendorId(request: Request) {
-  const headerValue = request.headers.get("x-vendor-id")?.trim();
-  if (headerValue) return headerValue;
-  const { searchParams } = new URL(request.url);
-  const queryValue = searchParams.get("vendorId")?.trim();
-  return queryValue || null;
-}
 
 export type VendorRequestContext = {
   supabase: SupabaseClient;
@@ -111,7 +103,7 @@ export async function getVendorRequestContext(
     };
   }
 
-  const token = getBearerToken(request);
+  const token = getBearerTokenFromHeaders(request.headers);
   if (!token) {
     return {
       ok: false,
@@ -172,7 +164,7 @@ export async function getVendorRequestContext(
     };
   }
 
-  const requestedVendorId = getRequestedVendorId(request);
+  const requestedVendorId = getRequestedVendorIdFromRequest(request);
   const membershipEntries = (membershipRows ?? []) as Array<
     | {
         role?: string | null;
@@ -244,95 +236,21 @@ export async function getVendorRequestContext(
       }
   >;
 
-  if (options.requireExplicitVendorSelection && membershipEntries.length > 1 && !requestedVendorId) {
+  const membershipResolution = resolveRequestedVendorMembership({
+    memberships: membershipEntries,
+    requestedVendorId,
+    requireExplicitVendorSelection: options.requireExplicitVendorSelection,
+  });
+
+  if (!membershipResolution.ok) {
     return {
       ok: false,
-      response: NextResponse.json(
-        { error: "Select an active vendor workspace before accessing this endpoint." },
-        { status: 400 }
-      ),
+      response: NextResponse.json({ error: membershipResolution.error }, { status: membershipResolution.status }),
     };
   }
 
-  const membershipRow = (
-    requestedVendorId
-      ? membershipEntries.find((row) => {
-          const vendorValue = Array.isArray(row.vendor) ? row.vendor[0] : row.vendor;
-          return vendorValue?.id === requestedVendorId;
-        })
-      : membershipEntries[0]
-  ) as
-    | {
-        role?: string | null;
-        status?: string | null;
-        vendor?:
-          | {
-              id?: string | null;
-              name?: string | null;
-              vendor_type?: string | null;
-              plan?: string | null;
-              billing_status?: string | null;
-              billing_provider?: string | null;
-              slug?: string | null;
-              tagline?: string | null;
-              description?: string | null;
-              contact_phone?: string | null;
-              contact_email?: string | null;
-              logo_url?: string | null;
-              facebook_url?: string | null;
-              telegram_url?: string | null;
-              viber_phone?: string | null;
-              tiktok_url?: string | null;
-              website_url?: string | null;
-              cover_image_url?: string | null;
-              strengths?: unknown;
-              public_storefront_enabled?: boolean | null;
-              verified_status?: string | null;
-              verified_at?: string | null;
-              verification_expires_at?: string | null;
-              verification_level?: string | null;
-              verification_score?: number | null;
-              verification_rejection_reason_code?: string | null;
-              verification_last_reviewed_by?: string | null;
-              verification_last_reviewed_at?: string | null;
-              verification_rank_bonus?: number | null;
-            }
-          | Array<{
-              id?: string | null;
-              name?: string | null;
-              vendor_type?: string | null;
-              plan?: string | null;
-              billing_status?: string | null;
-              billing_provider?: string | null;
-              slug?: string | null;
-              tagline?: string | null;
-              description?: string | null;
-              contact_phone?: string | null;
-              contact_email?: string | null;
-              logo_url?: string | null;
-              facebook_url?: string | null;
-              telegram_url?: string | null;
-              viber_phone?: string | null;
-              tiktok_url?: string | null;
-              website_url?: string | null;
-              cover_image_url?: string | null;
-              strengths?: unknown;
-              public_storefront_enabled?: boolean | null;
-              verified_status?: string | null;
-              verified_at?: string | null;
-              verification_expires_at?: string | null;
-              verification_level?: string | null;
-              verification_score?: number | null;
-              verification_rejection_reason_code?: string | null;
-              verification_last_reviewed_by?: string | null;
-              verification_last_reviewed_at?: string | null;
-              verification_rank_bonus?: number | null;
-            }>
-          | null;
-      }
-    | undefined;
-
-  const vendorRaw = Array.isArray(membershipRow?.vendor) ? membershipRow?.vendor[0] : membershipRow?.vendor;
+  const membershipRow = membershipResolution.membership;
+  const vendorRaw = membershipResolution.vendor;
 
   if (!membershipRow?.role || !vendorRaw?.id || !vendorRaw.name || !vendorRaw.vendor_type) {
     return {
@@ -379,16 +297,17 @@ export async function getVendorRequestContext(
     })
     .filter(Boolean) as VendorRequestContext["workspaces"];
 
-  const requiresActiveBilling = vendorRaw.plan && vendorRaw.plan !== "free";
   const effectiveBillingStatus = (vendorRaw.billing_status as string | null) ?? null;
+  const billingAccess = evaluateVendorBillingAccess({
+    plan: vendorRaw.plan,
+    billingStatus: effectiveBillingStatus,
+    allowPendingBilling: options.allowPendingBilling,
+  });
 
-  if (requiresActiveBilling && effectiveBillingStatus !== "active" && !options.allowPendingBilling) {
+  if (!billingAccess.ok) {
     return {
       ok: false,
-      response: NextResponse.json(
-        { error: "Billing activation required before accessing the paid vendor workspace." },
-        { status: 402 }
-      ),
+      response: NextResponse.json({ error: billingAccess.error }, { status: billingAccess.status }),
     };
   }
 
