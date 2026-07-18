@@ -208,10 +208,20 @@ const SecondaryButton = styled.button`
   color: var(--color-text);
   cursor: pointer;
   font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
 
   @media (max-width: 720px) {
     padding: 12px 14px;
   }
+`;
+
+const GoogleMark = styled.svg`
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
 `;
 
 const InlineHelp = styled.p`
@@ -306,6 +316,29 @@ type AuthScreenProps = {
   onChangeRole?: () => void;
 };
 
+function GoogleIcon() {
+  return (
+    <GoogleMark viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        fill="#4285F4"
+        d="M23.49 12.27c0-.79-.07-1.55-.2-2.27H12v4.3h6.44a5.5 5.5 0 0 1-2.39 3.61v3h3.87c2.26-2.09 3.57-5.16 3.57-8.64Z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 24c3.24 0 5.96-1.07 7.95-2.91l-3.87-3c-1.07.72-2.44 1.15-4.08 1.15-3.14 0-5.8-2.12-6.75-4.97H1.26v3.09A12 12 0 0 0 12 24Z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M5.25 14.27A7.2 7.2 0 0 1 4.87 12c0-.79.14-1.56.38-2.27V6.64H1.26A12 12 0 0 0 0 12c0 1.94.46 3.78 1.26 5.36l3.99-3.09Z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 4.77c1.76 0 3.34.61 4.58 1.8l3.43-3.43C17.95 1.14 15.23 0 12 0A12 12 0 0 0 1.26 6.64l3.99 3.09C6.2 6.88 8.86 4.77 12 4.77Z"
+      />
+    </GoogleMark>
+  );
+}
+
 async function precheckPortalRole(email: string) {
   const response = await fetch("/api/auth/check-role", {
     method: "POST",
@@ -351,7 +384,6 @@ export function AuthScreen({ role, onSuccess, onChangeRole }: AuthScreenProps) {
   const [message, setMessage] = useState<string | null>(null);
   const [popupMessage, setPopupMessage] = useState<string | null>(null);
   const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
-  const [devAgentDebug, setDevAgentDebug] = useState<string | null>(null);
 
   const passwordChecks = [
     { label: t("auth.passwordCheck.length"), ok: password.length >= 8 },
@@ -383,20 +415,25 @@ export function AuthScreen({ role, onSuccess, onChangeRole }: AuthScreenProps) {
         : t("auth.submitCreateAccount");
   const targetProfileRole: ProfileRole = role === "agent" ? "vendor_user" : "user";
 
+  const showError = (nextMessage: string) => {
+    setMessage(null);
+    setPopupMessage(nextMessage);
+  };
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setMessage(null);
-    setDevAgentDebug(null);
+    setPopupMessage(null);
     if (!isSupabaseConfigured) {
-      setMessage(t("auth.supabaseMissing"));
+      showError(t("auth.supabaseMissing"));
       return;
     }
     if (mode === "register" && !passwordStrong) {
-      setMessage(t("auth.passwordWeak"));
+      showError(t("auth.passwordWeak"));
       return;
     }
     if (mode === "register" && (!fullName.trim() || !phoneNumber.trim())) {
-      setMessage(t("auth.enterNamePhone"));
+      showError(t("auth.enterNamePhone"));
       return;
     }
     const normalizedEmail = email.trim().toLowerCase();
@@ -409,29 +446,18 @@ export function AuthScreen({ role, onSuccess, onChangeRole }: AuthScreenProps) {
       setLoadingMessage(t("auth.signingInShort"));
       try {
         const roleCheck = await precheckPortalRole(normalizedEmail);
-        if (process.env.NODE_ENV !== "production" && role === "agent") {
-          setDevAgentDebug(
-            [
-              `precheck found=${String(roleCheck.found)}`,
-              `profileRole=${roleCheck.debug?.profileRole ?? "null"}`,
-              `effectiveRole=${roleCheck.debug?.effectiveRole ?? String(roleCheck.role ?? "null")}`,
-              `member=${String(roleCheck.debug?.hasActiveVendorMembership ?? false)}`,
-            ].join(" | ")
-          );
-        }
         const selectedCustomerPortal = role === "customer";
         const wrongForCustomer = selectedCustomerPortal && roleCheck.found && roleCheck.role === "vendor_user";
 
         if (wrongForCustomer) {
           const portalMessage = t("auth.popup.accountRegisteredAsAgency");
           setLoadingMessage(null);
-          setMessage(portalMessage);
-          setPopupMessage(portalMessage);
+          showError(portalMessage);
           return;
         }
       } catch (error) {
         setLoadingMessage(null);
-        setMessage(error instanceof Error ? (error.message === "AUTH_VERIFY_ROLE" ? t("auth.verifyRoleError") : error.message) : t("auth.verifyRoleError"));
+        showError(error instanceof Error ? (error.message === "AUTH_VERIFY_ROLE" ? t("auth.verifyRoleError") : error.message) : t("auth.verifyRoleError"));
         return;
       }
     }
@@ -450,11 +476,7 @@ export function AuthScreen({ role, onSuccess, onChangeRole }: AuthScreenProps) {
         window.localStorage.removeItem(AGENT_REGISTERING_STORAGE_KEY);
         window.localStorage.removeItem(AGENT_ONBOARDING_STORAGE_KEY);
       }
-      setMessage(result.error);
-      setPopupMessage(result.error);
-      if (process.env.NODE_ENV !== "production" && role === "agent") {
-        setDevAgentDebug((current) => current ?? `login error=${result.error}`);
-      }
+      showError(result.error);
       return;
     }
     if (typeof window !== "undefined" && isAgentRegistration) {
@@ -469,8 +491,9 @@ export function AuthScreen({ role, onSuccess, onChangeRole }: AuthScreenProps) {
 
   const handleGoogle = async () => {
     setMessage(null);
+    setPopupMessage(null);
     if (!isSupabaseConfigured) {
-      setMessage(t("auth.supabaseMissing"));
+      showError(t("auth.supabaseMissing"));
       return;
     }
     setLoadingMessage(t("auth.googleRedirect"));
@@ -483,11 +506,11 @@ export function AuthScreen({ role, onSuccess, onChangeRole }: AuthScreenProps) {
       });
       if (error) {
         setLoadingMessage(null);
-        setMessage(error.message);
+        showError(error.message);
       }
     } catch (error) {
       setLoadingMessage(null);
-      setMessage(error instanceof Error ? error.message : t("auth.unableReachService"));
+      showError(error instanceof Error ? error.message : t("auth.unableReachService"));
     }
   };
 
@@ -581,6 +604,7 @@ export function AuthScreen({ role, onSuccess, onChangeRole }: AuthScreenProps) {
               {mode === "login" ? t("auth.newHere") : t("auth.fasterSignIn")}
             </InlineHelp>
             <SecondaryButton type="button" onClick={handleGoogle}>
+              <GoogleIcon />
               {t("auth.continueGoogle")}
             </SecondaryButton>
           </>
@@ -589,10 +613,7 @@ export function AuthScreen({ role, onSuccess, onChangeRole }: AuthScreenProps) {
         )}
       </Form>
 
-      {message && <Message>{message}</Message>}
-      {process.env.NODE_ENV !== "production" && role === "agent" && devAgentDebug ? (
-        <Message>DEV: {devAgentDebug}</Message>
-      ) : null}
+      {message && !popupMessage ? <Message>{message}</Message> : null}
       {popupMessage ? (
         <PopupOverlay onClick={() => setPopupMessage(null)}>
           <PopupCard

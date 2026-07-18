@@ -102,6 +102,16 @@ const InputWrap = styled.div`
   border-radius: 16px;
   background: var(--color-surface-2);
   overflow: hidden;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background 160ms ease;
+
+  &:focus-within {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 14%, transparent);
+    background: color-mix(in srgb, var(--color-primary) 4%, var(--color-surface-2));
+  }
 
   svg {
     justify-self: center;
@@ -125,6 +135,16 @@ const TextareaWrap = styled.div`
   border-radius: 16px;
   background: var(--color-surface-2);
   overflow: hidden;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background 160ms ease;
+
+  &:focus-within {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 14%, transparent);
+    background: color-mix(in srgb, var(--color-primary) 4%, var(--color-surface-2));
+  }
 
   svg {
     justify-self: center;
@@ -331,7 +351,7 @@ type WorkspacePayload = {
 
 export default function AgencySetupPage() {
   const router = useRouter();
-  const { authToken, user, profileReady, logout } = useAppState();
+  const { authToken, user, profileReady } = useAppState();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
@@ -587,30 +607,6 @@ export default function AgencySetupPage() {
                 {saving ? "Saving..." : "Continue"}
                 <ArrowRight size={18} />
               </Button>
-
-              <Secondary
-                type="button"
-                onClick={async () => {
-                  if (typeof window !== "undefined") {
-                    window.localStorage.removeItem("kaiten_skip_agency_setup_on_hub");
-                    window.localStorage.removeItem("kaiten_skip_agency_setup_on_hub_once");
-                  }
-
-                  try {
-                    await logout();
-                  } finally {
-                    // Ensure state is not reused on subsequent navigation
-                    if (typeof window !== "undefined") {
-                      window.localStorage.removeItem("kaiten_skip_agency_setup_on_hub");
-                      window.localStorage.removeItem("kaiten_skip_agency_setup_on_hub_once");
-                    }
-                  }
-
-                  router.replace("/");
-                }}
-              >
-                Sign out
-              </Secondary>
             </ActionRow>
           </Card>
 

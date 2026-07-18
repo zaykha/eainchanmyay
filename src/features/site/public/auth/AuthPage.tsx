@@ -613,7 +613,6 @@ export default function AuthPage() {
 
       setRedirecting(false);
       setAuthResolvedRole(null);
-      setMessage(mismatchMessage);
       setPopupMessage(mismatchMessage);
 
       void logoutRef.current().finally(() => {

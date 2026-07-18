@@ -1,12 +1,23 @@
 "use client";
 
 import styled from "styled-components";
+import Link from "next/link";
 import { MarketplaceHeader } from "@/features/site/shared/components/MarketplaceHeader";
 import { PageSection, SectionTitle, Panel } from "@/features/site/shared/components/PageSection";
 import { useI18n } from "@/features/site/shared/lib/i18n";
 
 const PageShell = styled(PageSection)`
   gap: 16px;
+`;
+
+const BackLink = styled(Link)`
+  width: fit-content;
+  border: 1px solid var(--color-outline);
+  border-radius: 999px;
+  padding: 10px 14px;
+  background: #fff;
+  color: var(--color-text);
+  font-weight: 600;
 `;
 
 const SectionCard = styled(Panel)`
@@ -60,6 +71,7 @@ export default function TermsPage() {
     <div>
       <MarketplaceHeader />
       <PageShell>
+        <BackLink href="/settings">{t("common.back")}</BackLink>
         <SectionTitle>{t("terms.title")}</SectionTitle>
         {sections.map((section) => (
           <SectionCard key={section.title}>
