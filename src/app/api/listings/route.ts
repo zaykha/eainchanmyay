@@ -118,6 +118,45 @@ export async function GET(request: Request) {
         }
       : undefined
   );
+  const { data: activeVendorRows, error: activeVendorError } = await supabase
+    .from("vendors")
+    .select("id")
+    .eq("is_suspended", false);
+
+  if (activeVendorError) {
+    console.warn("Failed to load active vendors", activeVendorError);
+    return NextResponse.json({
+      data: [],
+      page,
+      pageSize,
+      total: 0,
+      hasMore: false,
+    });
+  }
+
+  const activeVendorIds = (activeVendorRows ?? [])
+    .map((row) => String(row.id ?? ""))
+    .filter(Boolean);
+
+  if (!activeVendorIds.length) {
+    return NextResponse.json(
+      {
+        data: [],
+        page,
+        pageSize,
+        total: 0,
+        hasMore: false,
+      },
+      {
+        headers: {
+          "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+          "X-RateLimit-Remaining": String(limit.remaining),
+          "X-RateLimit-Reset": String(limit.resetAt),
+        },
+      }
+    );
+  }
+
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
   const buildQuery = (
@@ -133,7 +172,9 @@ export async function GET(request: Request) {
     let queryBuilder = supabase
       .from("properties")
       .select(selectColumns, { count: "exact" })
+      .in("vendor_id", activeVendorIds)
       .in("status", statusScope)
+      .eq("moderation_status", "visible")
       .eq("is_deleted", false)
       .order("created_at", { ascending: false });
 

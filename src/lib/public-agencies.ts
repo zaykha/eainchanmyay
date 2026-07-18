@@ -32,6 +32,7 @@ type VendorRow = {
   id: string;
   name: string;
   slug: string;
+  is_suspended: boolean | null;
   tagline: string | null;
   description: string | null;
   logo_url: string | null;
@@ -66,9 +67,10 @@ export const getPublicAgencies = cache(async (): Promise<PublicAgencyCardRecord[
   const { data: vendorRows, error: vendorError } = await supabase
     .from("vendors")
     .select(
-      "id,name,slug,tagline,description,logo_url,contact_phone,contact_email,facebook_url,telegram_url,viber_phone,tiktok_url,website_url,verified_status:verification_status"
+      "id,name,slug,is_suspended,tagline,description,logo_url,contact_phone,contact_email,facebook_url,telegram_url,viber_phone,tiktok_url,website_url,verified_status:verification_status"
     )
     .eq("public_storefront_enabled", true)
+    .eq("is_suspended", false)
     .not("slug", "is", null)
     .order("name", { ascending: true });
 
@@ -112,9 +114,10 @@ export const getPublicAgencies = cache(async (): Promise<PublicAgencyCardRecord[
   if (memberIds.length) {
     const { data: propertyRows } = await supabase
       .from("properties")
-      .select("created_by,township,district,state_region,status,is_deleted")
+      .select("created_by,township,district,state_region,status,moderation_status,is_deleted")
       .in("created_by", memberIds)
       .in("status", publicListingQueryStatuses)
+      .eq("moderation_status", "visible")
       .eq("is_deleted", false);
 
     for (const row of propertyRows ?? []) {

@@ -37,10 +37,11 @@ export async function GET(request: Request, context: RouteContext) {
   const { data: vendorRow, error: vendorError } = await supabase
     .from("vendors")
     .select(
-      "id,name,vendor_type,plan,verified_status:verification_status,slug,tagline,description,contact_phone,contact_email,logo_url,facebook_url,telegram_url,viber_phone,tiktok_url,website_url,cover_image_url,strengths,public_storefront_enabled"
+      "id,name,vendor_type,plan,verified_status:verification_status,slug,tagline,description,contact_phone,contact_email,logo_url,facebook_url,telegram_url,viber_phone,tiktok_url,website_url,cover_image_url,strengths,public_storefront_enabled,is_suspended"
     )
     .eq("slug", storefrontSlug)
     .eq("public_storefront_enabled", true)
+    .eq("is_suspended", false)
     .maybeSingle();
 
   if (vendorError) {
@@ -98,6 +99,7 @@ export async function GET(request: Request, context: RouteContext) {
       )
       .in("created_by", memberIds)
       .in("status", publicListingQueryStatuses)
+      .eq("moderation_status", "visible")
       .eq("is_deleted", false)
       .order("created_at", { ascending: false })
       .limit(24);

@@ -1,9 +1,34 @@
 export type VendorContextVendorRecord = {
   id?: string | null;
   name?: string | null;
+  is_suspended?: boolean | null;
   vendor_type?: string | null;
   plan?: string | null;
   billing_status?: string | null;
+  billing_provider?: string | null;
+  slug?: string | null;
+  tagline?: string | null;
+  description?: string | null;
+  contact_phone?: string | null;
+  contact_email?: string | null;
+  logo_url?: string | null;
+  facebook_url?: string | null;
+  telegram_url?: string | null;
+  viber_phone?: string | null;
+  tiktok_url?: string | null;
+  website_url?: string | null;
+  cover_image_url?: string | null;
+  strengths?: unknown;
+  public_storefront_enabled?: boolean | null;
+  verified_status?: string | null;
+  verified_at?: string | null;
+  verification_expires_at?: string | null;
+  verification_level?: string | null;
+  verification_score?: number | null;
+  verification_rejection_reason_code?: string | null;
+  verification_last_reviewed_by?: string | null;
+  verification_last_reviewed_at?: string | null;
+  verification_rank_bonus?: number | null;
 };
 
 export type VendorContextMembershipEntry = {

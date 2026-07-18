@@ -409,7 +409,7 @@ const englishTranslations = {
   "auth.visual.agentKicker": "Agent account",
   "auth.visual.customerKicker": "Customer access",
   "auth.visual.agentTitle": "Agent workspace",
-  "auth.visual.customerTitle": "Sign in to continue your search",
+  "auth.visual.customerTitle": "Keep searching",
   "auth.visual.agentSubtitle":
     "Use one account for listings, lead handling, and your vendor workspace. New agent users can continue into the vendor dashboard after sign up.",
   "auth.visual.customerSubtitle": "Save homes, return to your inquiries, and keep your property search moving without losing context.",

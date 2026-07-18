@@ -41,6 +41,7 @@ export async function GET(_request: Request, context: RouteContext) {
     )
     .eq("id", id)
     .in("status", publicListingQueryStatuses)
+    .eq("moderation_status", "visible")
     .eq("is_deleted", false)
     .maybeSingle();
 
@@ -64,14 +65,15 @@ export async function GET(_request: Request, context: RouteContext) {
     vendorId
       ? supabase
           .from("vendors")
-          .select("id,name,slug,tagline,contact_phone,contact_email,logo_url,plan,verification_status,public_storefront_enabled")
+          .select("id,name,slug,tagline,contact_phone,contact_email,logo_url,plan,verification_status,public_storefront_enabled,is_suspended")
           .eq("id", vendorId)
+          .eq("is_suspended", false)
           .maybeSingle()
       : createdBy
       ? supabase
           .from("vendor_members")
           .select(
-            "vendor:vendors(id,name,slug,tagline,contact_phone,contact_email,logo_url,plan,verification_status,public_storefront_enabled)"
+            "vendor:vendors(id,name,slug,tagline,contact_phone,contact_email,logo_url,plan,verification_status,public_storefront_enabled,is_suspended)"
           )
           .eq("user_id", createdBy)
           .eq("status", "active")
@@ -93,6 +95,10 @@ export async function GET(_request: Request, context: RouteContext) {
     | (Record<string, unknown> & { vendor?: Record<string, unknown> | Array<Record<string, unknown>> | null })
     | null;
   const agencySource = vendorId ? agencyData : Array.isArray(agencyData?.vendor) ? agencyData?.vendor?.[0] : agencyData?.vendor;
+
+  if (agencySource?.is_suspended === true) {
+    return NextResponse.json({ error: "Listing not found." }, { status: 404 });
+  }
 
 
   const agency =

@@ -24,6 +24,7 @@ export type VendorRequestContext = {
   vendor: {
     id: string;
     name: string;
+    is_suspended: boolean;
     vendor_type: string;
     plan: string | null;
     billing_status: string | null;
@@ -151,7 +152,7 @@ export async function getVendorRequestContext(
   const { data: membershipRows, error: membershipError } = await supabase
     .from("vendor_members")
     .select(
-      "role,status,vendor:vendors(id,name,vendor_type,plan,billing_status,billing_provider,slug,tagline,description,contact_phone,contact_email,logo_url,facebook_url,telegram_url,viber_phone,tiktok_url,website_url,cover_image_url,strengths,public_storefront_enabled,verified_status:verification_status,verified_at,verification_expires_at,verification_level,verification_score,verification_rejection_reason_code,verification_last_reviewed_by,verification_last_reviewed_at,verification_rank_bonus),created_at"
+      "role,status,vendor:vendors(id,name,is_suspended,vendor_type,plan,billing_status,billing_provider,slug,tagline,description,contact_phone,contact_email,logo_url,facebook_url,telegram_url,viber_phone,tiktok_url,website_url,cover_image_url,strengths,public_storefront_enabled,verified_status:verification_status,verified_at,verification_expires_at,verification_level,verification_score,verification_rejection_reason_code,verification_last_reviewed_by,verification_last_reviewed_at,verification_rank_bonus),created_at"
     )
     .eq("user_id", user.id)
     .eq("status", "active")
@@ -173,6 +174,7 @@ export async function getVendorRequestContext(
           | {
               id?: string | null;
               name?: string | null;
+              is_suspended?: boolean | null;
               vendor_type?: string | null;
               plan?: string | null;
               billing_status?: string | null;
@@ -204,6 +206,7 @@ export async function getVendorRequestContext(
           | Array<{
               id?: string | null;
               name?: string | null;
+              is_suspended?: boolean | null;
               vendor_type?: string | null;
               plan?: string | null;
               billing_status?: string | null;
@@ -256,6 +259,13 @@ export async function getVendorRequestContext(
     return {
       ok: false,
       response: NextResponse.json({ error: "Vendor membership not found." }, { status: 403 }),
+    };
+  }
+
+  if (vendorRaw.is_suspended === true) {
+    return {
+      ok: false,
+      response: NextResponse.json({ error: "This agency is suspended." }, { status: 403 }),
     };
   }
 
@@ -328,6 +338,7 @@ export async function getVendorRequestContext(
       vendor: {
         id: String(vendorRaw.id),
         name: String(vendorRaw.name),
+        is_suspended: Boolean(vendorRaw.is_suspended),
         vendor_type: String(vendorRaw.vendor_type),
         plan: (vendorRaw.plan as string | null) ?? null,
         billing_status: effectiveBillingStatus,
@@ -345,7 +356,7 @@ export async function getVendorRequestContext(
         website_url: (vendorRaw.website_url as string | null) ?? null,
         cover_image_url: (vendorRaw.cover_image_url as string | null) ?? null,
         strengths: Array.isArray(vendorRaw.strengths)
-          ? vendorRaw.strengths.map((item) => String(item)).filter(Boolean)
+          ? vendorRaw.strengths.map((item: unknown) => String(item)).filter(Boolean)
           : [],
         public_storefront_enabled: vendorRaw.public_storefront_enabled !== false,
         verified_status: (vendorRaw.verified_status as string | null) ?? null,

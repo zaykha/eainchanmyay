@@ -137,7 +137,7 @@ export async function POST(request: Request) {
 
     const { data: targetVendorRow, error: targetVendorError } = await supabase
       .from("vendors")
-      .select("id")
+      .select("id,is_suspended")
       .eq("id", targetVendorId)
       .maybeSingle();
 
@@ -146,7 +146,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: targetVendorError.message }, { status: 500 });
     }
 
-    if (!targetVendorRow?.id) {
+    if (!targetVendorRow?.id || targetVendorRow.is_suspended === true) {
       return NextResponse.json({ error: "Target agency not found." }, { status: 404 });
     }
 
@@ -193,7 +193,7 @@ export async function POST(request: Request) {
 
   const { data: membershipRows, error: membershipError } = await supabase
     .from("vendor_members")
-    .select("vendor_id,user_id,vendor:vendors(id,name,plan,billing_status)")
+    .select("vendor_id,user_id,vendor:vendors(id,name,plan,billing_status,is_suspended)")
     .eq("status", "active");
 
   if (membershipError) {
@@ -207,7 +207,9 @@ export async function POST(request: Request) {
 
     const plan = (vendorRaw.plan as string | null) ?? null;
     const billingStatus = (vendorRaw.billing_status as string | null) ?? null;
+    const isSuspended = vendorRaw.is_suspended === true;
     const requiresActiveBilling = plan && plan !== "free";
+    if (isSuspended) continue;
     if (requiresActiveBilling && billingStatus !== "active") continue;
 
     const vendorId = String(vendorRaw.id);
@@ -233,9 +235,10 @@ export async function POST(request: Request) {
 
   const { data: propertyRows, error: propertyError } = await supabase
     .from("properties")
-    .select("created_by,state_region,district,township")
+    .select("created_by,state_region,district,township,moderation_status")
     .in("created_by", memberIds)
     .eq("is_deleted", false)
+    .eq("moderation_status", "visible")
     .in("status", publicListingQueryStatuses)
     .eq("deal_type", getInquiryDealAsPropertyDeal(body.dealType))
     .eq("property_type", body.propertyType);
